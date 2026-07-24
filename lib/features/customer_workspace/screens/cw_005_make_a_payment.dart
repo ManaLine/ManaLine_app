@@ -1,0 +1,359 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/spacing.dart';
+import '../../../design/tokens/typography.dart';
+import '../../../design/components/mana_text.dart';
+import '../../../shared/network_error_handler.dart';
+import '../state/customer_loans_state.dart' show CustomerLoanSummary;
+import '../state/online_payment_state.dart';
+
+final _moneyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+final _dateFmt = DateFormat('d MMM yyyy, h:mm a');
+
+/// CW-005 — Make A Payment. Loan selection is mandatory before payment
+/// entry, always — there is no "Pay Any Loan" free-entry path anywhere
+/// on this screen. Entered with a loan pre-selected from CW-004's Loan
+/// Detail View, or from CW-001 → Select Business → Select Loan.
+///
+/// Reuses CW-004's own CustomerLoanSummary (it already carries
+/// outstandingBalance, principalAmount, loanNumber — everything this
+/// screen needs) rather than a parallel local type, since that chat's
+/// delivered shape matches. If master chat finds CW-004's shape has
+/// since diverged, this constructor param is the single place to
+/// remap.
+class MakeAPaymentScreen extends ConsumerStatefulWidget {
+  final String loanId;
+
+  /// Optional snapshot handed off from CW-004/CW-001 so the loan
+  /// summary + Outstanding Balance can render immediately while a
+  /// fresh detail fetch would otherwise be needed — same
+  /// fallbackSnapshot pattern already established at IW-004.
+  final CustomerLoanSummary? loanSnapshot;
+
+  const MakeAPaymentScreen({super.key, required this.loanId, this.loanSnapshot});
+
+  @override
+  ConsumerState<MakeAPaymentScreen> createState() => _MakeAPaymentScreenState();
+}
+
+class _MakeAPaymentScreenState extends ConsumerState<MakeAPaymentScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Guard: loanId should always be present given the navigation
+    // contract (CW-004/CW-001 always pass one), but if this screen is
+    // ever entered without one, redirect back rather than rendering an
+    // amount field with no loan context — per CW-005's own PERMISSION
+    // ("no Pay Any Loan free entry").
+    if (widget.loanId.trim().isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/cw-004');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.loanId.trim().isEmpty) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final state = ref.watch(onlinePaymentProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const ManaText('make a payment')),
+      body: SafeArea(
+        child: switch (state.phase) {
+          PaymentFlowPhase.entry || PaymentFlowPhase.upiInProgress => _PaymentEntryForm(
+              loanId: widget.loanId,
+              loanSnapshot: widget.loanSnapshot,
+              upiInProgress: state.phase == PaymentFlowPhase.upiInProgress,
+            ),
+          PaymentFlowPhase.submitted => _SubmittedState(state: state, loanId: widget.loanId),
+          PaymentFlowPhase.confirmed => _ConfirmedState(state: state, loanId: widget.loanId),
+          PaymentFlowPhase.disputed => _DisputedState(state: state, loanId: widget.loanId),
+        },
+      ),
+    );
+  }
+}
+
+// --- S1 Payment Entry / S2 UPI In Progress ----------------------------------
+
+class _PaymentEntryForm extends ConsumerStatefulWidget {
+  final String loanId;
+  final CustomerLoanSummary? loanSnapshot;
+  final bool upiInProgress;
+
+  const _PaymentEntryForm({required this.loanId, this.loanSnapshot, required this.upiInProgress});
+
+  @override
+  ConsumerState<_PaymentEntryForm> createState() => _PaymentEntryFormState();
+}
+
+class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
+  final _amountController = TextEditingController();
+  String? _amountError;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  double? get _amount => double.tryParse(_amountController.text.trim());
+
+  bool get _canProceed {
+    final a = _amount;
+    return a != null && a > 0;
+  }
+
+  void _validate() {
+    setState(() {
+      final a = _amount;
+      if (_amountController.text.trim().isEmpty) {
+        _amountError = null;
+      } else if (a == null || a <= 0) {
+        _amountError = 'Enter a valid amount';
+      } else {
+        _amountError = null;
+      }
+    });
+  }
+
+  /// S1 → S2 → (device UPI app) → back into the app → submit. This
+  /// screen doesn't integrate a real UPI SDK (no such dependency/
+  /// endpoint named anywhere in scope) — "Select UPI App / Pay via
+  /// UPI" is represented as a single confirm step that hands off to
+  /// PaymentFlowPhase.upiInProgress and then straight to submission,
+  /// same stub-fidelity as every other hardware/external-app
+  /// integration point elsewhere in this app (e.g. Live Photo at
+  /// OW-005). Flagged for master chat if a real UPI intent/deep-link
+  /// needs wiring later.
+  Future<void> _payViaUpi() async {
+    final amount = _amount;
+    if (amount == null) return;
+    ref.read(onlinePaymentProvider.notifier).beginUpiHandoff();
+
+    final ok = await NetworkErrorHandler.run(context, () async {
+      final r = await ref.read(onlinePaymentProvider.notifier).submit(loanId: widget.loanId, amount: amount);
+      if (!r) throw Exception('Could not submit payment');
+      return r;
+    });
+    if (ok == null) {
+      // failed — error already shown; return to entry rather than
+      // leaving the UI stuck mid-handoff.
+      ref.read(onlinePaymentProvider.notifier).returnFromUpiApp();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshot = widget.loanSnapshot;
+    final submitting = ref.watch(onlinePaymentProvider).submitting;
+
+    return ListView(
+      padding: const EdgeInsets.all(ManaSpacing.lg),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(ManaSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText('selected loan', style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(height: ManaSpacing.xs),
+                // Display, locked — per CW-005's own PAYMENT ENTRY
+                // section, the loan is never editable/re-selectable
+                // from within this screen.
+                ManaText.raw(
+                  snapshot?.loanNumber ?? widget.loanId,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: ManaSpacing.md),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const ManaText('outstanding balance'),
+                    ManaText.raw(
+                      _moneyFormat.format(snapshot?.outstandingBalance ?? 0),
+                      style: ManaTypography.amount(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: ManaSpacing.lg),
+        ManaText('payment amount', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: ManaSpacing.sm),
+        TextField(
+          controller: _amountController,
+          enabled: !widget.upiInProgress && !submitting,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            prefixText: '₹ ',
+            labelText: 'Payment Amount *',
+            errorText: _amountError,
+          ),
+          onChanged: (_) => _validate(),
+        ),
+        const SizedBox(height: ManaSpacing.xl),
+        if (widget.upiInProgress) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: ManaSpacing.lg),
+              child: Column(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: ManaSpacing.md),
+                  ManaText.raw('Waiting for UPI app…', style: TextStyle(color: ManaColors.textSecondary)),
+                ],
+              ),
+            ),
+          ),
+        ] else
+          ElevatedButton(
+            onPressed: (_canProceed && !submitting) ? _payViaUpi : null,
+            child: submitting
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const ManaText('pay via upi'),
+          ),
+      ],
+    );
+  }
+}
+
+// --- S3 Submitted ------------------------------------------------------------
+
+class _SubmittedState extends ConsumerWidget {
+  final OnlinePaymentState state;
+  final String loanId;
+  const _SubmittedState({required this.state, required this.loanId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final record = state.lastSubmission;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.hourglass_top, size: 56, color: ManaColors.statusWarn),
+            const SizedBox(height: ManaSpacing.md),
+            const ManaText('payment submitted', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: ManaSpacing.sm),
+            if (record != null)
+              ManaText.raw(
+                '${_moneyFormat.format(record.amount)} submitted ${_dateFmt.format(record.submittedAt.toLocal())}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: ManaColors.textSecondary),
+              ),
+            const SizedBox(height: ManaSpacing.sm),
+            const ManaText.raw(
+              'Status: Submitted By Customer — Pending Owner/Agent Confirmation. '
+              'You will be notified once it is confirmed.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: ManaColors.textSecondary),
+            ),
+            const SizedBox(height: ManaSpacing.lg),
+            OutlinedButton(
+              onPressed: () => ref.read(onlinePaymentProvider.notifier).refreshStatus(loanId: loanId),
+              child: const ManaText('check status'),
+            ),
+            const SizedBox(height: ManaSpacing.sm),
+            ElevatedButton(
+              // Returns to CW-004 Loan Detail View (Pending Online
+              // Payments) per CW-005's own NAVIGATION.
+              onPressed: () => context.canPop() ? context.pop() : context.go('/cw-004'),
+              child: const ManaText('back to loan detail'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- S4 Confirmed --------------------------------------------------------------
+
+class _ConfirmedState extends StatelessWidget {
+  final OnlinePaymentState state;
+  final String loanId;
+  const _ConfirmedState({required this.state, required this.loanId});
+
+  @override
+  Widget build(BuildContext context) {
+    final record = state.lastSubmission;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, size: 56, color: ManaColors.statusGood),
+            const SizedBox(height: ManaSpacing.md),
+            const ManaText('payment confirmed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: ManaSpacing.sm),
+            if (record != null)
+              ManaText.raw(
+                '${_moneyFormat.format(record.amount)} posted to this loan.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: ManaColors.textSecondary),
+              ),
+            const SizedBox(height: ManaSpacing.lg),
+            ElevatedButton(
+              onPressed: () => context.go('/cw-004'),
+              child: const ManaText('view loan'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- S5 Disputed --------------------------------------------------------------
+
+class _DisputedState extends StatelessWidget {
+  final OnlinePaymentState state;
+  final String loanId;
+  const _DisputedState({required this.state, required this.loanId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 56, color: ManaColors.statusBad),
+            const SizedBox(height: ManaSpacing.md),
+            const ManaText('payment could not be confirmed',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: ManaSpacing.sm),
+            // No Customer-side retry/resubmit action exists for a
+            // Disputed payment per CW-005's own rule — stays open
+            // until resolved manually, outside the app.
+            const ManaText.raw(
+              'Please contact the Business directly to resolve this payment.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: ManaColors.textSecondary),
+            ),
+            const SizedBox(height: ManaSpacing.lg),
+            ElevatedButton(
+              onPressed: () => context.go('/cw-004'),
+              child: const ManaText('back to my loans'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

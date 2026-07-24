@@ -1,0 +1,3 @@
+Placeholder so this directory survives zip/git (which don't track empty
+folders). Real icon assets go here later; pubspec.yaml's assets: entry
+for assets/icons/ needs at least one file present to build.

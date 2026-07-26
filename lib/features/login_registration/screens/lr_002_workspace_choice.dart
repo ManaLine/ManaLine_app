@@ -31,7 +31,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 code: 'MLF',
                 name: 'Mana Finance',
                 enabled: true,
-                onTap: () => context.go('/lr-003'),
+                onTap: () => context.push('/lr-003'),
               ),
               const SizedBox(height: ManaSpacing.md),
               _ProductCard(

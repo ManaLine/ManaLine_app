@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
@@ -337,7 +338,24 @@ class _VillageSelectorDialog extends StatefulWidget {
 
 class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
   late final _pinCode = TextEditingController(text: widget.initialPinCode ?? '');
-  String? _selectedVillage; // GC-003 type-ahead stub, same convention as OW-000 Step 2
+  final _villageSearch = TextEditingController();
+  Map<String, dynamic>? _selectedVillage; // real row: location_id, village_town_name, mandal, district, state
+  List<Map<String, dynamic>> _villageResults = [];
+
+  Future<void> _searchVillages(String query) async {
+    if (query.trim().length < 2) {
+      setState(() => _villageResults = []);
+      return;
+    }
+    final rows = await Supabase.instance.client
+        .from('locations')
+        .select('location_id, village_town_name, mandal, district, state')
+        .eq('status', 'Active')
+        .ilike('village_town_name', '%${query.trim()}%')
+        .limit(10);
+    if (!mounted) return;
+    setState(() => _villageResults = (rows as List).cast<Map<String, dynamic>>());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -355,16 +373,45 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
             decoration: const InputDecoration(labelText: 'PIN Code'),
             onChanged: (_) => setState(() {}),
           ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: _pinCode.text.trim().length == 6
-                  ? () => setState(() => _selectedVillage = 'Stub Village, ${_pinCode.text.trim()}')
-                  : null,
-              icon: Icon(_selectedVillage == null ? Icons.location_on_outlined : Icons.check_circle, size: 18),
-              label: ManaText(_selectedVillage == null ? 'select village' : 'village selected'),
-            ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _villageSearch,
+            decoration: const InputDecoration(labelText: 'Search Village/Town'),
+            onChanged: (v) {
+              setState(() => _selectedVillage = null);
+              _searchVillages(v);
+            },
           ),
+          if (_villageResults.isNotEmpty)
+            Container(
+              constraints: const BoxConstraints(maxHeight: 160),
+              margin: const EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(border: Border.all(color: ManaColors.surfaceSunken)),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _villageResults.length,
+                itemBuilder: (_, i) {
+                  final v = _villageResults[i];
+                  final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
+                  return ListTile(
+                    dense: true,
+                    title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
+                    onTap: () => setState(() {
+                      _selectedVillage = v;
+                      _villageSearch.text = v['village_town_name'] as String;
+                      _villageResults = [];
+                    }),
+                  );
+                },
+              ),
+            ),
+          if (_selectedVillage != null) ...[
+            const SizedBox(height: 4),
+            ManaText.raw(
+              'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
+              style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+            ),
+          ],
         ],
       ),
       actions: [
@@ -375,11 +422,11 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
                     context,
                     _VillageSelection(
                       pinCode: _pinCode.text.trim(),
-                      villageId: 'stub-village-id',
-                      villageName: _selectedVillage!,
-                      mandal: 'Stub Mandal',
-                      district: 'Stub District',
-                      state: 'Stub State',
+                      villageId: _selectedVillage!['location_id'] as String,
+                      villageName: _selectedVillage!['village_town_name'] as String,
+                      mandal: _selectedVillage!['mandal'] as String,
+                      district: _selectedVillage!['district'] as String,
+                      state: _selectedVillage!['state'] as String,
                     ),
                   )
               : null,

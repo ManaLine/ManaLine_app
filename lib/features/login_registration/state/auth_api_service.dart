@@ -112,6 +112,7 @@ class AuthApiService {
     required String genderDigit,
     String? dob,
     String? mobileNumber,
+    String? password,
     String? aadhaarNumber,
     required Map<String, String?> address,
     required String registrationSource,
@@ -124,6 +125,7 @@ class AuthApiService {
         'gender_digit': genderDigit,
         'dob': dob,
         'mobile_number': mobileNumber,
+        'password': password,
         'aadhaar_number': aadhaarNumber,
         'address': address,
         'registration_source': registrationSource,
@@ -150,10 +152,11 @@ class AuthApiService {
   }
 
   /// auth-otp-send (§1.3). Returns the new otp_id.
-  Future<String> sendOtp({required String personId, required String purpose}) async {
+  Future<String> sendOtp({required String personId, required String purpose, String? membershipId}) async {
     final res = await _client.functions.invoke(_Fn.otpSend, body: {
       'person_id': personId,
       'purpose': purpose,
+      if (membershipId != null) 'membership_id': membershipId,
     });
     final data = _asMap(res.data);
     return data['otp_id'] as String;
@@ -179,11 +182,13 @@ class AuthApiService {
   Future<LoginResult> login({
     required String identifier,
     required String credential,
+    required String credentialType, // 'password' | 'pin'
     required String deviceFingerprint,
   }) async {
     final res = await _client.functions.invoke(_Fn.login, body: {
       'identifier': identifier,
       'credential': credential,
+      'credential_type': credentialType,
       'device_fingerprint': deviceFingerprint,
     });
     final data = _asMap(res.data);
@@ -272,13 +277,14 @@ class AuthApiService {
   Future<List<Membership>> fetchMemberships() async {
     final rows = await _client
         .from('business_members')
-        .select('business_id, role, membership_status, verification_status, '
+        .select('membership_id, business_id, role, membership_status, verification_status, '
             'businesses(business_name, business_status)');
 
     return (rows as List).map((row) {
       final r = row as Map<String, dynamic>;
       final business = r['businesses'] as Map<String, dynamic>?;
       return Membership(
+        membershipId: r['membership_id'] as String,
         businessId: r['business_id'] as String,
         businessName: business?['business_name'] as String? ?? '',
         role: r['role'] as String,
@@ -289,9 +295,24 @@ class AuthApiService {
     }).toList();
   }
 
-  Map<String, dynamic> _asMap(dynamic data) {
-    if (data is Map<String, dynamic>) return data;
-    throw const FormatException('Unexpected Edge Function response shape');
+  /// Every Edge Function in this batch responds with a consistent
+  /// {data: {...}, meta: {...}, errors: [...]} envelope — the actual
+  /// payload lives under the `data` key, not at the top level. This was
+  /// discovered as a real bug: this file was originally written expecting
+  /// flat top-level fields (e.g. `data['success']`), which silently
+  /// misparsed every response, success or failure alike, once the real
+  /// functions were deployed. Unwrapping centrally here fixes every
+  /// caller in this file at once.
+  Map<String, dynamic> _asMap(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      throw const FormatException('Unexpected Edge Function response shape');
+    }
+    final inner = raw['data'];
+    if (inner is Map<String, dynamic>) return inner;
+    // Fallback for any endpoint that isn't wrapped (defensive — none of
+    // the 9 delivered functions should hit this branch, but fail toward
+    // the raw map rather than throwing if one doesn't follow the pattern).
+    return raw;
   }
 }
 

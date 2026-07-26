@@ -80,7 +80,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
 
   void _selectBusiness(String businessId) {
     ref.read(authFlowProvider.notifier).selectBusiness(businessId);
-    context.go('/lr-013');
+    context.push('/lr-013');
   }
 
   @override
@@ -189,7 +189,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                 // OW-000 First Business Setup — reached with
                 // isAdditionalBusiness=false since this is the 0-business
                 // path (per OW-000's own ENTRY POINT: "0 Businesses Linked").
-                onPressed: () => context.go('/ow-000', extra: false),
+                onPressed: () => context.push('/ow-000', extra: false),
                 child: const ManaText('create new business'),
               ),
               const SizedBox(height: ManaSpacing.sm),

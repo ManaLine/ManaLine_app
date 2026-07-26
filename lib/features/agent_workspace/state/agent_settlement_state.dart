@@ -250,7 +250,7 @@ class AgentSettlementApiService {
       throw StateError('No Running account_period found for this agent — cannot submit a settlement without one.');
     }
 
-    final result = await _db.rpc('submit_agent_settlement', params: {
+    final result = await _db.schema('app').rpc('submit_agent_settlement', params: {
       'p_account_period_id': periodRow['account_period_id'],
       'p_agent_id': agentId,
       'p_cycle_type': cycleType,

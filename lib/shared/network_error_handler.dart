@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// One consistent way to run a network call from any screen and surface
 /// its failure. Every LR screen's submit/verify/send action should route
@@ -31,9 +32,20 @@ class NetworkErrorHandler {
     } catch (e) {
       if (!context.mounted) return null;
 
-      final message = _looksLikeConnectivityError(e)
-          ? 'No internet connection. Please check your network and try again.'
-          : genericErrorMessage;
+      // FunctionException/PostgrestException mean the request reached
+      // Supabase — the failure is server-side (missing/erroring Edge
+      // Function, RLS denial, bad request), not a dropped connection.
+      // Showing "no internet" for these actively hides the real problem
+      // (e.g. an Edge Function that was never deployed) behind a message
+      // that sends the person to check their WiFi instead of reporting
+      // the bug. Only genuine transport-layer failures (DNS, socket,
+      // timeout — thrown before any response is received) get the
+      // connectivity-worded message below.
+      final message = _isServerReachedError(e)
+          ? _serverErrorMessage(e, genericErrorMessage)
+          : _looksLikeConnectivityError(e)
+              ? 'No internet connection. Please check your network and try again.'
+              : genericErrorMessage;
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -48,6 +60,21 @@ class NetworkErrorHandler {
       );
       return null;
     }
+  }
+
+  static bool _isServerReachedError(Object e) => e is FunctionException || e is PostgrestException;
+
+  static String _serverErrorMessage(Object e, String genericErrorMessage) {
+    if (e is FunctionException) {
+      if (e.status == 404) {
+        return 'This action isn\'t available yet (server function not found). Please try again later.';
+      }
+      return 'Server error (${e.status}). Please try again later.';
+    }
+    if (e is PostgrestException) {
+      return e.message.isNotEmpty ? e.message : genericErrorMessage;
+    }
+    return genericErrorMessage;
   }
 
   static bool _looksLikeConnectivityError(Object e) {

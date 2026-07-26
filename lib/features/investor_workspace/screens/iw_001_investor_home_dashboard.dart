@@ -202,7 +202,7 @@ class _QuickActions extends ConsumerWidget {
                   leading: Icon(a.$2, color: ManaColors.brass),
                   title: ManaText(a.$1),
                   trailing: const Icon(Icons.chevron_right, size: 18),
-                  onTap: () => context.go(a.$3, extra: a.$4),
+                  onTap: () => context.push(a.$3, extra: a.$4),
                 )),
           ],
         ),
@@ -237,7 +237,7 @@ class _NoMembershipsState extends StatelessWidget {
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton.icon(
-              onPressed: () => context.go('/iw-002', extra: businessId),
+              onPressed: () => context.push('/iw-002', extra: businessId),
               icon: const Icon(Icons.search),
               label: const ManaText('find a business'),
             ),

@@ -186,7 +186,7 @@ class MyInvestmentsApiService {
   /// a JSON payload, that's a separate, larger scope (file storage +
   /// generation) not covered by this fix.
   Future<String?> downloadStatement({required String investmentId}) async {
-    final result = await _db.rpc('get_investment_statement', params: {
+    final result = await _db.schema('app').rpc('get_investment_statement', params: {
       'p_investment_id': investmentId,
     });
     if (result == null) return null;

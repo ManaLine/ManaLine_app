@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
@@ -258,6 +260,31 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
+/// Picks a proof-document image and uploads it to the private
+/// `dispute-documents` Storage bucket (0030_module21_sp001_per_row_ops_and_storage.sql
+/// — RLS-gated to app.is_platform_admin(), insert+select only). Returns
+/// the storage path (bucket-relative), used as `documentUrl` by
+/// uploadProofDocument()/submitOriginalHolderResubmission() — this bucket
+/// is deliberately non-public, so callers must fetch via a signed URL
+/// (createSignedUrl) when displaying the document later, never a bare
+/// public URL. Returns null if the person cancels the picker.
+Future<String?> _pickAndUploadDisputeDocument(String folderPrefix) async {
+  final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+  if (picked == null) return null;
+
+  final bytes = await picked.readAsBytes();
+  final ext = picked.name.contains('.') ? picked.name.split('.').last : 'jpg';
+  final path = '$folderPrefix/${DateTime.now().microsecondsSinceEpoch}.$ext';
+
+  await Supabase.instance.client.storage.from('dispute-documents').uploadBinary(
+        path,
+        bytes,
+        fileOptions: const FileOptions(upsert: false),
+      );
+
+  return path;
+}
+
 // ============================================================================
 // Step 1 — Case Intake
 // ============================================================================
@@ -350,15 +377,13 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton.icon(
                 onPressed: () async {
-                  // Document upload UI stub — same convention as other
-                  // upload steps in this codebase (no picker plugin wired
-                  // here; simulated attach for the stub-API flow).
                   final result = await NetworkErrorHandler.run(context, () async {
-                    const documentUrl = 'stub://second_person_proof.pdf';
+                    final documentUrl = await _pickAndUploadDisputeDocument('second_person_proof');
+                    if (documentUrl == null) return null; // person cancelled the picker
                     await notifier.uploadSecondPersonProof(documentUrl);
                     return documentUrl;
                   });
-                  if (result != null) setState(() => _attachedDocName = 'second_person_proof.pdf');
+                  if (result != null) setState(() => _attachedDocName = result.split('/').last);
                 },
                 icon: const Icon(Icons.upload_file, size: 18),
                 label: ManaText.raw(_attachedDocName ?? 'Attach Proof Document'),
@@ -586,6 +611,7 @@ class _OriginalHolderIntakeStep extends ConsumerStatefulWidget {
 class _OriginalHolderIntakeStepState extends ConsumerState<_OriginalHolderIntakeStep> {
   final _aadhaarController = TextEditingController();
   String? _attachedDocName;
+  String? _attachedDocUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +643,17 @@ class _OriginalHolderIntakeStepState extends ConsumerState<_OriginalHolderIntake
               const ManaText.raw('Proof Document', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton.icon(
-                onPressed: () => setState(() => _attachedDocName = 'original_holder_proof.pdf'),
+                onPressed: () async {
+                  final result = await NetworkErrorHandler.run(context, () async {
+                    return _pickAndUploadDisputeDocument('original_holder_proof');
+                  });
+                  if (result != null) {
+                    setState(() {
+                      _attachedDocUrl = result;
+                      _attachedDocName = result.split('/').last;
+                    });
+                  }
+                },
                 icon: const Icon(Icons.upload_file, size: 18),
                 label: ManaText.raw(_attachedDocName ?? 'Attach Proof Document'),
               ),
@@ -628,11 +664,11 @@ class _OriginalHolderIntakeStepState extends ConsumerState<_OriginalHolderIntake
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _aadhaarController.text.trim().isNotEmpty && _attachedDocName != null
+            onPressed: _aadhaarController.text.trim().isNotEmpty && _attachedDocUrl != null
                 ? () => NetworkErrorHandler.run(context, () async {
                       return notifier.submitOriginalHolderResubmission(
                         correctedAadhaar: _aadhaarController.text.trim(),
-                        documentUrl: 'stub://$_attachedDocName',
+                        documentUrl: _attachedDocUrl!,
                       );
                     })
                 : null,

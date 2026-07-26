@@ -25,11 +25,18 @@ class FirstLoginScreen extends ConsumerStatefulWidget {
   /// per that screen's exit spec ("Password updated — please log in").
   final String? successToast;
 
+  /// Set when this screen is reached purely to re-establish identity for
+  /// a recovery flow (e.g. LR-009's "Forgot Pin?" before any personId is
+  /// known this session) — route here on success instead of the normal
+  /// lr-012/lr-008 destination.
+  final String? redirectAfterSuccess;
+
   const FirstLoginScreen({
     super.key,
     this.stepDownFromFailedPin = false,
     this.prefilledMobile,
     this.successToast,
+    this.redirectAfterSuccess,
   });
 
   @override
@@ -75,6 +82,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
       result = await ref.read(authApiServiceProvider).login(
             identifier: _mobile.text,
             credential: _password.text,
+            credentialType: 'password',
             deviceFingerprint: fingerprint,
           );
       return true;
@@ -96,8 +104,10 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
 
     final pinExists = result!.pinExists;
 
+    final previousMobile = await LocalAuthStore.readLastMobileNumber();
+    final isDifferentAccount = previousMobile != null && previousMobile != _mobile.text;
     await LocalAuthStore.saveMobileNumber(_mobile.text);
-    if (widget.stepDownFromFailedPin) await LocalAuthStore.clearPin();
+    if (widget.stepDownFromFailedPin || isDifferentAccount) await LocalAuthStore.clearPin();
 
     await ref.read(authFlowProvider.notifier).setLoginResult(
           personId: result!.personId!,
@@ -106,6 +116,11 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
         );
 
     if (!mounted) return;
+
+    if (widget.redirectAfterSuccess != null) {
+      context.push(widget.redirectAfterSuccess!);
+      return;
+    }
 
     if (pinExists) {
       // Session is live (ManaSession set inside setLoginResult above) —
@@ -169,11 +184,11 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                 child: Wrap(
                   children: [
                     TextButton(
-                      onPressed: () => context.go('/lr-011'),
+                      onPressed: () => context.push('/lr-011'),
                       child: const ManaText('forgot pin?'),
                     ),
                     TextButton(
-                      onPressed: () => context.go('/lr-010'),
+                      onPressed: () => context.push('/lr-010'),
                       child: const ManaText('forgot password?'),
                     ),
                   ],

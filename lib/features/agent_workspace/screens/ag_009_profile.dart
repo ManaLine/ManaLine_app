@@ -257,7 +257,7 @@ class _CompensationLinkOutRow extends StatelessWidget {
         // note for the exact anchor mechanism this assumes (a `?anchor=
         // compensation` query param on /ag-001 that AG-001 does not yet
         // read; flagged for master chat to wire).
-        onTap: () => context.go('/ag-001?anchor=compensation', extra: businessId),
+        onTap: () => context.push('/ag-001?anchor=compensation', extra: businessId),
       ),
     );
   }
@@ -285,7 +285,7 @@ class _MembershipTile extends StatelessWidget {
         title: ManaText.raw(membership.businessName),
         subtitle: const ManaText('agent'),
         trailing: ManaStatusPill(label: membership.membershipStatus, status: _pillStatus),
-        onTap: () => context.go('/ag-001', extra: membership.businessId),
+        onTap: () => context.push('/ag-001', extra: membership.businessId),
       ),
     );
   }

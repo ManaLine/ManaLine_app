@@ -86,13 +86,13 @@ class AgentApiService {
   // callers — flag if a cleanup pass wants to drop it later.
   Future<void> confirmBfAssignment({required String bfAssignmentId, required String agentId}) async {
     final membershipId = await _resolveMembershipId(agentId);
-    await _db.rpc('confirm_bf_assignment', params: {'p_membership_id': membershipId});
+    await _db.schema('app').rpc('confirm_bf_assignment', params: {'p_membership_id': membershipId});
   }
 
   // FIXED (this pass): app.request_bf_update RPC now exists (migration 0022).
   Future<void> requestBfUpdate({required String bfAssignmentId, required String agentId, String? note}) async {
     final membershipId = await _resolveMembershipId(agentId);
-    await _db.rpc('request_bf_update', params: {'p_membership_id': membershipId, 'p_note': note});
+    await _db.schema('app').rpc('request_bf_update', params: {'p_membership_id': membershipId, 'p_note': note});
   }
 
   // GET Owner-enabled Operating Areas assigned to this Agent.
@@ -174,7 +174,7 @@ class AgentApiService {
     required List<String> operatingAreaIds,
   }) async {
     final membershipId = await _resolveMembershipId(agentId);
-    await _db.rpc('start_business_session', params: {
+    await _db.schema('app').rpc('start_business_session', params: {
       'p_membership_id': membershipId,
       'p_area_ids': operatingAreaIds,
     });
@@ -183,7 +183,7 @@ class AgentApiService {
   // FIXED (this pass): app.add_area_to_session RPC now exists (migration 0022).
   Future<void> addAreaToSession({required String agentId, required String operatingAreaId}) async {
     final membershipId = await _resolveMembershipId(agentId);
-    await _db.rpc('add_area_to_session', params: {
+    await _db.schema('app').rpc('add_area_to_session', params: {
       'p_membership_id': membershipId,
       'p_area_id': operatingAreaId,
     });
@@ -198,7 +198,7 @@ class AgentApiService {
   // fetchRunningAccountPeriods re-deriving state after this call.
   Future<void> removeAreaFromSession({required String agentId, required String operatingAreaId}) async {
     final membershipId = await _resolveMembershipId(agentId);
-    await _db.rpc('remove_area_from_session', params: {
+    await _db.schema('app').rpc('remove_area_from_session', params: {
       'p_membership_id': membershipId,
       'p_area_id': operatingAreaId,
     });

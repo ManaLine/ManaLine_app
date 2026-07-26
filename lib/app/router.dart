@@ -78,7 +78,14 @@ final manaRouter = GoRouter(
     GoRoute(path: '/lr-004', builder: (c, s) => const RegistrationFormScreen()),
     GoRoute(
       path: '/lr-005',
-      builder: (c, s) => OtpVerificationScreen(purpose: (s.extra as OtpPurpose?) ?? OtpPurpose.registration),
+      builder: (c, s) {
+        final extra = s.extra;
+        if (extra is OtpEntryArgs) {
+          return OtpVerificationScreen(purpose: extra.purpose, membershipId: extra.membershipId);
+        }
+        // Backward-compatible fallback for the old bare-enum extra shape.
+        return OtpVerificationScreen(purpose: (extra as OtpPurpose?) ?? OtpPurpose.registration);
+      },
     ),
     GoRoute(path: '/lr-006', builder: (c, s) => const RegistrationResultScreen()),
     GoRoute(
@@ -89,6 +96,7 @@ final manaRouter = GoRouter(
           stepDownFromFailedPin: args?.stepDownFromFailedPin ?? false,
           prefilledMobile: args?.prefilledMobile,
           successToast: args?.successToast,
+          redirectAfterSuccess: args?.redirectAfterSuccess,
         );
       },
     ),

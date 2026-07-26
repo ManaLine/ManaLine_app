@@ -69,7 +69,7 @@ class DraftTransactionsApiService {
   // whichever key is present rather than assuming one — the DraftSubmitResult
   // shape here is deliberately type-agnostic (just resultingRecordId).
   Future<DraftSubmitResult> submitDraft({required String draftId}) async {
-    final result = await _db.rpc('submit_draft', params: {'p_draft_id': draftId}) as Map<String, dynamic>;
+    final result = await _db.schema('app').rpc('submit_draft', params: {'p_draft_id': draftId}) as Map<String, dynamic>;
     final id = (result['loan_id'] ?? result['collection_id'] ?? result['remark_id'] ?? result['document_id']) as String;
     return DraftSubmitResult(resultingRecordId: id);
   }

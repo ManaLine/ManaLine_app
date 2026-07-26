@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
@@ -195,6 +196,10 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   final _aadhaar = TextEditingController();
   String? _gender;
   bool _submitting = false;
+  String? _villageId;
+  String? _selectedVillageLabel;
+  List<Map<String, dynamic>> _villageResults = [];
+  final _villageSearch = TextEditingController();
 
   Future<void> _search() async {
     setState(() => _searching = true);
@@ -224,12 +229,28 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
     if (ok == true && mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _searchVillages(String query) async {
+    if (query.trim().length < 2) {
+      setState(() => _villageResults = []);
+      return;
+    }
+    final rows = await Supabase.instance.client
+        .from('locations')
+        .select('location_id, village_town_name, mandal, district, state')
+        .eq('status', 'Active')
+        .ilike('village_town_name', '%${query.trim()}%')
+        .limit(10);
+    if (!mounted) return;
+    setState(() => _villageResults = (rows as List).cast<Map<String, dynamic>>());
+  }
+
   bool get _canCreateNew =>
       _fullName.text.trim().length >= 2 &&
       _fatherHusband.text.trim().length >= 2 &&
       _gender != null &&
       _mobile.text.trim().length == 10 &&
-      _aadhaar.text.trim().length == 12;
+      _aadhaar.text.trim().length == 12 &&
+      _villageId != null;
 
   Future<void> _createNew() async {
     setState(() => _submitting = true);
@@ -241,7 +262,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
             genderDigit: _gender!,
             mobileNumber: _mobile.text.trim(),
             aadhaarNumber: _aadhaar.text.trim(),
-            villageId: 'stub-village-id',
+            villageId: _villageId!,
           );
     });
     if (!mounted) return;
@@ -372,6 +393,47 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           decoration: const InputDecoration(labelText: 'Aadhaar Number *'),
           onChanged: (_) => setState(() {}),
         ),
+        const SizedBox(height: ManaSpacing.md),
+        TextField(
+          controller: _villageSearch,
+          decoration: const InputDecoration(labelText: 'Search Village/Town *'),
+          onChanged: (v) {
+            setState(() {
+              _villageId = null;
+              _selectedVillageLabel = null;
+            });
+            _searchVillages(v);
+          },
+        ),
+        if (_villageResults.isNotEmpty)
+          Container(
+            constraints: const BoxConstraints(maxHeight: 180),
+            margin: const EdgeInsets.only(top: ManaSpacing.xs),
+            decoration: BoxDecoration(border: Border.all(color: ManaColors.surfaceSunken)),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _villageResults.length,
+              itemBuilder: (_, i) {
+                final v = _villageResults[i];
+                final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
+                return ListTile(
+                  dense: true,
+                  title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
+                  onTap: () => setState(() {
+                    _villageId = v['location_id'] as String;
+                    _selectedVillageLabel = label;
+                    _villageSearch.text = v['village_town_name'] as String;
+                    _villageResults = [];
+                  }),
+                );
+              },
+            ),
+          ),
+        if (_selectedVillageLabel != null) ...[
+          const SizedBox(height: ManaSpacing.xs),
+          ManaText.raw('Selected: $_selectedVillageLabel',
+              style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+        ],
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
           onPressed: (_canCreateNew && !_submitting) ? _createNew : null,

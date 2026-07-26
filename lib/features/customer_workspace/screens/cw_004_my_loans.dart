@@ -178,7 +178,7 @@ class _EmptyState extends StatelessWidget {
             // elsewhere until a caller wires whether this Business
             // actually allows Customer-initiated requests.
             ElevatedButton.icon(
-              onPressed: () => context.go('/cw-003', extra: businessId),
+              onPressed: () => context.push('/cw-003', extra: businessId),
               icon: const Icon(Icons.request_page_outlined),
               label: const ManaText('request a new loan'),
             ),
@@ -511,7 +511,7 @@ class _ActionsRow extends StatelessWidget {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () => context.go('/cw-005', extra: loanId),
+            onPressed: () => context.push('/cw-005', extra: loanId),
             icon: const Icon(Icons.payments_outlined),
             label: const ManaText('make a payment'),
           ),

@@ -6,6 +6,8 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/widgets/language_selector.dart';
 import '../state/auth_flow_state.dart';
+import '../state/auth_api_service.dart';
+import '../../../shared/network_error_handler.dart';
 import 'lr_005_otp_verification.dart';
 
 // Fixed display order per spec — matches Phase 5 workflow text order.
@@ -63,21 +65,55 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
       // an Active membership exists" — but if the person's ONLY role at
       // this business is still Pending Verification, fall back to OTP
       // Role Escalation rather than showing an empty screen (BR-191).
-      context.push('/lr-005', extra: OtpPurpose.roleEscalation);
+      _startRoleEscalation();
       return;
     }
 
     if (result.roles.length == 1) {
       // Direct analogue of LR-012's single-business collapse, at the role level.
       ref.read(authFlowProvider.notifier).selectRole(result.roles.first);
-      context.go(_roleHomeRoutes[result.roles.first] ?? '/ow-001');
+      final businessId = ref.read(authFlowProvider).selectedBusinessId;
+      context.go(_roleHomeRoutes[result.roles.first] ?? '/ow-001', extra: businessId);
     }
     // >1 → render tile list below, no navigation yet.
   }
 
+  Future<void> _startRoleEscalation() async {
+    final auth = ref.read(authFlowProvider);
+    final businessId = auth.selectedBusinessId;
+    final personId = auth.personId;
+    if (personId == null || businessId == null) return; // defensive
+
+    // The specific membership row that's blocking this person from
+    // reaching any eligible role at this business — the one _eligibleRoles
+    // filtered OUT for being Pending Verification.
+    final pending = auth.memberships.where((m) =>
+        m.businessId == businessId &&
+        m.membershipStatus == 'Active' &&
+        m.verificationStatus == 'Pending Verification');
+    if (pending.isEmpty) return; // defensive — nothing to escalate
+    final membershipId = pending.first.membershipId;
+
+    final otpId = await NetworkErrorHandler.run(context, () async {
+      return ref.read(authApiServiceProvider).sendOtp(
+            personId: personId,
+            purpose: 'Role Escalation',
+            membershipId: membershipId,
+          );
+    });
+    if (!mounted || otpId == null) return; // network failure — SnackBar already shown
+
+    ref.read(authFlowProvider.notifier).setPendingOtpId(otpId);
+    context.push(
+      '/lr-005',
+      extra: OtpEntryArgs(purpose: OtpPurpose.roleEscalation, membershipId: membershipId),
+    );
+  }
+
   void _selectRole(String role) {
     ref.read(authFlowProvider.notifier).selectRole(role);
-    context.go(_roleHomeRoutes[role] ?? '/ow-001');
+    final businessId = ref.read(authFlowProvider).selectedBusinessId;
+    context.go(_roleHomeRoutes[role] ?? '/ow-001', extra: businessId);
   }
 
   @override

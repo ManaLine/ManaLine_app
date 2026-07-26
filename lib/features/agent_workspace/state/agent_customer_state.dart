@@ -231,13 +231,13 @@ class AgentCustomerApiService {
     String? villageId,
   }) async {
     if (phoneNumber != null) {
-      await _db.rpc('agent_update_customer_phone', params: {
+      await _db.schema('app').rpc('agent_update_customer_phone', params: {
         'p_customer_id': customerId,
         'p_phone_number': phoneNumber,
       });
     }
     if (villageId != null) {
-      await _db.rpc('agent_update_customer_address', params: {
+      await _db.schema('app').rpc('agent_update_customer_address', params: {
         'p_customer_id': customerId,
         'p_door_no': doorNo,
         'p_pin_code': pinCode,

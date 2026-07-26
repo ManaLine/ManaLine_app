@@ -83,6 +83,7 @@ class AuthFlowState {
 }
 
 class Membership {
+  final String membershipId;
   final String businessId;
   final String businessName;
   final String role;
@@ -97,6 +98,7 @@ class Membership {
   final String verificationStatus;
 
   const Membership({
+    required this.membershipId,
     required this.businessId,
     required this.businessName,
     required this.role,

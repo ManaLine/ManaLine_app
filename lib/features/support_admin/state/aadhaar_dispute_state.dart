@@ -43,7 +43,7 @@ class AadhaarDisputeApiService {
     String? aadhaarNumber,
   }) async {
     final search = (mlid?.trim().isNotEmpty ?? false) ? mlid!.trim() : (aadhaarNumber ?? '').trim();
-    final rows = await _db.rpc('support_lookup_person', params: {'p_search': search}) as List;
+    final rows = await _db.schema('app').rpc('support_lookup_person', params: {'p_search': search}) as List;
     if (rows.isEmpty) {
       throw StateError('No account found for "$search".');
     }
@@ -85,7 +85,7 @@ class AadhaarDisputeApiService {
       if (personId == null) {
         throw ArgumentError('personId is required to persist the original holder\'s proof document.');
       }
-      await _db.rpc('support_upload_identity_document', params: {
+      await _db.schema('app').rpc('support_upload_identity_document', params: {
         'p_person_id': int.parse(personId),
         'p_document_type': 'Aadhaar',
         'p_file_url': documentUrl,
@@ -101,7 +101,7 @@ class AadhaarDisputeApiService {
   // businesses owned + other-role memberships, shown to Support staff
   // BEFORE they confirm anything (screen's suspensionConfirm step).
   Future<SuspensionImpactSummary> fetchSuspensionImpact({required String personId}) async {
-    final rows = await _db.rpc('support_suspension_impact', params: {
+    final rows = await _db.schema('app').rpc('support_suspension_impact', params: {
       'p_person_id': int.parse(personId),
     }) as List;
     return SuspensionImpactSummary(
@@ -119,7 +119,7 @@ class AadhaarDisputeApiService {
   // RPC: support_suspend_business(p_business_id) — PATCH-equivalent,
   // business_status -> 'Suspended', for a business the disputed person owns.
   Future<void> suspendBusiness({required String businessId}) async {
-    await _db.rpc('support_suspend_business', params: {'p_business_id': businessId});
+    await _db.schema('app').rpc('support_suspend_business', params: {'p_business_id': businessId});
   }
 
   // RPC: support_suspend_membership(p_membership_id) — membership_status ->
@@ -127,7 +127,7 @@ class AadhaarDisputeApiService {
   // (never the business itself — BR-202/203 multi-tenancy, that business
   // has its own separate Owner).
   Future<void> suspendMembership({required String membershipId}) async {
-    await _db.rpc('support_suspend_membership', params: {'p_membership_id': membershipId});
+    await _db.schema('app').rpc('support_suspend_membership', params: {'p_membership_id': membershipId});
   }
 
   // --- Step 4: Original Holder Re-Verification ----------------------------
@@ -139,12 +139,12 @@ class AadhaarDisputeApiService {
 
   // RPC: support_unsuspend_business(p_business_id) -> 'Active'.
   Future<void> unsuspendBusiness({required String businessId}) async {
-    await _db.rpc('support_unsuspend_business', params: {'p_business_id': businessId});
+    await _db.schema('app').rpc('support_unsuspend_business', params: {'p_business_id': businessId});
   }
 
   // RPC: support_unsuspend_membership(p_membership_id) -> 'Active'.
   Future<void> unsuspendMembership({required String membershipId}) async {
-    await _db.rpc('support_unsuspend_membership', params: {'p_membership_id': membershipId});
+    await _db.schema('app').rpc('support_unsuspend_membership', params: {'p_membership_id': membershipId});
   }
 
   // RPC: support_upgrade_mlid_dispute(p_person_id, p_corrected_aadhaar,
@@ -170,7 +170,7 @@ class AadhaarDisputeApiService {
     required String correctedAadhaar,
     required String reason, // always "Aadhaar Correction — Dispute Resolution" for this flow
   }) async {
-    final rows = await _db.rpc('support_upgrade_mlid_dispute', params: {
+    final rows = await _db.schema('app').rpc('support_upgrade_mlid_dispute', params: {
       'p_person_id': int.parse(personId),
       'p_corrected_aadhaar': correctedAadhaar,
       'p_reason': reason,
@@ -191,7 +191,7 @@ class AadhaarDisputeApiService {
   // a raw SELECT would silently return zero rows instead of the intended
   // "not authorized" signal.
   Future<PersonIdHistoryEntry> fetchLatestIdHistoryEntry({required String personId}) async {
-    final rows = await _db.rpc('support_fetch_latest_id_history', params: {
+    final rows = await _db.schema('app').rpc('support_fetch_latest_id_history', params: {
       'p_person_id': int.parse(personId),
     }) as List;
     if (rows.isEmpty) {

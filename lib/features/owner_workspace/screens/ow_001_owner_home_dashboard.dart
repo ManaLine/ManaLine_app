@@ -75,12 +75,12 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                 ),
                 _SectionCard(
                   title: 'workforce snapshot',
-                  onSeeAll: () => context.go('/ow-002'),
+                  onSeeAll: () => context.push('/ow-002'),
                   child: _WorkforceSnapshot(data: data),
                 ),
                 _SectionCard(
                   title: 'investor snapshot',
-                  onSeeAll: () => context.go('/ow-003'),
+                  onSeeAll: () => context.push('/ow-003'),
                   child: _InvestorSnapshot(data: data),
                 ),
               ],
@@ -337,7 +337,7 @@ class _QuickActions extends StatelessWidget {
         return Card(
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () => context.go(route),
+            onTap: () => context.push(route),
             child: Padding(
               padding: const EdgeInsets.all(ManaSpacing.sm),
               child: Column(

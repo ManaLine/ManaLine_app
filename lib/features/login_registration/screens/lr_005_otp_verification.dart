@@ -34,9 +34,19 @@ String _otpPurposeEnumValue(OtpPurpose p) => switch (p) {
 /// chat's file-ownership boundary) — instead read from
 /// authFlowProvider.pendingOtpId, set by whichever screen triggered the
 /// OTP send before navigating here.
+/// Typed `extra` payload for navigating to LR-005 — replaces the bare
+/// `OtpPurpose` enum once Role Escalation needed to also carry a
+/// membershipId (which specific business_members row this OTP targets).
+class OtpEntryArgs {
+  final OtpPurpose purpose;
+  final String? membershipId;
+  const OtpEntryArgs({required this.purpose, this.membershipId});
+}
+
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final OtpPurpose purpose;
-  const OtpVerificationScreen({super.key, this.purpose = OtpPurpose.registration});
+  final String? membershipId;
+  const OtpVerificationScreen({super.key, this.purpose = OtpPurpose.registration, this.membershipId});
 
   @override
   ConsumerState<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -131,6 +141,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       return ref.read(authApiServiceProvider).sendOtp(
             personId: personId,
             purpose: _otpPurposeEnumValue(widget.purpose),
+            membershipId: widget.membershipId,
           );
     });
     if (!mounted || newOtpId == null) return; // network failure — SnackBar already shown

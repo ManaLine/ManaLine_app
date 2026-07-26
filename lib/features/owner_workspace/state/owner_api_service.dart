@@ -58,22 +58,17 @@ class OwnerApiService {
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       final candidateMlbi = 'MLBI-${DateTime.now().microsecondsSinceEpoch % 100000000}';
       try {
-        final row = await _db
-            .from('businesses')
-            .insert({
-              'mlbi': candidateMlbi,
-              'owner_person_id': _personId,
-              'business_name': businessName,
-              'registered_finance_name': registeredFinanceName,
-              'logo_url': logoUrl,
-              'business_type': businessType,
-              'business_address': businessAddress,
-              'business_phone': businessPhone,
-              'business_email': businessEmail,
-              'business_status': 'Not Started',
-            })
-            .select('business_id, mlbi')
-            .single();
+        final rows = await _db.schema('app').rpc('create_business_with_owner', params: {
+          'p_mlbi': candidateMlbi,
+          'p_business_name': businessName,
+          'p_registered_finance_name': registeredFinanceName,
+          'p_logo_url': logoUrl,
+          'p_business_type': businessType,
+          'p_business_address': businessAddress,
+          'p_business_phone': businessPhone,
+          'p_business_email': businessEmail,
+        });
+        final row = (rows as List).first as Map<String, dynamic>;
         return CreateBusinessResult(businessId: row['business_id'] as String, mlbi: row['mlbi'] as String);
       } on PostgrestException catch (e) {
         final isUniqueViolation = e.code == '23505';

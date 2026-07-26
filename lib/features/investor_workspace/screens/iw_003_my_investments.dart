@@ -260,7 +260,7 @@ class _InvestmentDetailScreen extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () => context.go('/iw-004', extra: investmentId),
+                    onPressed: () => context.push('/iw-004', extra: investmentId),
                     icon: const Icon(Icons.request_page_outlined),
                     label: const ManaText('request withdrawal'),
                   ),

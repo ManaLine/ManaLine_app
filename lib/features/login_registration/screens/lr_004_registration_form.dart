@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -28,11 +29,15 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
   final _pinCode = TextEditingController();
+  final _doorNo = TextEditingController();
   final _aadhaar = TextEditingController();
   final _confirmAadhaar = TextEditingController();
 
   String? _gender;
-  String? _villageId; // set by GC-003 type-ahead in a real build
+  String? _villageId; // set by real village search below (locations table)
+  String? _selectedVillageLabel;
+  List<Map<String, dynamic>> _villageResults = [];
+  final _villageSearch = TextEditingController();
   bool _acceptTerms = false;
   bool _acceptPrivacy = false;
   bool _submitting = false;
@@ -73,6 +78,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     if (_confirmPassword.text != _password.text || _confirmPassword.text.isEmpty) {
       missing.add('Confirm Password (must match)');
     }
+    if (_doorNo.text.trim().isEmpty) missing.add('Door/House No');
     if (_pinCode.text.trim().length != 6) missing.add('PIN Code (6 digits)');
     if (_villageId == null) missing.add('Village');
     if (!_aadhaarValid) {
@@ -155,8 +161,13 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               fatherHusbandName: _fatherHusbandName.text.trim(),
               genderDigit: genderDigit,
               mobileNumber: _mobile.text.trim(),
+              password: _password.text,
               aadhaarNumber: _aadhaar.text.trim(),
-              address: {'pin_code': _pinCode.text.trim(), 'village_id': _villageId},
+              address: {
+                'door_no': _doorNo.text.trim(),
+                'pin_code': _pinCode.text.trim(),
+                'village_id': _villageId,
+              },
               registrationSource: 'System',
               customerType: 'New',
             );
@@ -194,7 +205,22 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     }
 
     if (!mounted) return;
-    context.go('/lr-005');
+    context.push('/lr-005');
+  }
+
+  Future<void> _searchVillages(String query) async {
+    if (query.trim().length < 2) {
+      setState(() => _villageResults = []);
+      return;
+    }
+    final rows = await Supabase.instance.client
+        .from('locations')
+        .select('location_id, village_town_name, mandal, district, state')
+        .eq('status', 'Active')
+        .ilike('village_town_name', '%${query.trim()}%')
+        .limit(10);
+    if (!mounted) return;
+    setState(() => _villageResults = (rows as List).cast<Map<String, dynamic>>());
   }
 
   @override
@@ -271,21 +297,56 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
 
               const _SectionLabel('address'),
               TextFormField(
+                controller: _doorNo,
+                decoration: const InputDecoration(labelText: 'Door / House No *'),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              TextFormField(
                 controller: _pinCode,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 decoration: const InputDecoration(labelText: 'PIN Code *'),
               ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  // GC-003 village type-ahead — stub selector for this scaffold.
-                  onPressed: () => setState(() => _villageId = 'stub-village-id'),
-                  icon: Icon(_villageId == null ? Icons.location_on_outlined : Icons.check_circle,
-                      size: 18),
-                  label: ManaText(_villageId == null ? 'select village *' : 'village selected'),
-                ),
+              TextFormField(
+                controller: _villageSearch,
+                decoration: const InputDecoration(labelText: 'Search Village/Town *'),
+                onChanged: (v) {
+                  setState(() {
+                    _villageId = null;
+                    _selectedVillageLabel = null;
+                  });
+                  _searchVillages(v);
+                },
               ),
+              if (_villageResults.isNotEmpty)
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  margin: const EdgeInsets.only(top: ManaSpacing.xs),
+                  decoration: BoxDecoration(border: Border.all(color: ManaColors.surfaceSunken)),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _villageResults.length,
+                    itemBuilder: (_, i) {
+                      final v = _villageResults[i];
+                      final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
+                      return ListTile(
+                        dense: true,
+                        title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
+                        onTap: () => setState(() {
+                          _villageId = v['location_id'] as String;
+                          _selectedVillageLabel = label;
+                          _villageSearch.text = v['village_town_name'] as String;
+                          _villageResults = [];
+                        }),
+                      );
+                    },
+                  ),
+                ),
+              if (_selectedVillageLabel != null) ...[
+                const SizedBox(height: ManaSpacing.xs),
+                ManaText.raw('Selected: $_selectedVillageLabel',
+                    style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+              ],
               const SizedBox(height: ManaSpacing.xl),
 
               const _SectionLabel('verification'),

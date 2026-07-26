@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../login_registration/state/auth_flow_state.dart';
+import '../../login_registration/state/auth_api_service.dart';
 import '../state/owner_workspace_state.dart';
 
 /// OW-000 — First Business Setup. 6-step wizard shell over fields that
@@ -295,19 +298,40 @@ class _Step2OperatingAreas extends ConsumerStatefulWidget {
 
 class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
   final _pinCode = TextEditingController();
-  String? _selectedVillage; // GC-003 type-ahead stub, same pattern as LR-004
+  final _villageSearch = TextEditingController();
+  String? _selectedVillageId;
+  String? _selectedVillage; // display label
+  List<Map<String, dynamic>> _villageResults = [];
+
+  Future<void> _searchVillages(String query) async {
+    if (query.trim().length < 2) {
+      setState(() => _villageResults = []);
+      return;
+    }
+    final rows = await Supabase.instance.client
+        .from('locations')
+        .select('location_id, village_town_name, mandal, district, state')
+        .eq('status', 'Active')
+        .ilike('village_town_name', '%${query.trim()}%')
+        .limit(10);
+    if (!mounted) return;
+    setState(() => _villageResults = (rows as List).cast<Map<String, dynamic>>());
+  }
 
   Future<void> _addArea() async {
-    if (_pinCode.text.trim().length != 6 || _selectedVillage == null) return;
+    if (_pinCode.text.trim().length != 6 || _selectedVillageId == null) return;
     final ok = await NetworkErrorHandler.run(context, () async {
       return ref.read(businessSetupProvider.notifier).addOperatingArea(
             pinCode: _pinCode.text.trim(),
+            villageId: _selectedVillageId!,
             villageName: _selectedVillage!,
           );
     });
     if (ok == true) {
       setState(() {
         _pinCode.clear();
+        _villageSearch.clear();
+        _selectedVillageId = null;
         _selectedVillage = null;
       });
     }
@@ -334,19 +358,51 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
             decoration: const InputDecoration(labelText: 'PIN Code'),
             onChanged: (_) => setState(() {}),
           ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () => setState(() => _selectedVillage = 'Stub Village, ${_pinCode.text}'),
-              icon: Icon(_selectedVillage == null ? Icons.location_on_outlined : Icons.check_circle, size: 18),
-              label: ManaText(_selectedVillage == null ? 'select village' : 'village selected'),
-            ),
+          TextField(
+            controller: _villageSearch,
+            decoration: const InputDecoration(labelText: 'Search Village/Town'),
+            onChanged: (v) {
+              setState(() {
+                _selectedVillageId = null;
+                _selectedVillage = null;
+              });
+              _searchVillages(v);
+            },
           ),
+          if (_villageResults.isNotEmpty)
+            Container(
+              constraints: const BoxConstraints(maxHeight: 180),
+              margin: const EdgeInsets.only(top: ManaSpacing.xs),
+              decoration: BoxDecoration(border: Border.all(color: ManaColors.surfaceSunken)),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _villageResults.length,
+                itemBuilder: (_, i) {
+                  final v = _villageResults[i];
+                  final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
+                  return ListTile(
+                    dense: true,
+                    title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
+                    onTap: () => setState(() {
+                      _selectedVillageId = v['location_id'] as String;
+                      _selectedVillage = label;
+                      _villageSearch.text = v['village_town_name'] as String;
+                      _villageResults = [];
+                    }),
+                  );
+                },
+              ),
+            ),
+          if (_selectedVillage != null) ...[
+            const SizedBox(height: ManaSpacing.xs),
+            ManaText.raw('Selected: $_selectedVillage',
+                style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+          ],
           const SizedBox(height: ManaSpacing.md),
           Align(
             alignment: Alignment.centerLeft,
             child: FilledButton.tonalIcon(
-              onPressed: (_pinCode.text.trim().length == 6 && _selectedVillage != null) ? _addArea : null,
+              onPressed: (_pinCode.text.trim().length == 6 && _selectedVillageId != null) ? _addArea : null,
               icon: const Icon(Icons.add, size: 18),
               label: const ManaText('add area'),
             ),
@@ -444,6 +500,17 @@ class _DurationPickerDialog extends StatefulWidget {
 
 class _DurationPickerDialogState extends State<_DurationPickerDialog> {
   int _days = 30;
+  late final _controller = TextEditingController(text: '30');
+
+  void _setDays(int value) {
+    final clamped = value.clamp(1, 365);
+    setState(() {
+      _days = clamped;
+      _controller.text = '$clamped';
+      _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -451,9 +518,22 @@ class _DurationPickerDialogState extends State<_DurationPickerDialog> {
       content: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(onPressed: () => setState(() => _days = (_days - 1).clamp(1, 365)), icon: const Icon(Icons.remove)),
-          ManaText.raw('$_days days', style: const TextStyle(fontWeight: FontWeight.bold)),
-          IconButton(onPressed: () => setState(() => _days = (_days + 1).clamp(1, 365)), icon: const Icon(Icons.add)),
+          IconButton(onPressed: () => _setDays(_days - 1), icon: const Icon(Icons.remove)),
+          SizedBox(
+            width: 64,
+            child: TextField(
+              controller: _controller,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              decoration: const InputDecoration(isDense: true, suffixText: 'days'),
+              onChanged: (v) {
+                final parsed = int.tryParse(v);
+                if (parsed != null) _days = parsed.clamp(1, 365);
+              },
+            ),
+          ),
+          IconButton(onPressed: () => _setDays(_days + 1), icon: const Icon(Icons.add)),
         ],
       ),
       actions: [
@@ -578,6 +658,19 @@ class _Step6AssignAreas extends ConsumerWidget {
       return id;
     });
     if (businessId == null) return;
+    if (!context.mounted) return;
+    // Refresh authFlowProvider's cached memberships — LR-012 (Business
+    // Selector) deliberately never re-fetches on its own (trusts the
+    // snapshot taken at login time, per its own doc comment), so without
+    // this the newly created business silently doesn't appear if the
+    // person ever navigates back there in the same session.
+    final memberships = await NetworkErrorHandler.run(
+      context,
+      () => ref.read(authApiServiceProvider).fetchMemberships(),
+    );
+    if (memberships != null) {
+      ref.read(authFlowProvider.notifier).setMemberships(memberships);
+    }
     if (!context.mounted) return;
     context.go('/ow-001', extra: businessId);
   }

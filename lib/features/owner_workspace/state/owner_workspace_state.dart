@@ -206,7 +206,7 @@ class BusinessSetupNotifier extends Notifier<BusinessSetupState> {
     }
   }
 
-  Future<bool> addOperatingArea({required String pinCode, required String villageName}) async {
+  Future<bool> addOperatingArea({required String pinCode, required String villageId, required String villageName}) async {
     if (state.businessId == null) return false;
     state = state.copyWith(submitting: true, clearError: true);
     try {
@@ -214,7 +214,7 @@ class BusinessSetupNotifier extends Notifier<BusinessSetupState> {
       final result = await api.addOperatingArea(
         businessId: state.businessId!,
         pinCode: pinCode,
-        villageId: villageName, // stub: village selection resolves to an id upstream in a real GC-003 picker
+        villageId: villageId,
       );
       final updated = [
         ...state.operatingAreas,

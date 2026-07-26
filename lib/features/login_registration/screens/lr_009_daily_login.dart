@@ -112,6 +112,7 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
       result = await ref.read(authApiServiceProvider).login(
             identifier: mobile,
             credential: _entered,
+            credentialType: 'pin',
             deviceFingerprint: deviceFingerprint,
           );
       return true;
@@ -212,9 +213,22 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               const SizedBox(height: ManaSpacing.xl),
               _numberPad(),
               const Spacer(),
-              TextButton(
-                onPressed: () => context.go('/lr-011'),
-                child: const ManaText('forgot pin?'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () => context.push(
+                      '/lr-007',
+                      extra: const LoginStepDownArgs(redirectAfterSuccess: '/lr-011'),
+                    ),
+                    child: const ManaText('forgot pin?'),
+                  ),
+                  const SizedBox(width: ManaSpacing.md),
+                  TextButton(
+                    onPressed: () => context.push('/lr-007'),
+                    child: const ManaText('login with password'),
+                  ),
+                ],
               ),
               const SizedBox(height: ManaSpacing.sm),
               ManaLanguageSelector(

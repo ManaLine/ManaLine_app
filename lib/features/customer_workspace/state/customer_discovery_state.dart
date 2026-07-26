@@ -32,7 +32,7 @@ class CustomerDiscoveryApiService {
   /// the Investor side, called with p_role='Customer' so the accepting-
   /// flag filter and caller-status lookup use the right role.
   Future<List<DiscoveredBusiness>> searchBusinesses({required String query}) async {
-    final rows = await _db.rpc('discover_businesses', params: {
+    final rows = await _db.schema('app').rpc('discover_businesses', params: {
       'p_search': query,
       'p_role': 'Customer',
     });

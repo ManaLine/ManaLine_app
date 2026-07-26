@@ -74,7 +74,7 @@ class CashTransferApiService {
     required double amount,
     required String businessDate,
   }) async {
-    final transferId = await _db.rpc('initiate_cash_transfer', params: {
+    final transferId = await _db.schema('app').rpc('initiate_cash_transfer', params: {
       'p_to_agent_id': toAgentId,
       'p_amount': amount,
       'p_business_date': businessDate,
@@ -165,7 +165,7 @@ class CashTransferApiService {
   // correctly: this method's signature deliberately takes no "which side"
   // flag, matching the RPC exactly.
   Future<void> confirmTransfer({required String transferId}) async {
-    await _db.rpc('confirm_cash_transfer', params: {'p_transfer_id': transferId});
+    await _db.schema('app').rpc('confirm_cash_transfer', params: {'p_transfer_id': transferId});
   }
 }
 

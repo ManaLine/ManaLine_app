@@ -89,7 +89,7 @@ class LoanApiService {
     int? gracePeriodDays,
   }) async {
     try {
-      final response = await _db.rpc('create_loan_with_bf_check', params: {
+      final response = await _db.schema('app').rpc('create_loan_with_bf_check', params: {
         'p_business_id': businessId,
         'p_customer_id': customerId,
         'p_repayment_amount': repaymentAmount,

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/record_book_state.dart';
 
@@ -64,7 +65,9 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
               .read(recordBookProvider.notifier)
               .load(widget.businessId, status: state.statusFilter),
           child: state.loading && state.rows.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              // Ledger rows carry ~10 figures each, so the placeholders are
+              // tall to match — a short skeleton would jump when data lands.
+              ? const ManaSkeletonList(itemHeight: 150)
               : state.rows.isEmpty
                   ? ListView(
                       children: const [
@@ -270,7 +273,7 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
               ),
               Expanded(
                 child: state.detailLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const ManaSkeletonList(itemCount: 5, itemHeight: 64)
                     : state.detailError != null
                         ? Center(
                             child: ManaText.raw(state.detailError!,

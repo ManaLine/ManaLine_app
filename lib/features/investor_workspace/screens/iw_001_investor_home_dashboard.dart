@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/investor_dashboard_state.dart';
 import '../../../shared/translation_service.dart';
@@ -72,7 +73,9 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
       ),
       body: SafeArea(
         child: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          // Only shown on a genuine cold load — revisits keep the previous
+          // data on screen and revalidate behind it (see load()).
+          loading: () => const ManaSkeletonList(itemCount: 5, itemHeight: 104),
           error: (e, _) => _errorState(e),
           data: (data) => data.hasActiveMembership
               ? RefreshIndicator(

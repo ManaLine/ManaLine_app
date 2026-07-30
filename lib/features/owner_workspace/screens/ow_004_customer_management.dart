@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/document_viewer.dart';
 import '../state/customer_state.dart';
@@ -83,7 +84,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         child: RefreshIndicator(
           onRefresh: () => ref.read(customerListProvider.notifier).load(widget.businessId),
           child: state.loading && state.customers.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList(itemHeight: 84)
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [

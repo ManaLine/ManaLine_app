@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
@@ -56,7 +57,13 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
     return Scaffold(
       body: SafeArea(
         child: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          // Skeleton rather than a centred spinner: it shows the page's real
+          // structure (header, status bar, two section cards) so the wait
+          // reads as "loading this screen" instead of "nothing here", and the
+          // content lands without a layout jump. Only ever seen on a genuine
+          // cold load now — revisits keep the previous data on screen and
+          // revalidate behind it (see OwnerDashboardNotifier.load).
+          loading: () => const _DashboardSkeleton(),
           error: (e, _) => _errorState(e),
           data: (data) => RefreshIndicator(
             onRefresh: _refresh,
@@ -140,6 +147,97 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
 }
 
 // --- C1 Header ---------------------------------------------------------
+
+/// Mirrors the real dashboard's structure so the cold-load wait shows the
+/// shape of what's coming: header block, status strip, then the two section
+/// cards. Sizes are deliberately close to the live widgets' so content
+/// arriving doesn't shift the layout.
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ManaSkeletonGroup(
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: ManaSpacing.xxl),
+        physics: const NeverScrollableScrollPhysics(),
+        children: const [
+          // Header: logo, business name + status, action icons.
+          Padding(
+            padding: EdgeInsets.all(ManaSpacing.lg),
+            child: Row(
+              children: [
+                ManaSkeleton.circle(size: 40),
+                SizedBox(width: ManaSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ManaSkeleton(width: 160, height: 16),
+                      SizedBox(height: ManaSpacing.xs),
+                      ManaSkeleton(width: 90, height: 11),
+                    ],
+                  ),
+                ),
+                ManaSkeleton.circle(size: 24),
+                SizedBox(width: ManaSpacing.md),
+                ManaSkeleton.circle(size: 24),
+              ],
+            ),
+          ),
+          // Business status strip.
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: ManaSpacing.lg),
+            child: ManaSkeleton(height: 44, radius: ManaRadius.md),
+          ),
+          SizedBox(height: ManaSpacing.md),
+          // Today's Business Summary — a grid of figures.
+          _SkeletonSection(rows: 3),
+          // Quick Actions — a grid of tiles.
+          _SkeletonSection(rows: 2),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonSection extends StatelessWidget {
+  final int rows;
+  const _SkeletonSection({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
+      child: Container(
+        padding: const EdgeInsets.all(ManaSpacing.md),
+        decoration: BoxDecoration(
+          color: ManaColors.surface,
+          borderRadius: BorderRadius.circular(ManaRadius.md),
+          border: Border.all(color: ManaColors.divider),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ManaSkeleton(width: 130, height: 12),
+            const SizedBox(height: ManaSpacing.md),
+            for (var i = 0; i < rows; i++)
+              Padding(
+                padding: EdgeInsets.only(bottom: i == rows - 1 ? 0 : ManaSpacing.sm),
+                child: const Row(
+                  children: [
+                    Expanded(child: ManaSkeleton(height: 32, radius: ManaRadius.sm)),
+                    SizedBox(width: ManaSpacing.sm),
+                    Expanded(child: ManaSkeleton(height: 32, radius: ManaRadius.sm)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _Header extends ConsumerWidget {
   final String businessId;

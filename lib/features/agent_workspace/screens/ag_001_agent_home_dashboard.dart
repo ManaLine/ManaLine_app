@@ -6,6 +6,7 @@ import '../../../shared/translation_service.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/agent_dashboard_state.dart';
@@ -149,7 +150,9 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
       ),
       body: SafeArea(
         child: switch (state.stage) {
-          AgentSessionStage.loadingGate => const Center(child: CircularProgressIndicator()),
+          // Structure-shaped placeholder instead of a spinner while the
+          // Opening-BF gate resolves.
+          AgentSessionStage.loadingGate => const ManaSkeletonList(itemCount: 4, itemHeight: 96),
           AgentSessionStage.bfBlockedNoAssignment => const _BfNotGrantedBlock(),
           AgentSessionStage.bfConfirmPending => _BfGate(state: state, agentId: widget.agentId, businessId: widget.businessId),
           AgentSessionStage.bfUpdateRequested => const _BfUpdateRequestedBlock(),

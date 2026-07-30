@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/loan_wizard_state.dart';
 
@@ -85,7 +86,9 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
+                // Card-shaped placeholders matching the request rows below,
+                // rather than a spinner on an empty screen.
+                return const ManaSkeletonList(itemHeight: 132);
               }
               if (snapshot.hasError) {
                 return ListView(

@@ -438,6 +438,14 @@ class _NavButton extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: kManaMinTapTarget + 8),
           padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
           child: Column(
+            // min, NOT the default max. Scaffold measures bottomNavigationBar
+            // with LOOSE constraints — maxHeight is the whole screen — so a
+            // mainAxisSize.max Column expanded to fill it and centred the icons
+            // vertically. The nav bar became full-screen-tall with its content
+            // floating in the middle, and the body was left with no height at
+            // all, so the page rendered blank. Sizing to content is what keeps
+            // the bar the height of a bar.
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(selected ? item.selectedIcon : item.icon, size: 24, color: color),

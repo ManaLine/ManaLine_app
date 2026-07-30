@@ -41,10 +41,13 @@ class ManaSkeletonGroup extends StatefulWidget {
 
 class _ManaSkeletonGroupState extends State<ManaSkeletonGroup>
     with SingleTickerProviderStateMixin {
+  // Created stopped. didChangeDependencies below is the single place that
+  // decides whether it runs, so it never starts and then immediately stops
+  // under reduce-motion.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
-  )..repeat();
+  );
 
   @override
   void dispose() {
@@ -52,19 +55,35 @@ class _ManaSkeletonGroupState extends State<ManaSkeletonGroup>
     super.dispose();
   }
 
+  // Ticker state is decided HERE, not in build().
+  //
+  // BUG THIS FIXES: this logic used to live in build(), calling
+  // `_controller.repeat()` mid-build. Starting a ticker makes it notify its
+  // listeners, which marks descendants dirty *during* a build — tripping
+  // Flutter's "markNeedsBuild() called during build" assertion. It fired on the
+  // cold-load path, i.e. exactly when a dashboard shows its skeleton, which is
+  // why OW-001 came up blank and the debug session dropped.
+  //
+  // didChangeDependencies is the correct home: MediaQuery (and so the
+  // reduce-motion setting) is readable, mutating state is legal, and it re-runs
+  // if the user flips the OS setting while the app is open.
   @override
-  Widget build(BuildContext context) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     // Stop the ticker entirely under reduce-motion rather than just ignoring
     // its value downstream — a repeating controller still schedules a frame
     // every vsync, which is wasted battery on the low-end phones this app
     // targets.
     final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (reduceMotion && _controller.isAnimating) {
-      _controller.stop();
-    } else if (!reduceMotion && !_controller.isAnimating) {
+    if (reduceMotion) {
+      if (_controller.isAnimating) _controller.stop();
+    } else if (!_controller.isAnimating) {
       _controller.repeat();
     }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     // Screen readers otherwise find a screenful of decorative boxes and
     // announce nothing useful. One "Loading" label for the whole group, with
     // the placeholders themselves excluded from the tree.

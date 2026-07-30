@@ -131,14 +131,16 @@ class AgentApiService {
       {required String agentId}) async {
     final rows = await _db.from('agent_area_assignments').select('''
           operating_area_id,
-          operating_areas!inner(status, locations!inner(village_town_name))
+          operating_areas!inner(status, name)
         ''').eq('agent_id', agentId).isFilter('removed_at', null);
     return (rows as List).map((r) {
       final area = r['operating_areas'] as Map<String, dynamic>;
-      final location = area['locations'] as Map<String, dynamic>;
       return AgentAreaAssignment(
         operatingAreaId: r['operating_area_id'] as String,
-        areaName: (location['village_town_name'] as String?) ?? '',
+        // An area is a NAMED round covering N villages now, so its own
+        // name is the label — it used to be joined out of the single
+        // `location_id` this table no longer has.
+        areaName: (area['name'] as String?) ?? '',
         enabled: area['status'] == 'Active',
       );
     }).toList();
@@ -161,14 +163,13 @@ class AgentApiService {
     final membershipId = await _resolveMembershipId(agentId);
     final rows = await _db.from('account_periods').select('''
           operating_area_id, business_start_date, planned_business_end_date, status,
-          operating_areas!inner(locations!inner(village_town_name))
+          operating_areas!inner(name)
         ''').eq('agent_membership_id', membershipId).eq('status', 'Running');
     return (rows as List).cast<Map<String, dynamic>>().map((r) {
       final area = r['operating_areas'] as Map<String, dynamic>;
-      final location = area['locations'] as Map<String, dynamic>;
       return AgentAccountPeriodSummary(
         operatingAreaId: r['operating_area_id'] as String,
-        areaName: (location['village_town_name'] as String?) ?? '',
+        areaName: (area['name'] as String?) ?? '',
         businessStartDate: DateTime.parse(r['business_start_date'] as String),
         plannedBusinessEndDate:
             DateTime.parse(r['planned_business_end_date'] as String),

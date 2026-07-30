@@ -894,9 +894,12 @@ class _VillagePickerSheet extends StatelessWidget {
           else
             ...areas.map((a) => ListTile(
                   leading: const Icon(Icons.location_on_outlined, color: ManaColors.brand),
-                  title: ManaText.raw('${a.villageTownName} — ${a.pinCode}'),
-                  subtitle: ManaText.raw(a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}',
+                  title: ManaText.raw(a.name),
+                  subtitle: ManaText.raw(
+                      '${a.villagesLabel}\n'
+                      '${a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}'}',
                       style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  isThreeLine: true,
                   onTap: () => Navigator.of(context).pop(a),
                 )),
           const SizedBox(height: ManaSpacing.md),

@@ -57,16 +57,15 @@ class AgentProfileApiService {
   Future<List<AgentAreaAssignment>> fetchAreaAssignments({required String agentId}) async {
     final rows = await _db
         .from('agent_area_assignments')
-        .select('operating_area_id, operating_areas!inner(status, locations!inner(village_town_name))')
+        .select('operating_area_id, operating_areas!inner(status, name)')
         .eq('agent_id', agentId)
         .isFilter('removed_at', null);
     return (rows as List).map((r) {
       final m = r as Map<String, dynamic>;
       final area = m['operating_areas'] as Map<String, dynamic>;
-      final location = area['locations'] as Map<String, dynamic>;
       return AgentAreaAssignment(
         operatingAreaId: m['operating_area_id'] as String,
-        areaName: location['village_town_name'] as String? ?? '',
+        areaName: area['name'] as String? ?? '',
         enabled: area['status'] == 'Active',
       );
     }).toList();

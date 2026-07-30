@@ -143,8 +143,12 @@ class BusinessManagementApiService {
         .toList();
   }
 
+  /// Creates a NAMED area and attaches its first village. An area with no
+  /// villages is not a thing an Owner can act on, so both writes happen
+  /// here rather than leaving an empty area behind if the second fails.
   Future<OperatingAreaSummary> addOperatingArea({
     required String businessId,
+    required String name,
     required String locationId,
     int? accountCycleDuration,
     String? accountCycleUnit,
@@ -154,20 +158,24 @@ class BusinessManagementApiService {
         .from('operating_areas')
         .insert({
           'business_id': businessId,
-          'location_id': locationId,
+          'name': name,
           'status': 'Active',
           'account_cycle_duration': accountCycleDuration ?? 3,
           'account_cycle_unit': accountCycleUnit ?? 'Days',
           'submission_time': submissionTime != null ? '$submissionTime:00' : '21:00:00',
         })
-        .select('operating_area_id, status, account_cycle_duration, account_cycle_unit, submission_time, '
-            'locations!inner(pin_code, village_town_name)')
+        .select('operating_area_id, name, status, account_cycle_duration, account_cycle_unit, submission_time')
         .single();
-    final location = row['locations'] as Map<String, dynamic>;
+    final operatingAreaId = row['operating_area_id'] as String;
+    final villages = await addVillageToArea(
+      businessId: businessId,
+      operatingAreaId: operatingAreaId,
+      locationId: locationId,
+    );
     return OperatingAreaSummary(
-      operatingAreaId: row['operating_area_id'] as String,
-      pinCode: location['pin_code'] as String,
-      villageTownName: location['village_town_name'] as String,
+      operatingAreaId: operatingAreaId,
+      name: row['name'] as String,
+      villages: villages,
       status: row['status'] as String,
       accountCycleDuration: row['account_cycle_duration'] as int?,
       accountCycleUnit: row['account_cycle_unit'] as String?,
@@ -175,37 +183,132 @@ class BusinessManagementApiService {
     );
   }
 
+  /// Attaches one more village. Returns the area's full village list so the
+  /// caller can replace rather than reconcile.
+  ///
+  /// The partial unique index `uq_oal_business_location` rejects a village
+  /// already live in ANOTHER area of this business — that PostgrestException
+  /// is deliberately allowed to reach NetworkErrorHandler rather than being
+  /// swallowed, because "this village is already covered" is exactly what
+  /// the Owner needs to be told.
+  Future<List<AreaVillage>> addVillageToArea({
+    required String businessId,
+    required String operatingAreaId,
+    required String locationId,
+  }) async {
+    await _db.from('operating_area_locations').insert({
+      'operating_area_id': operatingAreaId,
+      'location_id': locationId,
+      'business_id': businessId,
+    });
+    final byArea = await fetchAreaVillages(operatingAreaIds: [operatingAreaId]);
+    return byArea[operatingAreaId] ?? const [];
+  }
+
+  /// Soft-detaches a village — `removed_at`, per the schema's own "nothing
+  /// is ever hard deleted" convention, which also frees the village to be
+  /// attached to a different area later.
+  Future<void> removeVillageFromArea({required String operatingAreaLocationId}) async {
+    await _db
+        .from('operating_area_locations')
+        .update({'removed_at': DateTime.now().toIso8601String()})
+        .eq('operating_area_location_id', operatingAreaLocationId);
+  }
+
+  /// The "delete area" action OW-012 never had. Sets status Inactive rather
+  /// than deleting: account_periods and agent_area_assignments reference
+  /// this row, and `operating_areas_agent_select` already treats non-Active
+  /// as disabled for the agent.
+  Future<void> deactivateOperatingArea({required String operatingAreaId}) async {
+    await _db
+        .from('operating_areas')
+        .update({'status': 'Inactive'})
+        .eq('operating_area_id', operatingAreaId);
+  }
+
+  Future<void> renameOperatingArea({
+    required String operatingAreaId,
+    required String name,
+  }) async {
+    await _db.from('operating_areas').update({'name': name}).eq('operating_area_id', operatingAreaId);
+  }
+
+  /// Live villages per area, keyed by area id.
+  ///
+  /// A separate query rather than an embed on operating_areas: the
+  /// `removed_at IS NULL` filter has to apply to the CHILD rows, and
+  /// PostgREST's nested-embed filter semantics are a sharp edge this file
+  /// already avoids for the agent-assignment lookup below. Same reasoning,
+  /// same shape.
+  Future<Map<String, List<AreaVillage>>> fetchAreaVillages({
+    required List<String> operatingAreaIds,
+  }) async {
+    if (operatingAreaIds.isEmpty) return {};
+    final rows = await _db
+        .from('operating_area_locations')
+        .select('operating_area_location_id, operating_area_id, location_id, '
+            'locations!inner(pin_code, village_town_name)')
+        .inFilter('operating_area_id', operatingAreaIds)
+        .isFilter('removed_at', null);
+    final byArea = <String, List<AreaVillage>>{};
+    for (final r in (rows as List)) {
+      final location = r['locations'] as Map<String, dynamic>;
+      byArea.putIfAbsent(r['operating_area_id'] as String, () => []).add(
+            AreaVillage(
+              operatingAreaLocationId: r['operating_area_location_id'] as String,
+              locationId: r['location_id'] as String,
+              pinCode: location['pin_code'] as String,
+              villageTownName: location['village_town_name'] as String,
+            ),
+          );
+    }
+    for (final list in byArea.values) {
+      list.sort((a, b) => a.villageTownName.compareTo(b.villageTownName));
+    }
+    return byArea;
+  }
+
   Future<List<OperatingAreaSummary>> fetchOperatingAreas({required String businessId}) async {
     final rows = await _db
         .from('operating_areas')
-        .select('operating_area_id, status, account_cycle_duration, account_cycle_unit, submission_time, '
-            'locations!inner(pin_code, village_town_name)')
+        .select('operating_area_id, name, status, account_cycle_duration, account_cycle_unit, submission_time')
         .eq('business_id', businessId);
-    final areas = (rows as List).map((r) {
-      final location = r['locations'] as Map<String, dynamic>;
-      return OperatingAreaSummary(
-        operatingAreaId: r['operating_area_id'] as String,
-        pinCode: location['pin_code'] as String,
-        villageTownName: location['village_town_name'] as String,
-        status: r['status'] as String,
-        accountCycleDuration: r['account_cycle_duration'] as int?,
-        accountCycleUnit: r['account_cycle_unit'] as String?,
-        submissionTime: r['submission_time'] as String?,
-      );
-    }).toList();
+    final areas = (rows as List)
+        .map((r) => OperatingAreaSummary(
+              operatingAreaId: r['operating_area_id'] as String,
+              name: r['name'] as String,
+              villages: const [],
+              status: r['status'] as String,
+              accountCycleDuration: r['account_cycle_duration'] as int?,
+              accountCycleUnit: r['account_cycle_unit'] as String?,
+              submissionTime: r['submission_time'] as String?,
+            ))
+        .toList();
     if (areas.isEmpty) return areas;
 
-    // Current (non-removed) agent assignment per area — a separate query
-    // rather than embedding through agent_area_assignments, so this
-    // doesn't need to lean on nested-embed filter semantics for something
-    // this simple: which areas are Owner-run (no row here) vs assigned.
     final areaIds = areas.map((a) => a.operatingAreaId).toList();
-    final assignmentRows = await _db
-        .from('agent_area_assignments')
-        .select('operating_area_id, agents!inner(agent_id, membership_id, persons!inner(full_name))')
-        .inFilter('operating_area_id', areaIds)
-        .isFilter('removed_at', null);
-    for (final row in (assignmentRows as List)) {
+    // Villages and agent assignments are independent reads — Future.wait,
+    // not assign-then-await, since a PostgrestBuilder is lazy and would
+    // otherwise make these two serial round trips.
+    final results = await Future.wait<dynamic>([
+      fetchAreaVillages(operatingAreaIds: areaIds),
+      // Current (non-removed) agent assignment per area — a separate query
+      // rather than embedding through agent_area_assignments, so this
+      // doesn't need to lean on nested-embed filter semantics for something
+      // this simple: which areas are Owner-run (no row here) vs assigned.
+      _db
+          .from('agent_area_assignments')
+          .select('operating_area_id, agents!inner(agent_id, membership_id, persons!inner(full_name))')
+          .inFilter('operating_area_id', areaIds)
+          .isFilter('removed_at', null),
+    ]);
+    final villagesByArea = results[0] as Map<String, List<AreaVillage>>;
+    final assignmentRows = results[1] as List;
+
+    for (final area in areas) {
+      area.villages = villagesByArea[area.operatingAreaId] ?? const [];
+    }
+    for (final row in assignmentRows) {
       final area = areas.firstWhere((a) => a.operatingAreaId == row['operating_area_id']);
       final agent = row['agents'] as Map<String, dynamic>;
       area.assignedAgentId = agent['agent_id'] as String;
@@ -433,20 +536,19 @@ class BusinessManagementApiService {
     var query = _db
         .from('account_periods')
         .select('account_period_id, operating_area_id, business_start_date, planned_business_end_date, status, '
-            'operating_areas(locations(village_town_name)), business_members(persons!business_members_person_id_fkey(full_name))')
+            'operating_areas(name), business_members(persons!business_members_person_id_fkey(full_name))')
         .eq('business_id', businessId);
     if (status != null) query = query.eq('status', status);
     if (operatingAreaId != null) query = query.eq('operating_area_id', operatingAreaId);
     final rows = await query.order('business_start_date', ascending: false);
     return (rows as List).map((r) {
       final area = r['operating_areas'] as Map<String, dynamic>?;
-      final location = area?['locations'] as Map<String, dynamic>?;
       final member = r['business_members'] as Map<String, dynamic>?;
       final person = member?['persons'] as Map<String, dynamic>?;
       return AccountPeriodSummary(
         accountPeriodId: r['account_period_id'] as String,
         operatingAreaId: r['operating_area_id'] as String,
-        operatingAreaLabel: location?['village_town_name'] as String? ?? '',
+        operatingAreaLabel: area?['name'] as String? ?? '',
         agentName: person?['full_name'] as String? ?? 'Owner-run',
         businessStartDate: DateTime.parse(r['business_start_date'] as String),
         plannedBusinessEndDate: DateTime.parse(r['planned_business_end_date'] as String),
@@ -578,10 +680,29 @@ class LocationOption {
   LocationOption({required this.locationId, required this.pinCode, required this.villageTownName});
 }
 
-class OperatingAreaSummary {
-  final String operatingAreaId;
+/// One village attached to an operating area. Carries the join-row id,
+/// because detaching addresses the attachment, not the village.
+class AreaVillage {
+  final String operatingAreaLocationId;
+  final String locationId;
   final String pinCode;
   final String villageTownName;
+  AreaVillage({
+    required this.operatingAreaLocationId,
+    required this.locationId,
+    required this.pinCode,
+    required this.villageTownName,
+  });
+}
+
+class OperatingAreaSummary {
+  final String operatingAreaId;
+  /// The round's own name, e.g. "Srikalahasti round". Was implicitly the
+  /// single village's name before areas went multi-village.
+  final String name;
+  /// Live (non-removed) villages. Mutable so fetchOperatingAreas can fill
+  /// it in a second pass, same as the assigned-agent fields below.
+  List<AreaVillage> villages;
   final String status; // 'Active' | 'Inactive'
   int? accountCycleDuration;
   String? accountCycleUnit;
@@ -594,8 +715,8 @@ class OperatingAreaSummary {
 
   OperatingAreaSummary({
     required this.operatingAreaId,
-    required this.pinCode,
-    required this.villageTownName,
+    required this.name,
+    required this.villages,
     required this.status,
     this.accountCycleDuration,
     this.accountCycleUnit,
@@ -607,6 +728,9 @@ class OperatingAreaSummary {
 
   bool get cycleConfigured => accountCycleDuration != null && accountCycleUnit != null && submissionTime != null;
   bool get isOwnerRun => assignedAgentId == null;
+
+  /// "Srikalahasti, Uranduru" — the villages this round actually covers.
+  String get villagesLabel => villages.map((v) => v.villageTownName).join(', ');
 }
 
 class AgreementSummary {
@@ -905,21 +1029,125 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
 
   // --- Operating Areas — PIN → Village → Add flow (reuses OW-000 Step 2's
   // pattern; see ow_012_business_management.dart's _OperatingAreaAddPanel).
-  Future<bool> addOperatingArea({required String locationId}) async {
+  Future<bool> addOperatingArea({required String name, required String locationId}) async {
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final api = ref.read(businessManagementApiServiceProvider);
-      final result = await api.addOperatingArea(businessId: arg, locationId: locationId);
+      final result = await api.addOperatingArea(businessId: arg, name: name, locationId: locationId);
       state = state.copyWith(operatingAreas: [...state.operatingAreas, result], submitting: false);
       return true;
     } catch (e) {
       final isDuplicate = e is PostgrestException && e.code == '23505';
       state = state.copyWith(
         submitting: false,
-        error: isDuplicate ? 'This village is already one of your operating areas.' : e.toString(),
+        error: isDuplicate ? 'This village is already covered by one of your operating areas.' : e.toString(),
       );
       return false;
     }
+  }
+
+  /// Attaches another village to an existing area. Errors are NOT swallowed
+  /// into `false` — 23505 here means "already covered by another area",
+  /// which the Owner must actually see.
+  Future<bool> addVillageToArea({
+    required String operatingAreaId,
+    required String locationId,
+  }) async {
+    state = state.copyWith(submitting: true, clearError: true);
+    try {
+      final api = ref.read(businessManagementApiServiceProvider);
+      final villages = await api.addVillageToArea(
+        businessId: arg,
+        operatingAreaId: operatingAreaId,
+        locationId: locationId,
+      );
+      state = state.copyWith(
+        operatingAreas: _withVillages(operatingAreaId, villages),
+        submitting: false,
+      );
+      return true;
+    } catch (e) {
+      final isDuplicate = e is PostgrestException && e.code == '23505';
+      state = state.copyWith(
+        submitting: false,
+        error: isDuplicate
+            ? 'This village is already covered by one of your operating areas.'
+            : e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Detaches a village. Refuses to empty an area — an area with no
+  /// villages is not something an Agent can be sent to, and the
+  /// at-least-one-area rule would be satisfied by a round that covers
+  /// nowhere. Remove the area instead.
+  Future<bool> removeVillageFromArea({
+    required String operatingAreaId,
+    required String operatingAreaLocationId,
+  }) async {
+    final area = state.operatingAreas.firstWhere((a) => a.operatingAreaId == operatingAreaId);
+    if (area.villages.length <= 1) {
+      state = state.copyWith(
+        error: 'An operating area must cover at least one village. Remove the area instead.',
+      );
+      return false;
+    }
+    state = state.copyWith(submitting: true, clearError: true);
+    try {
+      final api = ref.read(businessManagementApiServiceProvider);
+      await api.removeVillageFromArea(operatingAreaLocationId: operatingAreaLocationId);
+      final byArea = await api.fetchAreaVillages(operatingAreaIds: [operatingAreaId]);
+      state = state.copyWith(
+        operatingAreas: _withVillages(operatingAreaId, byArea[operatingAreaId] ?? const []),
+        submitting: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(submitting: false, error: e.toString());
+      return false;
+    }
+  }
+
+  /// Removes an area (status → Inactive). Refetches rather than patching
+  /// locally, because deactivating can change what the Agent-side reads
+  /// see and the area keeps its assignment row.
+  Future<bool> removeOperatingArea({required String operatingAreaId}) async {
+    state = state.copyWith(submitting: true, clearError: true);
+    try {
+      final api = ref.read(businessManagementApiServiceProvider);
+      await api.deactivateOperatingArea(operatingAreaId: operatingAreaId);
+      final areas = await api.fetchOperatingAreas(businessId: arg);
+      state = state.copyWith(operatingAreas: areas, submitting: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(submitting: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> renameOperatingArea({
+    required String operatingAreaId,
+    required String name,
+  }) async {
+    state = state.copyWith(submitting: true, clearError: true);
+    try {
+      final api = ref.read(businessManagementApiServiceProvider);
+      await api.renameOperatingArea(operatingAreaId: operatingAreaId, name: name);
+      final areas = await api.fetchOperatingAreas(businessId: arg);
+      state = state.copyWith(operatingAreas: areas, submitting: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(submitting: false, error: e.toString());
+      return false;
+    }
+  }
+
+  List<OperatingAreaSummary> _withVillages(String operatingAreaId, List<AreaVillage> villages) {
+    return state.operatingAreas.map((a) {
+      if (a.operatingAreaId == operatingAreaId) a.villages = villages;
+      return a;
+    }).toList();
   }
 
   Future<bool> configureAccountCycle({

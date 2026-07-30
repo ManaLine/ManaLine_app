@@ -474,19 +474,128 @@ class _OperatingAreasTab extends ConsumerStatefulWidget {
 
 class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
   final _pinCode = TextEditingController();
+  final _areaName = TextEditingController();
+
+  @override
+  void dispose() {
+    _pinCode.dispose();
+    _areaName.dispose();
+    super.dispose();
+  }
 
   Future<void> _addSelected() async {
     final selected = ref.read(operatingAreaSearchProvider).selected;
     if (selected == null) return;
+    // Default the name to the first village. A one-village round named
+    // after its village is the common case and typing it again is friction;
+    // the Owner can rename once a second village joins.
+    final name = _areaName.text.trim().isEmpty ? selected.villageTownName : _areaName.text.trim();
     final ok = await NetworkErrorHandler.run(context, () async {
       return ref.read(businessDetailProvider(widget.businessId).notifier).addOperatingArea(
+            name: name,
             locationId: selected.locationId,
           );
     });
     if (ok == true) {
       ref.read(operatingAreaSearchProvider.notifier).reset();
       _pinCode.clear();
+      _areaName.clear();
     }
+  }
+
+  Future<void> _addVillage(OperatingAreaSummary area) async {
+    final picked = await showModalBottomSheet<LocationOption>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _VillagePickerSheet(areaName: area.name),
+    );
+    if (picked == null || !mounted) return;
+    await NetworkErrorHandler.run(context, () async {
+      return ref.read(businessDetailProvider(widget.businessId).notifier).addVillageToArea(
+            operatingAreaId: area.operatingAreaId,
+            locationId: picked.locationId,
+          );
+    });
+  }
+
+  Future<void> _removeVillage(OperatingAreaSummary area, AreaVillage village) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const ManaText('remove village?'),
+        content: ManaText.raw(
+          '${village.villageTownName} will no longer be part of ${area.name}. '
+          'Customers already registered there are not affected.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const ManaText('remove')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await NetworkErrorHandler.run(context, () async {
+      return ref.read(businessDetailProvider(widget.businessId).notifier).removeVillageFromArea(
+            operatingAreaId: area.operatingAreaId,
+            operatingAreaLocationId: village.operatingAreaLocationId,
+          );
+    });
+  }
+
+  Future<void> _removeArea(OperatingAreaSummary area) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const ManaText('remove operating area?'),
+        content: ManaText.raw(
+          '${area.name} (${area.villagesLabel}) will be set Inactive. Its account '
+          'periods and history are kept, and any assigned agent loses access to it.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: ManaColors.statusBad),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const ManaText('remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await NetworkErrorHandler.run(context, () async {
+      return ref
+          .read(businessDetailProvider(widget.businessId).notifier)
+          .removeOperatingArea(operatingAreaId: area.operatingAreaId);
+    });
+  }
+
+  Future<void> _rename(OperatingAreaSummary area) async {
+    final controller = TextEditingController(text: area.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const ManaText('rename operating area'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 120,
+          decoration: const InputDecoration(labelText: 'Area name'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const ManaText('cancel')),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const ManaText('save'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+    await NetworkErrorHandler.run(context, () async {
+      return ref
+          .read(businessDetailProvider(widget.businessId).notifier)
+          .renameOperatingArea(operatingAreaId: area.operatingAreaId, name: name);
+    });
   }
 
   Future<void> _assignAgent(OperatingAreaSummary area) async {
@@ -545,11 +654,20 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         const ManaText.raw(
-          'Search PIN Code → Matching PIN List → Select PIN → Village Search → '
-          'Select Village → Add. Repeat until complete. Unlimited villages allowed.',
+          'An operating area is one round, covering as many villages as the '
+          'round actually walks. Name it, add its first village here, then '
+          'attach the rest from the area itself.',
           style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: ManaSpacing.md),
+        TextField(
+          controller: _areaName,
+          maxLength: 120,
+          decoration: const InputDecoration(
+            labelText: 'Area name',
+            helperText: 'Leave blank to name it after the first village',
+          ),
+        ),
         TextField(
           controller: _pinCode,
           keyboardType: TextInputType.number,
@@ -596,14 +714,70 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.location_on, color: ManaColors.brand),
-                      title: ManaText.raw('${a.villageTownName} — ${a.pinCode}'),
+                      leading: Icon(Icons.location_on,
+                          color: a.status == 'Active' ? ManaColors.brand : ManaColors.textSecondary),
+                      title: Row(
+                        children: [
+                          Expanded(child: ManaText.raw(a.name)),
+                          if (a.status != 'Active')
+                            const ManaStatusPill(label: 'Inactive', status: ManaStatus.neutral),
+                        ],
+                      ),
                       subtitle: ManaText.raw(a.cycleConfigured
                           ? 'Cycle: ${a.accountCycleDuration} ${a.accountCycleUnit}, submits ${a.submissionTime}'
                           : 'Account cycle not yet configured'),
-                      trailing: TextButton(
-                        onPressed: () => _configureCycle(a),
-                        child: ManaText(a.cycleConfigured ? 'edit cycle' : 'configure'),
+                      trailing: PopupMenuButton<String>(
+                        tooltip: 'Area options',
+                        onSelected: (v) => switch (v) {
+                          'cycle' => _configureCycle(a),
+                          'rename' => _rename(a),
+                          'village' => _addVillage(a),
+                          _ => _removeArea(a),
+                        },
+                        itemBuilder: (_) => [
+                          PopupMenuItem(
+                              value: 'cycle',
+                              child: ManaText(a.cycleConfigured ? 'edit cycle' : 'configure cycle')),
+                          const PopupMenuItem(value: 'rename', child: ManaText('rename area')),
+                          const PopupMenuItem(value: 'village', child: ManaText('add village')),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'remove',
+                            child: ManaText.raw('remove area',
+                                style: TextStyle(color: ManaColors.statusBad)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // The villages this round covers. Each chip carries its
+                    // own remove affordance rather than hiding detachment in
+                    // a menu — with N villages the Owner needs to see which
+                    // one they are about to drop.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          ManaSpacing.md, 0, ManaSpacing.md, ManaSpacing.sm),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: ManaSpacing.sm,
+                          runSpacing: ManaSpacing.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            for (final v in a.villages)
+                              InputChip(
+                                label: ManaText.raw('${v.villageTownName} — ${v.pinCode}',
+                                    style: const TextStyle(fontSize: 13)),
+                                onDeleted: () => _removeVillage(a, v),
+                                deleteIcon: const Icon(Icons.close, size: 18),
+                                deleteButtonTooltipMessage: 'Remove ${v.villageTownName} from ${a.name}',
+                              ),
+                            TextButton.icon(
+                              onPressed: () => _addVillage(a),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const ManaText('add village'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const Divider(height: 1),
@@ -631,6 +805,85 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
   }
 }
 
+/// PIN → village picker, reused for "attach another village to this area".
+/// Shares `operatingAreaSearchProvider` with the create panel above and
+/// resets it on the way in and out, so a half-finished search in one place
+/// never leaks into the other.
+class _VillagePickerSheet extends ConsumerStatefulWidget {
+  final String areaName;
+  const _VillagePickerSheet({required this.areaName});
+
+  @override
+  ConsumerState<_VillagePickerSheet> createState() => _VillagePickerSheetState();
+}
+
+class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
+  final _pinCode = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Provider write, so it must not happen during build — same Riverpod
+    // guard the tab controller note above documents.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(operatingAreaSearchProvider.notifier).reset();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pinCode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final search = ref.watch(operatingAreaSearchProvider);
+
+    return Padding(
+      padding: MediaQuery.of(context).viewInsets,
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(ManaSpacing.lg),
+          children: [
+            ManaText.raw('Add a village to ${widget.areaName}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: ManaSpacing.md),
+            TextField(
+              controller: _pinCode,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(labelText: 'PIN Code'),
+              onChanged: (v) {
+                if (v.trim().length == 6) {
+                  ref.read(operatingAreaSearchProvider.notifier).searchByPin(v.trim());
+                }
+              },
+            ),
+            if (search.searching) const Center(child: CircularProgressIndicator()),
+            if (!search.searching && search.matches.isEmpty && _pinCode.text.trim().length == 6)
+              const ManaText.raw('No villages found for that PIN.',
+                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            ...search.matches.map((m) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.location_on_outlined, color: ManaColors.brand),
+                  title: ManaText.raw('${m.villageTownName} — ${m.pinCode}'),
+                  onTap: () {
+                    ref.read(operatingAreaSearchProvider.notifier).reset();
+                    Navigator.of(context).pop(m);
+                  },
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AreaAssignmentChoice {
   final AgentSummary? agent;
   final bool ownerRun;
@@ -654,8 +907,15 @@ class _AssignAgentSheet extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.lg, ManaSpacing.lg, ManaSpacing.sm),
-            child: ManaText.raw('${area.villageTownName} — ${area.pinCode}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText.raw(area.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ManaText.raw(area.villagesLabel,
+                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              ],
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.storefront_outlined),

@@ -102,23 +102,44 @@ class OwnerApiService {
     // 3, the area is left with these placeholder values, not an empty/null
     // state — worth a UI-level "incomplete area" affordance, not something
     // this state layer alone can fix.
+    //
+    // An area is now a NAMED round with N villages in
+    // `operating_area_locations`, so this is two writes, not one. The
+    // wizard only collects a single village, so the area is named after it
+    // — the Owner can rename it and attach more villages later from
+    // OW-012. Not a placeholder: for a one-village round the village name
+    // IS the right name.
+    final village = await _db
+        .from('locations')
+        .select('village_town_name')
+        .eq('location_id', villageId)
+        .single();
+    final villageName = (village['village_town_name'] as String?) ?? '';
+
     final row = await _db
         .from('operating_areas')
         .insert({
           'business_id': businessId,
-          'location_id': villageId,
+          'name': villageName,
           'status': 'Active',
           'account_cycle_duration': 3,
           'account_cycle_unit': 'Days',
           'submission_time': '21:00:00',
         })
-        .select('operating_area_id, location_id, locations!inner(village_town_name)')
+        .select('operating_area_id')
         .single();
-    final location = row['locations'] as Map<String, dynamic>;
+    final operatingAreaId = row['operating_area_id'] as String;
+
+    await _db.from('operating_area_locations').insert({
+      'operating_area_id': operatingAreaId,
+      'location_id': villageId,
+      'business_id': businessId,
+    });
+
     return OperatingAreaResult(
-      operatingAreaId: row['operating_area_id'] as String,
+      operatingAreaId: operatingAreaId,
       pinCode: pinCode, // caller-supplied, not re-read from locations (locations.pin_code may differ if villageId spans multiple pins — kept as given)
-      villageName: (location['village_town_name'] as String?) ?? '',
+      villageName: villageName,
     );
   }
 
@@ -537,11 +558,11 @@ class OwnerApiService {
 
     final areaRows = await _db
         .from('agent_area_assignments')
-        .select('operating_areas!inner(location_id, locations!inner(village_town_name))')
+        .select('operating_areas!inner(name)')
         .eq('agent_id', agentId)
         .isFilter('removed_at', null);
     final assignedAreas = (areaRows as List)
-        .map((r) => (((r['operating_areas'] as Map<String, dynamic>)['locations'] as Map<String, dynamic>)['village_town_name'] as String?) ?? '')
+        .map((r) => ((r['operating_areas'] as Map<String, dynamic>)['name'] as String?) ?? '')
         .where((v) => v.isNotEmpty)
         .toList();
 

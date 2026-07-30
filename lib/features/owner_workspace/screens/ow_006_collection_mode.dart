@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/collection_mode_state.dart';
 import 'package:go_router/go_router.dart';
@@ -92,30 +93,12 @@ class _SummaryStrip extends StatelessWidget {
       ('Grace Period', '${state.graceCount}', ManaStatus.warn),
       ('Live Collected', _currency.format(state.liveCollectionAmount), ManaStatus.good),
     ];
-    return SizedBox(
-      height: 84,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: stats.length,
-        separatorBuilder: (_, __) => const SizedBox(width: ManaSpacing.sm),
-        itemBuilder: (context, i) {
-          final (label, value, status) = stats[i];
-          return Card(
-            child: Container(
-              width: 120,
-              padding: const EdgeInsets.all(ManaSpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                  ManaStatusPill(label: label, status: status),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+    return ManaStatStrip(
+      valueFontSize: 16,
+      stats: [
+        for (final (label, value, status) in stats)
+          ManaStat(value: value, label: label, status: status),
+      ],
     );
   }
 }

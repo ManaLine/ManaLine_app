@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
@@ -165,32 +166,12 @@ class _DashboardStrip extends StatelessWidget {
       ('Suspended', state.suspended, ManaStatus.bad),
       ('Removed', state.removed, ManaStatus.neutral),
     ];
-    return SizedBox(
-      height: 84,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: stats.length,
-        separatorBuilder: (_, __) => const SizedBox(width: ManaSpacing.sm),
-        itemBuilder: (context, i) {
-          final (label, count, status) = stats[i];
-          return Card(
-            child: Container(
-              width: 120,
-              padding: const EdgeInsets.all(ManaSpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ManaText.raw('$count',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 20)),
-                  ManaStatusPill(label: label, status: status),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+    return ManaStatStrip(
+      valueFontSize: 20,
+      stats: [
+        for (final (label, value, status) in stats)
+          ManaStat(value: '$value', label: label, status: status),
+      ],
     );
   }
 }

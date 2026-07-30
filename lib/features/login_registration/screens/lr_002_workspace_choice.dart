@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/widgets/language_selector.dart';
+import '../../../shared/translation_service.dart';
 import '../state/auth_flow_state.dart';
 
 /// LR-002 — root product picker. V1 ships MLF (Mana Finance) only;
@@ -15,6 +16,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(authFlowProvider).language;
+    ref.watch(translationLoaderProvider); // triggers cache load, rebuilds when ready
 
     return Scaffold(
       body: SafeArea(
@@ -23,9 +25,24 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
           child: Column(
             children: [
               const SizedBox(height: ManaSpacing.xl),
-              Text('MANA LINE', style: Theme.of(context).textTheme.headlineMedium),
+              ClipOval(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  height: 72,
+                  width: 72,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              Text(
+                ref.t('app_name'),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: ManaColors.brass,
+                    ),
+              ),
               const Spacer(),
-              const ManaText('choose workspace', style: TextStyle(fontWeight: FontWeight.bold)),
+              ManaText.raw(ref.t('choose_workspace'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: ManaSpacing.lg),
               _ProductCard(
                 code: 'MLF',
@@ -38,7 +55,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 code: 'MLC',
                 name: 'Mana Chits',
                 enabled: false,
-                badge: 'Coming Soon',
+                badge: ref.t('coming_soon'),
                 onTap: () => _showComingSoon(context),
               ),
               const Spacer(),

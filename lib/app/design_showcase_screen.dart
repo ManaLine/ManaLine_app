@@ -41,12 +41,13 @@ class _DesignShowcaseScreenState extends State<DesignShowcaseScreen> {
       body: ListView(
         padding: const EdgeInsets.all(ManaSpacing.lg),
         children: [
-          const ManaText('color tokens', style: TextStyle(fontWeight: FontWeight.bold)),
+          const ManaText('color tokens',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.sm),
-          Wrap(
+          const Wrap(
             spacing: ManaSpacing.sm,
             runSpacing: ManaSpacing.sm,
-            children: const [
+            children: [
               _Swatch('Ink', ManaColors.ink),
               _Swatch('Brass', ManaColors.brass),
               _Swatch('Good', ManaColors.statusGood),
@@ -56,11 +57,13 @@ class _DesignShowcaseScreenState extends State<DesignShowcaseScreen> {
           ),
           const SizedBox(height: ManaSpacing.xl),
 
-          const ManaText('typography', style: TextStyle(fontWeight: FontWeight.bold)),
+          const ManaText('typography',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.sm),
           Text('Owner Home Dashboard', style: textTheme.displayMedium),
           Text('Today\'s Business Summary', style: textTheme.headlineMedium),
-          Text('Outstanding balance and today\'s due customers.', style: textTheme.bodyMedium),
+          Text('Outstanding balance and today\'s due customers.',
+              style: textTheme.bodyMedium),
           Text('₹ 1,24,850', style: ManaTypography.amount(fontSize: 24)),
           const SizedBox(height: ManaSpacing.xl),
 
@@ -68,11 +71,14 @@ class _DesignShowcaseScreenState extends State<DesignShowcaseScreen> {
               style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.sm),
           const ManaText('grace period'), // renders "Grace Period"
-          const ManaText('request for loan'), // renders "Request for Loan" — "for" lowercase
-          const ManaText.raw('MLPI112345678 — Ramesh K.'), // untouched — ID + free text
+          const ManaText(
+              'request for loan'), // renders "Request for Loan" — "for" lowercase
+          const ManaText.raw(
+              'MLPI112345678 — Ramesh K.'), // untouched — ID + free text
           const SizedBox(height: ManaSpacing.xl),
 
-          const ManaText('status pills', style: TextStyle(fontWeight: FontWeight.bold)),
+          const ManaText('status pills',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.sm),
           const Wrap(
             spacing: ManaSpacing.sm,
@@ -97,13 +103,16 @@ class _DesignShowcaseScreenState extends State<DesignShowcaseScreen> {
           ),
           const SizedBox(height: ManaSpacing.xl),
 
-          const ManaText('buttons', style: TextStyle(fontWeight: FontWeight.bold)),
+          const ManaText('buttons',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.sm),
           Row(
             children: [
-              ElevatedButton(onPressed: () {}, child: const ManaText('collect payment')),
+              ElevatedButton(
+                  onPressed: () {}, child: const ManaText('collect payment')),
               const SizedBox(width: ManaSpacing.md),
-              OutlinedButton(onPressed: () {}, child: const ManaText('view documents')),
+              OutlinedButton(
+                  onPressed: () {}, child: const ManaText('view documents')),
             ],
           ),
         ],
@@ -122,8 +131,10 @@ class _Swatch extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 56, height: 56,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(12)),
         ),
         const SizedBox(height: 4),
         Text(label, style: Theme.of(context).textTheme.labelSmall),

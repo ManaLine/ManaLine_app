@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/text_utils.dart';
+import '../../../shared/document_viewer.dart' show DocumentSummary;
 
 /// OW-004 Customer Domain — real Supabase wiring over Module 3
 /// (persons/person_addresses/business_members/customers/customer_remarks).
@@ -51,8 +53,8 @@ class CustomerApiService {
 
       return CustomerSummary(
         customerId: m['customer_id'] as String,
-        fullName: person['full_name'] as String? ?? '',
-        fatherHusbandName: person['father_husband_name'] as String? ?? '',
+        fullName: titleCaseName(person['full_name'] as String? ?? ''),
+        fatherHusbandName: titleCaseName(person['father_husband_name'] as String? ?? ''),
         village: village,
         phoneNumber: person['mobile_number'] as String? ?? '',
         mlid: person['mlid'] as String? ?? '',
@@ -85,24 +87,26 @@ class CustomerApiService {
     String? mlid,
     String? fullName,
   }) async {
-    var q = _db.from('persons').select('person_id, full_name, father_husband_name, mobile_number, mlid');
-    if (mlid != null && mlid.isNotEmpty) {
-      q = q.eq('mlid', mlid);
-    } else if (aadhaar != null && aadhaar.isNotEmpty) {
-      q = q.eq('aadhaar_number', aadhaar);
-    } else if (phone != null && phone.isNotEmpty) {
-      q = q.eq('mobile_number', phone);
-    } else if (fullName != null && fullName.isNotEmpty) {
-      q = q.ilike('full_name', '%$fullName%');
-    } else {
+    if ((mlid == null || mlid.isEmpty) &&
+        (aadhaar == null || aadhaar.isEmpty) &&
+        (phone == null || phone.isEmpty) &&
+        (fullName == null || fullName.isEmpty)) {
       return null;
     }
-    final row = await q.maybeSingle();
-    if (row == null) return null;
+    final rows = await _db.schema('app').rpc('owner_search_person', params: {
+      'p_mlid': mlid,
+      'p_mobile_number': phone,
+      'p_aadhaar_number': aadhaar,
+      'p_full_name': fullName,
+    });
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) return null;
+    final row = list.first;
     return CustomerSummary(
       customerId: '', // no customers row yet — this is a persons-level search result, not a customer
-      fullName: row['full_name'] as String? ?? '',
-      fatherHusbandName: row['father_husband_name'] as String? ?? '',
+      personId: row['person_id']?.toString(),
+      fullName: titleCaseName(row['full_name'] as String? ?? ''),
+      fatherHusbandName: titleCaseName(row['father_husband_name'] as String? ?? ''),
       village: '',
       phoneNumber: row['mobile_number'] as String? ?? '',
       mlid: row['mlid'] as String? ?? '',
@@ -130,80 +134,89 @@ class CustomerApiService {
     String? genderDigit,
     String? mobileNumber,
     String? aadhaarNumber,
+    String? doorNo,
+    String? pinCode,
     String? villageId,
   }) async {
-    int personId;
     if (existingPersonId != null) {
-      personId = int.parse(existingPersonId);
-    } else {
-      if (fullName == null || fatherHusbandName == null || genderDigit == null) {
-        throw ArgumentError('fullName/fatherHusbandName/genderDigit are required to create a new identity.');
-      }
-      final personRow = await _db
-          .from('persons')
+      // Linking an already-existing person -- business_members/customers
+      // inserts are permitted directly (customers_owner_all,
+      // business_members_owner_all both FOR ALL for the Owner); only
+      // persons itself needed the RPC bypass, and that is not needed here
+      // since the person already exists.
+      final personId = int.parse(existingPersonId);
+      final membershipRow = await _db
+          .from('business_members')
           .insert({
-            'full_name': fullName,
-            'father_husband_name': fatherHusbandName,
-            'gender_digit': genderDigit,
-            'mobile_number': mobileNumber,
-            'aadhaar_number': aadhaarNumber,
-            'mlid': '', // BLOCKED: MLID generation/allocation is an SP-001-adjacent
-            // uniqueness-critical operation (BR-181/182) — this session does not
-            // invent that logic client-side. Left as a placeholder that WILL
-            // violate persons.mlid's UNIQUE/NOT NULL constraint on every second
-            // call; flagged for the same "blocked on RPC" reason as BF Cash/
-            // Salary Formula/Settlement math. Real fix: an
-            // `allocate_mlid_and_create_person` RPC.
-            'mlid_type': 'MLPI',
-            'registration_source': 'Owner',
-            'customer_type': 'New',
+            'person_id': personId,
+            'business_id': businessId,
+            'role': 'Customer',
+            'membership_status': 'Active',
+            'verification_status': 'Not Required', // BR-189
+            'onboarding_method': 'Direct Registration',
           })
-          .select('person_id')
+          .select('membership_id')
           .single();
-      personId = personRow['person_id'] as int;
+      final membershipId = membershipRow['membership_id'] as String;
 
-      if (villageId != null) {
-        await _db.from('person_addresses').insert({
-          'person_id': personId,
-          'door_no': '-',
-          'pin_code': '000000',
-          'village_id': villageId,
-          'mandal': '-',
-          'district': '-',
-          'state': '-',
-          'from_date': DateTime.now().toIso8601String().split('T').first,
-          'is_current': true,
-        });
-      }
+      final customerRow = await _db
+          .from('customers')
+          .insert({
+            'membership_id': membershipId,
+            'person_id': personId,
+            'occupation': 'Other-Custom',
+            'occupation_other_text': 'Not specified at creation',
+            'customer_status': 'Active',
+            'customer_since': DateTime.now().toIso8601String().split('T').first,
+          })
+          .select('customer_id')
+          .single();
+      return customerRow['customer_id'] as String;
     }
 
-    final membershipRow = await _db
-        .from('business_members')
-        .insert({
-          'person_id': personId,
-          'business_id': businessId,
-          'role': 'Customer',
-          'membership_status': 'Active',
-          'verification_status': 'Not Required', // BR-189
-          'onboarding_method': 'Direct Registration',
-          'joined_at': DateTime.now().toIso8601String(),
-        })
-        .select('membership_id')
-        .single();
-    final membershipId = membershipRow['membership_id'] as String;
+    // Brand-new identity -- RESOLVED (was a raw client insert that always
+    // failed: persons has no client INSERT policy, and left mlid as a
+    // literal empty string that would violate the UNIQUE/NOT NULL
+    // constraint on every second call). Now a single atomic RPC --
+    // app.register_new_customer (0045) -- handling persons +
+    // person_addresses + business_members + customers together, with
+    // Aadhaar optional (MLPI if given, MLTI if not).
+    if (fullName == null || fatherHusbandName == null || genderDigit == null || mobileNumber == null) {
+      throw ArgumentError('fullName/fatherHusbandName/genderDigit/mobileNumber are required to create a new identity.');
+    }
+    final result = await _db.schema('app').rpc('register_new_customer', params: {
+      'p_business_id': businessId,
+      'p_full_name': fullName,
+      'p_father_husband_name': fatherHusbandName,
+      'p_gender_digit': genderDigit,
+      'p_mobile_number': mobileNumber,
+      'p_aadhaar_number': aadhaarNumber,
+      'p_door_no': doorNo,
+      'p_pin_code': pinCode,
+      'p_village_id': villageId,
+    });
+    return result as String; // RETURNS UUID (customer_id) -- a scalar return
+  }
 
-    final customerRow = await _db
-        .from('customers')
-        .insert({
-          'membership_id': membershipId,
-          'person_id': personId,
-          'occupation': 'Other-Custom', // BR-230 mandatory; no value supplied by this stub's params — flagged
-          'customer_status': 'Active',
-          'customer_since': DateTime.now().toIso8601String().split('T').first,
-        })
-        .select('customer_id')
-        .single();
-    return customerRow['customer_id'] as String;
+
+  // BUG FIXED this pass: OW-004's Customer Documents tab was a static
+  // label list with onTap: () {} — customer_documents has a real insert
+  // path (agent_customer_state.dart's customer creation flow) but
+  // nothing ever read it back for display. This closes that.
+  Future<List<DocumentSummary>> fetchCustomerDocuments({required String customerId}) async {
+    final rows = await _db
+        .from('customer_documents')
+        .select('document_type, file_url, uploaded_at')
+        .eq('customer_id', customerId)
+        .eq('is_archived', false)
+        .order('uploaded_at', ascending: false);
+    return (rows as List)
+        .map((r) => DocumentSummary(
+              documentType: r['document_type'] as String,
+              fileUrl: r['file_url'] as String,
+              uploadedAt: DateTime.parse(r['uploaded_at'] as String),
+            ))
+        .toList();
   }
 
   Future<CustomerProfile> fetchCustomerProfile({required String customerId}) async {
@@ -235,10 +248,11 @@ class CustomerApiService {
     if (agentMembershipId != null) {
       final agentRow = await _db
           .from('business_members')
-          .select('persons(full_name)')
+          .select('persons!business_members_person_id_fkey(full_name)')
           .eq('membership_id', agentMembershipId)
           .maybeSingle();
-      agentName = (agentRow?['persons'] as Map<String, dynamic>?)?['full_name'] as String?;
+      final rawAgentName = (agentRow?['persons'] as Map<String, dynamic>?)?['full_name'] as String?;
+      agentName = rawAgentName == null ? null : titleCaseName(rawAgentName);
     }
 
     final loans = ((row['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
@@ -248,8 +262,8 @@ class CustomerApiService {
 
     final summary = CustomerSummary(
       customerId: row['customer_id'] as String,
-      fullName: person['full_name'] as String? ?? '',
-      fatherHusbandName: person['father_husband_name'] as String? ?? '',
+      fullName: titleCaseName(person['full_name'] as String? ?? ''),
+      fatherHusbandName: titleCaseName(person['father_husband_name'] as String? ?? ''),
       village: village,
       phoneNumber: person['mobile_number'] as String? ?? '',
       mlid: person['mlid'] as String? ?? '',
@@ -322,6 +336,7 @@ class CustomerApiService {
 
 class CustomerSummary {
   final String customerId;
+  final String? personId; // populated for pre-membership identity search results (OW-004 Add Customer); customerId is empty in that case since no customers row exists yet
   final String fullName;
   final String fatherHusbandName;
   final String village;
@@ -336,6 +351,7 @@ class CustomerSummary {
 
   CustomerSummary({
     required this.customerId,
+    this.personId,
     required this.fullName,
     required this.fatherHusbandName,
     required this.village,
@@ -556,7 +572,9 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
     required String fatherHusbandName,
     required String genderDigit,
     required String mobileNumber,
-    required String aadhaarNumber,
+    String? aadhaarNumber,
+    required String doorNo,
+    String? pinCode,
     required String villageId,
   }) async {
     try {
@@ -567,6 +585,8 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
             genderDigit: genderDigit,
             mobileNumber: mobileNumber,
             aadhaarNumber: aadhaarNumber,
+            doorNo: doorNo,
+            pinCode: pinCode,
             villageId: villageId,
           );
       await load(businessId);

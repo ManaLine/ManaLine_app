@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../shared/widgets/language_selector.dart';
 
@@ -24,6 +28,7 @@ import '../../../shared/widgets/language_selector.dart';
 class AuthFlowState {
   final String? personId;
   final String? mlid;
+  final bool isPlatformAdmin;
   final String? mlidType;
   final bool? pinExists;
   final String? token;
@@ -41,9 +46,19 @@ class AuthFlowState {
   /// succeeds or the flow otherwise completes.
   final String? pendingOtpId;
 
+  /// Transient — set by LR-004 with the live photo captured at
+  /// registration. Registration itself has no session/JWT yet (only
+  /// login mints one), so persons_self_update RLS can't be satisfied at
+  /// that point — the bytes are carried here and actually uploaded +
+  /// written to persons.profile_photo_url right after LR-007's first
+  /// successful login, when a real session finally exists. Cleared once
+  /// that upload completes (or is skipped/fails non-fatally).
+  final Uint8List? pendingProfilePhotoBytes;
+
   const AuthFlowState({
     this.personId,
     this.mlid,
+    this.isPlatformAdmin = false,
     this.mlidType,
     this.pinExists,
     this.token,
@@ -52,11 +67,13 @@ class AuthFlowState {
     this.selectedBusinessId,
     this.selectedRole,
     this.pendingOtpId,
+    this.pendingProfilePhotoBytes,
   });
 
   AuthFlowState copyWith({
     String? personId,
     String? mlid,
+    bool? isPlatformAdmin,
     String? mlidType,
     bool? pinExists,
     String? token,
@@ -66,10 +83,13 @@ class AuthFlowState {
     String? selectedRole,
     String? pendingOtpId,
     bool clearPendingOtpId = false,
+    Uint8List? pendingProfilePhotoBytes,
+    bool clearPendingProfilePhotoBytes = false,
   }) {
     return AuthFlowState(
       personId: personId ?? this.personId,
       mlid: mlid ?? this.mlid,
+      isPlatformAdmin: isPlatformAdmin ?? this.isPlatformAdmin,
       mlidType: mlidType ?? this.mlidType,
       pinExists: pinExists ?? this.pinExists,
       token: token ?? this.token,
@@ -78,6 +98,9 @@ class AuthFlowState {
       selectedBusinessId: selectedBusinessId ?? this.selectedBusinessId,
       selectedRole: selectedRole ?? this.selectedRole,
       pendingOtpId: clearPendingOtpId ? null : (pendingOtpId ?? this.pendingOtpId),
+      pendingProfilePhotoBytes: clearPendingProfilePhotoBytes
+          ? null
+          : (pendingProfilePhotoBytes ?? this.pendingProfilePhotoBytes),
     );
   }
 }
@@ -133,6 +156,14 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
     state = state.copyWith(clearPendingOtpId: true);
   }
 
+  void setPendingProfilePhoto(Uint8List bytes) {
+    state = state.copyWith(pendingProfilePhotoBytes: bytes);
+  }
+
+  void clearPendingProfilePhoto() {
+    state = state.copyWith(clearPendingProfilePhotoBytes: true);
+  }
+
   /// Sets the auth result AND pushes the session into ManaSession so
   /// every subsequent Postgrest/RLS-scoped call (e.g. fetchMemberships())
   /// carries the right bearer token immediately — these two must not drift
@@ -150,6 +181,17 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
       memberships: memberships,
     );
     await ManaSession.instance.setSession(accessToken: token, personId: personId);
+
+    // Check Platform Admin status now that a real session exists — used
+    // to conditionally show the Admin menu entry across workspace
+    // headers. Non-fatal on failure; just means the Admin item won't
+    // show, not a login blocker.
+    try {
+      final isAdmin = await Supabase.instance.client.schema('app').rpc('is_platform_admin');
+      state = state.copyWith(isPlatformAdmin: isAdmin as bool? ?? false);
+    } catch (_) {
+      // Leave isPlatformAdmin at its current/default value.
+    }
   }
 
   void setMemberships(List<Membership> memberships) {
@@ -164,6 +206,69 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
   /// LR-013 selection (or its single-role auto-collapse).
   void selectRole(String role) {
     state = state.copyWith(selectedRole: role);
+  }
+
+  /// Resolves and persists the role-specific entity id (agents.agent_id /
+  /// customers.customer_id / investors.investor_id) and membership_id for
+  /// whichever (business, role) is currently selected, then awaits the
+  /// write to ManaSession — call this and await it BEFORE navigating to
+  /// the destination workspace route, since router.dart reads these
+  /// synchronously on the very first build. Before this method existed,
+  /// nothing ever set these at all: AG-001/006/007/009 (and their CW/IW
+  /// counterparts) always built with a hardcoded literal
+  /// ('stub-agent-id' etc.), so every query keyed on that id came back
+  /// empty on every single visit, not just after a reload.
+  ///
+  /// The membership_id itself needs no query — it's already on the
+  /// Membership loaded by LR-012. Only the role-specific table needs one
+  /// small lookup by membership_id. Owner has no separate entity table
+  /// (ow-014's "currentOwnerPersonId" is just personId, already available
+  /// via ManaSession.currentPersonId) so this is a no-op for that role.
+  Future<void> resolveSelectedMembershipEntity() async {
+    final businessId = state.selectedBusinessId;
+    final role = state.selectedRole;
+    if (businessId == null || role == null) return;
+
+    Membership? membership;
+    for (final m in state.memberships) {
+      if (m.businessId == businessId && m.role == role) {
+        membership = m;
+        break;
+      }
+    }
+    if (membership == null) return;
+    final membershipId = membership.membershipId;
+
+    String? agentId;
+    String? customerId;
+    String? investorId;
+    try {
+      final db = Supabase.instance.client;
+      switch (role) {
+        case 'Agent':
+          final row = await db.from('agents').select('agent_id').eq('membership_id', membershipId).maybeSingle();
+          agentId = row?['agent_id'] as String?;
+        case 'Customer':
+          final row = await db.from('customers').select('customer_id').eq('membership_id', membershipId).maybeSingle();
+          customerId = row?['customer_id'] as String?;
+        case 'Investor':
+          final row = await db.from('investors').select('investor_id').eq('membership_id', membershipId).maybeSingle();
+          investorId = row?['investor_id'] as String?;
+        default:
+          // Owner — no separate entity row; membershipId alone is enough.
+          break;
+      }
+    } catch (_) {
+      // Non-fatal — router.dart's stub fallback still applies if this
+      // lookup fails, same as it did before this method existed.
+    }
+
+    await ManaSession.instance.rememberResolvedIds(
+      membershipId: membershipId,
+      agentId: agentId,
+      customerId: customerId,
+      investorId: investorId,
+    );
   }
 
   Future<void> reset() async {
@@ -194,9 +299,19 @@ class ManaSession {
   static const _storage = FlutterSecureStorage();
   static const _kAccessToken = 'mana_session_access_token';
   static const _kPersonId = 'mana_session_person_id';
+  static const _kLastBusinessId = 'mana_session_last_business_id';
+  static const _kLastMembershipId = 'mana_session_last_membership_id';
+  static const _kLastAgentId = 'mana_session_last_agent_id';
+  static const _kLastCustomerId = 'mana_session_last_customer_id';
+  static const _kLastInvestorId = 'mana_session_last_investor_id';
 
   String? _accessToken;
   String? _personId;
+  String? _lastBusinessId;
+  String? _lastMembershipId;
+  String? _lastAgentId;
+  String? _lastCustomerId;
+  String? _lastInvestorId;
 
   /// Read synchronously by supabase_flutter's accessToken callback on
   /// every outgoing request. Returning null before a session exists is
@@ -206,6 +321,37 @@ class ManaSession {
   String? get currentPersonId => _personId;
   bool get hasSession => _accessToken != null;
 
+  /// Last business a workspace route (OW-001/AG-001/CW-001/IW-001 etc.)
+  /// was actually reached with via `extra`. Read synchronously by
+  /// router.dart as the fallback when `extra` is null — e.g. a browser
+  /// refresh or a direct URL hit, both of which lose go_router's
+  /// in-memory `extra` payload. Without this, those routes fell back to
+  /// a hardcoded literal ('stub-business-id') that doesn't exist in the
+  /// database, so every real dashboard query failed with "could not load
+  /// dashboard" the moment a user refreshed the page.
+  String? get lastBusinessId => _lastBusinessId;
+
+  /// business_members.membership_id for whichever (business, role) LR-013
+  /// most recently selected — resolved by
+  /// AuthFlowNotifier.resolveSelectedMembershipEntity() right after
+  /// selectRole(), from `memberships` already loaded by LR-012 (no extra
+  /// query needed for this one). Read synchronously by router.dart for
+  /// routes that take a membership id directly (AG-003/004/005 etc.).
+  String? get lastMembershipId => _lastMembershipId;
+
+  /// agents.agent_id / customers.customer_id / investors.investor_id for
+  /// the same resolved membership — one lookup query each, done once in
+  /// resolveSelectedMembershipEntity() and cached here. Before this,
+  /// every AG-001/006/007/009 (and CW/IW equivalents) route used a
+  /// hardcoded literal ('stub-agent-id' etc.) unconditionally — not just
+  /// on reload, but on every single navigation, real or not — so every
+  /// query keyed on that id (e.g. agent_dashboard_state.dart's
+  /// `.eq('agent_id', agentId)`) returned nothing and the workspace
+  /// never actually loaded real data.
+  String? get lastAgentId => _lastAgentId;
+  String? get lastCustomerId => _lastCustomerId;
+  String? get lastInvestorId => _lastInvestorId;
+
   Future<void> setSession({required String accessToken, required String personId}) async {
     _accessToken = accessToken;
     _personId = personId;
@@ -213,25 +359,101 @@ class ManaSession {
     await _storage.write(key: _kPersonId, value: personId);
   }
 
+  /// Fire-and-forget by design (called from route builders, which can't
+  /// await) — the in-memory value is set synchronously so same-session
+  /// navigation is never affected by storage latency; only a
+  /// reload/direct-URL hit ever depends on the write having landed.
+  void rememberBusinessId(String businessId) {
+    if (_lastBusinessId == businessId) return;
+    _lastBusinessId = businessId;
+    unawaited(_storage.write(key: _kLastBusinessId, value: businessId));
+  }
+
+  /// Called (and awaited) once per role selection, before navigating —
+  /// unlike rememberBusinessId, the caller needs these values to actually
+  /// be in place for the very first navigation, not just reload survival,
+  /// so this one persists synchronously into memory and is awaited by the
+  /// caller for the storage write.
+  Future<void> rememberResolvedIds({
+    String? membershipId,
+    String? agentId,
+    String? customerId,
+    String? investorId,
+  }) async {
+    _lastMembershipId = membershipId;
+    _lastAgentId = agentId;
+    _lastCustomerId = customerId;
+    _lastInvestorId = investorId;
+    await Future.wait([
+      if (membershipId != null) _storage.write(key: _kLastMembershipId, value: membershipId),
+      if (agentId != null) _storage.write(key: _kLastAgentId, value: agentId),
+      if (customerId != null) _storage.write(key: _kLastCustomerId, value: customerId),
+      if (investorId != null) _storage.write(key: _kLastInvestorId, value: investorId),
+    ]);
+  }
+
   Future<void> clear() async {
     _accessToken = null;
     _personId = null;
+    _lastBusinessId = null;
+    _lastMembershipId = null;
+    _lastAgentId = null;
+    _lastCustomerId = null;
+    _lastInvestorId = null;
     await _storage.delete(key: _kAccessToken);
     await _storage.delete(key: _kPersonId);
+    await _storage.delete(key: _kLastBusinessId);
+    await _storage.delete(key: _kLastMembershipId);
+    await _storage.delete(key: _kLastAgentId);
+    await _storage.delete(key: _kLastCustomerId);
+    await _storage.delete(key: _kLastInvestorId);
   }
 
   /// Called once from main(), before runApp(). Populates the in-memory
   /// token from secure storage so the very first authenticated Postgrest
   /// call after a warm/cold restart already carries the right bearer
-  /// token. This does NOT verify the token is still valid (not expired /
-  /// not revoked server-side) — that's discovered the first time a
-  /// protected query runs and RLS silently returns zero rows, or (once
-  /// the real Edge Functions exist) a dedicated token-refresh/verify call.
-  /// Flagged in END RESULT: no refresh-token/expiry story exists yet
-  /// because the custom-JWT-minting Edge Function that would issue one is
-  /// itself the blocking gap.
+  /// token.
+  ///
+  /// BUG FOUND (confirmed live): this previously restored whatever token
+  /// was last saved with no expiry check at all — every subsequent
+  /// request (data screens AND, critically, a fresh login/PIN attempt)
+  /// carried a token the server had already rejected, which is worse than
+  /// just "RLS silently returns zero rows": a request that includes an
+  /// expired bearer gets a hard 401/PGRST303 "JWT expired" from
+  /// PostgREST, and the exact same header was going out on auth-login
+  /// too (see auth_api_service.dart's `_anonAuth` fix), so nobody could
+  /// even log back in. Decoding (not verifying — no secret client-side,
+  /// and none needed just to read a public claim) the token's own `exp`
+  /// claim here means an already-dead token is simply never restored:
+  /// the app comes up looking logged-out (correct) rather than logged-in
+  /// with every screen silently failing.
   Future<void> hydrateFromSecureStorage() async {
-    _accessToken = await _storage.read(key: _kAccessToken);
+    final token = await _storage.read(key: _kAccessToken);
+    _accessToken = (token != null && !_isJwtExpired(token)) ? token : null;
     _personId = await _storage.read(key: _kPersonId);
+    _lastBusinessId = await _storage.read(key: _kLastBusinessId);
+    _lastMembershipId = await _storage.read(key: _kLastMembershipId);
+    _lastAgentId = await _storage.read(key: _kLastAgentId);
+    _lastCustomerId = await _storage.read(key: _kLastCustomerId);
+    _lastInvestorId = await _storage.read(key: _kLastInvestorId);
+  }
+
+  /// Reads the `exp` claim out of a JWT's payload segment without
+  /// verifying its signature (there's no secret to verify with
+  /// client-side, and none is needed just to read a public, unencrypted
+  /// claim). Any decode failure is treated as "expired" — a token this
+  /// app can't even parse is not one worth sending.
+  bool _isJwtExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+      final normalized = base64Url.normalize(parts[1]);
+      final payload = jsonDecode(utf8.decode(base64Url.decode(normalized))) as Map<String, dynamic>;
+      final exp = payload['exp'];
+      if (exp is! int) return true;
+      return DateTime.now().millisecondsSinceEpoch >= exp * 1000;
+    } catch (_) {
+      return true;
+    }
   }
 }

@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
+import '../state/customer_state.dart';
+import '../../../shared/translation_service.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -16,6 +19,17 @@ final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalD
 /// spec's own DATA MODEL TOUCHED note). Polling refresh every 15-30s per
 /// the cross-cutting live-update decision — this scaffold polls on a timer
 /// rather than websockets, matching the locked API BINDING.
+///
+/// FIXED this batch: Workforce/Investor Snapshot "See All" AND every one
+/// of the 9 Quick Actions tiles were pushing to their destination routes
+/// with no `extra: businessId` — router.dart's `_resolveBusinessId(s)`
+/// then fell back to `ManaSession.instance.lastBusinessId ??
+/// 'stub-business-id'`, which is fragile (and in the reported case,
+/// produced an empty/wrong-business list on the destination screen even
+/// though this dashboard's own aggregate counts were correct). All 11
+/// navigation call sites below now explicitly pass `extra: widget.businessId`
+/// or `extra: businessId`, removing the dependency on that fallback
+/// entirely.
 class OwnerHomeDashboardScreen extends ConsumerStatefulWidget {
   final String businessId;
   const OwnerHomeDashboardScreen({super.key, required this.businessId});
@@ -49,8 +63,13 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
             child: ListView(
               padding: const EdgeInsets.only(bottom: ManaSpacing.xxl),
               children: [
-                _Header(businessName: data.businessName, businessOpen: data.businessOpen),
-                _BusinessStatusBar(data: data),
+                _Header(
+                  businessId: widget.businessId,
+                  businessName: data.businessName,
+                  businessOpen: data.businessOpen,
+                  notifications: data.notifications,
+                ),
+                _BusinessStatusBar(businessId: widget.businessId, data: data),
                 const SizedBox(height: ManaSpacing.md),
                 _SectionCard(
                   title: "today's business summary",
@@ -67,7 +86,7 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                 ),
                 _SectionCard(
                   title: 'attention required',
-                  child: _AttentionRequired(cards: data.attentionRequired),
+                  child: _AttentionRequired(businessId: widget.businessId, cards: data.attentionRequired),
                 ),
                 _SectionCard(
                   title: 'business overview',
@@ -75,12 +94,12 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                 ),
                 _SectionCard(
                   title: 'workforce snapshot',
-                  onSeeAll: () => context.push('/ow-002'),
+                  onSeeAll: () => context.push('/ow-002', extra: widget.businessId),
                   child: _WorkforceSnapshot(data: data),
                 ),
                 _SectionCard(
                   title: 'investor snapshot',
-                  onSeeAll: () => context.push('/ow-003'),
+                  onSeeAll: () => context.push('/ow-003', extra: widget.businessId),
                   child: _InvestorSnapshot(data: data),
                 ),
               ],
@@ -88,7 +107,7 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
           ),
         ),
       ),
-      bottomNavigationBar: const _FooterNav(),
+      bottomNavigationBar: _FooterNav(businessId: widget.businessId),
     );
   }
 
@@ -103,6 +122,15 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load dashboard'),
             const SizedBox(height: ManaSpacing.sm),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
+              child: ManaText.raw(
+                e.toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: ManaColors.statusBad),
+              ),
+            ),
+            const SizedBox(height: ManaSpacing.sm),
             ElevatedButton(onPressed: _refresh, child: const ManaText('retry')),
           ],
         ),
@@ -114,9 +142,16 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
 // --- C1 Header ---------------------------------------------------------
 
 class _Header extends ConsumerWidget {
+  final String businessId;
   final String businessName;
   final bool businessOpen;
-  const _Header({required this.businessName, required this.businessOpen});
+  final List<NotificationItem> notifications;
+  const _Header({
+    required this.businessId,
+    required this.businessName,
+    required this.businessOpen,
+    required this.notifications,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -146,12 +181,12 @@ class _Header extends ConsumerWidget {
           IconButton(
             tooltip: 'Notifications',
             icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+            onPressed: () => _openNotifications(context),
           ),
           IconButton(
             tooltip: 'Universal Search',
             icon: const Icon(Icons.search),
-            onPressed: () {},
+            onPressed: () => _openUniversalSearch(context),
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
@@ -162,21 +197,255 @@ class _Header extends ConsumerWidget {
                 case 'switch_role':
                   context.go('/lr-013');
                 case 'profile':
-                  break;
+                  context.push('/ow-016');
+                case 'business_management':
+                  context.push('/ow-012', extra: businessId);
+                case 'report_hub':
+                  context.push('/ow-010', extra: businessId);
+                case 'settings':
+                  context.push('/ow-settings', extra: businessId);
+                case 'admin_panel':
+                  context.push('/admin-panel');
                 case 'logout':
                   ref.read(authFlowProvider.notifier).reset();
                   context.go('/lr-003');
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'profile', child: ManaText('profile')),
-              PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
-              PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
-              PopupMenuDivider(),
-              PopupMenuItem(value: 'logout', child: ManaText('logout')),
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'profile', child: ManaText('profile')),
+              const PopupMenuItem(value: 'business_management', child: ManaText('business management')),
+              const PopupMenuItem(value: 'report_hub', child: ManaText('report hub')),
+              const PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
+              const PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
+              const PopupMenuItem(value: 'settings', child: ManaText('settings')),
+              if (ref.watch(authFlowProvider).isPlatformAdmin) ...[
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'admin_panel',
+                  child: ManaText.raw('admin panel', style: TextStyle(color: ManaColors.statusBad, fontWeight: FontWeight.bold)),
+                ),
+              ],
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'logout', child: ManaText('logout')),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // Both header icons were previously no-op `onPressed: () {}` placeholders.
+  void _openNotifications(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _NotificationsSheet(notifications: notifications),
+    );
+  }
+
+  void _openUniversalSearch(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _UniversalSearchSheet(businessId: businessId),
+    );
+  }
+}
+
+class _NotificationsSheet extends StatelessWidget {
+  final List<NotificationItem> notifications;
+  const _NotificationsSheet({required this.notifications});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      expand: false,
+      builder: (context, scrollController) => Padding(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ManaText('notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: ManaSpacing.md),
+            Expanded(
+              child: notifications.isEmpty
+                  ? const Center(
+                      child: ManaText.raw('No notifications yet.', style: TextStyle(color: ManaColors.textSecondary)),
+                    )
+                  : ListView.separated(
+                      controller: scrollController,
+                      itemCount: notifications.length,
+                      separatorBuilder: (_, __) => const Divider(),
+                      itemBuilder: (context, i) {
+                        final n = notifications[i];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            n.read ? Icons.notifications_none : Icons.notifications_active,
+                            color: n.read ? ManaColors.textSecondary : ManaColors.brass,
+                          ),
+                          title: ManaText.raw(n.label, style: const TextStyle(fontSize: 13)),
+                          subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                          trailing: ManaText.raw(DateFormat('d MMM, hh:mm a').format(n.timestamp),
+                              style: const TextStyle(fontSize: 10, color: ManaColors.textSecondary)),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Reuses the same identity-search RPC already wired for OW-004/OW-005/
+// AG-007's customer search (owner_search_person, MLID/phone/Aadhaar/name)
+// — the only cross-role identity lookup this backend actually exposes.
+// After a match, resolves the person's role in THIS business via
+// business_members so the Owner lands on the right management screen
+// directly, instead of guessing between Customer/Workforce/Investor.
+class _UniversalSearchSheet extends ConsumerStatefulWidget {
+  final String businessId;
+  const _UniversalSearchSheet({required this.businessId});
+
+  @override
+  ConsumerState<_UniversalSearchSheet> createState() => _UniversalSearchSheetState();
+}
+
+class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
+  final _query = TextEditingController();
+  bool _searching = false;
+  String? _error;
+  CustomerSummary? _found;
+  List<String> _foundRoles = const [];
+
+  Future<void> _search() async {
+    final query = _query.text.trim();
+    if (query.isEmpty) return;
+    setState(() {
+      _searching = true;
+      _error = null;
+      _found = null;
+      _foundRoles = const [];
+    });
+    final isMlid = RegExp(r'^ML[A-Za-z]{2}\d+$').hasMatch(query);
+    final digitsOnly = RegExp(r'^\d+$').hasMatch(query);
+    try {
+      final result = await ref.read(customerListProvider.notifier).searchIdentity(
+            mlid: isMlid ? query : null,
+            aadhaar: !isMlid && digitsOnly && query.length == 12 ? query : null,
+            phone: !isMlid && digitsOnly && query.length == 10 ? query : null,
+            fullName: isMlid || digitsOnly ? null : query,
+          );
+      // Plain list, not .maybeSingle() — a person can hold more than one
+      // role in the same business (e.g. the Owner themselves also
+      // holding an Agent membership, per the UNIQUE constraint being on
+      // (person_id, business_id, role), not (person_id, business_id)).
+      // .maybeSingle() throws "Results contain N rows" the moment that's
+      // true for whoever was searched, instead of just listing them.
+      var roles = <String>[];
+      if (result?.personId != null) {
+        final rows = await Supabase.instance.client
+            .from('business_members')
+            .select('role')
+            .eq('business_id', widget.businessId)
+            .eq('person_id', int.parse(result!.personId!));
+        roles = (rows as List).map((r) => r['role'] as String).toList();
+      }
+      if (!mounted) return;
+      setState(() {
+        _searching = false;
+        _found = result;
+        _foundRoles = roles;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _searching = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  void _goToRoleScreen(BuildContext context, String role) {
+    final route = switch (role) {
+      'Agent' => '/ow-002',
+      'Investor' => '/ow-003',
+      'Customer' => '/ow-004',
+      _ => null,
+    };
+    if (route == null) return;
+    Navigator.of(context).pop();
+    context.push(route, extra: widget.businessId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: MediaQuery.of(context).viewInsets,
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ManaText('search', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: ManaSpacing.xs),
+            const ManaText.raw('Search by Phone, MANA LINE ID, Aadhaar, or Name.',
+                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+            const SizedBox(height: ManaSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _query,
+                    decoration: const InputDecoration(labelText: 'Search'),
+                    onSubmitted: (_) => _search(),
+                  ),
+                ),
+                const SizedBox(width: ManaSpacing.sm),
+                FilledButton(
+                  onPressed: _searching ? null : _search,
+                  child: _searching
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const ManaText('search'),
+                ),
+              ],
+            ),
+            const SizedBox(height: ManaSpacing.md),
+            if (_error != null)
+              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+            if (_found != null)
+              Card(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      title: ManaText.raw(_found!.fullName),
+                      subtitle: ManaText.raw(_found!.mlid),
+                    ),
+                    if (_foundRoles.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
+                        child: ManaText.raw('Not a member of this business.',
+                            style: TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+                      )
+                    else
+                      // A person can hold more than one role in the same
+                      // business (e.g. an Owner who is also an Agent) —
+                      // one tappable row per role rather than guessing.
+                      ..._foundRoles.map((role) => ListTile(
+                            title: ManaText.raw(role),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => _goToRoleScreen(context, role),
+                          )),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -185,8 +454,15 @@ class _Header extends ConsumerWidget {
 // --- C2 Business Status Bar ---------------------------------------------
 
 class _BusinessStatusBar extends StatelessWidget {
+  final String businessId;
   final OwnerDashboardData data;
-  const _BusinessStatusBar({required this.data});
+  const _BusinessStatusBar({required this.businessId, required this.data});
+
+  // Both pills open OW-012's Members tab, scoped to this business — that
+  // tab already has the pending-invitation/pending-acceptance lists AND
+  // the investor request accept/reject queue, so this is "invitation
+  // details with accept/reject" without inventing a second screen for it.
+  void _openInvitations(BuildContext context) => context.push('/ow-012?tab=members', extra: businessId);
 
   @override
   Widget build(BuildContext context) {
@@ -204,9 +480,17 @@ class _BusinessStatusBar extends StatelessWidget {
           if (data.pendingApprovals > 0)
             ManaStatusPill(label: '${data.pendingApprovals} Approvals', status: ManaStatus.warn),
           if (data.pendingInvitations > 0)
-            ManaStatusPill(label: '${data.pendingInvitations} Invitations', status: ManaStatus.warn),
+            InkWell(
+              onTap: () => _openInvitations(context),
+              borderRadius: BorderRadius.circular(999),
+              child: ManaStatusPill(label: '${data.pendingInvitations} Invitations', status: ManaStatus.warn),
+            ),
           if (data.pendingAcceptances > 0)
-            ManaStatusPill(label: '${data.pendingAcceptances} Acceptances', status: ManaStatus.warn),
+            InkWell(
+              onTap: () => _openInvitations(context),
+              borderRadius: BorderRadius.circular(999),
+              child: ManaStatusPill(label: '${data.pendingAcceptances} Acceptances', status: ManaStatus.warn),
+            ),
           if (data.pendingDayClosure)
             const ManaStatusPill(label: 'Day Closure Pending', status: ManaStatus.bad),
         ],
@@ -304,54 +588,129 @@ class _TodaysSummary extends StatelessWidget {
 }
 
 // --- C4 Quick Actions --------------------------------------------------
-
+//
+// Grouped by who the action is about (Customers / Workforce / Investor)
+// rather than one flat 9-tile grid, and expanded to cover every action an
+// Owner actually has available in that group — not just the original
+// one-tile-per-management-screen set. Tiles that need a screen to do
+// something more specific than "open the list" (register vs add-existing,
+// search vs browse, a pre-filtered request queue) drive that via a route
+// query param the destination screen reads in its own initState, so each
+// tile is a real distinct destination, not a decorative duplicate.
+//
+// NOTE (flagged, not silently built): "assign agent to an operating area"
+// has no dedicated screen outside the OW-000 setup wizard — OW-012's
+// Operating Areas tab only supports add-area/configure-cycle today, not
+// re-assigning an area to a different agent. Folded into "Workforce
+// Management" below rather than shipping a tile that points at a flow
+// that doesn't exist. Same reasoning for "Add Investments": recording an
+// investment requires picking the investor first (Investor Profile's own
+// "record investment" action) — folded into "Investor Management" rather
+// than a fake shortcut with nowhere distinct to land.
 class _QuickActions extends StatelessWidget {
   final String businessId;
   const _QuickActions({required this.businessId});
 
   @override
   Widget build(BuildContext context) {
-    final actions = <(IconData, String, String)>[
-      (Icons.person_add_outlined, 'New Customer', '/ow-004'),
-      (Icons.request_quote_outlined, 'New Loan', '/ow-005'),
-      (Icons.point_of_sale_outlined, 'Collection Mode', '/ow-006'),
-      (Icons.people_outline, 'Customer Management', '/ow-004'),
-      (Icons.badge_outlined, 'Workforce Management', '/ow-002'),
-      (Icons.savings_outlined, 'Investor Management', '/ow-003'),
-      (Icons.bar_chart_outlined, 'Reports', '/ow-010'),
-      (Icons.menu_book_outlined, 'Daily Record Book', '/ow-009'),
-      (Icons.lock_clock_outlined, 'Day Closure', '/ow-011'),
-    ];
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: actions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: ManaSpacing.sm,
-        crossAxisSpacing: ManaSpacing.sm,
-        childAspectRatio: 0.95,
-      ),
-      itemBuilder: (context, i) {
-        final (icon, label, route) = actions[i];
-        return Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => context.push(route),
-            child: Padding(
-              padding: const EdgeInsets.all(ManaSpacing.sm),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: ManaColors.brass),
-                  const SizedBox(height: ManaSpacing.xs),
-                  ManaText(label, textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 11)),
-                ],
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _QuickActionGroup(
+          title: 'customers',
+          businessId: businessId,
+          actions: const [
+            (Icons.request_quote_outlined, 'New Loan', '/ow-005', null),
+            (Icons.point_of_sale_outlined, 'Collections', '/ow-006', null),
+            (Icons.search, 'Search Customers', '/ow-004', 'focus=search'),
+            (Icons.people_outline, 'Customer Management', '/ow-004', null),
+            (Icons.inbox_outlined, 'Loan Requests', '/ow-loan-requests', null),
+            // BUG FIXED this pass: OW-015 was a real, fully-built screen
+            // with zero links from anywhere in the app.
+            (Icons.groups_2_outlined, 'Group Loans', '/ow-015', null),
+          ],
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        _QuickActionGroup(
+          title: 'workforce',
+          businessId: businessId,
+          actions: const [
+            (Icons.person_add_alt_1_outlined, 'Register New Agent', '/ow-002', 'open=register'),
+            (Icons.badge_outlined, 'Add Existing Agent', '/ow-002', 'open=existing'),
+            (Icons.groups_outlined, 'Workforce Management', '/ow-002', null),
+            (Icons.lock_clock_outlined, 'Day Closure', '/ow-011', null),
+            (Icons.menu_book_outlined, 'Daily Record Book', '/ow-009', null),
+            (Icons.bar_chart_outlined, 'Reports', '/ow-010', null),
+            // BUG FIXED this pass: OW-013 was a real, fully-built screen
+            // with zero links from anywhere in the app.
+            (Icons.fact_check_outlined, 'Account Review', '/ow-013', null),
+          ],
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        _QuickActionGroup(
+          title: 'investor',
+          businessId: businessId,
+          actions: const [
+            (Icons.person_add_alt_1_outlined, 'Add Existing Investor', '/ow-003', 'open=existing'),
+            (Icons.inbox_outlined, 'Investor Requests', '/ow-003', 'filter=Pending%20Acceptance'),
+            (Icons.savings_outlined, 'Investor Management', '/ow-003', null),
+            // BUG FIXED this pass: investment_withdrawal_requests had a
+            // real INSERT path with no reachable Owner review screen at
+            // all — requests sat Pending forever.
+            (Icons.payments_outlined, 'Withdrawal Requests', '/ow-withdrawal-requests', null),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionGroup extends StatelessWidget {
+  final String title;
+  final String businessId;
+  final List<(IconData, String, String, String?)> actions;
+  const _QuickActionGroup({required this.title, required this.businessId, required this.actions});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ManaText(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
+        const SizedBox(height: ManaSpacing.xs),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: actions.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: ManaSpacing.sm,
+            crossAxisSpacing: ManaSpacing.sm,
+            childAspectRatio: 0.95,
           ),
-        );
-      },
+          itemBuilder: (context, i) {
+            final (icon, label, route, query) = actions[i];
+            final destination = query == null ? route : '$route?$query';
+            return Card(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => context.push(destination, extra: businessId),
+                child: Padding(
+                  padding: const EdgeInsets.all(ManaSpacing.sm),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, color: ManaColors.brass),
+                      const SizedBox(height: ManaSpacing.xs),
+                      ManaText(label, textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }
@@ -391,8 +750,25 @@ class _LiveActivity extends StatelessWidget {
 // --- C6 Attention Required --------------------------------------------
 
 class _AttentionRequired extends StatelessWidget {
+  final String businessId;
   final List<AttentionCard> cards;
-  const _AttentionRequired({required this.cards});
+  const _AttentionRequired({required this.businessId, required this.cards});
+
+  // BUG FIXED this pass: every card here had onTap: () {} — an Owner
+  // tapping a flagged HIGH-priority item (e.g. Pending Customer Approval)
+  // saw nothing happen. Routes each card to wherever that type is
+  // actually actioned; falls back to Report Hub (a safe, always-correct
+  // "see everything" destination) for any type string this doesn't
+  // recognize rather than silently doing nothing.
+  void _open(BuildContext context, AttentionCard c) {
+    final route = switch (c.type) {
+      'Pending Customer Approval' => '/ow-004',
+      'Pending Loan Approval' => '/ow-loan-requests',
+      'Pending Day Closure' => '/ow-011',
+      _ => '/ow-010',
+    };
+    context.push(route, extra: businessId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -417,7 +793,7 @@ class _AttentionRequired extends StatelessWidget {
                     label: '${c.count}',
                     status: c.priority == 'High' ? ManaStatus.bad : ManaStatus.warn,
                   ),
-                  onTap: () {},
+                  onTap: () => _open(context, c),
                 ),
               ))
           .toList(),
@@ -550,30 +926,28 @@ class _InvestorSnapshot extends StatelessWidget {
 
 // --- C11 Footer Navigation --------------------------------------------
 
-class _FooterNav extends StatelessWidget {
-  const _FooterNav();
+class _FooterNav extends ConsumerWidget {
+  final String businessId;
+  const _FooterNav({required this.businessId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return NavigationBar(
       selectedIndex: 0,
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.people_outline), label: 'Customers'),
-        NavigationDestination(icon: Icon(Icons.point_of_sale_outlined), label: 'Collections'),
-        NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: 'Reports'),
-        NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+      destinations: [
+        NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: ref.t('home')),
+        NavigationDestination(icon: const Icon(Icons.people_outline), label: ref.t('customers')),
+        NavigationDestination(icon: const Icon(Icons.point_of_sale_outlined), label: ref.t('collections')),
+        NavigationDestination(icon: const Icon(Icons.history), label: ref.t('history')),
       ],
       onDestinationSelected: (i) {
         switch (i) {
           case 1:
-            context.go('/ow-004');
+            context.go('/ow-004', extra: businessId);
           case 2:
-            context.go('/ow-006');
+            context.go('/ow-006', extra: businessId);
           case 3:
-            context.go('/ow-010');
-          case 4:
-            context.go('/ow-012');
+            context.go('/ow-017', extra: businessId);
         }
       },
     );

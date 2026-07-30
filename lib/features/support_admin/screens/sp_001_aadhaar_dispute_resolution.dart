@@ -43,7 +43,8 @@ class _Sp001AadhaarDisputeResolutionScreenState
   @override
   Widget build(BuildContext context) {
     if (!_staffAcknowledged) {
-      return _StaffStubGate(onAcknowledge: () => setState(() => _staffAcknowledged = true));
+      return _StaffStubGate(
+          onAcknowledge: () => setState(() => _staffAcknowledged = true));
     }
     return const _CaseWorkspace();
   }
@@ -64,11 +65,15 @@ class _StaffStubGate extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.admin_panel_settings_outlined, size: 40, color: ManaColors.textSecondary),
+                const Icon(Icons.admin_panel_settings_outlined,
+                    size: 40, color: ManaColors.textSecondary),
                 const SizedBox(height: ManaSpacing.lg),
                 const ManaText.raw(
                   'Support / Admin Internal Tool',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ManaColors.textPrimary),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: ManaColors.textPrimary),
                 ),
                 const SizedBox(height: ManaSpacing.sm),
                 const ManaText.raw(
@@ -77,14 +82,20 @@ class _StaffStubGate extends StatelessWidget {
                   'Investor/Customer app. Real staff authentication is\n'
                   'separate future work — proceeding here is a stand-in.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary, height: 1.5),
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: ManaColors.textSecondary,
+                      height: 1.5),
                 ),
                 const SizedBox(height: ManaSpacing.xl),
                 ElevatedButton(
                   onPressed: onAcknowledge,
-                  style: ElevatedButton.styleFrom(backgroundColor: ManaColors.ink, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: ManaColors.ink,
+                      foregroundColor: Colors.white),
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: ManaSpacing.lg, vertical: ManaSpacing.sm),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: ManaSpacing.lg, vertical: ManaSpacing.sm),
                     child: ManaText.raw('Continue as Support Staff'),
                   ),
                 ),
@@ -119,28 +130,34 @@ class _CaseWorkspace extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: ManaColors.ink,
         foregroundColor: Colors.white,
-        title: const ManaText.raw('SP-001 — Aadhaar Dispute Case', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        title: const ManaText.raw('SP-001 — Aadhaar Dispute Case',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: Column(
           children: [
             _StepIndicator(currentStep: caseState.step, steps: _steps),
-            if (caseState.error != null) _InlineErrorBanner(message: caseState.error!),
+            if (caseState.error != null)
+              _InlineErrorBanner(message: caseState.error!),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(ManaSpacing.lg),
                 child: switch (caseState.step) {
                   DisputeStep.caseIntake => const _CaseIntakeStep(),
-                  DisputeStep.secondPersonVerification => const _ManualVerificationStep(
+                  DisputeStep.secondPersonVerification =>
+                    const _ManualVerificationStep(
                       title: 'Manual Verification — Second Person',
                       description:
                           'Human review only. Compare the submitted proof document '
                           'against the claimed Aadhaar number. No automated matching.',
                       isOriginalHolderStep: false,
                     ),
-                  DisputeStep.suspensionConfirm => const _SuspensionConfirmStep(),
-                  DisputeStep.originalHolderIntake => const _OriginalHolderIntakeStep(),
-                  DisputeStep.originalHolderVerification => const _ManualVerificationStep(
+                  DisputeStep.suspensionConfirm =>
+                    const _SuspensionConfirmStep(),
+                  DisputeStep.originalHolderIntake =>
+                    const _OriginalHolderIntakeStep(),
+                  DisputeStep.originalHolderVerification =>
+                    const _ManualVerificationStep(
                       title: 'Manual Verification — Original Holder',
                       description:
                           'Human review only. Compare the original holder\'s newly '
@@ -183,17 +200,22 @@ class _StepIndicator extends StatelessWidget {
     final currentIndex = steps.indexOf(currentStep);
     return Container(
       color: ManaColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md, vertical: ManaSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+          horizontal: ManaSpacing.md, vertical: ManaSpacing.sm),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
             for (int i = 0; i < steps.length; i++) ...[
-              _StepChip(label: _label(steps[i]), active: i == currentIndex, done: i < currentIndex),
+              _StepChip(
+                  label: _label(steps[i]),
+                  active: i == currentIndex,
+                  done: i < currentIndex),
               if (i != steps.length - 1)
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Icon(Icons.chevron_right, size: 16, color: ManaColors.textDisabled),
+                  child: Icon(Icons.chevron_right,
+                      size: 16, color: ManaColors.textDisabled),
                 ),
             ],
           ],
@@ -207,20 +229,25 @@ class _StepChip extends StatelessWidget {
   final String label;
   final bool active;
   final bool done;
-  const _StepChip({required this.label, required this.active, required this.done});
+  const _StepChip(
+      {required this.label, required this.active, required this.done});
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? ManaColors.ink : (done ? ManaColors.statusGood : ManaColors.textDisabled);
+    final color = active
+        ? ManaColors.ink
+        : (done ? ManaColors.statusGood : ManaColors.textDisabled);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.sm, vertical: 4),
+      padding:
+          const EdgeInsets.symmetric(horizontal: ManaSpacing.sm, vertical: 4),
       decoration: BoxDecoration(
         color: active ? ManaColors.inkFaint : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
       ),
       child: ManaText.raw(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+        style:
+            TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
       ),
     );
   }
@@ -235,8 +262,10 @@ class _InlineErrorBanner extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: ManaColors.statusBadFaint,
-      padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.lg, vertical: ManaSpacing.sm),
-      child: ManaText.raw(message, style: const TextStyle(fontSize: 12, color: ManaColors.statusBad)),
+      padding: const EdgeInsets.symmetric(
+          horizontal: ManaSpacing.lg, vertical: ManaSpacing.sm),
+      child: ManaText.raw(message,
+          style: const TextStyle(fontSize: 12, color: ManaColors.statusBad)),
     );
   }
 }
@@ -269,7 +298,8 @@ class _SectionCard extends StatelessWidget {
 /// (createSignedUrl) when displaying the document later, never a bare
 /// public URL. Returns null if the person cancels the picker.
 Future<String?> _pickAndUploadDisputeDocument(String folderPrefix) async {
-  final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+  final picked = await ImagePicker()
+      .pickImage(source: ImageSource.gallery, imageQuality: 85);
   if (picked == null) return null;
 
   final bytes = await picked.readAsBytes();
@@ -308,7 +338,8 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText.raw('Step 1 — Case Intake', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        const ManaText.raw('Step 1 — Case Intake',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: ManaSpacing.xs),
         const ManaText.raw(
           'Look up the existing account by MLID or Aadhaar, then attach the '
@@ -320,7 +351,8 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ManaText.raw('Search by MLID or Aadhaar Number', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const ManaText.raw('Search by MLID or Aadhaar Number',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               Row(
                 children: [
@@ -337,9 +369,14 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
                   ),
                   const SizedBox(width: ManaSpacing.sm),
                   ElevatedButton(
-                    onPressed: caseState.looking ? null : () => notifier.lookupExistingAccount(),
+                    onPressed: caseState.looking
+                        ? null
+                        : () => notifier.lookupExistingAccount(),
                     child: caseState.looking
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const ManaText.raw('Look Up'),
                   ),
                 ],
@@ -348,18 +385,27 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
                 const SizedBox(height: ManaSpacing.md),
                 Container(
                   padding: const EdgeInsets.all(ManaSpacing.sm),
-                  decoration: BoxDecoration(color: ManaColors.inkFaint, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                      color: ManaColors.inkFaint,
+                      borderRadius: BorderRadius.circular(8)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ManaText.raw('Existing MLID: ${caseState.existingAccount!.currentMlid}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                      ManaText.raw('Account Holder: ${caseState.existingAccount!.fullName}',
-                          style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                      ManaText.raw(
+                          'Existing MLID: ${caseState.existingAccount!.currentMlid}',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700)),
+                      ManaText.raw(
+                          'Account Holder: ${caseState.existingAccount!.fullName}',
+                          style: const TextStyle(
+                              fontSize: 12, color: ManaColors.textSecondary)),
                       const SizedBox(height: 4),
                       const ManaText.raw(
                         'Visible to Support only — never shown to the registrant.',
-                        style: TextStyle(fontSize: 11, color: ManaColors.textDisabled, fontStyle: FontStyle.italic),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: ManaColors.textDisabled,
+                            fontStyle: FontStyle.italic),
                       ),
                     ],
                   ),
@@ -373,20 +419,26 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ManaText.raw('Second Person\'s Proof Document', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const ManaText.raw('Second Person\'s Proof Document',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton.icon(
                 onPressed: () async {
-                  final result = await NetworkErrorHandler.run(context, () async {
-                    final documentUrl = await _pickAndUploadDisputeDocument('second_person_proof');
-                    if (documentUrl == null) return null; // person cancelled the picker
+                  final result =
+                      await NetworkErrorHandler.run(context, () async {
+                    final documentUrl = await _pickAndUploadDisputeDocument(
+                        'second_person_proof');
+                    if (documentUrl == null)
+                      return null; // person cancelled the picker
                     await notifier.uploadSecondPersonProof(documentUrl);
                     return documentUrl;
                   });
-                  if (result != null) setState(() => _attachedDocName = result.split('/').last);
+                  if (result != null)
+                    setState(() => _attachedDocName = result.split('/').last);
                 },
                 icon: const Icon(Icons.upload_file, size: 18),
-                label: ManaText.raw(_attachedDocName ?? 'Attach Proof Document'),
+                label:
+                    ManaText.raw(_attachedDocName ?? 'Attach Proof Document'),
               ),
             ],
           ),
@@ -395,7 +447,9 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: caseState.canProceedFromIntake ? notifier.goToSecondPersonVerification : null,
+            onPressed: caseState.canProceedFromIntake
+                ? notifier.goToSecondPersonVerification
+                : null,
             style: ElevatedButton.styleFrom(backgroundColor: ManaColors.brass),
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: ManaSpacing.sm),
@@ -432,34 +486,44 @@ class _ManualVerificationStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final caseState = ref.watch(aadhaarDisputeCaseProvider);
     final notifier = ref.read(aadhaarDisputeCaseProvider.notifier);
-    final decision = isOriginalHolderStep ? caseState.originalHolderDecision : caseState.secondPersonDecision;
+    final decision = isOriginalHolderStep
+        ? caseState.originalHolderDecision
+        : caseState.secondPersonDecision;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText.raw(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ManaText.raw(title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: ManaSpacing.xs),
-        ManaText.raw(description, style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+        ManaText.raw(description,
+            style:
+                const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         _SectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ManaText.raw('Decision', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const ManaText.raw('Decision',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               _DecisionTile(
                 label: 'Verified',
                 selected: decision == ManualVerificationDecision.verified,
                 onTap: () => isOriginalHolderStep
-                    ? notifier.setOriginalHolderDecision(ManualVerificationDecision.verified)
-                    : notifier.setSecondPersonDecision(ManualVerificationDecision.verified),
+                    ? notifier.setOriginalHolderDecision(
+                        ManualVerificationDecision.verified)
+                    : notifier.setSecondPersonDecision(
+                        ManualVerificationDecision.verified),
               ),
               _DecisionTile(
                 label: 'Not Verified',
                 selected: decision == ManualVerificationDecision.notVerified,
                 onTap: () => isOriginalHolderStep
-                    ? notifier.setOriginalHolderDecision(ManualVerificationDecision.notVerified)
-                    : notifier.setSecondPersonDecision(ManualVerificationDecision.notVerified),
+                    ? notifier.setOriginalHolderDecision(
+                        ManualVerificationDecision.notVerified)
+                    : notifier.setSecondPersonDecision(
+                        ManualVerificationDecision.notVerified),
               ),
             ],
           ),
@@ -477,14 +541,22 @@ class _ManualVerificationStep extends ConsumerWidget {
           width: double.infinity,
           child: ElevatedButton(
             onPressed: decision == ManualVerificationDecision.verified
-                ? () => isOriginalHolderStep ? notifier.resolveCase() : notifier.proceedToSuspensionSummary()
+                ? () => isOriginalHolderStep
+                    ? notifier.resolveCase()
+                    : notifier.proceedToSuspensionSummary()
                 : null,
             style: ElevatedButton.styleFrom(backgroundColor: ManaColors.brass),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
               child: caseState.resolving || caseState.loadingSuspensionImpact
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : ManaText.raw(isOriginalHolderStep ? 'Continue to Resolution' : 'Continue to Suspension Review'),
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : ManaText.raw(isOriginalHolderStep
+                      ? 'Continue to Resolution'
+                      : 'Continue to Suspension Review'),
             ),
           ),
         ),
@@ -497,7 +569,8 @@ class _DecisionTile extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _DecisionTile({required this.label, required this.selected, required this.onTap});
+  const _DecisionTile(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -532,7 +605,8 @@ class _SuspensionConfirmStep extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText.raw('Step 3 — Suspend Original Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        const ManaText.raw('Step 3 — Suspend Original Account',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: ManaSpacing.xs),
         const ManaText.raw(
           'Second person verified. Review the impact below before confirming — '
@@ -543,15 +617,23 @@ class _SuspensionConfirmStep extends ConsumerWidget {
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (caseState.loadingSuspensionImpact)
-          const Center(child: Padding(padding: EdgeInsets.all(ManaSpacing.xl), child: CircularProgressIndicator()))
+          const Center(
+              child: Padding(
+                  padding: EdgeInsets.all(ManaSpacing.xl),
+                  child: CircularProgressIndicator()))
         else if (rows.isEmpty)
-          const _SectionCard(child: ManaText.raw('No impact rows returned.', style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)))
+          const _SectionCard(
+              child: ManaText.raw('No impact rows returned.',
+                  style:
+                      TextStyle(fontSize: 12, color: ManaColors.textSecondary)))
         else
           _SectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const ManaText.raw('Will Be Suspended', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const ManaText.raw('Will Be Suspended',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 const SizedBox(height: ManaSpacing.sm),
                 for (final row in rows)
                   Padding(
@@ -559,7 +641,9 @@ class _SuspensionConfirmStep extends ConsumerWidget {
                     child: Row(
                       children: [
                         Icon(
-                          row.isOwnerBusiness ? Icons.storefront_outlined : Icons.badge_outlined,
+                          row.isOwnerBusiness
+                              ? Icons.storefront_outlined
+                              : Icons.badge_outlined,
                           size: 18,
                           color: ManaColors.statusBad,
                         ),
@@ -582,13 +666,21 @@ class _SuspensionConfirmStep extends ConsumerWidget {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: rows.isEmpty || caseState.suspending ? null : () => notifier.confirmSuspension(),
-            style: ElevatedButton.styleFrom(backgroundColor: ManaColors.statusBad),
+            onPressed: rows.isEmpty || caseState.suspending
+                ? null
+                : () => notifier.confirmSuspension(),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: ManaColors.statusBad),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
               child: caseState.suspending
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const ManaText.raw('Confirm Suspension', style: TextStyle(color: Colors.white)),
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const ManaText.raw('Confirm Suspension',
+                      style: TextStyle(color: Colors.white)),
             ),
           ),
         ),
@@ -605,10 +697,12 @@ class _OriginalHolderIntakeStep extends ConsumerStatefulWidget {
   const _OriginalHolderIntakeStep();
 
   @override
-  ConsumerState<_OriginalHolderIntakeStep> createState() => _OriginalHolderIntakeStepState();
+  ConsumerState<_OriginalHolderIntakeStep> createState() =>
+      _OriginalHolderIntakeStepState();
 }
 
-class _OriginalHolderIntakeStepState extends ConsumerState<_OriginalHolderIntakeStep> {
+class _OriginalHolderIntakeStepState
+    extends ConsumerState<_OriginalHolderIntakeStep> {
   final _aadhaarController = TextEditingController();
   String? _attachedDocName;
   String? _attachedDocUrl;
@@ -620,7 +714,8 @@ class _OriginalHolderIntakeStepState extends ConsumerState<_OriginalHolderIntake
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText.raw('Step 4 — Original Holder Re-Verification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        const ManaText.raw('Step 4 — Original Holder Re-Verification',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: ManaSpacing.xs),
         const ManaText.raw(
           'Original account holder has been notified and asked to submit '
@@ -632,20 +727,25 @@ class _OriginalHolderIntakeStepState extends ConsumerState<_OriginalHolderIntake
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ManaText.raw('Corrected Aadhaar Number', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const ManaText.raw('Corrected Aadhaar Number',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               TextField(
                 controller: _aadhaarController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    isDense: true, border: OutlineInputBorder()),
               ),
               const SizedBox(height: ManaSpacing.lg),
-              const ManaText.raw('Proof Document', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const ManaText.raw('Proof Document',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton.icon(
                 onPressed: () async {
-                  final result = await NetworkErrorHandler.run(context, () async {
-                    return _pickAndUploadDisputeDocument('original_holder_proof');
+                  final result =
+                      await NetworkErrorHandler.run(context, () async {
+                    return _pickAndUploadDisputeDocument(
+                        'original_holder_proof');
                   });
                   if (result != null) {
                     setState(() {
@@ -655,7 +755,8 @@ class _OriginalHolderIntakeStepState extends ConsumerState<_OriginalHolderIntake
                   }
                 },
                 icon: const Icon(Icons.upload_file, size: 18),
-                label: ManaText.raw(_attachedDocName ?? 'Attach Proof Document'),
+                label:
+                    ManaText.raw(_attachedDocName ?? 'Attach Proof Document'),
               ),
             ],
           ),
@@ -664,7 +765,8 @@ class _OriginalHolderIntakeStepState extends ConsumerState<_OriginalHolderIntake
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _aadhaarController.text.trim().isNotEmpty && _attachedDocUrl != null
+            onPressed: _aadhaarController.text.trim().isNotEmpty &&
+                    _attachedDocUrl != null
                 ? () => NetworkErrorHandler.run(context, () async {
                       return notifier.submitOriginalHolderResubmission(
                         correctedAadhaar: _aadhaarController.text.trim(),
@@ -729,11 +831,12 @@ class _CaseClosedStep extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: const [
+        const Row(
+          children: [
             Icon(Icons.check_circle, color: ManaColors.statusGood),
             SizedBox(width: ManaSpacing.sm),
-            ManaText.raw('Case Resolved — Slot Freed', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ManaText.raw('Case Resolved — Slot Freed',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ],
         ),
         const SizedBox(height: ManaSpacing.md),
@@ -750,20 +853,27 @@ class _CaseClosedStep extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const ManaText.raw('MLID Correction Record (Read-Only)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const ManaText.raw('MLID Correction Record (Read-Only)',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 const SizedBox(height: ManaSpacing.sm),
-                ManaText.raw('Old MLID: ${history.oldMlid}', style: const TextStyle(fontSize: 13)),
-                ManaText.raw('New MLID: ${history.newMlid}', style: const TextStyle(fontSize: 13)),
-                ManaText.raw('Reason: ${history.reason}', style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                ManaText.raw('Old MLID: ${history.oldMlid}',
+                    style: const TextStyle(fontSize: 13)),
+                ManaText.raw('New MLID: ${history.newMlid}',
+                    style: const TextStyle(fontSize: 13)),
+                ManaText.raw('Reason: ${history.reason}',
+                    style: const TextStyle(
+                        fontSize: 12, color: ManaColors.textSecondary)),
               ],
             ),
           ),
         const SizedBox(height: ManaSpacing.lg),
-        _SectionCard(
+        const _SectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              ManaText.raw('Next Step', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            children: [
+              ManaText.raw('Next Step',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
                 'The disputed MLID slot is now free. The second person\'s real '

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/text_utils.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 
 /// OW-003 Investor Domain — real Supabase wiring over Module 5.
@@ -15,7 +16,14 @@ class InvestorApiService {
         .select('investor_id, membership_id, '
             'business_members!inner(business_id, membership_status), '
             'persons!inner(full_name, mlid, mobile_number), '
-            'investments(remaining_balance, roi_rate, last_interest_payment_date)')
+            // SCHEMA MISMATCH FIX: `investments` has no `remaining_balance`
+            // column (0006_module5_investor_domain.sql) — per that
+            // migration's own column comment, `principal_amount` IS the
+            // single combined Principal+Interest running balance (Merged
+            // Addendum item 2). my_investments_state.dart already used the
+            // correct column; this file (and fetchInvestorProfile below)
+            // did not, and threw PostgrestException 42703 on every load.
+            'investments(principal_amount, roi_rate, last_interest_payment_date)')
         .eq('business_members.business_id', businessId);
     final rows = await q;
 
@@ -24,11 +32,11 @@ class InvestorApiService {
         .map((r) {
           final person = r['persons'] as Map<String, dynamic>;
           final investments = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
-          final balance = investments.fold<double>(0, (sum, i) => sum + ((i['remaining_balance'] as num?)?.toDouble() ?? 0));
+          final balance = investments.fold<double>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toDouble() ?? 0));
           final roi = investments.isEmpty ? 0.0 : (investments.first['roi_rate'] as num).toDouble();
           return InvestorSummary(
             investorId: r['investor_id'] as String,
-            fullName: person['full_name'] as String? ?? '',
+            fullName: titleCaseName(person['full_name'] as String? ?? ''),
             mlid: person['mlid'] as String? ?? '',
             phoneNumber: person['mobile_number'] as String? ?? '',
             investmentBalance: balance,
@@ -85,11 +93,14 @@ class InvestorApiService {
   }
 
   Future<InvestorSummary?> searchByMlid({required String mlid}) async {
-    final row = await _db.from('persons').select('person_id, full_name, mlid, mobile_number').eq('mlid', mlid).maybeSingle();
-    if (row == null) return null;
+    final rows = await _db.schema('app').rpc('owner_search_person_by_mlid', params: {'p_mlid': mlid});
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) return null;
+    final row = list.first;
     return InvestorSummary(
       investorId: '', // not yet a member of this business
-      fullName: row['full_name'] as String? ?? '',
+      personId: row['person_id']?.toString(),
+      fullName: titleCaseName(row['full_name'] as String? ?? ''),
       mlid: row['mlid'] as String? ?? '',
       phoneNumber: row['mobile_number'] as String? ?? '',
       investmentBalance: 0,
@@ -131,18 +142,18 @@ class InvestorApiService {
             'business_members!inner(membership_status), '
             'persons!inner(full_name, mlid, mobile_number), '
             'investments(investment_id, principal_amount, roi_rate, interest_type, effective_date, '
-            'remaining_balance, status, profit_share_percent)')
+            'status, profit_share_percent)')
         .eq('investor_id', investorId)
         .single();
 
     final person = row['persons'] as Map<String, dynamic>;
     final investments = ((row['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
-    final balance = investments.fold<double>(0, (sum, i) => sum + ((i['remaining_balance'] as num?)?.toDouble() ?? 0));
+    final balance = investments.fold<double>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toDouble() ?? 0));
 
     return InvestorProfile(
       summary: InvestorSummary(
         investorId: row['investor_id'] as String,
-        fullName: person['full_name'] as String? ?? '',
+        fullName: titleCaseName(person['full_name'] as String? ?? ''),
         mlid: person['mlid'] as String? ?? '',
         phoneNumber: person['mobile_number'] as String? ?? '',
         investmentBalance: balance,
@@ -207,6 +218,29 @@ class InvestorApiService {
     });
   }
 
+  // BUG FIXED this pass: declareProfitShare/payProfitShare below were
+  // both fully implemented but never surfaced anywhere in OW-003 — this
+  // lets the UI actually list what's already been declared for an
+  // investment (to show a "pay" action once, not offer to declare the
+  // same profit twice).
+  Future<List<ProfitShareDeclaration>> fetchProfitShareDeclarations({required String investmentId}) async {
+    final rows = await _db
+        .from('distribution_declarations')
+        .select('declaration_id, total_profit_amount, declared_amount, business_date, status, remarks')
+        .eq('investment_id', investmentId)
+        .order('business_date', ascending: false);
+    return (rows as List)
+        .map((r) => ProfitShareDeclaration(
+              declarationId: r['declaration_id'] as String,
+              totalProfitAmount: (r['total_profit_amount'] as num).toDouble(),
+              declaredAmount: (r['declared_amount'] as num).toDouble(),
+              businessDate: DateTime.parse(r['business_date'] as String),
+              status: r['status'] as String,
+              remarks: r['remarks'] as String?,
+            ))
+        .toList();
+  }
+
   Future<void> declareProfitShare({
     required String investmentId,
     required double totalProfitAmount,
@@ -245,10 +279,135 @@ class InvestorApiService {
     });
     await _db.from('distribution_declarations').update({'status': 'Paid'}).eq('declaration_id', declarationId);
   }
+
+  // BUG FIXED this pass: IW-004's "Request Withdrawal" does a real
+  // INSERT into investment_withdrawal_requests, and even the Owner's own
+  // "request withdrawal" dialog here only ever inserted another Pending
+  // row — nothing anywhere ever transitioned one out of Pending. Closes
+  // that with a real Owner-side review queue (investment_withdrawal_
+  // requests_owner_all RLS, 0014, already grants full access).
+  Future<List<WithdrawalRequestSummary>> fetchWithdrawalRequests({required String businessId}) async {
+    final rows = await _db
+        .from('investment_withdrawal_requests')
+        .select('request_id, investment_id, withdrawal_type, requested_amount, remarks, created_at, '
+            'investments!inner(business_id, investors!inner(persons!inner(full_name, mlid)))')
+        .eq('investments.business_id', businessId)
+        .eq('status', 'Pending')
+        .order('created_at', ascending: false);
+    return (rows as List).map((r) {
+      final investment = r['investments'] as Map<String, dynamic>;
+      final investor = investment['investors'] as Map<String, dynamic>;
+      final person = investor['persons'] as Map<String, dynamic>;
+      return WithdrawalRequestSummary(
+        requestId: r['request_id'] as String,
+        investmentId: r['investment_id'] as String,
+        investorName: titleCaseName(person['full_name'] as String? ?? ''),
+        investorMlid: person['mlid'] as String? ?? '',
+        withdrawalType: r['withdrawal_type'] as String,
+        requestedAmount: (r['requested_amount'] as num).toDouble(),
+        remarks: r['remarks'] as String?,
+        createdAt: DateTime.parse(r['created_at'] as String),
+      );
+    }).toList();
+  }
+
+  Future<void> rejectWithdrawalRequest({required String requestId, required String reason}) async {
+    await _db.from('investment_withdrawal_requests').update({
+      'status': 'Rejected',
+      'rejection_reason': reason,
+      'resolved_at': DateTime.now().toIso8601String(),
+    }).eq('request_id', requestId);
+  }
+
+  /// Pays out a withdrawal request — Owner enters the principal/interest
+  /// split manually (schema's own column comment: "Owner-entered at
+  /// approval time", not system-computed). Reduces investments.
+  /// principal_amount by the paid amount (that column is documented as
+  /// the single combined running balance, per 0006's own comment) and
+  /// auto-closes the investment if it reaches 0 (app-layer, same as that
+  /// comment specifies — no DB trigger does this).
+  Future<void> approveWithdrawalRequest({
+    required String requestId,
+    required String investmentId,
+    required String withdrawalType,
+    required double amount,
+    required double principalPortion,
+    required double interestPortion,
+  }) async {
+    final personId = ref.read(authFlowProvider).personId;
+    if (personId == null) throw StateError('No logged-in person_id available.');
+    final today = DateTime.now().toIso8601String().split('T').first;
+
+    final withdrawal = await _db
+        .from('investment_withdrawals')
+        .insert({
+          'investment_id': investmentId,
+          'withdrawal_type': withdrawalType,
+          'amount': amount,
+          'principal_portion': principalPortion,
+          'interest_portion': interestPortion,
+          'business_date': today,
+          'approved_by_person_id': int.parse(personId),
+        })
+        .select('withdrawal_id')
+        .single();
+
+    final investment = await _db.from('investments').select('principal_amount').eq('investment_id', investmentId).single();
+    final remaining = (investment['principal_amount'] as num).toDouble() - principalPortion;
+    await _db.from('investments').update({
+      'principal_amount': remaining < 0 ? 0 : remaining,
+      if (remaining <= 0) 'status': 'Closed',
+    }).eq('investment_id', investmentId);
+
+    await _db.from('investment_withdrawal_requests').update({
+      'status': 'Approved-Paid',
+      'resulting_withdrawal_id': withdrawal['withdrawal_id'],
+      'resolved_at': DateTime.now().toIso8601String(),
+    }).eq('request_id', requestId);
+  }
+}
+
+class ProfitShareDeclaration {
+  final String declarationId;
+  final double totalProfitAmount;
+  final double declaredAmount;
+  final DateTime businessDate;
+  final String status; // Declared | Paid
+  final String? remarks;
+  ProfitShareDeclaration({
+    required this.declarationId,
+    required this.totalProfitAmount,
+    required this.declaredAmount,
+    required this.businessDate,
+    required this.status,
+    this.remarks,
+  });
+}
+
+class WithdrawalRequestSummary {
+  final String requestId;
+  final String investmentId;
+  final String investorName;
+  final String investorMlid;
+  final String withdrawalType;
+  final double requestedAmount;
+  final String? remarks;
+  final DateTime createdAt;
+  WithdrawalRequestSummary({
+    required this.requestId,
+    required this.investmentId,
+    required this.investorName,
+    required this.investorMlid,
+    required this.withdrawalType,
+    required this.requestedAmount,
+    this.remarks,
+    required this.createdAt,
+  });
 }
 
 class InvestorSummary {
   final String investorId;
+  final String? personId; // populated for pre-membership search results; investorId is empty in that case
   final String fullName;
   final String mlid;
   final String phoneNumber;
@@ -260,6 +419,7 @@ class InvestorSummary {
 
   InvestorSummary({
     required this.investorId,
+    this.personId,
     required this.fullName,
     required this.mlid,
     required this.phoneNumber,

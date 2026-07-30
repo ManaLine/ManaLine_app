@@ -15,7 +15,17 @@ final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalD
 /// form; C5 Add Existing mirrors OW-002's MLID search pattern.
 class InvestorManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const InvestorManagementScreen({super.key, required this.businessId});
+  // Set by OW-001's "Add Existing Investor" Quick Action tile ('existing').
+  final String? initialAction;
+  // Set by the "Investor Requests" Quick Action tile to pre-filter the
+  // list to a given membership status (e.g. 'Pending Acceptance').
+  final String? initialFilter;
+  const InvestorManagementScreen({
+    super.key,
+    required this.businessId,
+    this.initialAction,
+    this.initialFilter,
+  });
 
   @override
   ConsumerState<InvestorManagementScreen> createState() => _InvestorManagementScreenState();
@@ -28,7 +38,22 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Setting the filter here rather than synchronously in initState —
+      // a provider write during any widget's build phase (including
+      // initState) throws Riverpod's "tried to modify a provider while the
+      // widget tree was building" (hit this for real in the sibling
+      // OW-012 tab case — see that file's fix note).
+      if (widget.initialFilter != null) {
+        ref.read(investorWorkforceProvider.notifier).setStatusFilter(widget.initialFilter);
+      }
       ref.read(investorWorkforceProvider.notifier).load(widget.businessId);
+      if (widget.initialAction == 'existing') {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => _AddExistingInvestorSheet(businessId: widget.businessId),
+        ).then((_) => ref.read(investorWorkforceProvider.notifier).load(widget.businessId));
+      }
     });
   }
 
@@ -42,12 +67,12 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
         actions: [
           IconButton(
             tooltip: 'Add Existing Investor',
-            icon: const Icon(Icons.savings_outlined),
+            icon: const Icon(Icons.person_add_alt_1_outlined),
             onPressed: () => showModalBottomSheet(
               context: context,
               isScrollControlled: true,
               builder: (_) => _AddExistingInvestorSheet(businessId: widget.businessId),
-            ),
+            ).then((_) => ref.read(investorWorkforceProvider.notifier).load(widget.businessId)),
           ),
         ],
       ),
@@ -77,7 +102,20 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                     ...state.investors
                         .where((i) => i.membershipStatus == 'Pending Acceptance')
                         .map((i) => _PendingRequestCard(businessId: widget.businessId, investor: i)),
-                    if (state.filtered.isEmpty)
+                    // A failed load previously looked identical to "no
+                    // investors" — state.error was captured but never
+                    // shown, indistinguishable from a business that
+                    // genuinely has zero investors.
+                    if (state.error != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                        child: Center(
+                          child: ManaText.raw('Could not load investors.\n${state.error}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+                        ),
+                      )
+                    else if (state.filtered.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
@@ -303,7 +341,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
     if (_found == null) return;
     setState(() => _adding = true);
     final ok = await NetworkErrorHandler.run(context, () async {
-      return ref.read(investorWorkforceProvider.notifier).addExisting(widget.businessId, _found!.investorId);
+      return ref.read(investorWorkforceProvider.notifier).addExisting(widget.businessId, _found!.personId!);
     });
     if (!mounted) return;
     setState(() => _adding = false);
@@ -374,11 +412,11 @@ class InvestorProfileScreen extends ConsumerWidget {
     final asyncProfile = ref.watch(investorProfileProvider(investor.investorId));
 
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: ManaText.raw(investor.fullName),
-          bottom: const TabBar(tabs: [Tab(text: 'Overview'), Tab(text: 'Investments'), Tab(text: 'Membership')]),
+          bottom: const TabBar(tabs: [Tab(text: 'Overview'), Tab(text: 'Investments')]),
           actions: [
             PopupMenuButton<String>(
               onSelected: (status) => _changeStatus(context, ref, status),
@@ -402,7 +440,6 @@ class InvestorProfileScreen extends ConsumerWidget {
             children: [
               _OverviewTab(investor: investor),
               _InvestmentsTab(investorId: investor.investorId, profile: profile),
-              _MembershipTab(investor: investor),
             ],
           ),
         ),
@@ -461,7 +498,7 @@ class _OverviewTab extends StatelessWidget {
         child: Row(
           children: [
             Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           ],
         ),
       );
@@ -474,14 +511,29 @@ class _InvestmentsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A Removed/Suspended/Pending investor should never be able to have
+    // a NEW investment recorded against them — that produced exactly the
+    // wrong-info case reported: recording an investment for a Removed
+    // investor makes them show an active-looking balance while still
+    // carrying Removed status everywhere else (Investor Management's
+    // list, the dashboard's active-investor count, etc.).
+    final isActive = profile.summary.membershipStatus == 'Active';
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         ElevatedButton.icon(
-          onPressed: () => _showInvestDialog(context, ref),
+          onPressed: isActive ? () => _showInvestDialog(context, ref) : null,
           icon: const Icon(Icons.add),
           label: const ManaText('record investment'),
         ),
+        if (!isActive)
+          Padding(
+            padding: const EdgeInsets.only(top: ManaSpacing.xs),
+            child: ManaText.raw(
+              'Only Active investors can have new investments recorded (current status: ${profile.summary.membershipStatus}).',
+              style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+            ),
+          ),
         const SizedBox(height: ManaSpacing.lg),
         if (profile.investments.isEmpty)
           const ManaText.raw('No investments recorded yet.', style: TextStyle(color: ManaColors.textSecondary))
@@ -516,12 +568,36 @@ class _InvestmentsTab extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: ManaSpacing.sm),
-                      OutlinedButton(
-                        // S7/S8 — enabled only when balance >= ₹1.00
-                        onPressed: inv.principalAmount >= 1
-                            ? () => _showWithdrawDialog(context, ref, inv)
-                            : null,
-                        child: const ManaText('withdraw'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              // S7/S8 — enabled only when balance >= ₹1.00
+                              onPressed: inv.principalAmount >= 1
+                                  ? () => _showWithdrawDialog(context, ref, inv)
+                                  : null,
+                              child: const ManaText('withdraw'),
+                            ),
+                          ),
+                          // BUG FIXED this pass: declareProfitShare/
+                          // payProfitShare were fully implemented in
+                          // investor_state.dart but never surfaced here —
+                          // only shown when this investment actually has
+                          // a profit-share agreement (percent > 0).
+                          if ((inv.profitSharePercent ?? 0) > 0) ...[
+                            const SizedBox(width: ManaSpacing.sm),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  builder: (_) => _ProfitShareSheet(investment: inv),
+                                ),
+                                child: const ManaText('profit share'),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -543,6 +619,11 @@ class _InvestmentsTab extends ConsumerWidget {
     final amount = TextEditingController();
     final roi = TextEditingController();
     String method = 'Simple';
+    // Defaults to today, but backdateable — a business onboarding onto
+    // this app after already running for years needs to record
+    // investments that started well before "today" (e.g. this investor's
+    // original entry date), not just brand-new ones.
+    DateTime effectiveDate = DateTime.now();
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -570,6 +651,22 @@ class _InvestmentsTab extends ConsumerWidget {
                 ],
                 onChanged: (v) => setState(() => method = v ?? 'Simple'),
               ),
+              const SizedBox(height: ManaSpacing.md),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const ManaText('Effective Date'),
+                subtitle: ManaText.raw(DateFormat('d MMM yyyy').format(effectiveDate)),
+                trailing: const Icon(Icons.calendar_today, size: 18),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: dialogContext,
+                    initialDate: effectiveDate,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) setState(() => effectiveDate = picked);
+                },
+              ),
             ],
           ),
           actions: [
@@ -589,7 +686,7 @@ class _InvestmentsTab extends ConsumerWidget {
             amount: amt,
             roiRate: r,
             interestMethod: method,
-            effectiveDate: DateTime.now().toIso8601String(),
+            effectiveDate: effectiveDate.toIso8601String(),
           );
     });
   }
@@ -642,32 +739,132 @@ class _InvestmentsTab extends ConsumerWidget {
   }
 }
 
-class _MembershipTab extends StatelessWidget {
-  final InvestorSummary investor;
-  const _MembershipTab({required this.investor});
+class _ProfitShareSheet extends ConsumerStatefulWidget {
+  final InvestmentRecord investment;
+  const _ProfitShareSheet({required this.investment});
+
+  @override
+  ConsumerState<_ProfitShareSheet> createState() => _ProfitShareSheetState();
+}
+
+class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
+  late Future<List<ProfitShareDeclaration>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<ProfitShareDeclaration>> _load() {
+    return ref.read(investorApiServiceProvider).fetchProfitShareDeclarations(investmentId: widget.investment.investmentId);
+  }
+
+  void _reload() => setState(() => _future = _load());
+
+  Future<void> _declare() async {
+    final amountController = TextEditingController();
+    final remarksController = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const ManaText('declare profit share'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ManaText.raw('${widget.investment.profitSharePercent}% of total profit for this period',
+                style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+            const SizedBox(height: ManaSpacing.md),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Total Profit Amount *'),
+            ),
+            const SizedBox(height: ManaSpacing.sm),
+            TextField(controller: remarksController, decoration: const InputDecoration(labelText: 'Remarks')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const ManaText('cancel')),
+          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const ManaText('declare')),
+        ],
+      ),
+    );
+    if (result != true || !mounted) return;
+    final amt = double.tryParse(amountController.text.trim());
+    if (amt == null) return;
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(investorApiServiceProvider).declareProfitShare(
+            investmentId: widget.investment.investmentId,
+            totalProfitAmount: amt,
+            remarks: remarksController.text.trim().isEmpty ? null : remarksController.text.trim(),
+          );
+      return true;
+    });
+    if (ok == true) _reload();
+  }
+
+  Future<void> _pay(ProfitShareDeclaration decl) async {
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(investorApiServiceProvider).payProfitShare(declarationId: decl.declarationId);
+      return true;
+    });
+    if (ok == true) _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(ManaSpacing.lg),
-      children: [
-        const ManaText.raw(
-          'One Investor may invest in multiple Businesses; each Business keeps a '
-          'fully independent Investment Ledger (BR-247–250).',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        Card(
-          child: ListTile(
-            title: const ManaText('this business'),
-            subtitle: ManaText.raw(investor.membershipStatus),
-            trailing: ManaStatusPill(
-              label: investor.membershipStatus,
-              status: investor.membershipStatus == 'Active' ? ManaStatus.good : ManaStatus.neutral,
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      expand: false,
+      builder: (context, scrollController) => Padding(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: ManaText('profit share', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+                FilledButton.tonalIcon(onPressed: _declare, icon: const Icon(Icons.add, size: 18), label: const ManaText('declare')),
+              ],
             ),
-          ),
+            const SizedBox(height: ManaSpacing.md),
+            Expanded(
+              child: FutureBuilder<List<ProfitShareDeclaration>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final declarations = snapshot.data ?? const [];
+                  if (declarations.isEmpty) {
+                    return const Center(
+                      child: ManaText.raw('No profit share declared yet.', style: TextStyle(color: ManaColors.textSecondary)),
+                    );
+                  }
+                  return ListView.separated(
+                    controller: scrollController,
+                    itemCount: declarations.length,
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemBuilder: (context, i) {
+                      final d = declarations[i];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: ManaText.raw(_currency.format(d.declaredAmount)),
+                        subtitle: ManaText.raw(
+                            '${DateFormat('d MMM yyyy').format(d.businessDate)} · of ${_currency.format(d.totalProfitAmount)} total'),
+                        trailing: d.status == 'Declared'
+                            ? FilledButton(onPressed: () => _pay(d), child: const ManaText('pay'))
+                            : const ManaStatusPill(label: 'Paid', status: ManaStatus.good),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

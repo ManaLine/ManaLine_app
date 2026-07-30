@@ -5,29 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/router.dart';
 import 'design/theme.dart';
 import 'features/login_registration/state/auth_flow_state.dart';
-
-/// Supabase project URL/anon key — placeholder/env-var style, per this
-/// session's explicit instruction NOT to hardcode real credentials into a
-/// committed file. Read via --dart-define at build time:
-///   flutter run --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
-///               --dart-define=SUPABASE_ANON_KEY=xxxxx
-/// ASSUMPTION flagged for master chat: no gitignored config-file convention
-/// exists yet in this repo (no .env loader package is a pubspec dependency),
-/// so --dart-define is the only wiring that works without adding a new
-/// dependency this chat wasn't asked to add. If the team prefers a
-/// gitignored `lib/env.dart` (or flutter_dotenv), swap the two String.
-/// fromEnvironment reads below for that source — nothing else in this file
-/// needs to change.
-class SupabaseConfig {
-  static const String url = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://REPLACE-ME.supabase.co',
-  );
-  static const String anonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: 'REPLACE-ME-ANON-KEY',
-  );
-}
+import 'shared/supabase_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

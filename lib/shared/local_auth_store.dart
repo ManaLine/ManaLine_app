@@ -34,6 +34,13 @@ class LocalAuthStore {
   static Future<void> saveMobileNumber(String mobile) =>
       _storage.write(key: _kLastMobileNumber, value: mobile);
 
+  /// Toggle biometric on/off independently of PIN creation — used by the
+  /// Settings screen when a person enables it AFTER initially skipping it
+  /// at LR-008. Does not touch the stored PIN value/length at all;
+  /// requires a PIN to already exist (caller verifies this).
+  static Future<void> setBiometricEnabled(bool enabled) =>
+      _storage.write(key: _kBiometricEnabled, value: enabled.toString());
+
   // --- Read by LR-009 ------------------------------------------------
   static Future<int?> readPinLength() async {
     final v = await _storage.read(key: _kPinLength);

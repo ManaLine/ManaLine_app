@@ -9,6 +9,7 @@ import '../../../shared/local_auth_store.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
+import '../../../shared/translation_service.dart';
 
 enum _Step { password, otp, newPin }
 
@@ -32,6 +33,14 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
   bool _obscurePassword = true;
   bool _submitting = false;
   String? _passwordError;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+    });
+  }
 
   // --- OTP step state (same pattern as LR-005/LR-010; not yet
   // extracted to a shared widget — see hand-off note) ---
@@ -232,8 +241,9 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     return Scaffold(
-      appBar: AppBar(title: const ManaText('forgot pin')),
+      appBar: AppBar(title: ManaText.raw(ref.t('forgot_pin_title'))),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -275,7 +285,7 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
           onPressed: (_password.text.isNotEmpty && !_submitting) ? _verifyPassword : null,
           child: _submitting
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('verify password'),
+              : ManaText.raw(ref.t('verify_password')),
         ),
       ],
     );

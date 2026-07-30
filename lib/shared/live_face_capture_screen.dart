@@ -193,17 +193,33 @@ class _LiveFaceCaptureScreenState extends State<LiveFaceCaptureScreen> {
                         bottom: 32,
                         child: Column(
                           children: [
-                            if (!kIsWeb)
-                              ManaText(
-                                _faceDetected ? 'Face detected — ready to capture' : 'Position your face in frame',
-                                style: TextStyle(color: _faceDetected ? Colors.greenAccent : Colors.orangeAccent),
+                            ManaText(
+                              _faceDetected || kIsWeb
+                                  ? (kIsWeb ? 'Position your face in frame, then tap Capture' : 'Face detected — ready to capture')
+                                  : 'Position your face in frame',
+                              style: TextStyle(
+                                color: kIsWeb
+                                    ? Colors.white
+                                    : (_faceDetected ? Colors.greenAccent : Colors.orangeAccent),
+                                fontWeight: FontWeight.w600,
                               ),
-                            const SizedBox(height: 12),
+                            ),
+                            const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: _faceDetected && !_busyCapturing ? _capture : null,
-                              icon: const Icon(Icons.camera_alt),
-                              label: ManaText(_busyCapturing ? 'capturing...' : 'capture'),
-                              style: ElevatedButton.styleFrom(backgroundColor: ManaColors.primary),
+                              icon: const Icon(Icons.camera_alt, size: 28),
+                              label: ManaText.raw(
+                                _busyCapturing ? 'capturing...' : 'capture',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ManaColors.brass,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: ManaColors.brass.withValues(alpha: 0.4),
+                                disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
+                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                                minimumSize: const Size(200, 56),
+                              ),
                             ),
                           ],
                         ),

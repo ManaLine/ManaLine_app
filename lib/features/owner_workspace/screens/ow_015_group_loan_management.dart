@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -13,10 +14,10 @@ final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalD
 /// under a Group Name for display/reporting convenience only —
 /// NOT a shared financial entity, individual liability only.
 ///
-/// GAP (see group_loan_state.dart header): loan-groups endpoints do
-/// not exist in the API spec yet. This screen is built against the
-/// implied shape only; every write action will surface an
-/// UnimplementedError stating that clearly until a real addendum lands.
+/// Wired against the real `loan_groups`/`loan_group_members` tables
+/// (0007_module6_loan_domain.sql) — see group_loan_state.dart's own
+/// header for the full resolution note. No UnimplementedError paths
+/// remain; this comment previously described a gap that's since closed.
 class GroupLoanManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
   const GroupLoanManagementScreen({super.key, required this.businessId});
@@ -39,7 +40,10 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
     final state = ref.watch(groupLoanListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('group loan management')),
+      appBar: AppBar(
+        leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/ow-001', extra: widget.businessId)),
+        title: const ManaText('group loan management'),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openCreateGroup(context),
         icon: const Icon(Icons.add),
@@ -135,6 +139,7 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
           children: [
             TextField(
               controller: _nameController,
+              textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(labelText: 'Group Name'),
               onChanged: (_) => setState(() {}),
             ),
@@ -289,14 +294,9 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                             ? ManaStatus.good
                             : (m.status == 'Defaulted' ? ManaStatus.bad : ManaStatus.neutral),
                       ),
-                      onTap: () {
-                        // Tap any member → OW-007 Loan Details (no
-                        // group-specific loan view). Route wiring left
-                        // to master chat's integration pass — see summary.
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Navigate to OW-007 Loan Details for loan ${m.loanId}')),
-                        );
-                      },
+                      // Stale comment fixed: OW-007 has been built for a
+                      // while now — this just never got wired to it.
+                      onTap: () => context.push('/ow-007', extra: m.loanId),
                     ),
                   )),
               const SizedBox(height: ManaSpacing.md),

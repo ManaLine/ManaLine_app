@@ -9,7 +9,8 @@ import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/withdrawal_request_state.dart';
 
-final _moneyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+final _moneyFormat =
+    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// IW-004 — Request Withdrawal. Entered with a specific investment
 /// pre-selected from IW-003 (or from IW-001 → Select Business → Select
@@ -30,10 +31,12 @@ class RequestWithdrawalScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<RequestWithdrawalScreen> createState() => _RequestWithdrawalScreenState();
+  ConsumerState<RequestWithdrawalScreen> createState() =>
+      _RequestWithdrawalScreenState();
 }
 
-class _RequestWithdrawalScreenState extends ConsumerState<RequestWithdrawalScreen> {
+class _RequestWithdrawalScreenState
+    extends ConsumerState<RequestWithdrawalScreen> {
   @override
   void initState() {
     super.initState();
@@ -50,13 +53,18 @@ class _RequestWithdrawalScreenState extends ConsumerState<RequestWithdrawalScree
     final state = ref.watch(withdrawalRequestProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('request withdrawal')),
+      appBar: AppBar(
+        leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/iw-001')),
+        title: const ManaText('request withdrawal'),
+      ),
       body: SafeArea(
         child: state.loadingInvestment && state.investment == null
             ? const Center(child: CircularProgressIndicator())
             : state.investment == null
                 ? _ErrorState(message: state.error)
-                : _WithdrawalForm(investment: state.investment!, disabled: state.withdrawDisabled),
+                : _WithdrawalForm(
+                    investment: state.investment!,
+                    disabled: state.withdrawDisabled),
       ),
     );
   }
@@ -103,7 +111,8 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
     super.dispose();
   }
 
-  double? get _requestedAmount => double.tryParse(_amountController.text.trim());
+  double? get _requestedAmount =>
+      double.tryParse(_amountController.text.trim());
 
   bool get _canSubmit {
     if (widget.disabled) return false;
@@ -138,7 +147,9 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
       final r = await ref.read(withdrawalRequestProvider.notifier).submit(
             withdrawalType: type,
             requestedAmount: amount,
-            remarks: _remarksController.text.trim().isEmpty ? null : _remarksController.text.trim(),
+            remarks: _remarksController.text.trim().isEmpty
+                ? null
+                : _remarksController.text.trim(),
           );
       if (r == null) throw Exception('Could not submit withdrawal request');
       return r;
@@ -150,7 +161,9 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
     // View. This screen doesn't own IW-003, so it just pops/goes back;
     // the caller route wires the actual destination (see integration note).
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Withdrawal request submitted — pending Owner approval.')),
+      const SnackBar(
+          content:
+              Text('Withdrawal request submitted — pending Owner approval.')),
     );
     if (context.canPop()) {
       context.pop();
@@ -172,7 +185,8 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ManaText('selected investment', style: Theme.of(context).textTheme.labelMedium),
+                ManaText('selected investment',
+                    style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(
                   investment.investmentId,
@@ -182,7 +196,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ManaText('available balance'),
+                    const ManaText('available balance'),
                     ManaText.raw(
                       _moneyFormat.format(investment.availableBalance),
                       style: ManaTypography.amount(),
@@ -193,7 +207,8 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ManaText('principal amount', style: Theme.of(context).textTheme.bodySmall),
+                    ManaText('principal amount',
+                        style: Theme.of(context).textTheme.bodySmall),
                     ManaText.raw(
                       _moneyFormat.format(investment.principalAmount),
                       style: Theme.of(context).textTheme.bodySmall,
@@ -210,7 +225,8 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                     ),
                     child: const ManaText.raw(
                       'Available Balance is below ₹1.00 — withdrawal requests are disabled.',
-                      style: TextStyle(color: ManaColors.statusWarn, fontSize: 12),
+                      style:
+                          TextStyle(color: ManaColors.statusWarn, fontSize: 12),
                     ),
                   ),
                 ],
@@ -219,7 +235,8 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
           ),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText('withdrawal type', style: Theme.of(context).textTheme.titleMedium),
+        ManaText('withdrawal type',
+            style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),
         // Checkmark-ListTile selection pattern (Radio/RadioListTile
         // deprecated in this SDK version — per shared convention).
@@ -234,12 +251,15 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                 color: selected ? ManaColors.brass : ManaColors.textSecondary,
               ),
               title: ManaText(type.label),
-              onTap: widget.disabled ? null : () => setState(() => _withdrawalType = type),
+              onTap: widget.disabled
+                  ? null
+                  : () => setState(() => _withdrawalType = type),
             ),
           );
         }),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText('requested amount', style: Theme.of(context).textTheme.titleMedium),
+        ManaText('requested amount',
+            style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _amountController,
@@ -269,7 +289,9 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
               onPressed: (_canSubmit && !submitting) ? _submit : null,
               child: submitting
                   ? const SizedBox(
-                      width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const ManaText('submit request'),
             );
           },

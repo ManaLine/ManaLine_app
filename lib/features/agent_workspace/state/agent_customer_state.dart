@@ -358,8 +358,12 @@ class AgentCustomerListState {
   List<CustomerSummary> get filtered {
     var list = customers;
     if (villageFilter != null) list = list.where((c) => c.village == villageFilter).toList();
-    if (loanStatusFilter != null) {
-      list = list.where((c) => c.customerStatus == loanStatusFilter).toList();
+    if (loanStatusFilter == 'HasDue') {
+      // BUG FIXED this pass: was comparing c.customerStatus (Active/
+      // Inactive/Deceased) against the literal 'HasDue', which can never
+      // match — the "today's due" chip silently showed "no customers
+      // match this view" for every Agent regardless of real dues.
+      list = list.where((c) => c.todaysDue > 0).toList();
     }
     if (searchQuery.trim().isNotEmpty) {
       final q = searchQuery.trim().toLowerCase();

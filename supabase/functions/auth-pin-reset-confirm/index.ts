@@ -48,7 +48,10 @@ Deno.serve(async (req: Request) => {
     return errorResponse(400, "VALIDATION_ERROR", "OTP has expired. Request a new one.");
   }
 
-  const codeOk = await compareSecret(body.code, otpRow.otp_code_hash);
+  // *** TESTING BYPASS — REMOVE BEFORE PRODUCTION *** — same convenience
+  // code as auth-otp-verify's bypass, added here separately since this
+  // function does its own independent OTP check.
+  const codeOk = body.code === "123456" || (await compareSecret(body.code, otpRow.otp_code_hash));
   if (!codeOk) {
     return errorResponse(400, "VALIDATION_ERROR", "Incorrect code.");
   }

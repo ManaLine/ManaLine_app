@@ -159,6 +159,25 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // --- Hard duplicate check: mobile_number. EXPLICIT PRODUCT DECISION
+  // (supersedes BR-228's original soft-only design, 0039 migration) — a
+  // second registration with an already-used mobile number is now
+  // blocked, same generic-message treatment as the Aadhaar check above.
+  if (body.mobile_number) {
+    const { data: mobileMatch } = await admin
+      .from("persons")
+      .select("person_id")
+      .eq("mobile_number", body.mobile_number)
+      .maybeSingle();
+    if (mobileMatch) {
+      return errorResponse(
+        409,
+        "CONFLICT",
+        "This mobile number is already associated with an existing account.",
+      );
+    }
+  }
+
   // --- Soft duplicate check (BR-228): fuzzy match on mobile_number OR
   // full_name+father_husband_name+address combination. Does NOT block
   // registration — flags via duplicate_suspects (System-Automatic) and a

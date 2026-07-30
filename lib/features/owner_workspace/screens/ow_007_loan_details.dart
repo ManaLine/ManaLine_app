@@ -6,6 +6,8 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/document_viewer.dart';
+import '../state/customer_state.dart' show customerApiServiceProvider;
 import '../state/loan_details_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -219,7 +221,32 @@ class _ActionsSection extends ConsumerWidget {
               label: const ManaText('add remarks'),
             ),
             OutlinedButton.icon(
-              onPressed: () {},
+              // BUG FIXED this pass: was onPressed: () {} — a loan has no
+              // documents of its own beyond what's already on the
+              // borrowing customer (customer_documents also covers
+              // Customer/Loan Agreement, Guarantor Document types), so
+              // this opens that same customer's Documents view rather
+              // than inventing a separate loan-scoped document set.
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    appBar: AppBar(title: ManaText.raw('${loan.customerName} — documents')),
+                    body: DocumentsListView(
+                      expectedTypes: const [
+                        'Aadhaar',
+                        'Photo',
+                        'Address Proof',
+                        'Customer Agreement',
+                        'Loan Agreement',
+                        'Guarantor Documents',
+                        'Other Documents',
+                      ],
+                      fetchDocuments: () =>
+                          ref.read(customerApiServiceProvider).fetchCustomerDocuments(customerId: loan.customerId),
+                    ),
+                  ),
+                ),
+              ),
               icon: const Icon(Icons.description_outlined, size: 18),
               label: const ManaText('view documents'),
             ),

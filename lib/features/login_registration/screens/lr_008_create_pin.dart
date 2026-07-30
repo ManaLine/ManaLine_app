@@ -8,12 +8,20 @@ import '../../../shared/local_auth_store.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
+import '../../../shared/translation_service.dart';
 
 enum _PinStep { enter, confirm, biometric }
 
 /// LR-008 — mandatory, non-skippable checkpoint. No back navigation.
+///
+/// isUpgrade (ADDED this batch): true when reached because auth-login
+/// flagged needs_pin_upgrade=true (existing user whose PIN is still 4
+/// digits, or predates the pin_length column) — forces 6-digit with no
+/// opt-out, skips the biometric re-prompt (biometric_enabled is carried
+/// forward unchanged, same pattern LR-011 already uses for PIN reset).
 class CreatePinScreen extends ConsumerStatefulWidget {
-  const CreatePinScreen({super.key});
+  final bool isUpgrade;
+  const CreatePinScreen({super.key, this.isUpgrade = false});
 
   @override
   ConsumerState<CreatePinScreen> createState() => _CreatePinScreenState();
@@ -25,6 +33,12 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
   String _confirmPin = '';
   _PinStep _step = _PinStep.enter;
   bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isUpgrade) _length = 6; // force 6, no opt-out
+  }
 
   void _onDigit(String digit) {
     setState(() {
@@ -40,7 +54,13 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
 
   void _checkMatch() {
     if (_pin == _confirmPin) {
-      setState(() => _step = _PinStep.biometric);
+      if (widget.isUpgrade) {
+        // Don't re-ask — biometric_enabled is untouched, just carried
+        // forward as whatever it already was (same pattern as LR-011).
+        LocalAuthStore.readBiometricEnabled().then((enabled) => _finish(biometricEnabled: enabled));
+      } else {
+        setState(() => _step = _PinStep.biometric);
+      }
     } else {
       setState(() {
         _pin = '';
@@ -90,11 +110,13 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
     // Fresh registration -> PIN creation is the first point a session
     // exists with no memberships fetched yet (LR-007's path already
     // fetches them before reaching here when pinExists was already true;
-    // this is the "never had a PIN" branch). Fetch now so LR-012 has real
-    // data instead of an empty list.
+    // this is the "never had a PIN" branch). Also runs on the upgrade
+    // path — harmless extra fetch, memberships are already loaded from
+    // login in that case, but re-fetching here keeps this method simple
+    // and correct either way.
     final memberships = await NetworkErrorHandler.run(
       context,
-      () => ref.read(authApiServiceProvider).fetchMemberships(),
+      () => ref.read(authApiServiceProvider).fetchMemberships(ref.read(authFlowProvider).personId!),
     );
     if (!mounted) return;
     if (memberships == null) {
@@ -109,6 +131,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     return PopScope(
       canPop: false, // no back navigation anywhere on this screen, per spec
       child: Scaffold(
@@ -124,7 +147,9 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
   }
 
   Widget _pinPad() {
-    final label = _step == _PinStep.enter ? 'Create a PIN for quick daily login' : 'Confirm your PIN';
+    final label = _step == _PinStep.enter
+        ? (widget.isUpgrade ? 'For better security, set a new 6-digit PIN' : 'Create a PIN for quick daily login')
+        : 'Confirm your PIN';
     final activeCount = _step == _PinStep.enter ? _pin.length : _confirmPin.length;
 
     return Column(
@@ -146,7 +171,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
             );
           }),
         ),
-        if (_step == _PinStep.enter) ...[
+        if (_step == _PinStep.enter && !widget.isUpgrade) ...[
           const SizedBox(height: ManaSpacing.md),
           TextButton(
             onPressed: () => setState(() => _length = _length == 4 ? 6 : 4),
@@ -203,13 +228,13 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
       children: [
         const Icon(Icons.fingerprint, size: 56, color: ManaColors.brass),
         const SizedBox(height: ManaSpacing.md),
-        const ManaText('enable biometric login?', style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('enable_biometric_q'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.xl),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
             onPressed: _submitting ? null : () => _finish(biometricEnabled: true),
-            child: const ManaText('yes, enable'),
+            child: ManaText.raw(ref.t('yes_enable')),
           ),
         ),
         const SizedBox(height: ManaSpacing.sm),
@@ -217,7 +242,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
           width: double.infinity,
           child: OutlinedButton(
             onPressed: _submitting ? null : () => _finish(biometricEnabled: false),
-            child: const ManaText('not now'),
+            child: ManaText.raw(ref.t('not_now')),
           ),
         ),
       ],

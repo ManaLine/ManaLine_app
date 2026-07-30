@@ -7,6 +7,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
+import '../../../shared/translation_service.dart';
 
 enum OtpPurpose { registration, passwordReset, pinReset, accountUnlock, roleEscalation }
 
@@ -75,9 +76,13 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     if (_code.length != 6) return;
     final otpId = ref.read(authFlowProvider).pendingOtpId;
     if (otpId == null) {
-      // Defensive — should never happen if every caller sets pendingOtpId
-      // before navigating here. Flagged rather than silently failing.
-      setState(() => _error = 'Missing verification session. Please go back and try again.');
+      // This screen's verification session lives in memory only — a page
+      // refresh (or directly navigating/pasting a URL) wipes it, since
+      // there's no persistence layer for it. Message is explicit about
+      // this rather than a generic "try again" that doesn't explain why
+      // simply retrying won't help.
+      setState(() => _error =
+          'Your verification session was lost — this happens if the page was refreshed or reopened directly. Please go back and start again from the beginning.');
       return;
     }
 
@@ -135,7 +140,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   Future<void> _resend() async {
     if (_resendCount >= 5) return;
     final personId = ref.read(authFlowProvider).personId;
-    if (personId == null) return; // defensive — resend requires a known person_id
+    if (personId == null) {
+      setState(() => _error =
+          'Your verification session was lost — this happens if the page was refreshed or reopened directly. Please go back and start again from the beginning.');
+      return;
+    }
 
     final newOtpId = await NetworkErrorHandler.run(context, () async {
       return ref.read(authApiServiceProvider).sendOtp(
@@ -156,6 +165,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
@@ -189,7 +199,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                     ? const SizedBox(
                         width: 20, height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('verify'),
+                    : ManaText.raw(ref.t('verify_button')),
               ),
             ],
           ),

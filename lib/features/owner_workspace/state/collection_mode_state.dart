@@ -84,7 +84,7 @@ class CollectionApiService {
           ),
           collection_agent_membership_id,
           business_members!loans_collection_agent_membership_id_fkey(
-            persons(full_name)
+            persons!business_members_person_id_fkey(full_name)
           )
         ''')
         .eq('business_id', businessId)

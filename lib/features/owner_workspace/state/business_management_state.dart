@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
+import '../../login_registration/state/auth_api_service.dart';
+import '../../../shared/text_utils.dart';
 
 /// OW-012 — Business Management. Real Supabase wiring.
 class BusinessManagementApiService {
@@ -43,22 +45,18 @@ class BusinessManagementApiService {
     String? businessEmail,
   }) async {
     final mlbi = 'MLBI-${DateTime.now().microsecondsSinceEpoch % 100000000}';
-    final row = await _db
-        .from('businesses')
-        .insert({
-          'mlbi': mlbi,
-          'owner_person_id': _personId,
-          'business_name': businessName,
-          'registered_finance_name': registeredFinanceName,
-          'logo_url': logoUrl,
-          'business_type': businessType,
-          'business_address': businessAddress,
-          'business_phone': businessPhone,
-          'business_email': businessEmail,
-        })
-        .select('business_id')
-        .single();
-    return _summaryFor(row['business_id'] as String);
+    final rows = await _db.schema('app').rpc('create_business_with_owner', params: {
+      'p_mlbi': mlbi,
+      'p_business_name': businessName,
+      'p_registered_finance_name': registeredFinanceName,
+      'p_logo_url': logoUrl,
+      'p_business_type': businessType,
+      'p_business_address': businessAddress,
+      'p_business_phone': businessPhone,
+      'p_business_email': businessEmail,
+    });
+    final businessId = (rows as List).first['business_id'] as String;
+    return _summaryFor(businessId);
   }
 
   Future<List<BusinessSummary>> fetchOwnedBusinesses() async {
@@ -175,7 +173,7 @@ class BusinessManagementApiService {
         .select('operating_area_id, status, account_cycle_duration, account_cycle_unit, submission_time, '
             'locations!inner(pin_code, village_town_name)')
         .eq('business_id', businessId);
-    return (rows as List).map((r) {
+    final areas = (rows as List).map((r) {
       final location = r['locations'] as Map<String, dynamic>;
       return OperatingAreaSummary(
         operatingAreaId: r['operating_area_id'] as String,
@@ -187,6 +185,95 @@ class BusinessManagementApiService {
         submissionTime: r['submission_time'] as String?,
       );
     }).toList();
+    if (areas.isEmpty) return areas;
+
+    // Current (non-removed) agent assignment per area — a separate query
+    // rather than embedding through agent_area_assignments, so this
+    // doesn't need to lean on nested-embed filter semantics for something
+    // this simple: which areas are Owner-run (no row here) vs assigned.
+    final areaIds = areas.map((a) => a.operatingAreaId).toList();
+    final assignmentRows = await _db
+        .from('agent_area_assignments')
+        .select('operating_area_id, agents!inner(agent_id, membership_id, persons!inner(full_name))')
+        .inFilter('operating_area_id', areaIds)
+        .isFilter('removed_at', null);
+    for (final row in (assignmentRows as List)) {
+      final area = areas.firstWhere((a) => a.operatingAreaId == row['operating_area_id']);
+      final agent = row['agents'] as Map<String, dynamic>;
+      area.assignedAgentId = agent['agent_id'] as String;
+      area.assignedAgentMembershipId = agent['membership_id'] as String;
+      area.assignedAgentName = titleCaseName((agent['persons'] as Map<String, dynamic>)['full_name'] as String);
+    }
+    return areas;
+  }
+
+  /// Assigns an Operating Area to an Agent (mirrors OW-000 Step 6's
+  /// assignAreaToAgent, reused here for post-setup reassignment/first
+  /// assignment via OW-012). Supersedes any existing assignment for the
+  /// area — soft-removed, not deleted, matching this schema's
+  /// history-preserving convention everywhere else (agent_area_
+  /// assignments.removed_at, same pattern as business_members.removed_at).
+  /// Also seeds the area's first Account Period if it doesn't have a
+  /// Running one yet — createAccountPeriod() existed but nothing ever
+  /// called it, which is why Account Periods showed empty for every area
+  /// regardless of how many were actually being worked.
+  Future<void> assignOperatingAreaToAgent({
+    required String businessId,
+    required String operatingAreaId,
+    required String agentId,
+    required String agentMembershipId,
+  }) async {
+    await _db
+        .from('agent_area_assignments')
+        .update({'removed_at': DateTime.now().toIso8601String()})
+        .eq('operating_area_id', operatingAreaId)
+        .isFilter('removed_at', null);
+    await _db.from('agent_area_assignments').insert({
+      'agent_id': agentId,
+      'operating_area_id': operatingAreaId,
+    });
+    await _seedFirstAccountPeriodIfNeeded(
+      businessId: businessId,
+      operatingAreaId: operatingAreaId,
+      agentMembershipId: agentMembershipId,
+    );
+  }
+
+  /// Marks an Operating Area Owner-run — per the schema's own design
+  /// (see owner_api_service.dart's markAreaOwnerRun), this is really just
+  /// "no agent_area_assignments row", so clearing any existing one IS the
+  /// action. Deliberately does NOT auto-seed an Account Period the way
+  /// assignOperatingAreaToAgent does: account_periods.agent_membership_id
+  /// is NOT NULL, and nothing in the locked schema says what value an
+  /// Owner-run period should carry there (the Owner's own membership_id?
+  /// a sentinel?) — flagged rather than guessed, same as the schema gaps
+  /// already flagged elsewhere in this file.
+  Future<void> markOperatingAreaOwnerRun({required String operatingAreaId}) async {
+    await _db
+        .from('agent_area_assignments')
+        .update({'removed_at': DateTime.now().toIso8601String()})
+        .eq('operating_area_id', operatingAreaId)
+        .isFilter('removed_at', null);
+  }
+
+  Future<void> _seedFirstAccountPeriodIfNeeded({
+    required String businessId,
+    required String operatingAreaId,
+    required String agentMembershipId,
+  }) async {
+    final existing = await _db
+        .from('account_periods')
+        .select('account_period_id')
+        .eq('operating_area_id', operatingAreaId)
+        .eq('status', 'Running')
+        .maybeSingle();
+    if (existing != null) return;
+    await createAccountPeriod(
+      businessId: businessId,
+      operatingAreaId: operatingAreaId,
+      agentMembershipId: agentMembershipId,
+      businessStartDate: DateTime.now().toIso8601String(),
+    );
   }
 
   Future<void> createAgreement({
@@ -226,7 +313,11 @@ class BusinessManagementApiService {
   }
 
   Future<List<MemberSummary>> fetchMembers({required String businessId, String? role, String? status}) async {
-    var query = _db.from('business_members').select('membership_id, person_id, role, membership_status, persons!inner(full_name)').eq('business_id', businessId);
+    // FK hint required: business_members has TWO FKs to persons
+    // (person_id AND invited_by_person_id) — an unqualified persons!inner
+    // embed is ambiguous and PostgREST throws PGRST201 ("more than one
+    // relationship was found") rather than guessing, on every single call.
+    var query = _db.from('business_members').select('membership_id, person_id, role, membership_status, persons!business_members_person_id_fkey(full_name)').eq('business_id', businessId);
     if (role != null) query = query.eq('role', role);
     if (status != null) query = query.eq('membership_status', status);
     final rows = await query;
@@ -234,7 +325,7 @@ class BusinessManagementApiService {
         .map((r) => MemberSummary(
               membershipId: r['membership_id'] as String,
               personId: (r['person_id'] as int).toString(),
-              fullName: (r['persons'] as Map<String, dynamic>)['full_name'] as String,
+              fullName: titleCaseName((r['persons'] as Map<String, dynamic>)['full_name'] as String),
               role: r['role'] as String,
               membershipStatus: r['membership_status'] as String,
             ))
@@ -247,8 +338,21 @@ class BusinessManagementApiService {
     required String role,
     required String onboardingMethod,
   }) async {
+    // personId here is actually the MLID typed by the Owner (field is
+    // labeled "Person ID / MLID" but no raw person_id is ever realistically
+    // typed by a human) — resolve to the real person_id first via the same
+    // RPC used by OW-002's "Add Existing Agent," rather than assuming the
+    // string is already parseable as an integer (it never was, per
+    // independent review — every real MLID input threw FormatException).
+    final matches = await _db.schema('app').rpc('owner_search_person_by_mlid', params: {'p_mlid': personId});
+    final list = (matches as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) {
+      throw StateError('No person found with MLID "$personId".');
+    }
+    final resolvedPersonId = list.first['person_id'];
+
     await _db.from('business_members').insert({
-      'person_id': int.parse(personId),
+      'person_id': resolvedPersonId,
       'business_id': businessId,
       'role': role,
       'membership_status': 'Pending Invitation',
@@ -268,14 +372,17 @@ class BusinessManagementApiService {
   Future<List<MembershipRequestSummary>> fetchMembershipRequests({required String businessId}) async {
     final rows = await _db
         .from('membership_requests')
-        .select('request_id, person_id, requested_role, proposed_investment_amount, remarks, persons!inner(full_name)')
+        // FK hint required: membership_requests has TWO FKs to persons
+        // (person_id AND reviewed_by_person_id) — same ambiguous-embed
+        // shape as business_members above.
+        .select('request_id, person_id, requested_role, proposed_investment_amount, remarks, persons!membership_requests_person_id_fkey(full_name)')
         .eq('business_id', businessId)
         .eq('status', 'Pending');
     return (rows as List)
         .map((r) => MembershipRequestSummary(
               requestId: r['request_id'] as String,
               personId: (r['person_id'] as int).toString(),
-              fullName: (r['persons'] as Map<String, dynamic>)['full_name'] as String,
+              fullName: titleCaseName((r['persons'] as Map<String, dynamic>)['full_name'] as String),
               requestedRole: r['requested_role'] as String,
               proposedInvestmentAmount: (r['proposed_investment_amount'] as num?)?.toDouble(),
               remarks: r['remarks'] as String?,
@@ -318,21 +425,21 @@ class BusinessManagementApiService {
     var query = _db
         .from('account_periods')
         .select('account_period_id, operating_area_id, business_start_date, planned_business_end_date, status, '
-            'operating_areas!inner(locations!inner(village_town_name)), business_members!inner(persons!inner(full_name))')
+            'operating_areas(locations(village_town_name)), business_members(persons!business_members_person_id_fkey(full_name))')
         .eq('business_id', businessId);
     if (status != null) query = query.eq('status', status);
     if (operatingAreaId != null) query = query.eq('operating_area_id', operatingAreaId);
     final rows = await query.order('business_start_date', ascending: false);
     return (rows as List).map((r) {
-      final area = r['operating_areas'] as Map<String, dynamic>;
-      final location = area['locations'] as Map<String, dynamic>;
-      final member = r['business_members'] as Map<String, dynamic>;
-      final person = member['persons'] as Map<String, dynamic>;
+      final area = r['operating_areas'] as Map<String, dynamic>?;
+      final location = area?['locations'] as Map<String, dynamic>?;
+      final member = r['business_members'] as Map<String, dynamic>?;
+      final person = member?['persons'] as Map<String, dynamic>?;
       return AccountPeriodSummary(
         accountPeriodId: r['account_period_id'] as String,
         operatingAreaId: r['operating_area_id'] as String,
-        operatingAreaLabel: location['village_town_name'] as String,
-        agentName: person['full_name'] as String,
+        operatingAreaLabel: location?['village_town_name'] as String? ?? '',
+        agentName: person?['full_name'] as String? ?? 'Owner-run',
         businessStartDate: DateTime.parse(r['business_start_date'] as String),
         plannedBusinessEndDate: DateTime.parse(r['planned_business_end_date'] as String),
         status: r['status'] as String,
@@ -471,6 +578,11 @@ class OperatingAreaSummary {
   int? accountCycleDuration;
   String? accountCycleUnit;
   String? submissionTime;
+  // Null on all three = Owner-run (absence of an agent_area_assignments
+  // row IS "Owner-run" per this schema — there's no separate flag).
+  String? assignedAgentId;
+  String? assignedAgentMembershipId;
+  String? assignedAgentName;
 
   OperatingAreaSummary({
     required this.operatingAreaId,
@@ -480,9 +592,13 @@ class OperatingAreaSummary {
     this.accountCycleDuration,
     this.accountCycleUnit,
     this.submissionTime,
+    this.assignedAgentId,
+    this.assignedAgentMembershipId,
+    this.assignedAgentName,
   });
 
   bool get cycleConfigured => accountCycleDuration != null && accountCycleUnit != null && submissionTime != null;
+  bool get isOwnerRun => assignedAgentId == null;
 }
 
 class AgreementSummary {
@@ -641,6 +757,15 @@ class CreateBusinessFormNotifier extends Notifier<CreateBusinessFormState> {
       state = state.copyWith(submitting: false, createdBusinessId: result.businessId);
       // Refresh the list so the new card appears without a manual reload.
       await ref.read(businessListProvider.notifier).load();
+      // ALSO refresh authFlowProvider's cached memberships — LR-012
+      // (Business Selector / "switch workspace") reads THIS cache, not
+      // businessListProvider. Without this, LR-012 kept auto-collapsing
+      // back into whichever single business was cached at last login,
+      // even after creating additional businesses here (same bug class
+      // already fixed once for OW-000's First Business Setup — this
+      // parallel "Create Business" flow never adopted it).
+      final memberships = await ref.read(authApiServiceProvider).fetchMemberships(ref.read(authFlowProvider).personId!);
+      ref.read(authFlowProvider.notifier).setMemberships(memberships);
       return true;
     } catch (e) {
       state = state.copyWith(submitting: false, error: e.toString());
@@ -758,7 +883,11 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
       state = state.copyWith(operatingAreas: [...state.operatingAreas, result], submitting: false);
       return true;
     } catch (e) {
-      state = state.copyWith(submitting: false, error: e.toString());
+      final isDuplicate = e is PostgrestException && e.code == '23505';
+      state = state.copyWith(
+        submitting: false,
+        error: isDuplicate ? 'This village is already one of your operating areas.' : e.toString(),
+      );
       return false;
     }
   }
@@ -786,6 +915,49 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
         return a;
       }).toList();
       state = state.copyWith(operatingAreas: updated, submitting: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(submitting: false, error: e.toString());
+      return false;
+    }
+  }
+
+  /// Assigns an Agent to an Operating Area (or reassigns it — supersedes
+  /// any existing assignment). Refetches operatingAreas AND accountPeriods
+  /// together since this can seed the area's first Account Period as a
+  /// side effect (see assignOperatingAreaToAgent's own doc).
+  Future<bool> assignAreaToAgent({
+    required String businessId,
+    required String operatingAreaId,
+    required String agentId,
+    required String agentMembershipId,
+  }) async {
+    state = state.copyWith(submitting: true, clearError: true);
+    try {
+      final api = ref.read(businessManagementApiServiceProvider);
+      await api.assignOperatingAreaToAgent(
+        businessId: businessId,
+        operatingAreaId: operatingAreaId,
+        agentId: agentId,
+        agentMembershipId: agentMembershipId,
+      );
+      final areas = await api.fetchOperatingAreas(businessId: businessId);
+      final periods = await api.fetchAccountPeriods(businessId: businessId);
+      state = state.copyWith(operatingAreas: areas, accountPeriods: periods, submitting: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(submitting: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> markAreaOwnerRun({required String businessId, required String operatingAreaId}) async {
+    state = state.copyWith(submitting: true, clearError: true);
+    try {
+      final api = ref.read(businessManagementApiServiceProvider);
+      await api.markOperatingAreaOwnerRun(operatingAreaId: operatingAreaId);
+      final areas = await api.fetchOperatingAreas(businessId: businessId);
+      state = state.copyWith(operatingAreas: areas, submitting: false);
       return true;
     } catch (e) {
       state = state.copyWith(submitting: false, error: e.toString());

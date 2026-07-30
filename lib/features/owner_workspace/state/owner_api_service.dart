@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/text_utils.dart';
+import '../../../shared/document_viewer.dart' show DocumentSummary;
 import '../../login_registration/state/auth_flow_state.dart';
 
 /// Real Supabase wiring over the Owner Workspace endpoints touched by
@@ -295,7 +297,7 @@ class OwnerApiService {
         .from('business_members')
         .select('''
           membership_id, membership_status, joined_at,
-          persons!inner(full_name, mlid, mobile_number),
+          persons!business_members_person_id_fkey(full_name, mlid, mobile_number),
           agents!inner(agent_id, current_status, joined_date)
         ''')
         .eq('business_id', businessId)
@@ -304,13 +306,14 @@ class OwnerApiService {
     final rows = await query;
 
     return (rows as List).map((r) {
-      final person = r['persons'] as Map<String, dynamic>;
+      final person = r['persons'] as Map<String, dynamic>?;
       final agent = r['agents'] as Map<String, dynamic>;
       return AgentSummary(
         agentId: agent['agent_id'] as String,
-        fullName: person['full_name'] as String,
-        mlid: person['mlid'] as String,
-        phoneNumber: (person['mobile_number'] as String?) ?? '',
+        membershipId: r['membership_id'] as String,
+        fullName: titleCaseName(person?['full_name'] as String? ?? ''),
+        mlid: person?['mlid'] as String? ?? '',
+        phoneNumber: (person?['mobile_number'] as String?) ?? '',
         status: r['membership_status'] as String,
         businessAccess: 'Full Access', // derived from agent_permissions in fetchAgentProfile, not duplicated per-row here (would be N extra queries for a list screen)
         currentRoute: null, // requires routes.default_agent_id reverse lookup — deferred
@@ -323,13 +326,13 @@ class OwnerApiService {
   }
 
   // POST — Register New Agent. Deterministic MLPI per BR-181/182: "MLPI" +
-  // genderDigit + last 8 digits of Aadhaar. Multi-table (persons +
-  // business_members + agents + agent_permissions) — NOT wrapped in an RPC
-  // here despite being a multi-insert sequence, because (unlike BF/Salary/
-  // Settlement) this isn't financial math with a drift risk, it's a
-  // straightforward identity-then-membership creation; still flagged as a
-  // partial-failure risk (e.g. persons row created, then a later insert
-  // fails) worth an RPC follow-up if it proves troublesome in practice.
+  // genderDigit + last 8 digits of Aadhaar. RESOLVED (independent review):
+  // the original raw client-side multi-insert (persons + business_members +
+  // agents + agent_permissions) always failed — persons has no client
+  // INSERT policy for any role (0012_rls_module0_identity.sql). Moved to
+  // app.register_new_agent (0035), a SECURITY DEFINER RPC doing all four
+  // inserts atomically server-side, same pattern as 0034's
+  // create_business_with_owner.
   Future<String> registerNewAgent({
     required String businessId,
     required String fullName,
@@ -338,64 +341,30 @@ class OwnerApiService {
     required String mobileNumber,
     required String aadhaarNumber,
   }) async {
-    final last8 = aadhaarNumber.length >= 8 ? aadhaarNumber.substring(aadhaarNumber.length - 8) : aadhaarNumber.padLeft(8, '0');
-    final mlid = 'MLPI$genderDigit$last8';
-
-    final person = await _db
-        .from('persons')
-        .insert({
-          'mlid': mlid,
-          'mlid_type': 'MLPI',
-          'gender_digit': genderDigit,
-          'full_name': fullName,
-          'father_husband_name': fatherHusbandName,
-          'mobile_number': mobileNumber,
-          'aadhaar_number': aadhaarNumber,
-          'registration_source': 'Owner',
-          'customer_type': 'New',
-        })
-        .select('person_id')
-        .single();
-    final personId = person['person_id'] as int;
-
-    final membership = await _db
-        .from('business_members')
-        .insert({
-          'person_id': personId,
-          'business_id': businessId,
-          'role': 'Agent',
-          'membership_status': 'Pending Invitation',
-          'verification_status': 'Pending Verification', // BR-188: Agent requires OTP before activation
-          'onboarding_method': 'Direct Registration',
-          'invited_by_person_id': _personId,
-        })
-        .select('membership_id')
-        .single();
-    final membershipId = membership['membership_id'] as String;
-
-    final agent = await _db
-        .from('agents')
-        .insert({'membership_id': membershipId, 'person_id': personId, 'joined_date': DateTime.now().toIso8601String().split('T').first})
-        .select('agent_id')
-        .single();
-    final agentId = agent['agent_id'] as String;
-
-    final permProfile = await _db.from('agent_permissions').insert({'agent_id': agentId}).select('permission_profile_id').single();
-    await _db.from('business_members').update({'permission_profile_id': permProfile['permission_profile_id']}).eq('membership_id', membershipId);
-
-    return agentId;
+    final rows = await _db.schema('app').rpc('register_new_agent', params: {
+      'p_business_id': businessId,
+      'p_full_name': fullName,
+      'p_father_husband_name': fatherHusbandName,
+      'p_gender_digit': genderDigit,
+      'p_mobile_number': mobileNumber,
+      'p_aadhaar_number': aadhaarNumber,
+    });
+    // RETURNS UUID (agent_id) — a scalar return, not a row set.
+    return rows as String;
   }
 
   // GET /persons?mlid= — search by MLID (C5 Add Existing Agent). Note this
   // is NOT scoped to a business (persons is global, BR-178) — the caller
   // decides what to do with a match (offer "Add" if not already a member).
   Future<AgentSummary?> searchByMlid({required String mlid}) async {
-    final rows = await _db.from('persons').select('person_id, full_name, mlid, mobile_number').eq('mlid', mlid).limit(1);
-    if ((rows as List).isEmpty) return null;
-    final p = rows.first;
+    final rows = await _db.schema('app').rpc('owner_search_person_by_mlid', params: {'p_mlid': mlid});
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) return null;
+    final p = list.first;
     return AgentSummary(
       agentId: '', // no agents.agent_id exists yet — this person may not have an Agent role/business membership at all until addExistingAgent runs
-      fullName: p['full_name'] as String,
+      personId: p['person_id']?.toString(),
+      fullName: titleCaseName(p['full_name'] as String),
       mlid: p['mlid'] as String,
       phoneNumber: (p['mobile_number'] as String?) ?? '',
       status: 'Pending Invitation',
@@ -497,17 +466,37 @@ class OwnerApiService {
         .toList();
   }
 
+  // BUG FIXED this pass: OW-002's Agent Profile Documents tab was a
+  // static label list with onTap: () {} — agent_documents has a real
+  // insert path (registration/profile flows) but nothing ever read it
+  // back for display. This closes that.
+  Future<List<DocumentSummary>> fetchAgentDocuments({required String agentId}) async {
+    final rows = await _db
+        .from('agent_documents')
+        .select('document_type, file_url, uploaded_at')
+        .eq('agent_id', agentId)
+        .eq('is_archived', false)
+        .order('uploaded_at', ascending: false);
+    return (rows as List)
+        .map((r) => DocumentSummary(
+              documentType: r['document_type'] as String,
+              fileUrl: r['file_url'] as String,
+              uploadedAt: DateTime.parse(r['uploaded_at'] as String),
+            ))
+        .toList();
+  }
+
   Future<AgentProfile> fetchAgentProfile({required String agentId}) async {
     final agentRow = await _db
         .from('agents')
         .select('''
           agent_id, current_status, joined_date, membership_id,
-          persons!inner(full_name, mlid, mobile_number),
+          persons(full_name, mlid, mobile_number),
           business_members!inner(membership_status)
         ''')
         .eq('agent_id', agentId)
         .single();
-    final person = agentRow['persons'] as Map<String, dynamic>;
+    final person = agentRow['persons'] as Map<String, dynamic>?;
     final membership = agentRow['business_members'] as Map<String, dynamic>;
 
     final permRow = await _db
@@ -539,9 +528,9 @@ class OwnerApiService {
     return AgentProfile(
       summary: AgentSummary(
         agentId: agentId,
-        fullName: person['full_name'] as String,
-        mlid: person['mlid'] as String,
-        phoneNumber: (person['mobile_number'] as String?) ?? '',
+        fullName: titleCaseName(person?['full_name'] as String? ?? ''),
+        mlid: person?['mlid'] as String? ?? '',
+        phoneNumber: (person?['mobile_number'] as String?) ?? '',
         status: membership['membership_status'] as String,
         businessAccess: permissions.values.every((v) => v) ? 'Full Access' : 'Restricted',
         todaysCollections: 0,
@@ -757,6 +746,8 @@ class NotificationItem {
 /// C3 Agent List row shape (OW-002).
 class AgentSummary {
   final String agentId;
+  final String? personId; // populated for pre-membership search results (searchByMlid); agentId is empty in that case
+  final String? membershipId; // business_members.membership_id — needed wherever an agent's OWN membership row must be referenced (e.g. account_periods.agent_membership_id), not just their agents.agent_id
   final String fullName;
   final String mlid;
   final String phoneNumber;
@@ -770,6 +761,8 @@ class AgentSummary {
 
   AgentSummary({
     required this.agentId,
+    this.personId,
+    this.membershipId,
     required this.fullName,
     required this.mlid,
     required this.phoneNumber,

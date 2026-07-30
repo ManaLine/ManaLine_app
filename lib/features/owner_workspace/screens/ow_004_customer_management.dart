@@ -8,6 +8,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/document_viewer.dart';
 import '../state/customer_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -17,7 +18,11 @@ final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalD
 /// context menu); "Add Customer" is a header action (C4 sub-flow).
 class CustomerManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const CustomerManagementScreen({super.key, required this.businessId});
+  // Set by OW-001's "Search Customers" Quick Action tile so it lands with
+  // the keyboard already up on the search field, instead of just the
+  // plain browse list ("Customer Management" tile).
+  final bool autoFocusSearch;
+  const CustomerManagementScreen({super.key, required this.businessId, this.autoFocusSearch = false});
 
   @override
   ConsumerState<CustomerManagementScreen> createState() => _CustomerManagementScreenState();
@@ -25,13 +30,21 @@ class CustomerManagementScreen extends ConsumerStatefulWidget {
 
 class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScreen> {
   final _search = TextEditingController();
+  final _searchFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(customerListProvider.notifier).load(widget.businessId);
+      if (widget.autoFocusSearch) _searchFocus.requestFocus();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchFocus.dispose();
+    super.dispose();
   }
 
   @override
@@ -40,6 +53,19 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
 
     return Scaffold(
       appBar: AppBar(
+        // Explicit leading, not the AppBar-implied one: this screen is
+        // reached both via Quick Actions (context.push — canPop is true,
+        // default back arrow would appear on its own) AND via the footer
+        // nav's "Customers" tab (context.go — REPLACES history, so
+        // canPop is false and AppBar quietly omits the back arrow
+        // entirely, dead-ending here). Always fall back to Home so
+        // there's a way out either way.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).canPop()
+              ? Navigator.of(context).pop()
+              : context.go('/ow-001', extra: widget.businessId),
+        ),
         title: const ManaText('customer management'),
         actions: [
           IconButton(
@@ -49,7 +75,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
               context: context,
               isScrollControlled: true,
               builder: (_) => _AddCustomerSheet(businessId: widget.businessId),
-            ),
+            ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId)),
           ),
         ],
       ),
@@ -63,6 +89,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                   children: [
                     TextField(
                       controller: _search,
+                      focusNode: _searchFocus,
                       decoration: const InputDecoration(
                         hintText: 'Search by name, MLID, or phone',
                         prefixIcon: Icon(Icons.search),
@@ -71,6 +98,8 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                     ),
                     const SizedBox(height: ManaSpacing.sm),
                     _StatusFilterChips(state: state),
+                    const SizedBox(height: ManaSpacing.sm),
+                    _VillageFilterDropdown(state: state),
                     const SizedBox(height: ManaSpacing.xs),
                     const ManaText.raw(
                       'Sorted by: highest outstanding → penalty → grace period → today\'s due → village → name',
@@ -125,6 +154,29 @@ class _StatusFilterChips extends ConsumerWidget {
               onSelected: (_) => ref.read(customerListProvider.notifier).setCustomerStatusFilter(s),
             )),
       ],
+    );
+  }
+}
+
+// BUG FIXED this pass: setVillageFilter()/villageFilter's `filtered`
+// predicate were both fully implemented in customer_state.dart, but no
+// screen ever exposed a way to actually set one.
+class _VillageFilterDropdown extends ConsumerWidget {
+  final CustomerListState state;
+  const _VillageFilterDropdown({required this.state});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final villages = state.customers.map((c) => c.village).where((v) => v.isNotEmpty).toSet().toList()..sort();
+    if (villages.isEmpty) return const SizedBox.shrink();
+    return DropdownButtonFormField<String?>(
+      initialValue: state.villageFilter,
+      decoration: const InputDecoration(labelText: 'Village', isDense: true),
+      items: [
+        const DropdownMenuItem(value: null, child: ManaText('all villages')),
+        ...villages.map((v) => DropdownMenuItem(value: v, child: ManaText.raw(v))),
+      ],
+      onChanged: (v) => ref.read(customerListProvider.notifier).setVillageFilter(v),
     );
   }
 }
@@ -194,17 +246,45 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   final _fatherHusband = TextEditingController();
   final _mobile = TextEditingController();
   final _aadhaar = TextEditingController();
+  final _doorNo = TextEditingController();
+  final _pinCode = TextEditingController();
   String? _gender;
   bool _submitting = false;
   String? _villageId;
   String? _selectedVillageLabel;
   List<Map<String, dynamic>> _villageResults = [];
   final _villageSearch = TextEditingController();
+  bool _villageSearchAttempted = false;
+  bool _manualVillageEntry = false;
+  final _manualVillageName = TextEditingController();
+  final _manualPinCode = TextEditingController();
+  final _manualMandal = TextEditingController();
+  final _manualDistrict = TextEditingController();
+  final _manualState = TextEditingController();
+  String _manualAreaType = 'Village';
+  bool _savingManualVillage = false;
 
   Future<void> _search() async {
     setState(() => _searching = true);
+    // The single box is labeled "Search by Phone, Aadhaar, MANA LINE ID, or
+    // Full Name" but searchIdentity() takes each as a separate named param
+    // routed to a different owner_search_person() branch server-side — this
+    // was previously ALWAYS sent as `fullName:`, so typing an MLID (e.g.
+    // "MLTI067066774") queried full_name ILIKE '%MLTI067066774%' and never
+    // matched, even for a person who genuinely exists. Classify by shape
+    // (MLIDs are always "ML" + 2 letters + digits, per BR-181/182's MLPI/
+    // MLTI scheme; Aadhaar is 12 digits; mobile is 10) and route to the
+    // matching param instead of guessing everything is a name.
+    final query = _query.text.trim();
+    final isMlid = RegExp(r'^ML[A-Za-z]{2}\d+$').hasMatch(query);
+    final digitsOnly = RegExp(r'^\d+$').hasMatch(query);
     final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(customerListProvider.notifier).searchIdentity(fullName: _query.text.trim());
+      return ref.read(customerListProvider.notifier).searchIdentity(
+            mlid: isMlid ? query : null,
+            aadhaar: !isMlid && digitsOnly && query.length == 12 ? query : null,
+            phone: !isMlid && digitsOnly && query.length == 10 ? query : null,
+            fullName: isMlid || digitsOnly ? null : query,
+          );
     });
     if (!mounted) return;
     setState(() {
@@ -219,10 +299,10 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   }
 
   Future<void> _linkExisting() async {
-    if (_foundIdentity == null) return;
+    if (_foundIdentity == null || _foundIdentity!.personId == null) return;
     setState(() => _submitting = true);
     final ok = await NetworkErrorHandler.run(context, () async {
-      return ref.read(customerListProvider.notifier).linkExisting(widget.businessId, _foundIdentity!.customerId);
+      return ref.read(customerListProvider.notifier).linkExisting(widget.businessId, _foundIdentity!.personId!);
     });
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -230,18 +310,87 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   }
 
   Future<void> _searchVillages(String query) async {
-    if (query.trim().length < 2) {
-      setState(() => _villageResults = []);
+    final pin = _pinCode.text.trim();
+    if (pin.length != 6) {
+      setState(() {
+        _villageResults = [];
+        _villageSearchAttempted = false;
+      });
       return;
     }
-    final rows = await Supabase.instance.client
-        .from('locations')
-        .select('location_id, village_town_name, mandal, district, state')
-        .eq('status', 'Active')
-        .ilike('village_town_name', '%${query.trim()}%')
-        .limit(10);
+    if (query.trim().length < 2) {
+      setState(() {
+        _villageResults = [];
+        _villageSearchAttempted = false;
+      });
+      return;
+    }
+    try {
+      final rows = await Supabase.instance.client
+          .from('locations')
+          .select('location_id, village_town_name, mandal, district, state, pin_code')
+          .eq('status', 'Active')
+          .eq('pin_code', pin)
+          .ilike('village_town_name', '%${query.trim()}%')
+          .limit(10);
+      if (!mounted) return;
+      setState(() {
+        _villageResults = (rows as List).cast<Map<String, dynamic>>();
+        _villageSearchAttempted = true;
+      });
+    } catch (e) {
+      // A failed search must still unlock the "add if not found" fallback
+      // — silently swallowing this here (no catch, pre-fix) meant
+      // _villageSearchAttempted never flipped true, so NEITHER the
+      // results list NOR the manual-add prompt ever appeared: the person
+      // was stuck with no visible next step at all.
+      if (!mounted) return;
+      setState(() {
+        _villageResults = [];
+        _villageSearchAttempted = true;
+      });
+    }
+  }
+
+  Future<void> _saveManualVillage() async {
+    if (_manualVillageName.text.trim().isEmpty ||
+        _manualMandal.text.trim().isEmpty ||
+        _manualDistrict.text.trim().isEmpty ||
+        _manualState.text.trim().isEmpty ||
+        _manualPinCode.text.trim().length != 6) {
+      return;
+    }
+    setState(() => _savingManualVillage = true);
+    final result = await NetworkErrorHandler.run(context, () async {
+      final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
+        'p_pin_code': _manualPinCode.text.trim(),
+        'p_village_town_name': _manualVillageName.text.trim(),
+        'p_area_type': _manualAreaType,
+        'p_mandal': _manualMandal.text.trim(),
+        'p_district': _manualDistrict.text.trim(),
+        'p_state': _manualState.text.trim(),
+      });
+      return (rows as List).first as Map<String, dynamic>;
+    });
     if (!mounted) return;
-    setState(() => _villageResults = (rows as List).cast<Map<String, dynamic>>());
+    setState(() => _savingManualVillage = false);
+    if (result == null) return;
+
+    final label =
+        '${_manualVillageName.text.trim()} — ${_manualMandal.text.trim()}, ${_manualDistrict.text.trim()}, ${_manualState.text.trim()}';
+    setState(() {
+      _villageId = result['location_id'] as String;
+      _selectedVillageLabel = label;
+      _villageSearch.text = _manualVillageName.text.trim();
+      _villageResults = [];
+      _manualVillageEntry = false;
+    });
+    if (mounted) {
+      final wasExisting = result['was_existing'] as bool? ?? false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(wasExisting ? 'That village already existed — selected it.' : 'Village added and selected.')),
+      );
+    }
   }
 
   bool get _canCreateNew =>
@@ -249,7 +398,9 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
       _fatherHusband.text.trim().length >= 2 &&
       _gender != null &&
       _mobile.text.trim().length == 10 &&
-      _aadhaar.text.trim().length == 12 &&
+      (_aadhaar.text.trim().isEmpty || _aadhaar.text.trim().length == 12) &&
+      _pinCode.text.trim().length == 6 &&
+      _doorNo.text.trim().isNotEmpty &&
       _villageId != null;
 
   Future<void> _createNew() async {
@@ -261,7 +412,9 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
             fatherHusbandName: _fatherHusband.text.trim(),
             genderDigit: _gender!,
             mobileNumber: _mobile.text.trim(),
-            aadhaarNumber: _aadhaar.text.trim(),
+            aadhaarNumber: _aadhaar.text.trim().isEmpty ? null : _aadhaar.text.trim(),
+            doorNo: _doorNo.text.trim(),
+            pinCode: _pinCode.text.trim(),
             villageId: _villageId!,
           );
     });
@@ -390,7 +543,26 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           keyboardType: TextInputType.number,
           maxLength: 12,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(labelText: 'Aadhaar Number *'),
+          decoration: const InputDecoration(labelText: 'Aadhaar Number (optional — leave blank for a temporary MLTI ID)'),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        TextField(
+          controller: _pinCode,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(labelText: 'PIN Code *', helperText: 'Enter PIN code first — villages shown are limited to this PIN'),
+          onChanged: (_) {
+            setState(() {
+              _villageId = null;
+              _selectedVillageLabel = null;
+            });
+            _searchVillages(_villageSearch.text);
+          },
+        ),
+        TextField(
+          controller: _doorNo,
+          decoration: const InputDecoration(labelText: 'Door / House No *'),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
@@ -401,6 +573,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
             setState(() {
               _villageId = null;
               _selectedVillageLabel = null;
+              _manualVillageEntry = false;
             });
             _searchVillages(v);
           },
@@ -427,6 +600,102 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
                   }),
                 );
               },
+            ),
+          ),
+        if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null && !_manualVillageEntry)
+          Padding(
+            padding: const EdgeInsets.only(top: ManaSpacing.xs),
+            child: TextButton(
+              style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+              onPressed: () => setState(() {
+                _manualVillageEntry = true;
+                _manualVillageName.text = _villageSearch.text.trim();
+                _manualPinCode.text = _pinCode.text.trim();
+              }),
+              child: Text('"${_villageSearch.text.trim()}" not found — add it'),
+            ),
+          ),
+        if (_manualVillageEntry)
+          Container(
+            margin: const EdgeInsets.only(top: ManaSpacing.sm),
+            padding: const EdgeInsets.all(ManaSpacing.md),
+            decoration: BoxDecoration(
+              border: Border.all(color: ManaColors.surfaceSunken),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText('add new village', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: ManaSpacing.sm),
+                TextField(
+                  controller: _manualVillageName,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Village/Town Name *'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                TextField(
+                  controller: _manualPinCode,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  decoration: const InputDecoration(labelText: 'PIN Code *'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: _manualAreaType,
+                  decoration: const InputDecoration(labelText: 'Area Type *'),
+                  items: const [
+                    DropdownMenuItem(value: 'Village', child: Text('Village')),
+                    DropdownMenuItem(value: 'Town', child: Text('Town')),
+                  ],
+                  onChanged: (v) => setState(() => _manualAreaType = v ?? 'Village'),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                TextField(
+                  controller: _manualMandal,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Mandal *'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                TextField(
+                  controller: _manualDistrict,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'District *'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                TextField(
+                  controller: _manualState,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'State *'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: _savingManualVillage ? null : () => setState(() => _manualVillageEntry = false),
+                      child: const ManaText('cancel'),
+                    ),
+                    const SizedBox(width: ManaSpacing.sm),
+                    ElevatedButton(
+                      onPressed: (_savingManualVillage ||
+                              _manualVillageName.text.trim().isEmpty ||
+                              _manualMandal.text.trim().isEmpty ||
+                              _manualDistrict.text.trim().isEmpty ||
+                              _manualState.text.trim().isEmpty ||
+                              _manualPinCode.text.trim().length != 6)
+                          ? null
+                          : _saveManualVillage,
+                      child: _savingManualVillage
+                          ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const ManaText('save & select'),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         if (_selectedVillageLabel != null) ...[
@@ -497,7 +766,7 @@ class CustomerProfileScreen extends ConsumerWidget {
               _SummaryTab(customer: customer, profile: profile),
               _LoansTab(profile: profile),
               _CollectionsTab(profile: profile),
-              const _DocumentsTab(),
+              _DocumentsTab(customerId: customer.customerId),
               _RemarksTab(customerId: customer.customerId, profile: profile),
               const _HistoryTab(),
               const _AuditTab(),
@@ -511,7 +780,12 @@ class CustomerProfileScreen extends ConsumerWidget {
   Future<void> _handleAction(BuildContext context, WidgetRef ref, String action) async {
     switch (action) {
       case 'new_loan':
-        context.push('/ow-005', extra: customer.customerId);
+        // BUG FIXED this pass: router.dart's /ow-005 route now reads
+        // businessId from `extra` (aligned with every other route this
+        // session), with the prefilled customer as a query param —
+        // this used to pass customerId as `extra`, which the route
+        // read as businessId until prefilledCustomerId was activated.
+        context.push('/ow-005?customerId=${customer.customerId}', extra: businessId);
       case 'collect':
         context.push('/ow-006', extra: customer.customerId);
       case 'suspend':
@@ -609,7 +883,10 @@ class _LoansTab extends StatelessWidget {
                             ? ManaStatus.bad
                             : ManaStatus.neutral,
                   ),
-                  onTap: () {}, // → OW-007 Loan Details, not yet built
+                  // Stale comment fixed: OW-007 has been built for a
+                  // while (reachable from ow_009_daily_record_book.dart)
+                  // — this just never got updated to link to it.
+                  onTap: () => context.push('/ow-007', extra: l.loanId),
                 ),
               ))
           .toList(),
@@ -643,32 +920,23 @@ class _CollectionsTab extends StatelessWidget {
   }
 }
 
-class _DocumentsTab extends StatelessWidget {
-  const _DocumentsTab();
+class _DocumentsTab extends ConsumerWidget {
+  final String customerId;
+  const _DocumentsTab({required this.customerId});
 
   @override
-  Widget build(BuildContext context) {
-    const docs = [
-      'Aadhaar',
-      'Photo',
-      'Address Proof',
-      'Customer Agreement',
-      'Loan Agreement',
-      'Guarantor Documents',
-      'Other Documents',
-    ];
-    return ListView(
-      padding: const EdgeInsets.all(ManaSpacing.lg),
-      children: docs
-          .map((d) => Card(
-                child: ListTile(
-                  leading: const Icon(Icons.description_outlined),
-                  title: ManaText(d),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
-                ),
-              ))
-          .toList(),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return DocumentsListView(
+      expectedTypes: const [
+        'Aadhaar',
+        'Photo',
+        'Address Proof',
+        'Customer Agreement',
+        'Loan Agreement',
+        'Guarantor Documents',
+        'Other Documents',
+      ],
+      fetchDocuments: () => ref.read(customerApiServiceProvider).fetchCustomerDocuments(customerId: customerId),
     );
   }
 }

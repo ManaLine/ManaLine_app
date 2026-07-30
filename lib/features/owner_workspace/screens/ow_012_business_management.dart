@@ -1,10 +1,49 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/business_name_checker.dart';
 import '../state/business_management_state.dart';
+import '../state/owner_workspace_state.dart';
+import '../state/owner_api_service.dart' show AgentSummary;
+
+// A failed load previously left every one of this screen's tabs looking
+// like a legitimate empty state ("No Operating Areas yet.", "No active
+// members yet.") with the real Postgrest/RLS error swallowed into
+// `state.error` and never rendered anywhere — indistinguishable from a
+// business that genuinely has no data. Surfacing it here so a load
+// failure reads as "something broke, tap retry" instead of "empty".
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorBanner({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+            const SizedBox(height: ManaSpacing.md),
+            const ManaText('could not load data'),
+            const SizedBox(height: ManaSpacing.sm),
+            ManaText.raw(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: ManaColors.statusBad)),
+            const SizedBox(height: ManaSpacing.sm),
+            ElevatedButton(onPressed: onRetry, child: const ManaText('retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// OW-012 — Business Management. Owner only. Create and manage Businesses.
 ///
@@ -14,7 +53,14 @@ import '../state/business_management_state.dart';
 /// Detail with tabs for Operating Areas / Business Agreements / Business
 /// Members / Account Periods.
 class BusinessManagementScreen extends ConsumerStatefulWidget {
-  const BusinessManagementScreen({super.key});
+  // Set when reached from a business-scoped screen (e.g. OW-001's header
+  // menu or its Invitations/Acceptances pills) so this jumps straight to
+  // that business's detail instead of making the Owner pick it again from
+  // the list — that "no businessId, always lands on the generic list" gap
+  // was the reported cause of "business details not showing".
+  final String? initialBusinessId;
+  final BusinessDetailTab? initialTab;
+  const BusinessManagementScreen({super.key, this.initialBusinessId, this.initialTab});
 
   @override
   ConsumerState<BusinessManagementScreen> createState() => _BusinessManagementScreenState();
@@ -26,6 +72,14 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(businessListProvider.notifier).load();
+      final businessId = widget.initialBusinessId;
+      if (businessId != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => _BusinessDetailScreen(businessId: businessId, initialTab: widget.initialTab),
+          ),
+        );
+      }
     });
   }
 
@@ -47,6 +101,8 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
           onRefresh: () => ref.read(businessListProvider.notifier).load(),
           child: state.loading && state.businesses.isEmpty
               ? const Center(child: CircularProgressIndicator())
+              : state.error != null
+                  ? _ErrorBanner(message: state.error!, onRetry: () => ref.read(businessListProvider.notifier).load())
               : state.businesses.isEmpty
                   ? ListView(
                       padding: const EdgeInsets.all(ManaSpacing.xxl),
@@ -178,10 +234,30 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
   final _businessAddress = TextEditingController();
   final _businessPhone = TextEditingController();
   final _businessEmail = TextEditingController();
+  Uint8List? _logoBytes;
 
   bool get _valid => _businessName.text.trim().isNotEmpty && _registeredFinanceName.text.trim().isNotEmpty;
 
+  Future<void> _pickLogo() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    setState(() => _logoBytes = bytes);
+  }
+
   Future<void> _submit() async {
+    final available = await BusinessNameChecker.isAvailable(_businessName.text);
+    if (!available) {
+      if (!mounted) return;
+      final alternatives = await BusinessNameChecker.suggestAlternatives(_businessName.text);
+      if (!mounted) return;
+      final chosen = await showDialog<String>(
+        context: context,
+        builder: (_) => BusinessNameTakenDialog(name: _businessName.text.trim(), alternatives: alternatives),
+      );
+      if (chosen != null) setState(() => _businessName.text = chosen);
+      return;
+    }
     final ok = await NetworkErrorHandler.run(context, () async {
       return ref.read(createBusinessFormProvider.notifier).submit(
             businessName: _businessName.text.trim(),
@@ -194,6 +270,22 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
     });
     if (ok == true && mounted) {
       final businessId = ref.read(createBusinessFormProvider).createdBusinessId;
+      if (businessId != null && _logoBytes != null) {
+        try {
+          final path = '$businessId/logo.jpg';
+          await Supabase.instance.client.storage.from('business-logos').uploadBinary(
+                path,
+                _logoBytes!,
+                fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+              );
+          final url =
+              await Supabase.instance.client.storage.from('business-logos').createSignedUrl(path, 60 * 60 * 24 * 365);
+          await Supabase.instance.client.from('businesses').update({'logo_url': url}).eq('business_id', businessId);
+        } catch (e) {
+          // Non-fatal — the business itself was created successfully;
+          // the logo can be added later, never block on this.
+        }
+      }
       ref.read(createBusinessFormProvider.notifier).reset();
       Navigator.of(context).pop();
       if (businessId != null) {
@@ -220,6 +312,25 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
               style: TextStyle(color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
+            Center(
+              child: GestureDetector(
+                onTap: _pickLogo,
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor: ManaColors.surfaceSunken,
+                  backgroundImage: _logoBytes != null ? MemoryImage(_logoBytes!) : null,
+                  child: _logoBytes == null
+                      ? const Icon(Icons.add_a_photo_outlined, color: ManaColors.textSecondary)
+                      : null,
+                ),
+              ),
+            ),
+            Center(
+              child: TextButton(
+                onPressed: _pickLogo,
+                child: ManaText(_logoBytes == null ? 'add business photo' : 'change photo'),
+              ),
+            ),
             TextField(
               controller: _businessName,
               decoration: const InputDecoration(labelText: 'Business Name *'),
@@ -271,7 +382,8 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
 
 class _BusinessDetailScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const _BusinessDetailScreen({required this.businessId});
+  final BusinessDetailTab? initialTab;
+  const _BusinessDetailScreen({required this.businessId, this.initialTab});
 
   @override
   ConsumerState<_BusinessDetailScreen> createState() => _BusinessDetailScreenState();
@@ -290,10 +402,21 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(businessDetailProvider(widget.businessId));
     final detail = state.detail;
+    // DefaultTabController only reads `initialIndex` once, at construction —
+    // so the tab requested via navigation (widget.initialTab, e.g. Members
+    // from the Invitations pill) has to win on this very first build.
+    // Deliberately NOT synced into businessDetailProvider's own `activeTab`
+    // here: writing to a provider from initState/build is exactly what
+    // Riverpod's "tried to modify a provider while the widget tree was
+    // building" guard exists to catch (hit this for real — see fix note).
+    // activeTab has no other reader in this file besides this one line, so
+    // there's nothing to keep in sync; TabBar's own onTap already keeps the
+    // provider updated for whichever tab the Owner picks from here on.
+    final initialTab = widget.initialTab ?? state.activeTab;
 
     return DefaultTabController(
       length: 4,
-      initialIndex: BusinessDetailTab.values.indexOf(state.activeTab),
+      initialIndex: BusinessDetailTab.values.indexOf(initialTab),
       child: Scaffold(
         appBar: AppBar(
           title: ManaText.raw(detail?.summary.businessName ?? 'business detail'),
@@ -312,6 +435,11 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
         ),
         body: state.loading && detail == null
             ? const Center(child: CircularProgressIndicator())
+            : state.error != null && detail == null
+                ? _ErrorBanner(
+                    message: state.error!,
+                    onRetry: () => ref.read(businessDetailProvider(widget.businessId).notifier).load(),
+                  )
             : TabBarView(
                 children: [
                   _OperatingAreasTab(businessId: widget.businessId),
@@ -351,6 +479,37 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     if (ok == true) {
       ref.read(operatingAreaSearchProvider.notifier).reset();
       _pinCode.clear();
+    }
+  }
+
+  Future<void> _assignAgent(OperatingAreaSummary area) async {
+    final agents = await NetworkErrorHandler.run(context, () async {
+      return ref.read(ownerApiServiceProvider).fetchAgents(businessId: widget.businessId, status: 'Active');
+    });
+    if (agents == null || !mounted) return;
+    final choice = await showModalBottomSheet<_AreaAssignmentChoice>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _AssignAgentSheet(area: area, agents: agents),
+    );
+    if (choice == null || !mounted) return;
+    final businessId = widget.businessId;
+    if (choice.ownerRun) {
+      await NetworkErrorHandler.run(context, () async {
+        return ref.read(businessDetailProvider(businessId).notifier).markAreaOwnerRun(
+              businessId: businessId,
+              operatingAreaId: area.operatingAreaId,
+            );
+      });
+    } else if (choice.agent?.membershipId != null) {
+      await NetworkErrorHandler.run(context, () async {
+        return ref.read(businessDetailProvider(businessId).notifier).assignAreaToAgent(
+              businessId: businessId,
+              operatingAreaId: area.operatingAreaId,
+              agentId: choice.agent!.agentId,
+              agentMembershipId: choice.agent!.membershipId!,
+            );
+      });
     }
   }
 
@@ -427,19 +586,94 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
           const ManaText.raw('No Operating Areas yet.', style: TextStyle(color: ManaColors.textSecondary))
         else
           ...areas.map((a) => Card(
-                child: ListTile(
-                  leading: const Icon(Icons.location_on, color: ManaColors.brass),
-                  title: ManaText.raw('${a.villageTownName} — ${a.pinCode}'),
-                  subtitle: ManaText.raw(a.cycleConfigured
-                      ? 'Cycle: ${a.accountCycleDuration} ${a.accountCycleUnit}, submits ${a.submissionTime}'
-                      : 'Account cycle not yet configured'),
-                  trailing: TextButton(
-                    onPressed: () => _configureCycle(a),
-                    child: ManaText(a.cycleConfigured ? 'edit cycle' : 'configure'),
-                  ),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.location_on, color: ManaColors.brass),
+                      title: ManaText.raw('${a.villageTownName} — ${a.pinCode}'),
+                      subtitle: ManaText.raw(a.cycleConfigured
+                          ? 'Cycle: ${a.accountCycleDuration} ${a.accountCycleUnit}, submits ${a.submissionTime}'
+                          : 'Account cycle not yet configured'),
+                      trailing: TextButton(
+                        onPressed: () => _configureCycle(a),
+                        child: ManaText(a.cycleConfigured ? 'edit cycle' : 'configure'),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      dense: true,
+                      leading: Icon(
+                        a.isOwnerRun ? Icons.storefront_outlined : Icons.badge_outlined,
+                        size: 18,
+                        color: ManaColors.textSecondary,
+                      ),
+                      title: ManaText.raw(
+                        a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}',
+                        style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                      ),
+                      trailing: TextButton(
+                        onPressed: () => _assignAgent(a),
+                        child: ManaText(a.isOwnerRun ? 'assign agent' : 'reassign'),
+                      ),
+                    ),
+                  ],
                 ),
               )),
       ],
+    );
+  }
+}
+
+class _AreaAssignmentChoice {
+  final AgentSummary? agent;
+  final bool ownerRun;
+  _AreaAssignmentChoice.agent(this.agent) : ownerRun = false;
+  _AreaAssignmentChoice.ownerRun()
+      : agent = null,
+        ownerRun = true;
+}
+
+class _AssignAgentSheet extends StatelessWidget {
+  final OperatingAreaSummary area;
+  final List<AgentSummary> agents;
+  const _AssignAgentSheet({required this.area, required this.agents});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.lg, ManaSpacing.lg, ManaSpacing.sm),
+            child: ManaText.raw('${area.villageTownName} — ${area.pinCode}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.storefront_outlined),
+            title: const ManaText('owner-run'),
+            subtitle: const ManaText.raw('No agent assigned — the Owner runs this area directly.',
+                style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+            onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.ownerRun()),
+          ),
+          const Divider(height: 1),
+          if (agents.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(ManaSpacing.lg),
+              child: ManaText.raw('No Active agents in this business yet — add one from Workforce Management first.',
+                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+            )
+          else
+            ...agents.map((agent) => ListTile(
+                  leading: const ManaVerificationRing(isVerified: true, size: 32),
+                  title: ManaText.raw(agent.fullName),
+                  subtitle: ManaText.raw(agent.mlid, style: const TextStyle(fontSize: 11)),
+                  onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.agent(agent)),
+                )),
+          const SizedBox(height: ManaSpacing.md),
+        ],
+      ),
     );
   }
 }
@@ -680,7 +914,7 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
           title: ManaText('add existing $role'.toLowerCase()),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(labelText: 'Person ID / MLID'),
+            decoration: const InputDecoration(labelText: 'MLID'),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const ManaText('cancel')),
@@ -784,27 +1018,28 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         ],
         if (pendingInvitations.isNotEmpty) ...[
           const ManaText('pending invitations', style: TextStyle(fontWeight: FontWeight.bold)),
-          ...pendingInvitations.map((m) => _MemberRow(member: m)),
+          ...pendingInvitations.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
           const SizedBox(height: ManaSpacing.lg),
         ],
         if (pendingAcceptance.isNotEmpty) ...[
           const ManaText('pending acceptance', style: TextStyle(fontWeight: FontWeight.bold)),
-          ...pendingAcceptance.map((m) => _MemberRow(member: m)),
+          ...pendingAcceptance.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
           const SizedBox(height: ManaSpacing.lg),
         ],
         const ManaText('active members', style: TextStyle(fontWeight: FontWeight.bold)),
         if (active.isEmpty)
           const ManaText.raw('No active members yet.', style: TextStyle(color: ManaColors.textSecondary))
         else
-          ...active.map((m) => _MemberRow(member: m)),
+          ...active.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
       ],
     );
   }
 }
 
-class _MemberRow extends StatelessWidget {
+class _MemberRow extends ConsumerWidget {
+  final String businessId;
   final MemberSummary member;
-  const _MemberRow({required this.member});
+  const _MemberRow({required this.businessId, required this.member});
 
   ManaStatus get _statusKind => switch (member.membershipStatus) {
         'Active' => ManaStatus.good,
@@ -813,14 +1048,43 @@ class _MemberRow extends StatelessWidget {
         _ => ManaStatus.neutral,
       };
 
+  Future<void> _changeStatus(BuildContext context, WidgetRef ref, String status) async {
+    await NetworkErrorHandler.run(context, () async {
+      return ref.read(businessDetailProvider(businessId).notifier).updateMembershipStatus(
+            membershipId: member.membershipId,
+            status: status,
+          );
+    });
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // BUG FIXED this pass: Business Members had no status-change action
+    // at all — Agent/Investor/Customer profiles all already have one
+    // (their own PopupMenuButton in the AppBar), this was the one place
+    // an Owner couldn't suspend/reactivate/remove a member. The Owner's
+    // own row is exempt — never offer to suspend/remove yourself.
     return Card(
       child: ListTile(
         leading: const ManaVerificationRing(isVerified: true, size: 36),
         title: ManaText.raw(member.fullName),
         subtitle: ManaText.raw(member.role),
-        trailing: ManaStatusPill(label: member.membershipStatus, status: _statusKind),
+        trailing: member.role == 'Owner'
+            ? ManaStatusPill(label: member.membershipStatus, status: _statusKind)
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ManaStatusPill(label: member.membershipStatus, status: _statusKind),
+                  PopupMenuButton<String>(
+                    onSelected: (status) => _changeStatus(context, ref, status),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'Active', child: ManaText('reactivate')),
+                      PopupMenuItem(value: 'Suspended', child: ManaText('suspend')),
+                      PopupMenuItem(value: 'Removed', child: ManaText('remove')),
+                    ],
+                  ),
+                ],
+              ),
       ),
     );
   }

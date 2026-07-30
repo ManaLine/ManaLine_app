@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/live_face_capture_screen.dart';
+import '../../../shared/title_case_formatter.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
@@ -24,6 +26,24 @@ class RegistrationFormScreen extends ConsumerStatefulWidget {
 class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullName = TextEditingController();
+  final _fullNameEnglish = TextEditingController();
+
+  /// Detects Telugu, Devanagari (Hindi), Tamil, or Kannada script by
+  /// Unicode code point range — real detection, not a heuristic guess.
+  /// When true, the companion "in English" field is shown so the person
+  /// provides the Latin-script spelling themselves (never auto-
+  /// transliterated — see the field's own helper text for why).
+  bool _containsNonLatinScript(String text) {
+    for (final rune in text.runes) {
+      if ((rune >= 0x0C00 && rune <= 0x0C7F) || // Telugu
+          (rune >= 0x0900 && rune <= 0x097F) || // Devanagari (Hindi)
+          (rune >= 0x0B80 && rune <= 0x0BFF) || // Tamil
+          (rune >= 0x0C80 && rune <= 0x0CFF)) { // Kannada
+        return true;
+      }
+    }
+    return false;
+  }
   final _fatherHusbandName = TextEditingController();
   final _mobile = TextEditingController();
   final _password = TextEditingController();
@@ -38,6 +58,14 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   String? _selectedVillageLabel;
   List<Map<String, dynamic>> _villageResults = [];
   final _villageSearch = TextEditingController();
+  bool _villageSearchAttempted = false; // true once a real search has run and returned (even if empty)
+  bool _manualVillageEntry = false;
+  final _manualVillageName = TextEditingController();
+  final _manualMandal = TextEditingController();
+  final _manualDistrict = TextEditingController();
+  final _manualState = TextEditingController();
+  String _manualAreaType = 'Village';
+  bool _savingManualVillage = false;
   bool _acceptTerms = false;
   bool _acceptPrivacy = false;
   bool _submitting = false;
@@ -71,6 +99,9 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     final missing = <String>[];
     if (_livePhotoBytes == null) missing.add('Capture live photo');
     if (_fullName.text.trim().length < 2) missing.add('Full Name');
+    if (_containsNonLatinScript(_fullName.text) && _fullNameEnglish.text.trim().length < 2) {
+      missing.add('Full Name in English');
+    }
     if (_fatherHusbandName.text.trim().length < 2) missing.add('Father / Husband Name');
     if (_gender == null) missing.add('Gender');
     if (_mobile.text.trim().length != 10) missing.add('Mobile Number (10 digits)');
@@ -203,30 +234,107 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     if (result!.otpId != null) {
       ref.read(authFlowProvider.notifier).setPendingOtpId(result!.otpId!);
     }
+    if (_livePhotoBytes != null) {
+      ref.read(authFlowProvider.notifier).setPendingProfilePhoto(_livePhotoBytes!);
+    }
 
     if (!mounted) return;
     context.push('/lr-005');
   }
 
   Future<void> _searchVillages(String query) async {
-    if (query.trim().length < 2) {
-      setState(() => _villageResults = []);
+    final pin = _pinCode.text.trim();
+    if (pin.length != 6) {
+      setState(() {
+        _villageResults = [];
+        _villageSearchAttempted = false;
+      });
       return;
     }
-    final rows = await Supabase.instance.client
-        .from('locations')
-        .select('location_id, village_town_name, mandal, district, state')
-        .eq('status', 'Active')
-        .ilike('village_town_name', '%${query.trim()}%')
-        .limit(10);
+    if (query.trim().length < 2) {
+      setState(() {
+        _villageResults = [];
+        _villageSearchAttempted = false;
+      });
+      return;
+    }
+    try {
+      final rows = await Supabase.instance.client
+          .from('locations')
+          .select('location_id, village_town_name, mandal, district, state')
+          .eq('status', 'Active')
+          .eq('pin_code', pin)
+          .ilike('village_town_name', '%${query.trim()}%')
+          .limit(10);
+      if (!mounted) return;
+      setState(() {
+        _villageResults = (rows as List).cast<Map<String, dynamic>>();
+        _villageSearchAttempted = true;
+      });
+    } catch (e) {
+      // A failed search must still unlock the "add if not found" fallback
+      // — silently swallowing this here (no catch, pre-fix) meant
+      // _villageSearchAttempted never flipped true, so NEITHER the
+      // results list NOR the manual-add prompt ever appeared: the person
+      // was stuck with no visible next step at all.
+      if (!mounted) return;
+      setState(() {
+        _villageResults = [];
+        _villageSearchAttempted = true;
+      });
+    }
+  }
+
+  Future<void> _saveManualVillage() async {
+    if (_manualVillageName.text.trim().isEmpty ||
+        _manualMandal.text.trim().isEmpty ||
+        _manualDistrict.text.trim().isEmpty ||
+        _manualState.text.trim().isEmpty ||
+        _pinCode.text.trim().length != 6) {
+      return; // button is gated on this too; defensive
+    }
+    setState(() => _savingManualVillage = true);
+    final result = await NetworkErrorHandler.run(context, () async {
+      final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
+        'p_pin_code': _pinCode.text.trim(),
+        'p_village_town_name': _manualVillageName.text.trim(),
+        'p_area_type': _manualAreaType,
+        'p_mandal': _manualMandal.text.trim(),
+        'p_district': _manualDistrict.text.trim(),
+        'p_state': _manualState.text.trim(),
+      });
+      return (rows as List).first as Map<String, dynamic>;
+    });
     if (!mounted) return;
-    setState(() => _villageResults = (rows as List).cast<Map<String, dynamic>>());
+    setState(() => _savingManualVillage = false);
+    if (result == null) return; // network/RPC failure — SnackBar already shown
+
+    final label =
+        '${_manualVillageName.text.trim()} — ${_manualMandal.text.trim()}, ${_manualDistrict.text.trim()}, ${_manualState.text.trim()}';
+    setState(() {
+      _villageId = result['location_id'] as String;
+      _selectedVillageLabel = label;
+      _villageSearch.text = _manualVillageName.text.trim();
+      _villageResults = [];
+      _manualVillageEntry = false;
+    });
+    if (mounted) {
+      final wasExisting = result['was_existing'] as bool? ?? false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(wasExisting
+              ? 'That village already existed — selected it.'
+              : 'Village added and selected.'),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     return Scaffold(
-      appBar: AppBar(title: const ManaText('create your account')),
+      appBar: AppBar(title: ManaText.raw(ref.t('create_your_account'))),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -242,12 +350,28 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               TextFormField(
                 controller: _fullName,
                 textCapitalization: TextCapitalization.words,
+                inputFormatters: [TitleCaseTextFormatter()],
                 decoration: const InputDecoration(labelText: 'Full Name *'),
+                onChanged: (_) => setState(() {}),
               ),
+              if (_containsNonLatinScript(_fullName.text)) ...[
+                const SizedBox(height: ManaSpacing.sm),
+                TextFormField(
+                  controller: _fullNameEnglish,
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [TitleCaseTextFormatter()],
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name in English *',
+                    helperText: 'Please type this yourself — used on official documents, never auto-translated.',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ],
               const SizedBox(height: ManaSpacing.md),
               TextFormField(
                 controller: _fatherHusbandName,
                 textCapitalization: TextCapitalization.words,
+                inputFormatters: [TitleCaseTextFormatter()],
                 decoration: const InputDecoration(labelText: 'Father / Husband Name *'),
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -305,7 +429,14 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 controller: _pinCode,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                decoration: const InputDecoration(labelText: 'PIN Code *'),
+                decoration: const InputDecoration(labelText: 'PIN Code *', helperText: 'Enter PIN code first — villages shown are limited to this PIN'),
+                onChanged: (_) {
+                  setState(() {
+                    _villageId = null;
+                    _selectedVillageLabel = null;
+                  });
+                  _searchVillages(_villageSearch.text);
+                },
               ),
               TextFormField(
                 controller: _villageSearch,
@@ -314,6 +445,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                   setState(() {
                     _villageId = null;
                     _selectedVillageLabel = null;
+                    _manualVillageEntry = false;
                   });
                   _searchVillages(v);
                 },
@@ -340,6 +472,108 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                         }),
                       );
                     },
+                  ),
+                ),
+              if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null && !_manualVillageEntry)
+                Padding(
+                  padding: const EdgeInsets.only(top: ManaSpacing.xs),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 16, color: ManaColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: TextButton(
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+                          onPressed: () => setState(() {
+                            _manualVillageEntry = true;
+                            _manualVillageName.text = _villageSearch.text.trim();
+                          }),
+                          child: Text('"${_villageSearch.text.trim()}" not found — add it'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_manualVillageEntry)
+                Container(
+                  margin: const EdgeInsets.only(top: ManaSpacing.sm),
+                  padding: const EdgeInsets.all(ManaSpacing.md),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: ManaColors.surfaceSunken),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ManaText('add new village', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: ManaSpacing.sm),
+                      TextField(
+                        controller: _manualVillageName,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(labelText: 'Village/Town Name *'),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: ManaSpacing.sm),
+                      DropdownButtonFormField<String>(
+                        initialValue: _manualAreaType,
+                        decoration: const InputDecoration(labelText: 'Area Type *'),
+                        items: const [
+                          DropdownMenuItem(value: 'Village', child: Text('Village')),
+                          DropdownMenuItem(value: 'Town', child: Text('Town')),
+                        ],
+                        onChanged: (v) => setState(() => _manualAreaType = v ?? 'Village'),
+                      ),
+                      const SizedBox(height: ManaSpacing.sm),
+                      TextField(
+                        controller: _manualMandal,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(labelText: 'Mandal *'),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: ManaSpacing.sm),
+                      TextField(
+                        controller: _manualDistrict,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(labelText: 'District *'),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: ManaSpacing.sm),
+                      TextField(
+                        controller: _manualState,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(labelText: 'State *'),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: ManaSpacing.sm),
+                      ManaText.raw(
+                        'PIN Code above (${_pinCode.text.trim().isEmpty ? "not yet entered" : _pinCode.text.trim()}) will be used for this village.',
+                        style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                      ),
+                      const SizedBox(height: ManaSpacing.sm),
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: _savingManualVillage ? null : () => setState(() => _manualVillageEntry = false),
+                            child: const ManaText('cancel'),
+                          ),
+                          const SizedBox(width: ManaSpacing.sm),
+                          ElevatedButton(
+                            onPressed: (_savingManualVillage ||
+                                    _manualVillageName.text.trim().isEmpty ||
+                                    _manualMandal.text.trim().isEmpty ||
+                                    _manualDistrict.text.trim().isEmpty ||
+                                    _manualState.text.trim().isEmpty ||
+                                    _pinCode.text.trim().length != 6)
+                                ? null
+                                : _saveManualVillage,
+                            child: _savingManualVillage
+                                ? const SizedBox(
+                                    height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const ManaText('save & select'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               if (_selectedVillageLabel != null) ...[

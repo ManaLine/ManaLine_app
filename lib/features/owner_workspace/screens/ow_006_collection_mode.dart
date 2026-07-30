@@ -6,6 +6,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/collection_mode_state.dart';
+import 'package:go_router/go_router.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -34,7 +35,10 @@ class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
     final state = ref.watch(collectionModeProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('collection mode')),
+      appBar: AppBar(
+leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.businessId)),
+        title: const ManaText('collection mode'),
+),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(collectionModeProvider.notifier).load(widget.businessId),

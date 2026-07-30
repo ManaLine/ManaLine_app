@@ -5,6 +5,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/widgets/language_selector.dart';
 import '../../../shared/local_auth_store.dart';
+import '../../../shared/translation_service.dart';
 import '../state/auth_flow_state.dart';
 
 /// LR-003 — pure fork point, no network call, no loading states.
@@ -14,6 +15,7 @@ class LoginRegistrationChoiceScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(authFlowProvider).language;
+    ref.watch(translationLoaderProvider);
 
     return Scaffold(
       appBar: AppBar(leading: BackButton(onPressed: () => context.go('/lr-002'))),
@@ -23,8 +25,8 @@ class LoginRegistrationChoiceScreen extends ConsumerWidget {
           child: Column(
             children: [
               const Spacer(),
-              const ManaText('already registered?',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ManaText.raw(ref.t('already_registered_q'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: ManaSpacing.xl),
               SizedBox(
                 width: double.infinity,
@@ -34,7 +36,7 @@ class LoginRegistrationChoiceScreen extends ConsumerWidget {
                     if (!context.mounted) return;
                     context.push(pinLength != null ? '/lr-009' : '/lr-007');
                   },
-                  child: const ManaText('yes, i\'m registered'),
+                  child: ManaText.raw(ref.t('yes_im_registered')),
                 ),
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -42,7 +44,7 @@ class LoginRegistrationChoiceScreen extends ConsumerWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () => context.push('/lr-004'),
-                  child: const ManaText('no, i\'m new'),
+                  child: ManaText.raw(ref.t('no_im_new')),
                 ),
               ),
               const Spacer(),

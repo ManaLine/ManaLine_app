@@ -16,7 +16,15 @@ import '../state/loan_wizard_state.dart';
 class NewLoanWorkflowScreen extends ConsumerStatefulWidget {
   final String businessId;
   final String? prefilledCustomerId;
-  const NewLoanWorkflowScreen({super.key, required this.businessId, this.prefilledCustomerId});
+  // Set when reached from a Loan Requests approval — see loan_wizard_
+  // state.dart's confirm() for how this resolves the originating request.
+  final String? sourceRequestId;
+  const NewLoanWorkflowScreen({
+    super.key,
+    required this.businessId,
+    this.prefilledCustomerId,
+    this.sourceRequestId,
+  });
 
   @override
   ConsumerState<NewLoanWorkflowScreen> createState() => _NewLoanWorkflowScreenState();
@@ -26,8 +34,18 @@ class _NewLoanWorkflowScreenState extends ConsumerState<NewLoanWorkflowScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(loanWizardProvider.notifier).reset();
+      // BUG FIXED this pass: prefilledCustomerId was declared but never
+      // actually read anywhere — every entry point that passed one (e.g.
+      // this Loan Requests approval flow) silently landed on the plain
+      // empty Step 1 search instead of the intended customer.
+      if (widget.prefilledCustomerId != null) {
+        await ref.read(loanWizardProvider.notifier).selectCustomerById(
+              customerId: widget.prefilledCustomerId!,
+              sourceRequestId: widget.sourceRequestId,
+            );
+      }
     });
   }
 
@@ -125,8 +143,23 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
 
   Future<void> _search() async {
     setState(() => _searching = true);
+    // Same fix as OW-004's Add Customer search: this box was always sent
+    // as `fullName:` regardless of what was typed, so an MLID search
+    // (e.g. "MLPI100000014") queried full_name ILIKE '%MLPI100000014%'
+    // and never matched, even for a customer who genuinely exists.
+    // Classify by shape and route to the matching owner_search_person()
+    // param instead. (Village is not a supported search dimension on
+    // that RPC at all — the label overpromises there; out of scope here.)
+    final query = _query.text.trim();
+    final isMlid = RegExp(r'^ML[A-Za-z]{2}\d+$').hasMatch(query);
+    final digitsOnly = RegExp(r'^\d+$').hasMatch(query);
     final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(customerListProvider.notifier).searchIdentity(fullName: _query.text.trim());
+      return ref.read(customerListProvider.notifier).searchIdentity(
+            mlid: isMlid ? query : null,
+            aadhaar: !isMlid && digitsOnly && query.length == 12 ? query : null,
+            phone: !isMlid && digitsOnly && query.length == 10 ? query : null,
+            fullName: isMlid || digitsOnly ? null : query,
+          );
     });
     if (!mounted) return;
     setState(() {
@@ -190,11 +223,18 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
 class _Step2Eligibility extends ConsumerWidget {
   const _Step2Eligibility();
 
-  static const _systemChecks = [
-    'Customer Exists',
-    'Business Linked',
-    'Customer Active',
-    'Not Blocked',
+  // BUG FIXED this pass: every one of these 9 checks previously rendered
+  // a hardcoded green checkmark regardless of the actual customer, and
+  // "continue" unconditionally called markEligibilityPassed() — showing
+  // a real Owner a row of authoritative-looking passes that were never
+  // actually evaluated. The 4 checks below ARE answerable from data this
+  // screen already has (state.customer, loaded in Step 1) and now show
+  // their REAL result; the remaining 5 genuinely require server-side
+  // Calculation Engine / cross-loan state this screen doesn't have, so
+  // — same honest treatment already used for BF Cash Validation right
+  // below this list — they're shown as deferred-to-confirm-time, not
+  // faked as already-passed.
+  static const _deferredChecks = [
     'No Duplicate Loan',
     'No Owner Restrictions',
     'No Pending Approval',
@@ -205,31 +245,54 @@ class _Step2Eligibility extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(loanWizardProvider);
+    final customer = state.customer;
+    final customerActive = customer?.customerStatus == 'Active';
+    final notBlocked = customer?.membershipStatus == 'Active';
+    final realChecks = <(String, bool)>[
+      ('Customer Exists', customer != null),
+      ('Business Linked', customer != null),
+      ('Customer Active', customerActive),
+      ('Not Blocked', notBlocked),
+    ];
+    final allRealChecksPassed = realChecks.every((c) => c.$2);
 
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         ManaText('eligibility check', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        ManaText.raw('Customer: ${state.customer?.fullName ?? ''}',
+        ManaText.raw('Customer: ${customer?.fullName ?? ''}',
             style: const TextStyle(color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(ManaSpacing.md),
             child: Column(
-              children: _systemChecks
-                  .map((c) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.check_circle, size: 16, color: ManaColors.statusGood),
-                            const SizedBox(width: ManaSpacing.sm),
-                            ManaText(c, style: const TextStyle(fontSize: 13)),
-                          ],
-                        ),
-                      ))
-                  .toList(),
+              children: [
+                ...realChecks.map((c) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(c.$2 ? Icons.check_circle : Icons.cancel,
+                              size: 16, color: c.$2 ? ManaColors.statusGood : ManaColors.statusBad),
+                          const SizedBox(width: ManaSpacing.sm),
+                          ManaText(c.$1, style: const TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                    )),
+                ..._deferredChecks.map((c) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.schedule, size: 16, color: ManaColors.textSecondary),
+                          const SizedBox(width: ManaSpacing.sm),
+                          Expanded(child: ManaText(c, style: const TextStyle(fontSize: 13))),
+                          const ManaText.raw('at confirm',
+                              style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                        ],
+                      ),
+                    )),
+              ],
             ),
           ),
         ),
@@ -255,7 +318,14 @@ class _Step2Eligibility extends ConsumerWidget {
         ],
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
-          onPressed: () => ref.read(loanWizardProvider.notifier).markEligibilityPassed(),
+          onPressed: () {
+            if (allRealChecksPassed) {
+              ref.read(loanWizardProvider.notifier).markEligibilityPassed();
+            } else {
+              final failed = realChecks.where((c) => !c.$2).map((c) => c.$1).join(', ');
+              ref.read(loanWizardProvider.notifier).markEligibilityFailed('Failed: $failed');
+            }
+          },
           child: const ManaText('continue'),
         ),
       ],

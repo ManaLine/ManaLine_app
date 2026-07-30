@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
+import 'lr_005_otp_verification.dart';
 
 /// LR-007 — Mobile Number + Password auth. Branches by pin_exists in
 /// the response: false → LR-008 Create PIN; true → LR-012 Business
-/// Selector directly.
+/// Selector directly (or LR-008 in upgrade mode first, if
+/// needs_pin_upgrade came back true — ADDED this batch).
 class FirstLoginScreen extends ConsumerStatefulWidget {
   /// True when arriving here via LR-009's BR-201 step-down (3x wrong
   /// PIN) rather than a fresh first-time login — shows a contextual
@@ -47,11 +51,16 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
   final _mobile = TextEditingController();
   final _password = TextEditingController();
   bool _submitting = false;
+  bool _obscurePassword = true;
   String? _error;
+  String? _pendingRedirect; // set when "forgot pin?" needs to verify password first, then hand off
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+    });
     if (widget.prefilledMobile != null) {
       _mobile.text = widget.prefilledMobile!;
     } else if (widget.stepDownFromFailedPin) {
@@ -78,13 +87,21 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     final fingerprint = await LocalAuthStore.deviceFingerprint();
 
     LoginResult? result;
+    AccountLockedException? locked;
     final reached = await NetworkErrorHandler.run(context, () async {
-      result = await ref.read(authApiServiceProvider).login(
-            identifier: _mobile.text,
-            credential: _password.text,
-            credentialType: 'password',
-            deviceFingerprint: fingerprint,
-          );
+      try {
+        result = await ref.read(authApiServiceProvider).login(
+              identifier: _mobile.text,
+              credential: _password.text,
+              credentialType: 'password',
+              deviceFingerprint: fingerprint,
+            );
+      } on AccountLockedException catch (e) {
+        // BUG FIXED this pass: BR-201 lockout used to fall through to the
+        // generic "incorrect" branch below — the OTP-unlock screen this
+        // routes to already existed but was unreachable from here.
+        locked = e;
+      }
       return true;
     });
 
@@ -94,10 +111,30 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
       return; // network failure — SnackBar already shown
     }
 
+    if (locked != null) {
+      if (locked!.personId == null) {
+        setState(() {
+          _submitting = false;
+          _error = locked!.message;
+        });
+        return;
+      }
+      final otpId = await NetworkErrorHandler.run(context, () async {
+        return ref.read(authApiServiceProvider).sendOtp(personId: locked!.personId!, purpose: 'Account Unlock');
+      });
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      if (otpId == null) return; // network failure — SnackBar already shown
+      ref.read(authFlowProvider.notifier).setPendingOtpId(otpId);
+      context.push('/lr-005', extra: const OtpEntryArgs(purpose: OtpPurpose.accountUnlock));
+      return;
+    }
+
     if (result == null || !result!.success || result!.token == null || result!.personId == null) {
       setState(() {
         _submitting = false;
         _error = 'Incorrect mobile number or password.';
+        _pendingRedirect = null;
       });
       return;
     }
@@ -115,10 +152,39 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
           pinExists: pinExists,
         );
 
+    // Upload the registration-time live photo now, if one is pending —
+    // this is the earliest point a real session/JWT exists (registration
+    // itself has none, so persons_self_update RLS couldn't be satisfied
+    // there). Non-fatal: a failed upload never blocks login, just leaves
+    // profile_photo_url unset for this person to retry later via Profile.
+    final pendingPhoto = ref.read(authFlowProvider).pendingProfilePhotoBytes;
+    if (pendingPhoto != null) {
+      try {
+        final personId = result!.personId!;
+        final path = '$personId/photo.jpg';
+        await Supabase.instance.client.storage.from('profile-photos').uploadBinary(
+              path,
+              pendingPhoto,
+              fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+            );
+        final url =
+            await Supabase.instance.client.storage.from('profile-photos').createSignedUrl(path, 60 * 60 * 24 * 365);
+        await Supabase.instance.client
+            .from('persons')
+            .update({'profile_photo_url': url})
+            .eq('person_id', personId);
+      } catch (e) {
+        // Swallowed deliberately — see comment above.
+      } finally {
+        ref.read(authFlowProvider.notifier).clearPendingProfilePhoto();
+      }
+    }
+
     if (!mounted) return;
 
-    if (widget.redirectAfterSuccess != null) {
-      context.push(widget.redirectAfterSuccess!);
+    final redirect = _pendingRedirect ?? widget.redirectAfterSuccess;
+    if (redirect != null) {
+      context.push(redirect);
       return;
     }
 
@@ -128,7 +194,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
       // business_members_self_select.
       final memberships = await NetworkErrorHandler.run(
         context,
-        () => ref.read(authApiServiceProvider).fetchMemberships(),
+        () => ref.read(authApiServiceProvider).fetchMemberships(ref.read(authFlowProvider).personId!),
       );
       if (!mounted) return;
       if (memberships == null) {
@@ -136,7 +202,11 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
         return; // network failure — SnackBar already shown
       }
       ref.read(authFlowProvider.notifier).setMemberships(memberships);
-      context.go('/lr-012');
+      if (result!.needsPinUpgrade) {
+        context.go('/lr-008', extra: true);
+      } else {
+        context.go('/lr-012');
+      }
     } else {
       context.go('/lr-008');
     }
@@ -144,6 +214,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     final canSubmit = _mobile.text.length == 10 && _password.text.isNotEmpty;
 
     return Scaffold(
@@ -175,21 +246,41 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
               ),
               TextField(
                 controller: _password,
-                obscureText: true,
+                obscureText: _obscurePassword,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Password *'),
+                decoration: InputDecoration(
+                  labelText: 'Password *',
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
               ),
               Align(
                 alignment: Alignment.centerRight,
                 child: Wrap(
                   children: [
                     TextButton(
-                      onPressed: () => context.push('/lr-011'),
-                      child: const ManaText('forgot pin?'),
+                      onPressed: (_mobile.text.length == 10 && _password.text.isNotEmpty && !_submitting)
+                          ? () {
+                              // Was: blind context.push('/lr-011') — landed on Forgot
+                              // Pin with no personId ever established (whoever's PIN
+                              // is being reset was never verified), causing "session
+                              // expired" as soon as that screen tried to act on an
+                              // identity it never actually had. Fix: verify the
+                              // password already typed here via the normal _login
+                              // flow first, THEN hand off to LR-011 only on success —
+                              // same pattern already used for LR-009's own
+                              // "forgot pin?" link.
+                              setState(() => _pendingRedirect = '/lr-011');
+                              _login();
+                            }
+                          : null,
+                      child: ManaText.raw(ref.t('forgot_pin')),
                     ),
                     TextButton(
                       onPressed: () => context.push('/lr-010'),
-                      child: const ManaText('forgot password?'),
+                      child: ManaText.raw(ref.t('forgot_password')),
                     ),
                   ],
                 ),
@@ -201,7 +292,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                 child: _submitting
                     ? const SizedBox(
                         width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('login'),
+                    : ManaText.raw(ref.t('login_button')),
               ),
             ],
           ),

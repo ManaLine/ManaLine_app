@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../login_registration/state/auth_flow_state.dart';
 import '../state/agent_dashboard_state.dart';
 import 'ag_002_collection_mode.dart';
 import 'ag_003_todays_route.dart';
@@ -14,6 +17,7 @@ import 'ag_006_owner_settlement.dart';
 import 'ag_007_loan_distribution.dart';
 import 'ag_008_notifications.dart';
 import 'ag_009_profile.dart';
+import 'ag_010_transaction_history.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _time = DateFormat('h:mm a');
@@ -22,6 +26,16 @@ final _date = DateFormat('d MMM yyyy');
 /// AG-001 — Agent Home Dashboard. Entry sequence per spec: Opening BF
 /// Confirm/Update gate (S0, blocking) → Area Selection (S1, no running
 /// session) → populated dashboard (S2, session running).
+///
+/// CHANGED this batch: header menu now has "Create New Business" (same
+/// OW-000 flow LR-012's own S0 uses), and the Scaffold now carries a
+/// bottom nav bar — same Home/Customers/Collections pattern as OW-001's
+/// own footer, plus a 4th "History" tab (new AG-010 screen) since the
+/// Agent side has no existing equivalent of Owner's OW-017. Per the
+/// Owner-side precedent already established (OW-001 has this footer;
+/// OW-002/006/etc drill-down screens deliberately do not), this footer
+/// belongs on AG-001 only — not duplicated onto every AG-00x drill-down
+/// screen.
 class AgentHomeDashboardScreen extends ConsumerStatefulWidget {
   final String agentId;
   final String businessId;
@@ -60,11 +74,12 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     final state = ref.watch(agentDashboardProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('agent dashboard'),
+        title: ManaText.raw(ref.t('agent_dashboard')),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -81,12 +96,54 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => Ag009ProfileScreen(
-                  personId: 'stub-person-id',
+                  personId: ref.read(authFlowProvider).personId ?? '',
                   agentId: widget.agentId,
                   businessId: widget.businessId,
                 ),
               ),
             ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (v) {
+              switch (v) {
+                case 'switch_business':
+                  context.go('/lr-012');
+                case 'switch_role':
+                  context.go('/lr-013');
+                case 'create_business':
+                  // Same OW-000 flow LR-012's S0 uses for a person's first
+                  // business — this Agent already has an account and at
+                  // least one membership, so it's an *additional* business,
+                  // not their first (isAdditionalBusiness: true).
+                  context.push('/ow-000', extra: true);
+                case 'change_area':
+                  // BUG FIXED this pass: addArea/removeArea (agent_
+                  // dashboard_state.dart) were both fully implemented,
+                  // real RPCs (add_area_to_session/remove_area_from_
+                  // session), with zero UI entry point anywhere.
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (_) => _ChangeAreaSheet(state: state, agentId: widget.agentId, businessId: widget.businessId),
+                  );
+                case 'settings':
+                  context.push('/ag-settings', extra: widget.businessId);
+                case 'logout':
+                  ref.read(authFlowProvider.notifier).reset();
+                  context.go('/lr-003');
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
+              const PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
+              const PopupMenuItem(value: 'create_business', child: ManaText('create new business')),
+              if (state.stage == AgentSessionStage.running)
+                const PopupMenuItem(value: 'change_area', child: ManaText('change area')),
+              const PopupMenuItem(value: 'settings', child: ManaText('settings')),
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'logout', child: ManaText('logout')),
+            ],
           ),
         ],
       ),
@@ -105,6 +162,52 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
             ),
         },
       ),
+      bottomNavigationBar: _AgentFooterNav(businessId: widget.businessId, agentId: widget.agentId),
+    );
+  }
+}
+
+// --- Footer Navigation (new this batch) -----------------------------------
+
+/// Same Home/Customers/Collections pattern as OW-001's own `_FooterNav`,
+/// plus a 4th "History" tab (AG-010, new this batch) since the Agent
+/// side has no pre-existing equivalent of Owner's OW-017 Daily Record
+/// Book. Home (index 0) is a no-op — this screen already IS Home.
+class _AgentFooterNav extends ConsumerWidget {
+  final String businessId;
+  final String agentId;
+  const _AgentFooterNav({required this.businessId, required this.agentId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return NavigationBar(
+      selectedIndex: 0,
+      destinations: [
+        NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: ref.t('home')),
+        NavigationDestination(icon: const Icon(Icons.people_outline), label: ref.t('customers')),
+        NavigationDestination(icon: const Icon(Icons.point_of_sale_outlined), label: ref.t('collections')),
+        NavigationDestination(icon: const Icon(Icons.history), label: ref.t('history')),
+      ],
+      onDestinationSelected: (i) {
+        switch (i) {
+          case 1:
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => AgentCustomerManagementScreen(businessId: businessId, agentMembershipId: agentId),
+              ),
+            );
+          case 2:
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => AgentCollectionModeScreen(businessId: businessId)),
+            );
+          case 3:
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => Ag010TransactionHistoryScreen(businessId: businessId, agentMembershipId: agentId),
+              ),
+            );
+        }
+      },
     );
   }
 }
@@ -320,6 +423,66 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
               : const ManaText('start business session'),
         ),
       ],
+    );
+  }
+}
+
+class _ChangeAreaSheet extends ConsumerStatefulWidget {
+  final AgentDashboardState state;
+  final String agentId;
+  final String businessId;
+  const _ChangeAreaSheet({required this.state, required this.agentId, required this.businessId});
+
+  @override
+  ConsumerState<_ChangeAreaSheet> createState() => _ChangeAreaSheetState();
+}
+
+class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
+  String? _pendingAreaId;
+
+  Future<void> _toggle(AgentAreaAssignment area, bool selected) async {
+    setState(() => _pendingAreaId = area.operatingAreaId);
+    final notifier = ref.read(agentDashboardProvider.notifier);
+    final ok = selected
+        ? await notifier.addArea(agentId: widget.agentId, businessId: widget.businessId, operatingAreaId: area.operatingAreaId)
+        : await notifier.removeArea(agentId: widget.agentId, businessId: widget.businessId, operatingAreaId: area.operatingAreaId);
+    if (!mounted) return;
+    setState(() => _pendingAreaId = null);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not change area — save or clear pending unsaved transactions first.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final areas = ref.watch(agentDashboardProvider).enabledAreas;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ManaText('change area', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: ManaSpacing.xs),
+            const ManaText.raw(
+              'Adding an area starts working it immediately; removing one stops new collections there for today (its Account Period keeps running to its own end date).',
+              style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+            ),
+            const SizedBox(height: ManaSpacing.md),
+            ...areas.map((area) => CheckboxListTile(
+                  title: ManaText.raw(area.areaName),
+                  value: area.selectedInSession,
+                  onChanged: _pendingAreaId == area.operatingAreaId ? null : (v) => _toggle(area, v ?? false),
+                  secondary: _pendingAreaId == area.operatingAreaId
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : null,
+                )),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -621,6 +784,26 @@ class _QuickActions extends StatelessWidget {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => Ag008NotificationsScreen(agentId: agentId, businessId: businessId),
+                                ),
+                              );
+                              break;
+                            case 'Universal Search':
+                              // AG-004 already has a real search box
+                              // ("Search by name, MLID, or phone") over
+                              // this Agent's assigned customers — that's
+                              // the only search surface actually built
+                              // for the Agent role (unlike Owner's
+                              // owner_search_person RPC, which is
+                              // explicitly Owner-only server-side), so
+                              // this reuses it rather than inventing a
+                              // second search screen with nothing to
+                              // query.
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => AgentCustomerManagementScreen(
+                                    businessId: businessId,
+                                    agentMembershipId: agentId,
+                                  ),
                                 ),
                               );
                               break;

@@ -73,7 +73,14 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('assets/images/logo.png', height: 96),
+              ClipOval(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  height: 96,
+                  width: 96,
+                  fit: BoxFit.cover,
+                ),
+              ),
               const SizedBox(height: ManaSpacing.md),
               Text(
                 'MANA LINE',

@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/supabase_config.dart';
 import 'auth_flow_state.dart';
 
-final authApiServiceProvider = Provider<AuthApiService>((ref) => AuthApiService());
+final authApiServiceProvider =
+    Provider<AuthApiService>((ref) => AuthApiService());
 
 /// =============================================================================
 /// ARCHITECTURAL DECISION RECORD (read this before touching this file)
@@ -18,23 +20,11 @@ final authApiServiceProvider = Provider<AuthApiService>((ref) => AuthApiService(
 ///    TWO parallel identity records (an auth.users row AND a persons row)
 ///    that could drift — rejected for that reason.
 ///
-/// 2. CONSEQUENCE — BLOCKING GAP, FLAGGED: because `persons` isn't a GoTrue
-///    user, register/login/OTP-send/OTP-verify/password-reset/PIN-reset
-///    cannot be plain Postgrest table writes (they need server-side
-///    password/PIN hashing, the MLID-collision 409 logic from SP-001, and
-///    — for login — minting a session token for a "user" GoTrue has never
-///    heard of). This requires **Supabase Edge Functions** that this
-///    session has NOT written and cannot write here — they're a separate
-///    Deno/TypeScript codebase (`supabase/functions/**`), not a file this
-///    chat owns, and they need `SUPABASE_JWT_SECRET`/service_role secrets
-///    that must never live in this Flutter client. Every method below
-///    calls a named Edge Function (`auth-register`, `auth-login`, etc.)
-///    matching the exact Body/Response contract already documented in
-///    04_API_Specification_v1_Part1.md §1 (unchanged from the original
-///    stub's endpoint comments) — so this file is a real, working client
-///    the moment those functions exist, but **they do not exist yet**.
-///    This is the single blocking item for end-to-end testing. See END
-///    RESULT.
+/// 2. All 9 named Edge Functions below are deployed and ACTIVE on the live
+///    project (confirmed this batch) — the "blocking gap" language further
+///    down is historical from an earlier session and no longer accurate;
+///    left in place only because the architectural reasoning is still
+///    correct, not because the functions are still missing.
 ///
 /// 3. SESSION MECHANISM: the login Edge Function is expected to mint a
 ///    custom JWT — signed with the project's JWT secret, `role:
@@ -81,6 +71,13 @@ final authApiServiceProvider = Provider<AuthApiService>((ref) => AuthApiService(
 ///        ONLY the generic SP-001-approved message ("This Aadhaar Number
 ///        is already associated with an existing account."), never the
 ///        raw Postgres error and never which account is blocking.
+///
+/// 7. PIN LENGTH (ADDED this batch): `persons.pin_length` now records
+///    whether the currently-set PIN is 4 or 6 digits, written by
+///    auth-pin-create. auth-login returns `needs_pin_upgrade` — true only
+///    when pin_length is 4 or NULL (legacy, predates this column) — so
+///    the client can force a one-time upgrade to a 6-digit PIN without
+///    re-prompting anyone who's already on 6.
 /// =============================================================================
 
 /// Named Edge Functions this file calls. Centralized so a future rename
@@ -99,7 +96,29 @@ class _Fn {
 
 class AuthApiService {
   final SupabaseClient _client;
-  AuthApiService({SupabaseClient? client}) : _client = client ?? Supabase.instance.client;
+  AuthApiService({SupabaseClient? client})
+      : _client = client ?? Supabase.instance.client;
+
+  // BUG FIX (confirmed live): main.dart's `accessToken` callback attaches
+  // whatever ManaSession.currentAccessToken currently holds to EVERY
+  // outgoing request, including these Edge Function calls — and
+  // hydrateFromSecureStorage() restores that token on cold start without
+  // checking whether it has expired (its own doc comment already admits
+  // this). Once it expires, every call carries it, including a fresh
+  // login attempt — so a person could never recover: the dashboard threw
+  // PostgrestException(JWT expired, PGRST303), and BOTH the PIN and
+  // password login screens then failed with FunctionException 401 for
+  // the exact same reason, since supabase_flutter's AuthHttpClient only
+  // fills in Authorization via `putIfAbsent` (never overwrites one that's
+  // already present) — the stale header from ManaSession always won.
+  // Passing this explicit header on the calls below restores the
+  // documented intent ("must run as anon, not authenticated" — see the
+  // class doc's Architectural Decision #3) by giving `invoke()` an
+  // Authorization value to put before AuthHttpClient ever gets a chance
+  // to fill one in with the stale token.
+  static const Map<String, String> _anonAuth = {
+    'Authorization': 'Bearer ${SupabaseConfig.anonKey}',
+  };
 
   // ---------------------------------------------------------------------
   // POST-equivalent Edge Function calls (§1.1/§1.3 of the API spec)
@@ -119,7 +138,7 @@ class AuthApiService {
     required String customerType,
   }) async {
     try {
-      final res = await _client.functions.invoke(_Fn.register, body: {
+      final res = await _client.functions.invoke(_Fn.register, headers: _anonAuth, body: {
         'full_name': fullName,
         'father_husband_name': fatherHusbandName,
         'gender_digit': genderDigit,
@@ -143,8 +162,11 @@ class AuthApiService {
     } on FunctionException catch (e) {
       if (e.status == 409) {
         // SP-001: generic block message only, never expose which account.
-        throw RegistrationBlockedException(
-          'This Aadhaar Number is already associated with an existing account.',
+        // Covers both Aadhaar and mobile_number collisions (0039) — not
+        // narrowed to "Aadhaar" specifically anymore, since that would be
+        // actively misleading for a mobile-triggered block.
+        throw const RegistrationBlockedException(
+          'This Aadhaar Number or Mobile Number is already associated with an existing account.',
         );
       }
       rethrow;
@@ -152,8 +174,11 @@ class AuthApiService {
   }
 
   /// auth-otp-send (§1.3). Returns the new otp_id.
-  Future<String> sendOtp({required String personId, required String purpose, String? membershipId}) async {
-    final res = await _client.functions.invoke(_Fn.otpSend, body: {
+  Future<String> sendOtp(
+      {required String personId,
+      required String purpose,
+      String? membershipId}) async {
+    final res = await _client.functions.invoke(_Fn.otpSend, headers: _anonAuth, body: {
       'person_id': personId,
       'purpose': purpose,
       if (membershipId != null) 'membership_id': membershipId,
@@ -167,7 +192,7 @@ class AuthApiService {
   /// a thrown error, so screens can show "Incorrect code" inline the same
   /// way the pre-existing stub UI already expects.
   Future<bool> verifyOtp({required String otpId, required String code}) async {
-    final res = await _client.functions.invoke(_Fn.otpVerify, body: {
+    final res = await _client.functions.invoke(_Fn.otpVerify, headers: _anonAuth, body: {
       'otp_id': otpId,
       'code': code,
     });
@@ -175,30 +200,52 @@ class AuthApiService {
     return data['verified'] as bool? ?? false;
   }
 
-  /// auth-login (§1.3) — identifier: mobile_number, credential:
-  /// password|pin. PIN validation happens server-side inside this
-  /// function (see architectural note #4 above) — this client never
-  /// compares credentials itself.
+  /// auth-login (§1.3) — identifier: mobile_number, credential: password
+  /// or PIN depending on credentialType.
   Future<LoginResult> login({
     required String identifier,
     required String credential,
-    required String credentialType, // 'password' | 'pin'
+    required String credentialType,
     required String deviceFingerprint,
   }) async {
-    final res = await _client.functions.invoke(_Fn.login, body: {
-      'identifier': identifier,
-      'credential': credential,
-      'credential_type': credentialType,
-      'device_fingerprint': deviceFingerprint,
-    });
-    final data = _asMap(res.data);
-    return LoginResult(
-      success: data['success'] as bool? ?? false,
-      token: data['token'] as String?,
-      personId: data['person_id']?.toString(),
-      verificationRing: data['verification_ring'] as String?,
-      pinExists: data['pin_exists'] as bool? ?? false,
-    );
+    try {
+      final res = await _client.functions.invoke(_Fn.login, headers: _anonAuth, body: {
+        'identifier': identifier,
+        'credential': credential,
+        'credential_type': credentialType,
+        'device_fingerprint': deviceFingerprint,
+      });
+      final data = _asMap(res.data);
+      return LoginResult(
+        success: data['success'] as bool? ?? false,
+        token: data['token'] as String?,
+        personId: data['person_id']?.toString(),
+        verificationRing: data['verification_ring'] as String?,
+        pinExists: data['pin_exists'] as bool? ?? false,
+        needsPinUpgrade: data['needs_pin_upgrade'] as bool? ?? false,
+      );
+    } on FunctionException catch (e) {
+      // BUG FIXED this pass: BR-201 lockout (auth-login returns 403
+      // ACCOUNT_LOCKED once failed_pin_attempts/failed_password_attempts
+      // hits its cap) was never distinguished from a plain wrong
+      // password/PIN — LR-007/LR-009 always showed the same generic
+      // "incorrect" message, even though the OTP-unlock screen
+      // (OtpPurpose.accountUnlock in lr_005) already existed. Surfacing
+      // it as a typed exception so those screens can route there instead
+      // of silently absorbing it into "incorrect credentials".
+      if (e.status == 403 && e.details is Map) {
+        final errors = (e.details as Map)['errors'];
+        final firstError = errors is List && errors.isNotEmpty ? errors.first as Map? : null;
+        if (firstError?['code'] == 'ACCOUNT_LOCKED') {
+          throw AccountLockedException(
+            message: firstError?['message'] as String? ??
+                'Account is locked after too many failed attempts. Verify via OTP to unlock.',
+            personId: firstError?['person_id']?.toString(),
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   /// auth-pin-create (LR-008). Requires an already-authenticated session
@@ -222,7 +269,7 @@ class AuthApiService {
   /// outcome — never branch UI on success/failure of this specific call.
   /// Returns the otp_id so the caller can proceed to the OTP step.
   Future<String> passwordResetRequest({required String identifier}) async {
-    final res = await _client.functions.invoke(_Fn.passwordResetRequest, body: {
+    final res = await _client.functions.invoke(_Fn.passwordResetRequest, headers: _anonAuth, body: {
       'identifier': identifier,
     });
     final data = _asMap(res.data);
@@ -234,7 +281,7 @@ class AuthApiService {
     required String code,
     required String newPassword,
   }) async {
-    await _client.functions.invoke(_Fn.passwordResetConfirm, body: {
+    await _client.functions.invoke(_Fn.passwordResetConfirm, headers: _anonAuth, body: {
       'otp_id': otpId,
       'code': code,
       'new_password': newPassword,
@@ -243,8 +290,9 @@ class AuthApiService {
 
   /// auth-pin-reset-request (password-gated, LR-011). Returns the otp_id
   /// for the subsequent OTP step, purpose='PIN Reset'.
-  Future<String> pinResetRequest({required String personId, required String password}) async {
-    final res = await _client.functions.invoke(_Fn.pinResetRequest, body: {
+  Future<String> pinResetRequest(
+      {required String personId, required String password}) async {
+    final res = await _client.functions.invoke(_Fn.pinResetRequest, headers: _anonAuth, body: {
       'person_id': personId,
       'password': password,
     });
@@ -257,7 +305,7 @@ class AuthApiService {
     required String code,
     required String newPin,
   }) async {
-    await _client.functions.invoke(_Fn.pinResetConfirm, body: {
+    await _client.functions.invoke(_Fn.pinResetConfirm, headers: _anonAuth, body: {
       'otp_id': otpId,
       'code': code,
       'new_pin': newPin,
@@ -274,11 +322,13 @@ class AuthApiService {
   // passed — RLS does that scoping, so this call can never accidentally
   // leak another person's memberships even if the caller had a bug.
   // ---------------------------------------------------------------------
-  Future<List<Membership>> fetchMemberships() async {
+  Future<List<Membership>> fetchMemberships(String personId) async {
     final rows = await _client
         .from('business_members')
-        .select('membership_id, business_id, role, membership_status, verification_status, '
-            'businesses(business_name, business_status)');
+        .select(
+            'membership_id, business_id, role, membership_status, verification_status, '
+            'businesses(business_name, business_status)')
+        .eq('person_id', personId);
 
     return (rows as List).map((row) {
       final r = row as Map<String, dynamic>;
@@ -326,12 +376,25 @@ class RegistrationBlockedException implements Exception {
   String toString() => message;
 }
 
+/// Thrown by login() on a BR-201 lockout (403 ACCOUNT_LOCKED). Callers
+/// should send an 'Account Unlock' OTP for [personId] (via sendOtp) and
+/// navigate to OtpVerificationScreen(purpose: OtpPurpose.accountUnlock)
+/// rather than showing the generic "incorrect credentials" message.
+class AccountLockedException implements Exception {
+  final String message;
+  final String? personId;
+  const AccountLockedException({required this.message, this.personId});
+  @override
+  String toString() => message;
+}
+
 class RegisterResult {
   final String personId;
   final String mlid;
   final String mlidType;
   final String profileStatus;
   final bool duplicateFlag;
+
   /// Set when registration also triggers the initial OTP send server-side
   /// (single combined action) — null if this deployment's auth-register
   /// function expects a separate explicit sendOtp() call instead. Either
@@ -354,11 +417,17 @@ class LoginResult {
   final String? personId;
   final String? verificationRing;
   final bool pinExists;
+
+  /// True only when the currently-set PIN is 4 digits, or predates the
+  /// pin_length column entirely (NULL — treated as needing upgrade).
+  /// Anyone already on a 6-digit PIN is never flagged.
+  final bool needsPinUpgrade;
   LoginResult({
     required this.success,
     this.token,
     this.personId,
     this.verificationRing,
     required this.pinExists,
+    this.needsPinUpgrade = false,
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -37,6 +38,7 @@ class _AccountReviewScreenState extends ConsumerState<AccountReviewScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/ow-001', extra: widget.businessId)),
           title: const ManaText('account review'),
           bottom: const TabBar(tabs: [
             Tab(text: 'Account Review'),

@@ -125,7 +125,7 @@ class GlobalWorkflowApiService {
   Future<List<IncompleteProfileRow>> fetchIncompleteProfiles({required String businessId}) async {
     final rows = await _db
         .from('business_members')
-        .select('membership_id, role, persons!inner(person_id, full_name, profile_status)')
+        .select('membership_id, role, persons!business_members_person_id_fkey(person_id, full_name, profile_status)')
         .eq('business_id', businessId)
         .eq('persons.profile_status', 'Incomplete');
     return (rows as List).map((r) {

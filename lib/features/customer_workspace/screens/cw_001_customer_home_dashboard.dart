@@ -7,6 +7,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/customer_dashboard_state.dart';
+import '../../../shared/translation_service.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
@@ -41,9 +42,38 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     final async = ref.watch(customerDashboardProvider);
 
     return Scaffold(
+      appBar: AppBar(
+        title: ManaText.raw(ref.t('customer_dashboard')),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (v) {
+              switch (v) {
+                case 'switch_business':
+                  context.go('/lr-012');
+                case 'switch_role':
+                  context.go('/lr-013');
+                case 'settings':
+                  context.push('/cw-settings', extra: widget.businessId);
+                case 'logout':
+                  ref.read(authFlowProvider.notifier).reset();
+                  context.go('/lr-003');
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
+              PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
+              PopupMenuItem(value: 'settings', child: ManaText('settings')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'logout', child: ManaText('logout')),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -87,6 +117,15 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
             const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load dashboard'),
+            const SizedBox(height: ManaSpacing.sm),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
+              child: ManaText.raw(
+                e.toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: ManaColors.statusBad),
+              ),
+            ),
             const SizedBox(height: ManaSpacing.sm),
             ElevatedButton(onPressed: _refresh, child: const ManaText('retry')),
           ],

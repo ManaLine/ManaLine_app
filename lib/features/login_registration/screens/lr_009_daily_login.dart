@@ -10,12 +10,20 @@ import '../../../shared/widgets/language_selector.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
+import 'lr_005_otp_verification.dart';
 
 /// LR-009 — fast re-authentication for a returning person on an
 /// already-trusted device. PIN pad is primary (F1); biometric (F2)
 /// auto-triggers on load if enabled, but never replaces PIN as
 /// fallback (BR-196). 3rd consecutive wrong PIN steps down to LR-007
 /// in password-required mode (BR-201, S4) — not Forgot Password.
+///
+/// ADDED this batch: a successful login here also checks
+/// needs_pin_upgrade — if the person's PIN is still 4 digits (or
+/// predates the pin_length column), they're routed through LR-008 in
+/// upgrade mode before reaching their workspace, instead of straight to
+/// LR-012.
 class DailyLoginScreen extends ConsumerStatefulWidget {
   const DailyLoginScreen({super.key});
 
@@ -30,7 +38,8 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
   bool _submitting = false;
   bool _biometricAttempted = false;
   String? _error;
-  String _personName = ''; // TODO: real profile fetch for header personalization
+  final String _personName =
+      ''; // TODO: real profile fetch for header personalization
 
   @override
   void initState() {
@@ -73,7 +82,8 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
       _entered += d;
       _error = null;
     });
-    if (_entered.length == _pinLength) _submit(); // auto-submit on last digit, per F1
+    if (_entered.length == _pinLength)
+      _submit(); // auto-submit on last digit, per F1
   }
 
   void _onBackspace() {
@@ -108,13 +118,24 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
     // biometric-unlock convenience path, never as this screen's own
     // success signal.
     LoginResult? result;
+    AccountLockedException? locked;
     final reached = await NetworkErrorHandler.run(context, () async {
-      result = await ref.read(authApiServiceProvider).login(
-            identifier: mobile,
-            credential: _entered,
-            credentialType: 'pin',
-            deviceFingerprint: deviceFingerprint,
-          );
+      try {
+        result = await ref.read(authApiServiceProvider).login(
+              identifier: mobile,
+              credential: _entered,
+              credentialType: 'pin',
+              deviceFingerprint: deviceFingerprint,
+            );
+      } on AccountLockedException catch (e) {
+        // BUG FIXED this pass: this local _wrongAttempts counter usually
+        // steps down to LR-007 before the server's own failed_pin_attempts
+        // cap is reached, but the two can drift (e.g. a fresh app install
+        // resets this counter to 0 while the server-side one persisted) —
+        // defensively routing to the OTP-unlock flow here too rather than
+        // just showing "Incorrect PIN" for an account that's actually locked.
+        locked = e;
+      }
       return true;
     });
 
@@ -122,6 +143,25 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
     if (reached == null) {
       setState(() => _submitting = false);
       return; // network failure — SnackBar already shown, PIN dots untouched
+    }
+
+    if (locked != null) {
+      if (locked!.personId == null) {
+        setState(() {
+          _submitting = false;
+          _error = locked!.message;
+        });
+        return;
+      }
+      final otpId = await NetworkErrorHandler.run(context, () async {
+        return ref.read(authApiServiceProvider).sendOtp(personId: locked!.personId!, purpose: 'Account Unlock');
+      });
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      if (otpId == null) return; // network failure — SnackBar already shown
+      ref.read(authFlowProvider.notifier).setPendingOtpId(otpId);
+      context.push('/lr-005', extra: const OtpEntryArgs(purpose: OtpPurpose.accountUnlock));
+      return;
     }
 
     final success = result != null &&
@@ -139,7 +179,9 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
 
       final memberships = await NetworkErrorHandler.run(
         context,
-        () => ref.read(authApiServiceProvider).fetchMemberships(),
+        () => ref
+            .read(authApiServiceProvider)
+            .fetchMemberships(ref.read(authFlowProvider).personId!),
       );
       if (!mounted) return;
       if (memberships == null) {
@@ -147,7 +189,11 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
         return; // network failure — SnackBar already shown
       }
       ref.read(authFlowProvider.notifier).setMemberships(memberships);
-      context.go('/lr-012');
+      if (result!.needsPinUpgrade) {
+        context.go('/lr-008', extra: true);
+      } else {
+        context.go('/lr-012');
+      }
       return;
     }
 
@@ -159,7 +205,8 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
       // once the password login actually succeeds (see that screen's
       // diff), not here — a 3rd wrong attempt alone doesn't erase the
       // PIN, only a confirmed successful password re-auth does.
-      context.go('/lr-007', extra: const LoginStepDownArgs(stepDownFromFailedPin: true));
+      context.go('/lr-007',
+          extra: const LoginStepDownArgs(stepDownFromFailedPin: true));
       return;
     }
 
@@ -172,6 +219,7 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     final lang = ref.watch(authFlowProvider).language;
 
     if (_pinLength == null) {
@@ -188,7 +236,9 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               const ManaVerificationRing(isVerified: true, size: 64),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
-                _personName.isEmpty ? 'Welcome back' : 'Welcome back, $_personName',
+                _personName.isEmpty
+                    ? 'Welcome back'
+                    : 'Welcome back, $_personName',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const Spacer(),
@@ -198,17 +248,20 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                   final filled = i < _entered.length;
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 6),
-                    width: 16, height: 16,
+                    width: 16,
+                    height: 16,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: filled ? ManaColors.brass : ManaColors.surfaceSunken,
+                      color:
+                          filled ? ManaColors.brass : ManaColors.surfaceSunken,
                     ),
                   );
                 }),
               ),
               if (_error != null) ...[
                 const SizedBox(height: ManaSpacing.sm),
-                ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad)),
+                ManaText.raw(_error!,
+                    style: const TextStyle(color: ManaColors.statusBad)),
               ],
               const SizedBox(height: ManaSpacing.xl),
               _numberPad(),
@@ -219,21 +272,23 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                   TextButton(
                     onPressed: () => context.push(
                       '/lr-007',
-                      extra: const LoginStepDownArgs(redirectAfterSuccess: '/lr-011'),
+                      extra: const LoginStepDownArgs(
+                          redirectAfterSuccess: '/lr-011'),
                     ),
-                    child: const ManaText('forgot pin?'),
+                    child: ManaText.raw(ref.t('forgot_pin')),
                   ),
                   const SizedBox(width: ManaSpacing.md),
                   TextButton(
                     onPressed: () => context.push('/lr-007'),
-                    child: const ManaText('login with password'),
+                    child: ManaText.raw(ref.t('login_with_password')),
                   ),
                 ],
               ),
               const SizedBox(height: ManaSpacing.sm),
               ManaLanguageSelector(
                 current: lang,
-                onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
+                onChanged: (l) =>
+                    ref.read(authFlowProvider.notifier).setLanguage(l),
               ),
             ],
           ),
@@ -256,7 +311,8 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                 children: row.map((d) {
                   if (d.isEmpty) return const SizedBox(width: 72, height: 56);
                   return SizedBox(
-                    width: 72, height: 56,
+                    width: 72,
+                    height: 56,
                     child: TextButton(
                       onPressed: _submitting
                           ? null

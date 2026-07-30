@@ -32,6 +32,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _submitting = false;
   String? _genericSentMessage;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+    });
+  }
+
   // --- OTP step state (mirrors LR-005's pattern; not extracted to a
   // shared widget yet — see hand-off note at the end of this turn) ---
   final List<TextEditingController> _otpDigits = List.generate(6, (_) => TextEditingController());

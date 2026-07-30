@@ -102,13 +102,22 @@ class BusinessSetupState {
   // Step 2 mandatory: at least 1 Operating Area (CONFIRMED — locked decision).
   bool get step2Complete => operatingAreas.isNotEmpty;
 
-  // Step 3 mandatory: every area configured (per-area, not one global setting).
+  // Step 3 gate — RELAXED per explicit product decision (same reasoning
+  // as step6Complete below): unlocks once AT LEAST ONE area has its cycle
+  // configured, not every area. Was previously "every area" — left as-is
+  // here would have made the step6Complete relaxation pointless, since
+  // the wizard couldn't have reached Step 6 with partial areas at all.
   bool get step3Complete =>
-      operatingAreas.isNotEmpty && operatingAreas.every((a) => a.cycleConfigured);
+      operatingAreas.isNotEmpty && operatingAreas.any((a) => a.cycleConfigured);
 
-  // Step 6 mandatory gate: every area either assigned or marked Owner-run.
+  // Step 6 gate — RELAXED per explicit product decision: unlocks once AT
+  // LEAST ONE area is resolved (owner-run or assigned to an agent), not
+  // requiring every area. Areas left unresolved here remain reachable
+  // later via Business Management (OW-012) — the Owner isn't blocked from
+  // starting the business just because they haven't decided every area's
+  // handling yet.
   bool get step6Complete =>
-      operatingAreas.isNotEmpty && operatingAreas.every((a) => a.resolved);
+      operatingAreas.isNotEmpty && operatingAreas.any((a) => a.resolved);
 
   // "Start Business" enablement — Steps 1-3 + 6 mandatory; 4-5 optional.
   bool get canStartBusiness => step1Complete && step2Complete && step3Complete && step6Complete;
@@ -208,6 +217,10 @@ class BusinessSetupNotifier extends Notifier<BusinessSetupState> {
 
   Future<bool> addOperatingArea({required String pinCode, required String villageId, required String villageName}) async {
     if (state.businessId == null) return false;
+    if (state.operatingAreas.any((a) => a.pinCode == pinCode && a.villageName == villageName)) {
+      state = state.copyWith(error: '"$villageName" is already one of your operating areas.');
+      return false;
+    }
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final api = ref.read(ownerApiServiceProvider);

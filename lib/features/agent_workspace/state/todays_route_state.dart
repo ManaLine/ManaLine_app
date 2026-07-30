@@ -43,10 +43,10 @@ class TodaysRouteApiService {
         .from('loans')
         .select('loan_id, customer_id, loan_number, remaining_balance, installment_amount, '
             'loan_status, '
-            'customers(customer_id, person_id, persons(full_name), '
-            'person_addresses(village_id, is_current, locations(village_town_name)))')
+            'customers!inner(customer_id, person_id, assigned_agent_membership_id, '
+            'persons!inner(full_name, person_addresses(village_id, is_current, locations(village_town_name))))')
         .eq('business_id', businessId)
-        .eq('collection_agent_membership_id', agentMembershipId)
+        .eq('customers.assigned_agent_membership_id', agentMembershipId)
         .eq('loan_status', 'Active');
 
     final loanList = (loanRows as List).cast<Map<String, dynamic>>();
@@ -75,7 +75,7 @@ class TodaysRouteApiService {
       final loanId = r['loan_id'] as String;
       final customer = r['customers'] as Map<String, dynamic>?;
       final person = customer?['persons'] as Map<String, dynamic>?;
-      final addresses = (customer?['person_addresses'] as List?) ?? const [];
+      final addresses = (person?['person_addresses'] as List?) ?? const [];
       final currentAddress = addresses.cast<Map<String, dynamic>?>().firstWhere(
             (a) => a?['is_current'] == true,
             orElse: () => addresses.isNotEmpty ? addresses.first as Map<String, dynamic> : null,

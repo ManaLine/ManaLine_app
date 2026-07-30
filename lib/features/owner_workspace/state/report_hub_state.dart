@@ -162,8 +162,9 @@ class ReportHubApiService {
 
     final collectionRows = await _db
         .from('collections')
-        .select('collection_id, collected_amount')
-        .eq('business_date', dateStr) as List;
+        .select('collection_id, collected_amount, loans!inner(business_id)')
+        .eq('business_date', dateStr)
+        .eq('loans.business_id', businessId) as List;
     final loanRows = await _db
         .from('loans')
         .select('loan_id, amount_given')

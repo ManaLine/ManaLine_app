@@ -22,37 +22,56 @@ class ManaTypography {
   ManaTypography._();
 
   static TextTheme textTheme(Brightness brightness) {
-    final baseColor =
-        brightness == Brightness.dark ? ManaColors.textOnDark : ManaColors.textPrimary;
-    final secondaryColor = ManaColors.textSecondary;
+    final baseColor = brightness == Brightness.dark
+        ? ManaColors.textOnDark
+        : ManaColors.textPrimary;
+    const secondaryColor = ManaColors.textSecondary;
 
     return TextTheme(
       // Headers — Manrope, heavier weights only, used with restraint
       displayLarge: GoogleFonts.manrope(
-        fontSize: 32, fontWeight: FontWeight.w800, color: baseColor, height: 1.15,
+        fontSize: 32,
+        fontWeight: FontWeight.w800,
+        color: baseColor,
+        height: 1.15,
       ),
       displayMedium: GoogleFonts.manrope(
-        fontSize: 26, fontWeight: FontWeight.w700, color: baseColor, height: 1.2,
+        fontSize: 26,
+        fontWeight: FontWeight.w700,
+        color: baseColor,
+        height: 1.2,
       ),
       headlineMedium: GoogleFonts.manrope(
-        fontSize: 20, fontWeight: FontWeight.w700, color: baseColor, height: 1.25,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        color: baseColor,
+        height: 1.25,
       ),
       titleLarge: GoogleFonts.manrope(
-        fontSize: 17, fontWeight: FontWeight.w600, color: baseColor,
+        fontSize: 17,
+        fontWeight: FontWeight.w600,
+        color: baseColor,
       ),
       titleMedium: GoogleFonts.manrope(
-        fontSize: 15, fontWeight: FontWeight.w600, color: baseColor,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: baseColor,
       ),
 
       // Body — Inter, for everything read at length or scanned quickly
       bodyLarge: GoogleFonts.inter(fontSize: 16, color: baseColor, height: 1.4),
-      bodyMedium: GoogleFonts.inter(fontSize: 14, color: baseColor, height: 1.4),
-      bodySmall: GoogleFonts.inter(fontSize: 12, color: secondaryColor, height: 1.35),
+      bodyMedium:
+          GoogleFonts.inter(fontSize: 14, color: baseColor, height: 1.4),
+      bodySmall:
+          GoogleFonts.inter(fontSize: 12, color: secondaryColor, height: 1.35),
 
       // Labels — Inter, medium weight, used for form fields/buttons/chips
-      labelLarge: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: baseColor),
-      labelMedium: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: secondaryColor),
-      labelSmall: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: secondaryColor),
+      labelLarge: GoogleFonts.inter(
+          fontSize: 14, fontWeight: FontWeight.w600, color: baseColor),
+      labelMedium: GoogleFonts.inter(
+          fontSize: 12, fontWeight: FontWeight.w600, color: secondaryColor),
+      labelSmall: GoogleFonts.inter(
+          fontSize: 11, fontWeight: FontWeight.w500, color: secondaryColor),
     );
   }
 

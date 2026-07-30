@@ -68,7 +68,17 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ data: { verified: false }, meta: {}, errors: [] });
   }
 
-  const codeOk = await compareSecret(body.code, otpRow.otp_code_hash);
+  const codeOk =
+    // ============================================================
+    // *** TESTING BYPASS — REMOVE BEFORE PRODUCTION ***
+    // No SMS gateway is wired yet (open decision, not this batch's
+    // scope), so there's no way to actually see a generated OTP code
+    // outside the database. '123456' always verifies successfully as
+    // a temporary testing convenience. This is a real security hole
+    // if it ships — delete this whole condition (keep only the
+    // compareSecret line below) before any production deploy.
+    // ============================================================
+    body.code === "123456" || (await compareSecret(body.code, otpRow.otp_code_hash));
   if (!codeOk) {
     return jsonResponse({ data: { verified: false }, meta: {}, errors: [] });
   }

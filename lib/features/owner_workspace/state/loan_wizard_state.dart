@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'customer_state.dart' show CustomerSummary;
+import 'customer_state.dart' show CustomerSummary, customerApiServiceProvider;
 import '../../../shared/live_photo_upload.dart';
+import '../../login_registration/state/auth_flow_state.dart';
 
 /// OW-005 New Loan Workflow — real Supabase wiring. No dedicated
 /// eligibility-check endpoint; validation is inline inside the create call,
@@ -152,6 +153,87 @@ class LoanApiService {
       'remarks': remarks,
     });
   }
+
+  // BUG FIXED this pass: CW-003's "Request New Loan" does a real INSERT
+  // into loan_requests, but nothing anywhere in the Owner or Agent
+  // workspace ever read that table back — every Customer-submitted
+  // request was a permanent dead letter, stuck Pending forever. This
+  // closes that: fetchLoanRequests/rejectLoanRequest/resolveLoanRequest
+  // back a real Owner-facing review screen (see loan_requests_owner_all
+  // RLS, 0015_rls_module6_loan_domain.sql — Owner already has full
+  // access, nothing here needed a schema/RLS change).
+  Future<List<LoanRequestSummary>> fetchLoanRequests({required String businessId}) async {
+    final customerRows = await _db
+        .from('customers')
+        .select('customer_id, business_members!inner(business_id)')
+        .eq('business_members.business_id', businessId);
+    final customerIds = (customerRows as List).map((r) => r['customer_id'] as String).toList();
+    if (customerIds.isEmpty) return [];
+
+    final rows = await _db
+        .from('loan_requests')
+        .select('request_id, customer_id, requested_amount, purpose_remark, preferred_frequency, status, created_at, '
+            'customers!inner(persons!inner(full_name, mlid))')
+        .inFilter('customer_id', customerIds)
+        .eq('status', 'Pending')
+        .order('created_at', ascending: false);
+    return (rows as List).map((r) {
+      final customer = r['customers'] as Map<String, dynamic>;
+      final person = customer['persons'] as Map<String, dynamic>;
+      return LoanRequestSummary(
+        requestId: r['request_id'] as String,
+        customerId: r['customer_id'] as String,
+        customerName: person['full_name'] as String? ?? '',
+        customerMlid: person['mlid'] as String? ?? '',
+        requestedAmount: (r['requested_amount'] as num).toDouble(),
+        purposeRemark: r['purpose_remark'] as String?,
+        preferredFrequency: r['preferred_frequency'] as String?,
+        createdAt: DateTime.parse(r['created_at'] as String),
+      );
+    }).toList();
+  }
+
+  Future<void> rejectLoanRequest({required String requestId, required String reason}) async {
+    final personId = ref.read(authFlowProvider).personId;
+    await _db.from('loan_requests').update({
+      'status': 'Rejected',
+      'rejection_reason': reason,
+      'reviewed_by_person_id': personId == null ? null : int.parse(personId),
+      'resolved_at': DateTime.now().toIso8601String(),
+      'cooldown_until': DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+    }).eq('request_id', requestId);
+  }
+
+  Future<void> resolveLoanRequest({required String requestId, required String resultingLoanId}) async {
+    final personId = ref.read(authFlowProvider).personId;
+    await _db.from('loan_requests').update({
+      'status': 'Approved',
+      'resulting_loan_id': resultingLoanId,
+      'reviewed_by_person_id': personId == null ? null : int.parse(personId),
+      'resolved_at': DateTime.now().toIso8601String(),
+    }).eq('request_id', requestId);
+  }
+}
+
+class LoanRequestSummary {
+  final String requestId;
+  final String customerId;
+  final String customerName;
+  final String customerMlid;
+  final double requestedAmount;
+  final String? purposeRemark;
+  final String? preferredFrequency;
+  final DateTime createdAt;
+  LoanRequestSummary({
+    required this.requestId,
+    required this.customerId,
+    required this.customerName,
+    required this.customerMlid,
+    required this.requestedAmount,
+    this.purposeRemark,
+    this.preferredFrequency,
+    required this.createdAt,
+  });
 }
 
 class EligibilityResult {
@@ -203,6 +285,11 @@ class LoanWizardState {
   final bool submitting;
   final String? error;
   final String? createdLoanNumber;
+  // Set when this wizard run was started from a Loan Requests approval
+  // (see LoanRequestsScreen) — confirm() uses it to close the loop on
+  // that request (status='Approved', resulting_loan_id) once the loan
+  // is actually created, rather than leaving the two disconnected.
+  final String? sourceRequestId;
 
   const LoanWizardState({
     this.step = LoanWizardStep.customerSelection,
@@ -229,6 +316,7 @@ class LoanWizardState {
     this.submitting = false,
     this.error,
     this.createdLoanNumber,
+    this.sourceRequestId,
   });
 
   // Amount Given = Repayment Amount − Interest − Processing Fee — system
@@ -276,6 +364,7 @@ class LoanWizardState {
     String? error,
     bool clearError = false,
     String? createdLoanNumber,
+    String? sourceRequestId,
   }) {
     return LoanWizardState(
       step: step ?? this.step,
@@ -303,6 +392,7 @@ class LoanWizardState {
       submitting: submitting ?? this.submitting,
       error: clearError ? null : (error ?? this.error),
       createdLoanNumber: createdLoanNumber ?? this.createdLoanNumber,
+      sourceRequestId: sourceRequestId ?? this.sourceRequestId,
     );
   }
 }
@@ -318,6 +408,22 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
 
   void selectCustomer(CustomerSummary customer) {
     state = state.copyWith(customer: customer, step: LoanWizardStep.eligibility);
+  }
+
+  /// BUG FIXED this pass: NewLoanWorkflowScreen's `prefilledCustomerId`
+  /// constructor param was declared but never actually read anywhere —
+  /// entry points that pass one (e.g. a Loan Requests approval flow)
+  /// silently landed on the plain empty Step 1 search instead. Also
+  /// threads `sourceRequestId` through so confirm() can resolve the
+  /// originating loan_requests row once the loan is actually created.
+  Future<void> selectCustomerById({required String customerId, String? sourceRequestId}) async {
+    final api = ref.read(customerApiServiceProvider);
+    final profile = await api.fetchCustomerProfile(customerId: customerId);
+    state = state.copyWith(
+      customer: profile.summary,
+      step: LoanWizardStep.eligibility,
+      sourceRequestId: sourceRequestId,
+    );
   }
 
   /// Step 2 — system checks are simulated pass/fail here; a real build
@@ -438,6 +544,16 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
       if (!result.passed) {
         state = state.copyWith(submitting: false, error: result.failureReason ?? 'Loan could not be created.');
         return null;
+      }
+
+      if (state.sourceRequestId != null && result.loanId != null) {
+        try {
+          await api.resolveLoanRequest(requestId: state.sourceRequestId!, resultingLoanId: result.loanId!);
+        } catch (_) {
+          // Non-fatal — the loan itself already exists; the request would
+          // just be left Pending rather than marked Approved, recoverable
+          // manually from Loan Requests rather than losing the loan.
+        }
       }
 
       if (state.needsGuarantor && result.loanId != null) {

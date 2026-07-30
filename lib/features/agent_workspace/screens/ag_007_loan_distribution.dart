@@ -290,6 +290,13 @@ class _TransferList extends ConsumerWidget {
     if (transfers.isEmpty) {
       return ManaText.raw('No transfers — $title.', style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary));
     }
+    // BUG FIXED this pass: the Confirm button had no in-flight guard at
+    // all — confirmTransfer() does a real balance-affecting write, and a
+    // double-tap (easy on a real device, especially over a slow
+    // connection where the first tap's spinner never showed) could fire
+    // it twice. confirmingTransferId already existed and was already
+    // correctly toggled by the notifier; nothing here ever watched it.
+    final confirming = ref.watch(loanDistributionProvider).confirmingTransferId;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -307,8 +314,10 @@ class _TransferList extends ConsumerWidget {
                     style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
                 trailing: showConfirmAction
                     ? ElevatedButton(
-                        onPressed: () => _confirm(context, ref, t),
-                        child: const ManaText('confirm'),
+                        onPressed: confirming ? null : () => _confirm(context, ref, t),
+                        child: confirming
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const ManaText('confirm'),
                       )
                     : const ManaStatusPill(label: 'Pending', status: ManaStatus.warn),
               ),
@@ -414,8 +423,20 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
 
   Future<void> _search() async {
     setState(() => _searching = true);
+    // Same fix as OW-004/OW-005's customer search: this box was always
+    // sent as `fullName:` regardless of what was typed, so an MLID/phone/
+    // Aadhaar search never matched. Classify by shape and route to the
+    // matching owner_search_person() param.
+    final query = _query.text.trim();
+    final isMlid = RegExp(r'^ML[A-Za-z]{2}\d+$').hasMatch(query);
+    final digitsOnly = RegExp(r'^\d+$').hasMatch(query);
     final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(customerListProvider.notifier).searchIdentity(fullName: _query.text.trim());
+      return ref.read(customerListProvider.notifier).searchIdentity(
+            mlid: isMlid ? query : null,
+            aadhaar: !isMlid && digitsOnly && query.length == 12 ? query : null,
+            phone: !isMlid && digitsOnly && query.length == 10 ? query : null,
+            fullName: isMlid || digitsOnly ? null : query,
+          );
     });
     if (!mounted) return;
     setState(() {

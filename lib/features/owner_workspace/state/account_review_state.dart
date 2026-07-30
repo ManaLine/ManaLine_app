@@ -62,7 +62,7 @@ class AccountReviewApiService {
 
     final accessDayRows = await _db
         .from('agent_access_days')
-        .select('access_day_id, allowance_amount, business_members!inner(business_id, persons!inner(full_name))')
+        .select('access_day_id, allowance_amount, business_members!inner(business_id, persons!business_members_person_id_fkey(full_name))')
         .eq('business_members.business_id', businessId)
         .order('business_date', ascending: false);
     final accessDays = (accessDayRows as List)

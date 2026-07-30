@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'design_showcase_screen.dart';
+import '../features/login_registration/state/auth_flow_state.dart';
 import '../features/login_registration/screens/lr_001_system_startup.dart';
 import '../features/login_registration/screens/lr_002_workspace_choice.dart';
 import '../features/login_registration/screens/lr_003_login_registration_choice.dart';
@@ -27,9 +28,15 @@ import '../features/owner_workspace/screens/ow_009_daily_record_book.dart';
 import '../features/owner_workspace/screens/ow_010_report_hub.dart';
 import '../features/owner_workspace/screens/ow_011_day_closure.dart';
 import '../features/owner_workspace/screens/ow_012_business_management.dart';
+import '../features/owner_workspace/state/business_management_state.dart' show BusinessDetailTab;
 import '../features/owner_workspace/screens/ow_013_account_review.dart';
 import '../features/owner_workspace/screens/ow_014_global_workflow.dart';
 import '../features/owner_workspace/screens/ow_015_group_loan_management.dart';
+import '../features/owner_workspace/screens/ow_016_profile.dart';
+import '../features/owner_workspace/screens/ow_017_transaction_history.dart';
+import '../features/owner_workspace/screens/loan_requests_screen.dart';
+import '../features/owner_workspace/screens/withdrawal_requests_screen.dart';
+import '../shared/settings_screen.dart';
 import '../features/agent_workspace/screens/ag_001_agent_home_dashboard.dart';
 import '../features/agent_workspace/screens/ag_002_collection_mode.dart';
 import '../features/agent_workspace/screens/ag_003_todays_route.dart';
@@ -47,6 +54,7 @@ import '../features/customer_workspace/screens/cw_005_make_a_payment.dart';
 import '../features/customer_workspace/screens/cw_006_my_profile_memberships.dart' as cw006;
 import '../features/investor_workspace/screens/iw_001_investor_home_dashboard.dart';
 import '../features/support_admin/screens/sp_001_aadhaar_dispute_resolution.dart';
+import '../features/admin/admin_panel_screen.dart';
 import '../features/investor_workspace/screens/iw_002_find_a_business.dart';
 import '../features/investor_workspace/screens/iw_003_my_investments.dart';
 import '../features/investor_workspace/screens/iw_004_request_withdrawal.dart';
@@ -62,6 +70,21 @@ import '../features/investor_workspace/screens/iw_005_my_profile_memberships.dar
 /// Development Timeline). This file's job for Week 1 is to prove the
 /// navigation graph matches the spec's own NAVIGATION sections, not to
 /// implement every screen yet.
+/// Resolves the businessId a workspace route should use: `extra` when
+/// go_router actually carried one (in-app navigation), else the last
+/// businessId a route was reached with (survives browser refresh/direct
+/// URL, which lose `extra`), else the review-mode stub. Also the single
+/// place that persists `extra` when it IS present, so every route that
+/// uses this stays in sync without each call site remembering to do it.
+String _resolveBusinessId(GoRouterState s) {
+  final extra = s.extra as String?;
+  if (extra != null) {
+    ManaSession.instance.rememberBusinessId(extra);
+    return extra;
+  }
+  return ManaSession.instance.lastBusinessId ?? 'stub-business-id';
+}
+
 final manaRouter = GoRouter(
   initialLocation: '/lr-001',
   routes: [
@@ -100,7 +123,7 @@ final manaRouter = GoRouter(
         );
       },
     ),
-    GoRoute(path: '/lr-008', builder: (c, s) => const CreatePinScreen()),
+    GoRoute(path: '/lr-008', builder: (c, s) => CreatePinScreen(isUpgrade: s.extra == true)),
     GoRoute(path: '/lr-009', builder: (c, s) => const DailyLoginScreen()),
     GoRoute(path: '/lr-010', builder: (c, s) => const ForgotPasswordScreen()),
     GoRoute(path: '/lr-011', builder: (c, s) => const ForgotPinScreen()),
@@ -118,31 +141,52 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ow-001',
-      builder: (c, s) => OwnerHomeDashboardScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => OwnerHomeDashboardScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-002',
-      builder: (c, s) => WorkforceManagementScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => WorkforceManagementScreen(
+        businessId: _resolveBusinessId(s),
+        initialAction: s.uri.queryParameters['open'],
+      ),
     ),
     GoRoute(
       path: '/ow-003',
-      builder: (c, s) => InvestorManagementScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => InvestorManagementScreen(
+        businessId: _resolveBusinessId(s),
+        initialAction: s.uri.queryParameters['open'],
+        initialFilter: s.uri.queryParameters['filter'],
+      ),
     ),
     GoRoute(
       path: '/ow-004',
-      builder: (c, s) => CustomerManagementScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => CustomerManagementScreen(
+        businessId: _resolveBusinessId(s),
+        autoFocusSearch: s.uri.queryParameters['focus'] == 'search',
+      ),
     ),
     GoRoute(
       path: '/ow-005',
+      // BUG FIXED this pass: businessId here NEVER read `extra` — it
+      // came from the session fallback unconditionally, while `extra`
+      // was actually read as prefilledCustomerId. That was silently
+      // harmless while prefilledCustomerId was itself dead code (see
+      // ow_005's own fix note), but OW-001's Quick Actions "New Loan"
+      // tile passes `extra: businessId` like every other tile this
+      // session standardized on — which this route would have
+      // misread as a customer id the moment prefilledCustomerId
+      // actually started doing something. Aligned to the same
+      // extra=businessId + query-param convention used everywhere else.
       builder: (c, s) => NewLoanWorkflowScreen(
-        businessId: 'stub-business-id',
-        prefilledCustomerId: s.extra as String?,
+        businessId: _resolveBusinessId(s),
+        prefilledCustomerId: s.uri.queryParameters['customerId'],
+        sourceRequestId: s.uri.queryParameters['requestId'],
       ),
     ),
     GoRoute(
       path: '/ow-006',
       builder: (c, s) => CollectionModeScreen(
-        businessId: 'stub-business-id',
+        businessId: ManaSession.instance.lastBusinessId ?? 'stub-business-id',
         prefilledLoanId: s.extra as String?,
       ),
     ),
@@ -152,35 +196,61 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ow-009',
-      builder: (c, s) => DailyRecordBookScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => DailyRecordBookScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-010',
-      builder: (c, s) => ReportHubScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => ReportHubScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-011',
       builder: (c, s) => DayClosureScreen(
-        businessId: (s.extra as String?) ?? 'stub-business-id',
+        businessId: _resolveBusinessId(s),
         businessDate: DateTime.now().toIso8601String().split('T').first,
       ),
     ),
-    GoRoute(path: '/ow-012', builder: (c, s) => const BusinessManagementScreen()),
+    GoRoute(
+      path: '/ow-012',
+      builder: (c, s) => BusinessManagementScreen(
+        initialBusinessId: s.extra as String?,
+        initialTab: switch (s.uri.queryParameters['tab']) {
+          'members' => BusinessDetailTab.members,
+          'agreements' => BusinessDetailTab.agreements,
+          'accountPeriods' => BusinessDetailTab.accountPeriods,
+          'operatingAreas' => BusinessDetailTab.operatingAreas,
+          _ => null,
+        },
+      ),
+    ),
     GoRoute(
       path: '/ow-013',
-      builder: (c, s) => AccountReviewScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => AccountReviewScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-014',
       builder: (c, s) => GlobalWorkflowScreen(
-        businessId: (s.extra as String?) ?? 'stub-business-id',
-        currentOwnerPersonId: 'stub-person-id',
+        businessId: _resolveBusinessId(s),
+        currentOwnerPersonId: ManaSession.instance.currentPersonId ?? 'stub-person-id',
       ),
     ),
     GoRoute(
       path: '/ow-015',
-      builder: (c, s) => GroupLoanManagementScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => GroupLoanManagementScreen(businessId: _resolveBusinessId(s)),
     ),
+    GoRoute(path: '/ow-016', builder: (c, s) => const OwnerProfileScreen()),
+    GoRoute(
+      path: '/ow-017',
+      builder: (c, s) => TransactionHistoryScreen(businessId: _resolveBusinessId(s)),
+    ),
+    GoRoute(path: '/ow-settings', builder: (c, s) => SettingsScreen(homeRoute: '/ow-001', businessId: s.extra as String?)),
+    // Not part of the original locked screen inventory (no OW-0xx number)
+    // — added to close a real gap: loan_requests had a real INSERT path
+    // from CW-003 but no Owner-side screen ever read it back.
+    GoRoute(path: '/ow-loan-requests', builder: (c, s) => LoanRequestsScreen(businessId: _resolveBusinessId(s))),
+    GoRoute(path: '/ow-withdrawal-requests', builder: (c, s) => WithdrawalRequestsScreen(businessId: _resolveBusinessId(s))),
+    GoRoute(path: '/ag-settings', builder: (c, s) => SettingsScreen(homeRoute: '/ag-001', businessId: s.extra as String?)),
+    GoRoute(path: '/cw-settings', builder: (c, s) => SettingsScreen(homeRoute: '/cw-001', businessId: s.extra as String?)),
+    GoRoute(path: '/iw-settings', builder: (c, s) => SettingsScreen(homeRoute: '/iw-001', businessId: s.extra as String?)),
 
     // --- Agent Workspace -------------------------------------------------
     // AG-001 through AG-009 are real, built screens — full Agent Workspace
@@ -190,34 +260,34 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ag-001',
       builder: (c, s) => AgentHomeDashboardScreen(
-        agentId: 'stub-agent-id',
-        businessId: (s.extra as String?) ?? 'stub-business-id',
+        agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+        businessId: _resolveBusinessId(s),
         initialAnchor: s.uri.queryParameters['anchor'],
       ),
     ),
     GoRoute(
       path: '/ag-002',
-      builder: (c, s) => AgentCollectionModeScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => AgentCollectionModeScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ag-003',
       builder: (c, s) => TodaysRouteScreen(
-        businessId: (s.extra as String?) ?? 'stub-business-id',
-        agentMembershipId: 'stub-agent-membership-id',
+        businessId: _resolveBusinessId(s),
+        agentMembershipId: ManaSession.instance.lastMembershipId ?? 'stub-agent-membership-id',
       ),
     ),
     GoRoute(
       path: '/ag-004',
       builder: (c, s) => AgentCustomerManagementScreen(
-        businessId: (s.extra as String?) ?? 'stub-business-id',
-        agentMembershipId: 'stub-agent-membership-id',
+        businessId: _resolveBusinessId(s),
+        agentMembershipId: ManaSession.instance.lastMembershipId ?? 'stub-agent-membership-id',
       ),
     ),
     GoRoute(
       path: '/ag-005',
       builder: (c, s) => DraftTransactionsScreen(
-        businessId: (s.extra as String?) ?? 'stub-business-id',
-        membershipId: 'stub-agent-membership-id',
+        businessId: _resolveBusinessId(s),
+        membershipId: ManaSession.instance.lastMembershipId ?? 'stub-agent-membership-id',
       ),
     ),
     GoRoute(
@@ -225,8 +295,8 @@ final manaRouter = GoRouter(
       builder: (c, s) {
         final now = DateTime.now();
         return OwnerSettlementScreen(
-          businessId: (s.extra as String?) ?? 'stub-business-id',
-          agentId: 'stub-agent-id',
+          businessId: _resolveBusinessId(s),
+          agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
           periodStart: DateTime(now.year, now.month, now.day),
           periodEnd: DateTime(now.year, now.month, now.day, 23, 59, 59),
         );
@@ -235,24 +305,24 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ag-007',
       builder: (c, s) => Ag007LoanDistributionScreen(
-        agentId: 'stub-agent-id',
-        businessId: (s.extra as String?) ?? 'stub-business-id',
+        agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+        businessId: _resolveBusinessId(s),
         prefilledCustomerId: null,
       ),
     ),
     GoRoute(
       path: '/ag-008',
       builder: (c, s) => Ag008NotificationsScreen(
-        agentId: 'stub-agent-id',
-        businessId: (s.extra as String?) ?? 'stub-business-id',
+        agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+        businessId: _resolveBusinessId(s),
       ),
     ),
     GoRoute(
       path: '/ag-009',
       builder: (c, s) => Ag009ProfileScreen(
-        personId: 'stub-person-id',
-        agentId: 'stub-agent-id',
-        businessId: (s.extra as String?) ?? 'stub-business-id',
+        personId: ManaSession.instance.currentPersonId ?? 'stub-person-id',
+        agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+        businessId: _resolveBusinessId(s),
       ),
     ),
 
@@ -264,24 +334,24 @@ final manaRouter = GoRouter(
     // directly reachable during review.
     GoRoute(
       path: '/cw-001',
-      builder: (c, s) => CustomerHomeDashboardScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => CustomerHomeDashboardScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/cw-002',
-      builder: (c, s) => cw002.FindABusinessScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => cw002.FindABusinessScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/cw-003',
       builder: (c, s) => RequestNewLoanScreen(
-        businessId: (s.extra as String?) ?? 'stub-business-id',
-        customerId: 'stub-customer-id',
+        businessId: _resolveBusinessId(s),
+        customerId: ManaSession.instance.lastCustomerId ?? 'stub-customer-id',
       ),
     ),
     GoRoute(
       path: '/cw-004',
       builder: (c, s) => MyLoansScreen(
-        businessId: (s.extra as String?) ?? 'stub-business-id',
-        customerId: 'stub-customer-id',
+        businessId: _resolveBusinessId(s),
+        customerId: ManaSession.instance.lastCustomerId ?? 'stub-customer-id',
       ),
     ),
     GoRoute(
@@ -290,23 +360,23 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/cw-006',
-      builder: (c, s) => cw006.MyProfileMembershipsScreen(personId: (s.extra as String?) ?? 'stub-person-id'),
+      builder: (c, s) => cw006.MyProfileMembershipsScreen(personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? 'stub-person-id'),
     ),
 
     // --- Investor Workspace ----------------------------------------------
     GoRoute(
       path: '/iw-001',
-      builder: (c, s) => InvestorHomeDashboardScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => InvestorHomeDashboardScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/iw-002',
-      builder: (c, s) => FindABusinessScreen(businessId: (s.extra as String?) ?? 'stub-business-id'),
+      builder: (c, s) => FindABusinessScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/iw-003',
       builder: (c, s) => MyInvestmentsScreen(
-        businessId: (s.extra as String?) ?? 'stub-business-id',
-        investorId: 'stub-investor-id',
+        businessId: _resolveBusinessId(s),
+        investorId: ManaSession.instance.lastInvestorId ?? 'stub-investor-id',
       ),
     ),
     GoRoute(
@@ -317,8 +387,11 @@ final manaRouter = GoRouter(
       path: '/iw-005',
       // NOTE: IW-001's Quick Actions currently pass businessId as `extra`
       // for every destination uniformly, but this screen needs personId,
-      // not businessId — see integration summary.
-      builder: (c, s) => MyProfileMembershipsScreen(personId: (s.extra as String?) ?? 'stub-person-id'),
+      // not businessId — see integration summary. `extra` is therefore
+      // ignored here entirely rather than misread as personId; the
+      // logged-in person's own id is always the right value for "my
+      // profile" regardless of which business launched it.
+      builder: (c, s) => MyProfileMembershipsScreen(personId: ManaSession.instance.currentPersonId ?? 'stub-person-id'),
     ),
 
     // --- Support/Admin (SP-001) ---------------------------------------------
@@ -332,6 +405,7 @@ final manaRouter = GoRouter(
       path: '/sp-001',
       builder: (c, s) => const Sp001AadhaarDisputeResolutionScreen(),
     ),
+    GoRoute(path: '/admin-panel', builder: (c, s) => const AdminPanelScreen()),
   ],
 );
 

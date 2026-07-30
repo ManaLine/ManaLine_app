@@ -114,11 +114,20 @@ Deno.serve(async (req: Request) => {
   // BR-201: too many consecutive wrong attempts of the INTENDED credential
   // type -> lock, requires OTP unlock. Checked against the right counter
   // now that credential_type disambiguates which one applies.
+  //
+  // person_id included in `extra` (BUG FIXED this pass): LR-005's Account
+  // Unlock OTP purpose, and auth-otp-send's "Account Unlock" purpose,
+  // were both already fully built, but nothing ever reached them — the
+  // client had no way to request an unlock OTP without a person_id, and
+  // this response never gave it one. sendOtp() needs person_id, not the
+  // mobile/MLID identifier the client already has, so it's included here
+  // rather than adding a second identifier-lookup round trip.
   if (currentAttempts >= maxAttempts) {
     return errorResponse(
       403,
       "ACCOUNT_LOCKED",
       "Account is locked after too many failed attempts. Verify via OTP to unlock.",
+      { person_id: person.person_id },
     );
   }
 

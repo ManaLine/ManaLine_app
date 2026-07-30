@@ -172,8 +172,9 @@ class _FoundStep extends ConsumerWidget {
                         .requestMembership(businessId: businessId, invitedByPersonId: invitedBy);
                   });
                   if (context.mounted) {
+                    final memberType = ref.read(globalWorkflowProvider).memberType ?? 'Member';
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Membership requested — Pending Invitation.')),
+                      SnackBar(content: Text('Request sent to ${result.mlid} as $memberType.')),
                     );
                   }
                 },

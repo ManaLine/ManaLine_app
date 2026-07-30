@@ -7,6 +7,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/investor_dashboard_state.dart';
+import '../../../shared/translation_service.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -37,9 +38,38 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     final async = ref.watch(investorDashboardProvider);
 
     return Scaffold(
+      appBar: AppBar(
+        title: ManaText.raw(ref.t('investor_dashboard')),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (v) {
+              switch (v) {
+                case 'switch_business':
+                  context.go('/lr-012');
+                case 'switch_role':
+                  context.go('/lr-013');
+                case 'settings':
+                  context.push('/iw-settings', extra: widget.businessId);
+                case 'logout':
+                  ref.read(authFlowProvider.notifier).reset();
+                  context.go('/lr-003');
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
+              PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
+              PopupMenuItem(value: 'settings', child: ManaText('settings')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'logout', child: ManaText('logout')),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -50,7 +80,12 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
                   child: ListView(
                     padding: const EdgeInsets.all(ManaSpacing.lg),
                     children: [
-                      _Header(businessName: data.businessName, investorName: data.investorName, verified: data.investorVerified),
+                      _Header(
+                        businessName: data.businessName,
+                        investorName: data.investorName,
+                        verified: data.investorVerified,
+                        notifications: data.notifications,
+                      ),
                       const SizedBox(height: ManaSpacing.lg),
                       _MySummary(data: data),
                       const SizedBox(height: ManaSpacing.lg),
@@ -78,6 +113,19 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load dashboard'),
             const SizedBox(height: ManaSpacing.sm),
+            // Was completely swallowed before — the real exception (e)
+            // was passed in but never actually shown, meaning every
+            // failure looked identical regardless of real cause. Shown
+            // here so it's reportable/screenshottable instead of guessed at.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
+              child: ManaText.raw(
+                e.toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: ManaColors.statusBad),
+              ),
+            ),
+            const SizedBox(height: ManaSpacing.sm),
             ElevatedButton(onPressed: _refresh, child: const ManaText('retry')),
           ],
         ),
@@ -92,7 +140,13 @@ class _Header extends StatelessWidget {
   final String businessName;
   final String investorName;
   final bool verified;
-  const _Header({required this.businessName, required this.investorName, required this.verified});
+  final List<InvestorNotification> notifications;
+  const _Header({
+    required this.businessName,
+    required this.investorName,
+    required this.verified,
+    required this.notifications,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,14 +166,66 @@ class _Header extends StatelessWidget {
         IconButton(
           tooltip: 'Notifications',
           icon: const Icon(Icons.notifications_outlined),
-          onPressed: () {},
+          onPressed: () => showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => _NotificationsSheet(notifications: notifications),
+          ),
         ),
         IconButton(
           tooltip: 'Switch Business',
           icon: const Icon(Icons.swap_horiz),
-          onPressed: () {},
+          onPressed: () => context.go('/lr-012'),
         ),
       ],
+    );
+  }
+}
+
+class _NotificationsSheet extends StatelessWidget {
+  final List<InvestorNotification> notifications;
+  const _NotificationsSheet({required this.notifications});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      expand: false,
+      builder: (context, scrollController) => Padding(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ManaText('notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: ManaSpacing.md),
+            Expanded(
+              child: notifications.isEmpty
+                  ? const Center(
+                      child: ManaText.raw('No notifications yet.', style: TextStyle(color: ManaColors.textSecondary)),
+                    )
+                  : ListView.separated(
+                      controller: scrollController,
+                      itemCount: notifications.length,
+                      separatorBuilder: (_, __) => const Divider(),
+                      itemBuilder: (context, i) {
+                        final n = notifications[i];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            n.read ? Icons.notifications_none : Icons.notifications_active,
+                            color: n.read ? ManaColors.textSecondary : ManaColors.brass,
+                          ),
+                          title: ManaText.raw(n.message, style: const TextStyle(fontSize: 13)),
+                          subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                          trailing: ManaText.raw(DateFormat('d MMM, hh:mm a').format(n.timestamp),
+                              style: const TextStyle(fontSize: 10, color: ManaColors.textSecondary)),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -184,7 +290,16 @@ class _QuickActions extends ConsumerWidget {
     final actions = <(String, IconData, String, String)>[
       ('Find A Business', Icons.search, '/iw-002', businessId),
       ('My Investments', Icons.pie_chart_outline, '/iw-003', businessId),
-      ('Request Withdrawal', Icons.request_page_outlined, '/iw-004', businessId),
+      // BUG FIXED this pass: this used to push straight to '/iw-004' with
+      // `businessId` as `extra`, but IW-004 requires a specific
+      // `investmentId` (router.dart builds
+      // RequestWithdrawalScreen(investmentId: s.extra as String?)) —
+      // every tap failed with "Could not load this investment." since
+      // there's no such investment. Withdrawal always needs a specific
+      // investment picked first (which investment IW-003's own working
+      // "request withdrawal" button already does correctly) — routing
+      // here to My Investments instead of a dead IW-004 hit.
+      ('Request Withdrawal', Icons.request_page_outlined, '/iw-003', businessId),
       // My Profile/Memberships is scoped by personId, not businessId — it
       // shows every membership across every business for this person.
       ('My Profile / Memberships', Icons.badge_outlined, '/iw-005', personId ?? businessId),

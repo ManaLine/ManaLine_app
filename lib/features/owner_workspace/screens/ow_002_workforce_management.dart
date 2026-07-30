@@ -7,19 +7,27 @@ import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
+import '../state/business_management_state.dart' show businessManagementApiServiceProvider, OperatingAreaSummary;
+import '../../../shared/document_viewer.dart';
 
 /// OW-002 — Workforce Management (Agents). List view is the default landing
 /// state; Register/Add Existing are sub-flows reached from the header;
 /// selecting a row drills into the tabbed Agent Profile (C6).
 class WorkforceManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const WorkforceManagementScreen({super.key, required this.businessId});
+  // Set by OW-001's "Register New Agent" / "Add Existing Agent" Quick
+  // Action tiles ('register' / 'existing') so those land directly on the
+  // sub-flow instead of just the bare list.
+  final String? initialAction;
+  const WorkforceManagementScreen({super.key, required this.businessId, this.initialAction});
 
   @override
-  ConsumerState<WorkforceManagementScreen> createState() => _WorkforceManagementScreenState();
+  ConsumerState<WorkforceManagementScreen> createState() =>
+      _WorkforceManagementScreenState();
 }
 
-class _WorkforceManagementScreenState extends ConsumerState<WorkforceManagementScreen> {
+class _WorkforceManagementScreenState
+    extends ConsumerState<WorkforceManagementScreen> {
   final _search = TextEditingController();
 
   @override
@@ -27,6 +35,12 @@ class _WorkforceManagementScreenState extends ConsumerState<WorkforceManagementS
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(workforceProvider.notifier).load(widget.businessId);
+      switch (widget.initialAction) {
+        case 'register':
+          _openRegisterNewAgent(context);
+        case 'existing':
+          _openAddExistingAgent(context);
+      }
     });
   }
 
@@ -52,7 +66,8 @@ class _WorkforceManagementScreenState extends ConsumerState<WorkforceManagementS
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => ref.read(workforceProvider.notifier).load(widget.businessId),
+          onRefresh: () =>
+              ref.read(workforceProvider.notifier).load(widget.businessId),
           child: state.loading && state.agents.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : ListView(
@@ -66,17 +81,34 @@ class _WorkforceManagementScreenState extends ConsumerState<WorkforceManagementS
                         hintText: 'Search by name or MLID',
                         prefixIcon: Icon(Icons.search),
                       ),
-                      onChanged: (v) => ref.read(workforceProvider.notifier).setSearchQuery(v),
+                      onChanged: (v) => ref
+                          .read(workforceProvider.notifier)
+                          .setSearchQuery(v),
                     ),
                     const SizedBox(height: ManaSpacing.sm),
                     _StatusFilterChips(state: state),
                     const SizedBox(height: ManaSpacing.md),
-                    if (state.filtered.isEmpty)
+                    // A failed load previously looked identical to "no
+                    // agents" — state.error was captured but never shown,
+                    // so an RLS/query failure was indistinguishable from a
+                    // business that genuinely has zero agents.
+                    if (state.error != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                        child: Center(
+                          child: ManaText.raw('Could not load agents.\n${state.error}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+                        ),
+                      )
+                    else if (state.filtered.isEmpty)
                       const Padding(
-                        padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                        padding:
+                            EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
                           child: ManaText.raw('No agents match this view.',
-                              style: TextStyle(color: ManaColors.textSecondary)),
+                              style:
+                                  TextStyle(color: ManaColors.textSecondary)),
                         ),
                       )
                     else
@@ -96,7 +128,7 @@ class _WorkforceManagementScreenState extends ConsumerState<WorkforceManagementS
       context: context,
       isScrollControlled: true,
       builder: (_) => _RegisterNewAgentSheet(businessId: widget.businessId),
-    );
+    ).then((_) => ref.read(workforceProvider.notifier).load(widget.businessId));
   }
 
   void _openAddExistingAgent(BuildContext context) {
@@ -104,13 +136,14 @@ class _WorkforceManagementScreenState extends ConsumerState<WorkforceManagementS
       context: context,
       isScrollControlled: true,
       builder: (_) => _AddExistingAgentSheet(businessId: widget.businessId),
-    );
+    ).then((_) => ref.read(workforceProvider.notifier).load(widget.businessId));
   }
 
   void _openAgentProfile(BuildContext context, AgentSummary agent) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AgentProfileScreen(businessId: widget.businessId, agent: agent),
+        builder: (_) =>
+            AgentProfileScreen(businessId: widget.businessId, agent: agent),
       ),
     );
   }
@@ -148,7 +181,9 @@ class _DashboardStrip extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ManaText.raw('$count', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                  ManaText.raw('$count',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 20)),
                   ManaStatusPill(label: label, status: status),
                 ],
               ),
@@ -181,12 +216,14 @@ class _StatusFilterChips extends ConsumerWidget {
         ChoiceChip(
           label: const ManaText('all'),
           selected: state.statusFilter == null,
-          onSelected: (_) => ref.read(workforceProvider.notifier).setStatusFilter(null),
+          onSelected: (_) =>
+              ref.read(workforceProvider.notifier).setStatusFilter(null),
         ),
         ..._statuses.map((s) => ChoiceChip(
               label: ManaText(s),
               selected: state.statusFilter == s,
-              onSelected: (_) => ref.read(workforceProvider.notifier).setStatusFilter(s),
+              onSelected: (_) =>
+                  ref.read(workforceProvider.notifier).setStatusFilter(s),
             )),
       ],
     );
@@ -213,12 +250,14 @@ class _AgentRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: ListTile(
         leading: const ManaVerificationRing(isVerified: true, size: 40),
-        title: ManaText.raw(agent.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: ManaText.raw(agent.fullName,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 2),
           child: ManaText.raw(
             '${agent.mlid} · ${agent.phoneNumber}',
-            style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+            style:
+                const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
           ),
         ),
         trailing: ManaStatusPill(label: agent.status, status: _statusKind),
@@ -235,10 +274,12 @@ class _RegisterNewAgentSheet extends ConsumerStatefulWidget {
   const _RegisterNewAgentSheet({required this.businessId});
 
   @override
-  ConsumerState<_RegisterNewAgentSheet> createState() => _RegisterNewAgentSheetState();
+  ConsumerState<_RegisterNewAgentSheet> createState() =>
+      _RegisterNewAgentSheetState();
 }
 
-class _RegisterNewAgentSheetState extends ConsumerState<_RegisterNewAgentSheet> {
+class _RegisterNewAgentSheetState
+    extends ConsumerState<_RegisterNewAgentSheet> {
   final _fullName = TextEditingController();
   final _fatherHusband = TextEditingController();
   final _mobile = TextEditingController();
@@ -273,7 +314,9 @@ class _RegisterNewAgentSheetState extends ConsumerState<_RegisterNewAgentSheet> 
     if (ok == true && mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agent registered — invitation sent, status Pending Invitation.')),
+        const SnackBar(
+            content: Text(
+                'Agent registered — invitation sent, status Pending Invitation.')),
       );
     }
   }
@@ -281,7 +324,8 @@ class _RegisterNewAgentSheetState extends ConsumerState<_RegisterNewAgentSheet> 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: DraggableScrollableSheet(
         initialChildSize: 0.75,
         maxChildSize: 0.95,
@@ -291,7 +335,8 @@ class _RegisterNewAgentSheetState extends ConsumerState<_RegisterNewAgentSheet> 
           child: ListView(
             controller: scrollController,
             children: [
-              const ManaText('register new agent', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const ManaText('register new agent',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: ManaSpacing.xs),
               const ManaText.raw(
                 'For an agent who does not yet have a MANA LINE ID. Reuses the same '
@@ -309,7 +354,8 @@ class _RegisterNewAgentSheetState extends ConsumerState<_RegisterNewAgentSheet> 
               TextField(
                 controller: _fatherHusband,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Father / Husband Name *'),
+                decoration:
+                    const InputDecoration(labelText: 'Father / Husband Name *'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -335,14 +381,18 @@ class _RegisterNewAgentSheetState extends ConsumerState<_RegisterNewAgentSheet> 
                 controller: _aadhaar,
                 keyboardType: TextInputType.number,
                 maxLength: 12,
-                decoration: const InputDecoration(labelText: 'Aadhaar Number *'),
+                decoration:
+                    const InputDecoration(labelText: 'Aadhaar Number *'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.lg),
               ElevatedButton(
                 onPressed: (_canSubmit && !_submitting) ? _submit : null,
                 child: _submitting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                     : const ManaText('register & send invitation'),
               ),
             ],
@@ -360,10 +410,12 @@ class _AddExistingAgentSheet extends ConsumerStatefulWidget {
   const _AddExistingAgentSheet({required this.businessId});
 
   @override
-  ConsumerState<_AddExistingAgentSheet> createState() => _AddExistingAgentSheetState();
+  ConsumerState<_AddExistingAgentSheet> createState() =>
+      _AddExistingAgentSheetState();
 }
 
-class _AddExistingAgentSheetState extends ConsumerState<_AddExistingAgentSheet> {
+class _AddExistingAgentSheetState
+    extends ConsumerState<_AddExistingAgentSheet> {
   final _mlid = TextEditingController();
   AgentSummary? _found;
   bool _searching = false;
@@ -372,7 +424,9 @@ class _AddExistingAgentSheetState extends ConsumerState<_AddExistingAgentSheet> 
   Future<void> _search() async {
     setState(() => _searching = true);
     final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(workforceProvider.notifier).searchByMlid(_mlid.text.trim());
+      return ref
+          .read(workforceProvider.notifier)
+          .searchByMlid(_mlid.text.trim());
     });
     if (!mounted) return;
     setState(() {
@@ -387,7 +441,7 @@ class _AddExistingAgentSheetState extends ConsumerState<_AddExistingAgentSheet> 
     final ok = await NetworkErrorHandler.run(context, () async {
       return ref.read(workforceProvider.notifier).addExistingAgent(
             businessId: widget.businessId,
-            personId: _found!.agentId,
+            personId: _found!.personId!,
           );
     });
     if (!mounted) return;
@@ -395,7 +449,8 @@ class _AddExistingAgentSheetState extends ConsumerState<_AddExistingAgentSheet> 
     if (ok == true && mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invitation sent — status Pending Invitation.')),
+        const SnackBar(
+            content: Text('Invitation sent — status Pending Invitation.')),
       );
     }
   }
@@ -410,7 +465,8 @@ class _AddExistingAgentSheetState extends ConsumerState<_AddExistingAgentSheet> 
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('add existing agent', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const ManaText('add existing agent',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.xs),
             const ManaText.raw(
               'For an agent who already has a MANA LINE ID (MLID/MLPI/MLTI).',
@@ -428,9 +484,14 @@ class _AddExistingAgentSheetState extends ConsumerState<_AddExistingAgentSheet> 
                 ),
                 const SizedBox(width: ManaSpacing.sm),
                 ElevatedButton(
-                  onPressed: (_mlid.text.trim().isNotEmpty && !_searching) ? _search : null,
+                  onPressed: (_mlid.text.trim().isNotEmpty && !_searching)
+                      ? _search
+                      : null,
                   child: _searching
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const ManaText('search'),
                 ),
               ],
@@ -439,20 +500,26 @@ class _AddExistingAgentSheetState extends ConsumerState<_AddExistingAgentSheet> 
             if (_found != null)
               Card(
                 child: ListTile(
-                  leading: const ManaVerificationRing(isVerified: true, size: 40),
+                  leading:
+                      const ManaVerificationRing(isVerified: true, size: 40),
                   title: ManaText.raw(_found!.fullName),
                   subtitle: ManaText.raw(_found!.mlid),
                   trailing: ElevatedButton(
                     onPressed: _adding ? null : _add,
                     child: _adding
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const ManaText('add'),
                   ),
                 ),
               )
             else if (_mlid.text.trim().isNotEmpty && !_searching)
-              const ManaText.raw('No match found yet — search to look up this MLID.',
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+              const ManaText.raw(
+                  'No match found yet — search to look up this MLID.',
+                  style:
+                      TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
           ],
         ),
       ),
@@ -465,7 +532,8 @@ class _AddExistingAgentSheetState extends ConsumerState<_AddExistingAgentSheet> 
 class AgentProfileScreen extends ConsumerWidget {
   final String businessId;
   final AgentSummary agent;
-  const AgentProfileScreen({super.key, required this.businessId, required this.agent});
+  const AgentProfileScreen(
+      {super.key, required this.businessId, required this.agent});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -492,7 +560,8 @@ class AgentProfileScreen extends ConsumerWidget {
               onSelected: (status) => _changeStatus(context, ref, status),
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'Active', child: ManaText('reactivate')),
-                PopupMenuItem(value: 'Temporarily Disabled', child: ManaText('disable')),
+                PopupMenuItem(
+                    value: 'Temporarily Disabled', child: ManaText('disable')),
                 PopupMenuItem(value: 'Suspended', child: ManaText('suspend')),
                 PopupMenuItem(value: 'Removed', child: ManaText('remove')),
               ],
@@ -504,7 +573,8 @@ class AgentProfileScreen extends ConsumerWidget {
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw('Could not load profile.\n$e', textAlign: TextAlign.center),
+              child: ManaText.raw('Could not load profile.\n$e',
+                  textAlign: TextAlign.center),
             ),
           ),
           data: (profile) => TabBarView(
@@ -512,8 +582,8 @@ class AgentProfileScreen extends ConsumerWidget {
               _OverviewTab(agent: agent),
               _PermissionsTab(agentId: agent.agentId, profile: profile),
               _CompensationTab(agentId: agent.agentId, profile: profile),
-              _AreasTab(profile: profile),
-              const _DocumentsTab(),
+              _AreasTab(businessId: businessId, agent: agent, profile: profile),
+              _DocumentsTab(agentId: agent.agentId),
               const _AuditTab(),
             ],
           ),
@@ -522,15 +592,21 @@ class AgentProfileScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _changeStatus(BuildContext context, WidgetRef ref, String status) async {
+  Future<void> _changeStatus(
+      BuildContext context, WidgetRef ref, String status) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: ManaText('confirm: ${status.toLowerCase()}'),
-        content: ManaText.raw('Change ${agent.fullName}\'s membership status to "$status"?'),
+        content: ManaText.raw(
+            'Change ${agent.fullName}\'s membership status to "$status"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const ManaText('cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const ManaText('confirm')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const ManaText('cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const ManaText('confirm')),
         ],
       ),
     );
@@ -554,19 +630,30 @@ class _OverviewTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        Center(child: ManaVerificationRing(isVerified: true, size: 72)),
+        const Center(child: ManaVerificationRing(isVerified: true, size: 72)),
         const SizedBox(height: ManaSpacing.md),
-        Center(child: ManaText.raw(agent.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-        Center(child: ManaText.raw(agent.mlid, style: const TextStyle(color: ManaColors.textSecondary))),
+        Center(
+            child: ManaText.raw(agent.fullName,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 18))),
+        Center(
+            child: ManaText.raw(agent.mlid,
+                style: const TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
         _infoRow('Phone Number', agent.phoneNumber),
         _infoRow('Status', agent.status),
         _infoRow('Business Access', agent.businessAccess),
         _infoRow('Current Route', agent.currentRoute ?? '—'),
-        _infoRow("Today's Collections", '₹${agent.todaysCollections.toStringAsFixed(0)}'),
+        _infoRow("Today's Collections",
+            '₹${agent.todaysCollections.toStringAsFixed(0)}'),
         _infoRow("Today's Loans", '₹${agent.todaysLoans.toStringAsFixed(0)}'),
-        _infoRow('Joined Date', DateFormat('d MMM yyyy').format(agent.joinedDate)),
-        _infoRow('Last Login', agent.lastLogin == null ? 'Never' : DateFormat('d MMM yyyy, hh:mm a').format(agent.lastLogin!)),
+        _infoRow(
+            'Joined Date', DateFormat('d MMM yyyy').format(agent.joinedDate)),
+        _infoRow(
+            'Last Login',
+            agent.lastLogin == null
+                ? 'Never'
+                : DateFormat('d MMM yyyy, hh:mm a').format(agent.lastLogin!)),
       ],
     );
   }
@@ -575,8 +662,13 @@ class _OverviewTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            Expanded(
+                child: ManaText(label,
+                    style: const TextStyle(
+                        color: ManaColors.textSecondary, fontSize: 13))),
+            ManaText.raw(value,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
       );
@@ -612,7 +704,9 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
 
   Future<void> _save() async {
     await NetworkErrorHandler.run(context, () async {
-      return ref.read(agentProfileProvider(widget.agentId).notifier).updatePermissions(_permissions);
+      return ref
+          .read(agentProfileProvider(widget.agentId).notifier)
+          .updatePermissions(_permissions);
     });
   }
 
@@ -628,7 +722,8 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
               onChanged: (v) => setState(() => _permissions[e.key] = v),
             )),
         const SizedBox(height: ManaSpacing.lg),
-        ElevatedButton(onPressed: _save, child: const ManaText('save permissions')),
+        ElevatedButton(
+            onPressed: _save, child: const ManaText('save permissions')),
       ],
     );
   }
@@ -645,18 +740,26 @@ class _CompensationTab extends ConsumerStatefulWidget {
 
 class _CompensationTabState extends ConsumerState<_CompensationTab> {
   late final _salary = TextEditingController(
-      text: widget.profile.currentCompensation?.fixedSalary.toStringAsFixed(0) ?? '');
+      text:
+          widget.profile.currentCompensation?.fixedSalary.toStringAsFixed(0) ??
+              '');
   late final _allowance = TextEditingController(
-      text: widget.profile.currentCompensation?.dailyAllowance?.toStringAsFixed(0) ?? '');
+      text: widget.profile.currentCompensation?.dailyAllowance
+              ?.toStringAsFixed(0) ??
+          '');
   late final _profitShare = TextEditingController(
-      text: widget.profile.currentCompensation?.profitSharePercent?.toStringAsFixed(1) ?? '');
+      text: widget.profile.currentCompensation?.profitSharePercent
+              ?.toStringAsFixed(1) ??
+          '');
   String _cycle = 'Monthly';
 
   Future<void> _save() async {
     final salary = double.tryParse(_salary.text.trim());
     if (salary == null) return;
     await NetworkErrorHandler.run(context, () async {
-      return ref.read(agentProfileProvider(widget.agentId).notifier).setCompensation(
+      return ref
+          .read(agentProfileProvider(widget.agentId).notifier)
+          .setCompensation(
             fixedSalary: salary,
             salaryCycle: _cycle,
             dailyAllowance: double.tryParse(_allowance.text.trim()),
@@ -670,7 +773,8 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText('compensation structure', style: TextStyle(fontWeight: FontWeight.bold)),
+        const ManaText('compensation structure',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _salary,
@@ -683,7 +787,8 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
           decoration: const InputDecoration(labelText: 'Salary Cycle'),
           items: const [
             DropdownMenuItem(value: 'Monthly', child: Text('Monthly')),
-            DropdownMenuItem(value: 'Custom', child: Text('Custom (Owner Defined)')),
+            DropdownMenuItem(
+                value: 'Custom', child: Text('Custom (Owner Defined)')),
           ],
           onChanged: (v) => setState(() => _cycle = v ?? 'Monthly'),
         ),
@@ -691,41 +796,80 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
         TextField(
           controller: _allowance,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Daily Allowance (optional)'),
+          decoration:
+              const InputDecoration(labelText: 'Daily Allowance (optional)'),
         ),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw('Not an expense — reduced from final salary (BR-046).',
+        const ManaText.raw(
+            'Not an expense — reduced from final salary (BR-046).',
             style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _profitShare,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Profit Share % (optional, tentative)'),
+          decoration: const InputDecoration(
+              labelText: 'Profit Share % (optional, tentative)'),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        ElevatedButton(onPressed: _save, child: const ManaText('save — creates new history entry')),
+        ElevatedButton(
+            onPressed: _save,
+            child: const ManaText('save — creates new history entry')),
         const Divider(height: ManaSpacing.xxl),
-        const ManaText('compensation history', style: TextStyle(fontWeight: FontWeight.bold)),
+        const ManaText('compensation history',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         if (widget.profile.compensationHistory.isEmpty)
-          const ManaText.raw('No history yet.', style: TextStyle(color: ManaColors.textSecondary))
+          const ManaText.raw('No history yet.',
+              style: TextStyle(color: ManaColors.textSecondary))
         else
           ...widget.profile.compensationHistory.map((c) => ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: ManaText.raw('₹${c.fixedSalary.toStringAsFixed(0)} · ${c.salaryCycle}'),
-                subtitle: ManaText.raw('Effective ${DateFormat('d MMM yyyy').format(c.effectiveDate)}'),
+                title: ManaText.raw(
+                    '₹${c.fixedSalary.toStringAsFixed(0)} · ${c.salaryCycle}'),
+                subtitle: ManaText.raw(
+                    'Effective ${DateFormat('d MMM yyyy').format(c.effectiveDate)}'),
               )),
       ],
     );
   }
 }
 
-class _AreasTab extends StatelessWidget {
+class _AreasTab extends ConsumerWidget {
+  final String businessId;
+  final AgentSummary agent;
   final AgentProfile profile;
-  const _AreasTab({required this.profile});
+  const _AreasTab({required this.businessId, required this.agent, required this.profile});
+
+  // BUG FIXED this pass: "add village" was onPressed: () {} — this is
+  // the same assign-area-to-agent capability built for OW-012's
+  // Operating Areas tab (business_management_state.dart's
+  // assignOperatingAreaToAgent), just reached from the Agent's own
+  // profile instead. Reused rather than duplicated.
+  Future<void> _addVillage(BuildContext context, WidgetRef ref) async {
+    if (agent.membershipId == null) return;
+    final areas = await NetworkErrorHandler.run(context, () async {
+      return ref.read(businessManagementApiServiceProvider).fetchOperatingAreas(businessId: businessId);
+    });
+    if (areas == null || !context.mounted) return;
+    final selected = await showModalBottomSheet<OperatingAreaSummary>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _VillagePickerSheet(areas: areas),
+    );
+    if (selected == null || !context.mounted) return;
+    await NetworkErrorHandler.run(context, () async {
+      await ref.read(businessManagementApiServiceProvider).assignOperatingAreaToAgent(
+            businessId: businessId,
+            operatingAreaId: selected.operatingAreaId,
+            agentId: agent.agentId,
+            agentMembershipId: agent.membershipId!,
+          );
+      return ref.read(agentProfileProvider(agent.agentId).notifier).refresh();
+    });
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
@@ -736,39 +880,74 @@ class _AreasTab extends StatelessWidget {
         ),
         const SizedBox(height: ManaSpacing.md),
         if (profile.assignedAreas.isEmpty)
-          const ManaText.raw('No areas assigned yet.', style: TextStyle(color: ManaColors.textSecondary))
+          const ManaText.raw('No areas assigned yet.',
+              style: TextStyle(color: ManaColors.textSecondary))
         else
           ...profile.assignedAreas.map((a) => Card(
                 child: ListTile(
-                  leading: const Icon(Icons.location_on_outlined, color: ManaColors.brass),
+                  leading: const Icon(Icons.location_on_outlined,
+                      color: ManaColors.brass),
                   title: ManaText.raw(a),
                 ),
               )),
         const SizedBox(height: ManaSpacing.md),
-        OutlinedButton.icon(onPressed: () {}, icon: const Icon(Icons.add), label: const ManaText('add village')),
+        OutlinedButton.icon(
+            onPressed: () => _addVillage(context, ref),
+            icon: const Icon(Icons.add),
+            label: const ManaText('add village')),
       ],
     );
   }
 }
 
-class _DocumentsTab extends StatelessWidget {
-  const _DocumentsTab();
+class _VillagePickerSheet extends StatelessWidget {
+  final List<OperatingAreaSummary> areas;
+  const _VillagePickerSheet({required this.areas});
 
   @override
   Widget build(BuildContext context) {
-    const docs = ['Photo', 'Identity Proof', 'Address Proof', 'Employment Documents', 'Other Documents'];
-    return ListView(
-      padding: const EdgeInsets.all(ManaSpacing.lg),
-      children: docs
-          .map((d) => Card(
-                child: ListTile(
-                  leading: const Icon(Icons.description_outlined),
-                  title: ManaText(d),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
-                ),
-              ))
-          .toList(),
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(ManaSpacing.lg),
+            child: ManaText('select village', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ),
+          if (areas.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(ManaSpacing.lg),
+              child: ManaText.raw('No Operating Areas exist yet for this business — add one from Business Management first.',
+                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+            )
+          else
+            ...areas.map((a) => ListTile(
+                  leading: const Icon(Icons.location_on_outlined, color: ManaColors.brass),
+                  title: ManaText.raw('${a.villageTownName} — ${a.pinCode}'),
+                  subtitle: ManaText.raw(a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}',
+                      style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                  onTap: () => Navigator.of(context).pop(a),
+                )),
+          const SizedBox(height: ManaSpacing.md),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentsTab extends ConsumerWidget {
+  final String agentId;
+  const _DocumentsTab({required this.agentId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Labels match customer_document_type_enum's real values (this table
+    // reuses Module 3's enum) — 'Employment Documents'/'Identity Proof'
+    // aren't real values, they never had (and never could have had) a
+    // matching document.
+    return DocumentsListView(
+      expectedTypes: const ['Photo', 'Aadhaar', 'Address Proof', 'Other Documents'],
+      fetchDocuments: () => ref.read(ownerApiServiceProvider).fetchAgentDocuments(agentId: agentId),
     );
   }
 }

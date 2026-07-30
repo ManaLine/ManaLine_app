@@ -36,7 +36,11 @@ class AgentApiService {
   }
 
   Future<String> _resolveMembershipId(String agentId) async {
-    final row = await _db.from('agents').select('membership_id').eq('agent_id', agentId).single();
+    final row = await _db
+        .from('agents')
+        .select('membership_id')
+        .eq('agent_id', agentId)
+        .single();
     return row['membership_id'] as String;
   }
 
@@ -45,11 +49,13 @@ class AgentApiService {
   // to the caller's own row; ordered by created_at so the latest session's
   // assignment wins if more than one exists (business_date OR
   // account_period_id keys the session per schema comment).
-  Future<AgentBfAssignment?> fetchCurrentBfAssignment({required String agentId}) async {
+  Future<AgentBfAssignment?> fetchCurrentBfAssignment(
+      {required String agentId}) async {
     final membershipId = await _resolveMembershipId(agentId);
     final rows = await _db
         .from('agent_bf_assignments')
-        .select('assignment_id, opening_bf, confirmed_by_agent, update_requested')
+        .select(
+            'assignment_id, opening_bf, confirmed_by_agent, update_requested')
         .eq('membership_id', membershipId)
         .order('created_at', ascending: false)
         .limit(1);
@@ -84,27 +90,30 @@ class AgentApiService {
   // assignment_id, so bfAssignmentId is no longer needed here but the
   // param is kept in the method signature (unused) rather than changing
   // callers — flag if a cleanup pass wants to drop it later.
-  Future<void> confirmBfAssignment({required String bfAssignmentId, required String agentId}) async {
+  Future<void> confirmBfAssignment(
+      {required String bfAssignmentId, required String agentId}) async {
     final membershipId = await _resolveMembershipId(agentId);
-    await _db.schema('app').rpc('confirm_bf_assignment', params: {'p_membership_id': membershipId});
+    await _db.schema('app').rpc('confirm_bf_assignment',
+        params: {'p_membership_id': membershipId});
   }
 
   // FIXED (this pass): app.request_bf_update RPC now exists (migration 0022).
-  Future<void> requestBfUpdate({required String bfAssignmentId, required String agentId, String? note}) async {
+  Future<void> requestBfUpdate(
+      {required String bfAssignmentId,
+      required String agentId,
+      String? note}) async {
     final membershipId = await _resolveMembershipId(agentId);
-    await _db.schema('app').rpc('request_bf_update', params: {'p_membership_id': membershipId, 'p_note': note});
+    await _db.schema('app').rpc('request_bf_update',
+        params: {'p_membership_id': membershipId, 'p_note': note});
   }
 
   // GET Owner-enabled Operating Areas assigned to this Agent.
-  Future<List<AgentAreaAssignment>> fetchAreaAssignments({required String agentId}) async {
-    final rows = await _db
-        .from('agent_area_assignments')
-        .select('''
+  Future<List<AgentAreaAssignment>> fetchAreaAssignments(
+      {required String agentId}) async {
+    final rows = await _db.from('agent_area_assignments').select('''
           operating_area_id,
           operating_areas!inner(status, locations!inner(village_town_name))
-        ''')
-        .eq('agent_id', agentId)
-        .isFilter('removed_at', null);
+        ''').eq('agent_id', agentId).isFilter('removed_at', null);
     return (rows as List).map((r) {
       final area = r['operating_areas'] as Map<String, dynamic>;
       final location = area['locations'] as Map<String, dynamic>;
@@ -128,16 +137,13 @@ class AgentApiService {
   // even after a session had actually been started via the
   // `start_business_session` RPC. This method + the updated
   // `_loadAreasAndDashboard` below close that gap.
-  Future<List<AgentAccountPeriodSummary>> fetchRunningAccountPeriods({required String agentId}) async {
+  Future<List<AgentAccountPeriodSummary>> fetchRunningAccountPeriods(
+      {required String agentId}) async {
     final membershipId = await _resolveMembershipId(agentId);
-    final rows = await _db
-        .from('account_periods')
-        .select('''
+    final rows = await _db.from('account_periods').select('''
           operating_area_id, business_start_date, planned_business_end_date, status,
           operating_areas!inner(locations!inner(village_town_name))
-        ''')
-        .eq('agent_membership_id', membershipId)
-        .eq('status', 'Running');
+        ''').eq('agent_membership_id', membershipId).eq('status', 'Running');
     return (rows as List).cast<Map<String, dynamic>>().map((r) {
       final area = r['operating_areas'] as Map<String, dynamic>;
       final location = area['locations'] as Map<String, dynamic>;
@@ -145,7 +151,8 @@ class AgentApiService {
         operatingAreaId: r['operating_area_id'] as String,
         areaName: (location['village_town_name'] as String?) ?? '',
         businessStartDate: DateTime.parse(r['business_start_date'] as String),
-        plannedBusinessEndDate: DateTime.parse(r['planned_business_end_date'] as String),
+        plannedBusinessEndDate:
+            DateTime.parse(r['planned_business_end_date'] as String),
         status: r['status'] as String,
       );
     }).toList();
@@ -181,7 +188,8 @@ class AgentApiService {
   }
 
   // FIXED (this pass): app.add_area_to_session RPC now exists (migration 0022).
-  Future<void> addAreaToSession({required String agentId, required String operatingAreaId}) async {
+  Future<void> addAreaToSession(
+      {required String agentId, required String operatingAreaId}) async {
     final membershipId = await _resolveMembershipId(agentId);
     await _db.schema('app').rpc('add_area_to_session', params: {
       'p_membership_id': membershipId,
@@ -196,7 +204,8 @@ class AgentApiService {
   // client is responsible for no longer presenting this area as part of
   // the active working set — handled by refreshDashboard/
   // fetchRunningAccountPeriods re-deriving state after this call.
-  Future<void> removeAreaFromSession({required String agentId, required String operatingAreaId}) async {
+  Future<void> removeAreaFromSession(
+      {required String agentId, required String operatingAreaId}) async {
     final membershipId = await _resolveMembershipId(agentId);
     await _db.schema('app').rpc('remove_area_from_session', params: {
       'p_membership_id': membershipId,
@@ -220,8 +229,16 @@ class AgentApiService {
   }) async {
     final membershipId = await _resolveMembershipId(agentId);
 
-    final business = await _db.from('businesses').select('business_name, owner_person_id').eq('business_id', businessId).single();
-    final owner = await _db.from('persons').select('full_name').eq('person_id', business['owner_person_id']).single();
+    final business = await _db
+        .from('businesses')
+        .select('business_name, owner_person_id')
+        .eq('business_id', businessId)
+        .single();
+    final owner = await _db
+        .from('persons')
+        .select('full_name')
+        .eq('person_id', business['owner_person_id'])
+        .single();
 
     final membershipRow = await _db
         .from('business_members')
@@ -229,12 +246,37 @@ class AgentApiService {
         .eq('membership_id', membershipId)
         .single();
 
-    final permRow = await _db.from('agent_permissions').select().eq('agent_id', agentId).order('updated_at', ascending: false).limit(1).maybeSingle();
-    final visibleActions = <String>{};
+    final permRow = await _db
+        .from('agent_permissions')
+        .select()
+        .eq('agent_id', agentId)
+        .order('updated_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    // BUG FIXED this pass: this used to add the raw agent_permissions
+    // COLUMN NAMES (e.g. "can_collect_payments") to visibleActions, but
+    // ag_001_agent_home_dashboard.dart's _QuickActions filters its tiles
+    // by their DISPLAY LABELS ("Collection Mode") — the two vocabularies
+    // never intersected, so Quick Actions rendered as an empty
+    // SizedBox.shrink() for every Agent regardless of what permissions
+    // the Owner actually granted. Mapping each tile to its governing
+    // permission column explicitly, rather than assuming names line up.
+    // Notifications/Universal Search aren't privileged actions (same as
+    // OW-001's header icons having no permission gate) so they're always
+    // visible rather than tied to a column that doesn't exist for them.
+    const tilePermissionColumns = {
+      'Collection Mode': 'can_access_collection_mode',
+      'Area Work Session': 'can_view_dashboard',
+      'Customer List': 'can_view_customers',
+      'Loan Distribution': 'can_issue_loans',
+      'Draft Transactions': 'can_create_drafts',
+      'Settlement': 'can_perform_day_settlement',
+    };
+    final visibleActions = <String>{'Notifications', 'Universal Search'};
     if (permRow != null) {
-      for (final entry in permRow.entries) {
-        if (entry.value == true) visibleActions.add(entry.key as String);
-      }
+      tilePermissionColumns.forEach((label, column) {
+        if (permRow[column] == true) visibleActions.add(label);
+      });
     }
 
     final assignedLoans = await _db
@@ -247,7 +289,11 @@ class AgentApiService {
         .select('customer_id')
         .eq('assigned_agent_membership_id', membershipId);
 
-    final pendingDrafts = await _db.from('collection_drafts').select('draft_id').eq('created_by_membership_id', membershipId).eq('status', 'Draft');
+    final pendingDrafts = await _db
+        .from('collection_drafts')
+        .select('draft_id')
+        .eq('created_by_membership_id', membershipId)
+        .eq('status', 'Draft');
 
     final pendingSettlementRows = await _db
         .from('account_settlements')
@@ -258,12 +304,18 @@ class AgentApiService {
 
     final compHistory = await _db
         .from('agent_compensation_history')
-        .select('fixed_salary_amount, salary_cycle, daily_allowance, profit_share_percent')
+        .select(
+            'fixed_salary_amount, salary_cycle, daily_allowance, profit_share_percent')
         .eq('agent_id', agentId)
         .isFilter('superseded_at', null)
         .maybeSingle();
 
-    final routeRow = await _db.from('routes').select('route_name').eq('default_agent_id', membershipId).limit(1).maybeSingle();
+    final routeRow = await _db
+        .from('routes')
+        .select('route_name')
+        .eq('default_agent_id', membershipId)
+        .limit(1)
+        .maybeSingle();
 
     return AgentDashboardData(
       // BUG FIXED this pass: previously hardcoded DateTime.now() with a
@@ -277,9 +329,11 @@ class AgentApiService {
       assignedRoute: (routeRow?['route_name'] as String?) ?? '',
       pendingDraftsCount: (pendingDrafts as List).length,
       pendingSettlement: (pendingSettlementRows as List).isNotEmpty,
-      todaysTarget: 0, // requires loan_schedule due-today sum — same gap as collection_mode_state.dart's fetchDueList
+      todaysTarget:
+          0, // requires loan_schedule due-today sum — same gap as collection_mode_state.dart's fetchDueList
       customersAssigned: (customersAssignedCount as List).length,
-      customersVisited: 0, // requires today-scoped collections/no_collection_visits count — deferred, same "today" cutoff caveat as above
+      customersVisited:
+          0, // requires today-scoped collections/no_collection_visits count — deferred, same "today" cutoff caveat as above
       collectionsCash: 0,
       collectionsUpi: 0,
       collectionsBank: 0,
@@ -288,24 +342,34 @@ class AgentApiService {
       loansIssued: 0, // today-scoped — deferred
       pendingCollections: (assignedLoans as List).length,
       skippedCustomers: 0,
-      shortAmount: 0, // Settlement Short/Excess math — Calculation Engine territory, not reimplemented here
+      shortAmount:
+          0, // Settlement Short/Excess math — Calculation Engine territory, not reimplemented here
       excessAmount: 0,
       visibleQuickActions: visibleActions,
       liveActivity: const [], // deferred, same reasoning as owner_api_service.dart
       businessName: business['business_name'] as String,
       ownerName: owner['full_name'] as String,
       membershipStatus: membershipRow['membership_status'] as String,
-      permissionProfile: visibleActions.isEmpty ? 'Restricted' : 'Custom',
+      // Notifications/Universal Search are always in visibleActions now
+      // (see fix note above), so "Restricted" has to be judged from the
+      // actual permission-gated tiles, not the full set.
+      permissionProfile: tilePermissionColumns.values.any((c) => permRow?[c] == true) ? 'Custom' : 'Restricted',
       lastSync: DateTime.now(),
-      pendingCustomerRequests: 0, // membership_requests targeting this Agent isn't a modeled relationship (requests target the Owner/business) — 0 is structurally correct, not a placeholder
-      pendingExtensionRequests: 0, // deferred: would need a second query scoped to this agent's assigned customers' loans
+      pendingCustomerRequests:
+          0, // membership_requests targeting this Agent isn't a modeled relationship (requests target the Owner/business) — 0 is structurally correct, not a placeholder
+      pendingExtensionRequests:
+          0, // deferred: would need a second query scoped to this agent's assigned customers' loans
       pendingRouteChanges: 0,
       pendingMessages: 0,
-      fixedSalary: (compHistory?['fixed_salary_amount'] as num?)?.toDouble() ?? 0,
+      fixedSalary:
+          (compHistory?['fixed_salary_amount'] as num?)?.toDouble() ?? 0,
       salaryCycleStatus: (compHistory?['salary_cycle'] as String?) ?? '',
-      dailyAllowance: (compHistory?['daily_allowance'] as num?)?.toDouble() ?? 0,
-      profitSharePercent: (compHistory?['profit_share_percent'] as num?)?.toDouble(),
-      advancesDeducted: 0, // Salary Formula territory (BLOCKED RPC, per briefing) — not reimplemented client-side
+      dailyAllowance:
+          (compHistory?['daily_allowance'] as num?)?.toDouble() ?? 0,
+      profitSharePercent:
+          (compHistory?['profit_share_percent'] as num?)?.toDouble(),
+      advancesDeducted:
+          0, // Salary Formula territory (BLOCKED RPC, per briefing) — not reimplemented client-side
       shortsDeducted: 0,
       pendingSalary: 0,
       salaryHistory: const [],
@@ -338,8 +402,10 @@ class AgentBfAssignment {
 class AgentAreaAssignment {
   final String operatingAreaId;
   final String areaName;
-  final bool enabled; // agent_area_assignments joined against operating_areas.status = 'Active'
-  final bool selectedInSession; // client-side: currently part of the running Business Session
+  final bool
+      enabled; // agent_area_assignments joined against operating_areas.status = 'Active'
+  final bool
+      selectedInSession; // client-side: currently part of the running Business Session
 
   AgentAreaAssignment({
     required this.operatingAreaId,
@@ -348,7 +414,8 @@ class AgentAreaAssignment {
     this.selectedInSession = false,
   });
 
-  AgentAreaAssignment copyWith({bool? selectedInSession}) => AgentAreaAssignment(
+  AgentAreaAssignment copyWith({bool? selectedInSession}) =>
+      AgentAreaAssignment(
         operatingAreaId: operatingAreaId,
         areaName: areaName,
         enabled: enabled,
@@ -378,7 +445,8 @@ class AgentLiveActivityEntry {
   final String kind; // Collection Received | Loan Issued | Draft Saved | ...
   final String description;
   final DateTime at;
-  AgentLiveActivityEntry({required this.kind, required this.description, required this.at});
+  AgentLiveActivityEntry(
+      {required this.kind, required this.description, required this.at});
 }
 
 class AgentDashboardData {
@@ -425,7 +493,8 @@ class AgentDashboardData {
   // the same name; AG-009 Profile links out to this panel rather than
   // duplicating it. All Owner-set, no Agent edit affordance anywhere.
   final double fixedSalary;
-  final String salaryCycleStatus; // e.g. "Daily" / "Weekly" / "Monthly" + current-cycle status
+  final String
+      salaryCycleStatus; // e.g. "Daily" / "Weekly" / "Monthly" + current-cycle status
   final double dailyAllowance;
   final double? profitSharePercent; // null when not enabled for this Agent
   final double advancesDeducted;
@@ -474,14 +543,19 @@ class AgentDashboardData {
 
   int get customersRemaining => customersAssigned - customersVisited;
   double get todaysCollectionsTotal =>
-      collectionsCash + collectionsUpi + collectionsBank + collectionsCheque + collectionsMixed;
+      collectionsCash +
+      collectionsUpi +
+      collectionsBank +
+      collectionsCheque +
+      collectionsMixed;
 }
 
 class AgentSalaryHistoryEntry {
   final DateTime paidOn;
   final double amount;
   final String cycleLabel; // e.g. "Jul 2026" or "Week of 14 Jul"
-  AgentSalaryHistoryEntry({required this.paidOn, required this.amount, required this.cycleLabel});
+  AgentSalaryHistoryEntry(
+      {required this.paidOn, required this.amount, required this.cycleLabel});
 }
 
 // ============================================================================
@@ -520,8 +594,10 @@ class AgentDashboardState {
     this.dashboard,
   });
 
-  List<AgentAreaAssignment> get enabledAreas => areaAssignments.where((a) => a.enabled).toList();
-  List<AgentAreaAssignment> get selectedAreas => areaAssignments.where((a) => a.selectedInSession).toList();
+  List<AgentAreaAssignment> get enabledAreas =>
+      areaAssignments.where((a) => a.enabled).toList();
+  List<AgentAreaAssignment> get selectedAreas =>
+      areaAssignments.where((a) => a.selectedInSession).toList();
   bool get canStartSession => selectedAreas.isNotEmpty;
 
   AgentDashboardState copyWith({
@@ -542,7 +618,8 @@ class AgentDashboardState {
       bfAssignment: bfAssignment ?? this.bfAssignment,
       areaAssignments: areaAssignments ?? this.areaAssignments,
       runningPeriods: runningPeriods ?? this.runningPeriods,
-      hasPendingUnsavedTransactions: hasPendingUnsavedTransactions ?? this.hasPendingUnsavedTransactions,
+      hasPendingUnsavedTransactions:
+          hasPendingUnsavedTransactions ?? this.hasPendingUnsavedTransactions,
       dashboard: dashboard ?? this.dashboard,
     );
   }
@@ -554,26 +631,36 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
 
   /// Entry sequence: BF Confirm/Update gate first, then Area Selection or
   /// Running dashboard — per AG-001's ENTRY POINT + OPENING BF GATE order.
-  Future<void> enter({required String agentId, required String businessId}) async {
-    state = state.copyWith(loading: true, clearError: true, stage: AgentSessionStage.loadingGate);
+  Future<void> enter(
+      {required String agentId, required String businessId}) async {
+    state = state.copyWith(
+        loading: true, clearError: true, stage: AgentSessionStage.loadingGate);
     try {
       final api = ref.read(agentApiServiceProvider);
       final bf = await api.fetchCurrentBfAssignment(agentId: agentId);
 
       if (bf == null) {
-        state = state.copyWith(loading: false, stage: AgentSessionStage.bfBlockedNoAssignment);
+        state = state.copyWith(
+            loading: false, stage: AgentSessionStage.bfBlockedNoAssignment);
         return;
       }
       if (bf.updateRequested) {
-        state = state.copyWith(loading: false, bfAssignment: bf, stage: AgentSessionStage.bfUpdateRequested);
+        state = state.copyWith(
+            loading: false,
+            bfAssignment: bf,
+            stage: AgentSessionStage.bfUpdateRequested);
         return;
       }
       if (!bf.confirmedByAgent) {
-        state = state.copyWith(loading: false, bfAssignment: bf, stage: AgentSessionStage.bfConfirmPending);
+        state = state.copyWith(
+            loading: false,
+            bfAssignment: bf,
+            stage: AgentSessionStage.bfConfirmPending);
         return;
       }
 
-      await _loadAreasAndDashboard(agentId: agentId, businessId: businessId, bf: bf);
+      await _loadAreasAndDashboard(
+          agentId: agentId, businessId: businessId, bf: bf);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
     }
@@ -589,10 +676,12 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
     // BUG FIXED this pass: this used to check `state.runningPeriods
     // .isNotEmpty`, but nothing ever populated that list, so a session
     // could never be detected as running. Now actually queried.
-    final runningPeriods = await api.fetchRunningAccountPeriods(agentId: agentId);
+    final runningPeriods =
+        await api.fetchRunningAccountPeriods(agentId: agentId);
     final runningAreaIds = runningPeriods.map((p) => p.operatingAreaId).toSet();
     final markedAreas = areas
-        .map((a) => a.copyWith(selectedInSession: runningAreaIds.contains(a.operatingAreaId)))
+        .map((a) => a.copyWith(
+            selectedInSession: runningAreaIds.contains(a.operatingAreaId)))
         .toList();
 
     if (runningPeriods.isNotEmpty) {
@@ -601,9 +690,11 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
       // entries"). Multiple areas share one business_start_date per
       // session (AG-001's own DATA MODEL note), so any one of them is
       // representative — earliest taken defensively in case of drift.
-      final businessDate =
-          runningPeriods.map((p) => p.businessStartDate).reduce((a, b) => a.isBefore(b) ? a : b);
-      final dashboard = await api.fetchDashboard(businessId: businessId, agentId: agentId, businessDate: businessDate);
+      final businessDate = runningPeriods
+          .map((p) => p.businessStartDate)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+      final dashboard = await api.fetchDashboard(
+          businessId: businessId, agentId: agentId, businessDate: businessDate);
       state = state.copyWith(
         loading: false,
         bfAssignment: bf,
@@ -623,11 +714,13 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
     }
   }
 
-  Future<bool> confirmBf({required String agentId, required String businessId}) async {
+  Future<bool> confirmBf(
+      {required String agentId, required String businessId}) async {
     if (state.bfAssignment == null) return false;
     try {
       final api = ref.read(agentApiServiceProvider);
-      await api.confirmBfAssignment(bfAssignmentId: state.bfAssignment!.bfAssignmentId, agentId: agentId);
+      await api.confirmBfAssignment(
+          bfAssignmentId: state.bfAssignment!.bfAssignmentId, agentId: agentId);
       await _loadAreasAndDashboard(
         agentId: agentId,
         businessId: businessId,
@@ -652,7 +745,8 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
     if (state.bfAssignment == null) return false;
     try {
       final api = ref.read(agentApiServiceProvider);
-      await api.requestBfUpdate(bfAssignmentId: state.bfAssignment!.bfAssignmentId, agentId: agentId);
+      await api.requestBfUpdate(
+          bfAssignmentId: state.bfAssignment!.bfAssignmentId, agentId: agentId);
       state = state.copyWith(stage: AgentSessionStage.bfUpdateRequested);
       return true;
     } catch (e) {
@@ -663,27 +757,36 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
 
   void toggleAreaSelection(String operatingAreaId, bool selected) {
     final updated = state.areaAssignments
-        .map((a) => a.operatingAreaId == operatingAreaId ? a.copyWith(selectedInSession: selected) : a)
+        .map((a) => a.operatingAreaId == operatingAreaId
+            ? a.copyWith(selectedInSession: selected)
+            : a)
         .toList();
     state = state.copyWith(areaAssignments: updated);
   }
 
-  Future<bool> startBusinessSession({required String agentId, required String businessId}) async {
-    if (!state.canStartSession) return false; // "cannot start a session without selecting at least one area"
+  Future<bool> startBusinessSession(
+      {required String agentId, required String businessId}) async {
+    if (!state.canStartSession)
+      return false; // "cannot start a session without selecting at least one area"
     try {
       final api = ref.read(agentApiServiceProvider);
       await api.startBusinessSession(
         agentId: agentId,
-        operatingAreaIds: state.selectedAreas.map((a) => a.operatingAreaId).toList(),
+        operatingAreaIds:
+            state.selectedAreas.map((a) => a.operatingAreaId).toList(),
       );
       // Re-derive from account_periods rather than assuming success wrote
       // exactly what was requested — same "don't assume, re-fetch" pattern
       // as the rest of this notifier.
-      final runningPeriods = await api.fetchRunningAccountPeriods(agentId: agentId);
+      final runningPeriods =
+          await api.fetchRunningAccountPeriods(agentId: agentId);
       final businessDate = runningPeriods.isEmpty
           ? DateTime.now()
-          : runningPeriods.map((p) => p.businessStartDate).reduce((a, b) => a.isBefore(b) ? a : b);
-      final dashboard = await api.fetchDashboard(businessId: businessId, agentId: agentId, businessDate: businessDate);
+          : runningPeriods
+              .map((p) => p.businessStartDate)
+              .reduce((a, b) => a.isBefore(b) ? a : b);
+      final dashboard = await api.fetchDashboard(
+          businessId: businessId, agentId: agentId, businessDate: businessDate);
       state = state.copyWith(
         dashboard: dashboard,
         runningPeriods: runningPeriods,
@@ -698,18 +801,27 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
   }
 
   /// Change Area (S3) — blocked if Pending Unsaved Transactions exist.
-  Future<bool> addArea({required String agentId, required String businessId, required String operatingAreaId}) async {
+  Future<bool> addArea(
+      {required String agentId,
+      required String businessId,
+      required String operatingAreaId}) async {
     if (state.hasPendingUnsavedTransactions) return false;
     try {
       final api = ref.read(agentApiServiceProvider);
-      await api.addAreaToSession(agentId: agentId, operatingAreaId: operatingAreaId);
+      await api.addAreaToSession(
+          agentId: agentId, operatingAreaId: operatingAreaId);
       toggleAreaSelection(operatingAreaId, true);
-      final runningPeriods = await api.fetchRunningAccountPeriods(agentId: agentId);
+      final runningPeriods =
+          await api.fetchRunningAccountPeriods(agentId: agentId);
       final businessDate = runningPeriods.isEmpty
           ? DateTime.now()
-          : runningPeriods.map((p) => p.businessStartDate).reduce((a, b) => a.isBefore(b) ? a : b);
-      final dashboard = await api.fetchDashboard(businessId: businessId, agentId: agentId, businessDate: businessDate);
-      state = state.copyWith(dashboard: dashboard, runningPeriods: runningPeriods);
+          : runningPeriods
+              .map((p) => p.businessStartDate)
+              .reduce((a, b) => a.isBefore(b) ? a : b);
+      final dashboard = await api.fetchDashboard(
+          businessId: businessId, agentId: agentId, businessDate: businessDate);
+      state =
+          state.copyWith(dashboard: dashboard, runningPeriods: runningPeriods);
       return true;
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -717,18 +829,27 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
     }
   }
 
-  Future<bool> removeArea({required String agentId, required String businessId, required String operatingAreaId}) async {
+  Future<bool> removeArea(
+      {required String agentId,
+      required String businessId,
+      required String operatingAreaId}) async {
     if (state.hasPendingUnsavedTransactions) return false;
     try {
       final api = ref.read(agentApiServiceProvider);
-      await api.removeAreaFromSession(agentId: agentId, operatingAreaId: operatingAreaId);
+      await api.removeAreaFromSession(
+          agentId: agentId, operatingAreaId: operatingAreaId);
       toggleAreaSelection(operatingAreaId, false);
-      final runningPeriods = await api.fetchRunningAccountPeriods(agentId: agentId);
+      final runningPeriods =
+          await api.fetchRunningAccountPeriods(agentId: agentId);
       final businessDate = runningPeriods.isEmpty
           ? DateTime.now()
-          : runningPeriods.map((p) => p.businessStartDate).reduce((a, b) => a.isBefore(b) ? a : b);
-      final dashboard = await api.fetchDashboard(businessId: businessId, agentId: agentId, businessDate: businessDate);
-      state = state.copyWith(dashboard: dashboard, runningPeriods: runningPeriods);
+          : runningPeriods
+              .map((p) => p.businessStartDate)
+              .reduce((a, b) => a.isBefore(b) ? a : b);
+      final dashboard = await api.fetchDashboard(
+          businessId: businessId, agentId: agentId, businessDate: businessDate);
+      state =
+          state.copyWith(dashboard: dashboard, runningPeriods: runningPeriods);
       return true;
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -736,13 +857,17 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
     }
   }
 
-  Future<void> refreshDashboard({required String agentId, required String businessId}) async {
+  Future<void> refreshDashboard(
+      {required String agentId, required String businessId}) async {
     try {
       final api = ref.read(agentApiServiceProvider);
       final businessDate = state.runningPeriods.isEmpty
           ? DateTime.now()
-          : state.runningPeriods.map((p) => p.businessStartDate).reduce((a, b) => a.isBefore(b) ? a : b);
-      final dashboard = await api.fetchDashboard(businessId: businessId, agentId: agentId, businessDate: businessDate);
+          : state.runningPeriods
+              .map((p) => p.businessStartDate)
+              .reduce((a, b) => a.isBefore(b) ? a : b);
+      final dashboard = await api.fetchDashboard(
+          businessId: businessId, agentId: agentId, businessDate: businessDate);
       state = state.copyWith(dashboard: dashboard);
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -750,6 +875,7 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
   }
 }
 
-final agentDashboardProvider = NotifierProvider<AgentDashboardNotifier, AgentDashboardState>(
+final agentDashboardProvider =
+    NotifierProvider<AgentDashboardNotifier, AgentDashboardState>(
   AgentDashboardNotifier.new,
 );

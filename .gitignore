@@ -177,3 +177,9 @@ supabase/.env
 supabase/functions/**/.env
 *.pem
 *.p12
+
+# Claude Code local settings — allowlisted Bash commands here have
+# included live credentials pasted into ad-hoc curl one-liners during
+# debugging (a real password + the project's anon key, found in this
+# working tree). Local-only by design; never commit it.
+.claude/settings.local.json

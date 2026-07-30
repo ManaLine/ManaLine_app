@@ -9,6 +9,7 @@ import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
 import 'lr_005_otp_verification.dart';
+import '../../../shared/translation_service.dart';
 
 // Fixed display order per spec — matches Phase 5 workflow text order.
 const _roleOrder = ['Owner', 'Investor', 'Agent', 'Customer'];
@@ -25,6 +26,13 @@ const _roleHomeRoutes = {
 /// Pending Verification roles are hidden entirely, not shown-then-
 /// blocked). Applies its own 0/1/>1 collapse before rendering, same
 /// pattern as LR-012.
+///
+/// FIXED this batch: _eligibleRoles() used to fall back to
+/// `auth.memberships.first` when nothing matched, which threw "Bad
+/// state: No element" whenever memberships was genuinely empty at build
+/// time (e.g. reached via direct URL navigation, or a state-timing gap).
+/// Now returns null in that case, and every call site bounces back to
+/// LR-012 instead of crashing.
 class RoleSelectorScreen extends ConsumerStatefulWidget {
   const RoleSelectorScreen({super.key});
 
@@ -39,9 +47,11 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _applyRoutingRule());
   }
 
-  ({String businessName, List<String> roles}) _eligibleRoles() {
+  ({String businessName, List<String> roles})? _eligibleRoles() {
     final auth = ref.read(authFlowProvider);
     final businessId = auth.selectedBusinessId;
+    if (businessId == null || auth.memberships.isEmpty) return null;
+
     final atBusiness = auth.memberships.where((m) =>
         m.businessId == businessId &&
         m.membershipStatus == 'Active' &&
@@ -50,15 +60,21 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
     final roles = atBusiness.map((m) => m.role).toSet().toList()
       ..sort((a, b) => _roleOrder.indexOf(a).compareTo(_roleOrder.indexOf(b)));
 
-    final businessName = auth.memberships
-        .firstWhere((m) => m.businessId == businessId, orElse: () => atBusiness.isNotEmpty ? atBusiness.first : auth.memberships.first)
-        .businessName;
+    final matchAtBusiness = auth.memberships.where((m) => m.businessId == businessId);
+    if (matchAtBusiness.isEmpty) return null;
+    final businessName = matchAtBusiness.first.businessName;
 
     return (businessName: businessName, roles: roles);
   }
 
-  void _applyRoutingRule() {
+  Future<void> _applyRoutingRule() async {
     final result = _eligibleRoles();
+
+    if (result == null) {
+      // Nothing usable in state — bounce back safely instead of crashing.
+      context.go('/lr-012');
+      return;
+    }
 
     if (result.roles.isEmpty) {
       // Per spec: "should not be reachable if LR-012 already confirmed
@@ -72,6 +88,8 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
     if (result.roles.length == 1) {
       // Direct analogue of LR-012's single-business collapse, at the role level.
       ref.read(authFlowProvider.notifier).selectRole(result.roles.first);
+      await ref.read(authFlowProvider.notifier).resolveSelectedMembershipEntity();
+      if (!mounted) return;
       final businessId = ref.read(authFlowProvider).selectedBusinessId;
       context.go(_roleHomeRoutes[result.roles.first] ?? '/ow-001', extra: businessId);
     }
@@ -110,25 +128,29 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
     );
   }
 
-  void _selectRole(String role) {
+  Future<void> _selectRole(String role) async {
     ref.read(authFlowProvider.notifier).selectRole(role);
+    await ref.read(authFlowProvider.notifier).resolveSelectedMembershipEntity();
+    if (!mounted) return;
     final businessId = ref.read(authFlowProvider).selectedBusinessId;
     context.go(_roleHomeRoutes[role] ?? '/ow-001', extra: businessId);
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationLoaderProvider);
     final result = _eligibleRoles();
     final lang = ref.watch(authFlowProvider).language;
 
-    if (result.roles.length <= 1) {
-      // Transient frame before the postFrameCallback's navigation fires.
+    if (result == null || result.roles.length <= 1) {
+      // Transient frame before the postFrameCallback's navigation fires
+      // (or a genuinely empty/invalid state being bounced back to LR-012).
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('select role'),
+        title: ManaText.raw(ref.t('select_role')),
         leading: BackButton(onPressed: () => context.go('/lr-012')),
       ),
       body: SafeArea(

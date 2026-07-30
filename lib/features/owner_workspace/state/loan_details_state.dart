@@ -24,7 +24,7 @@ class LoanDetailsApiService {
           repayment_amount, amount_given, remaining_balance,
           collection_agent_membership_id,
           customers!inner(customer_id, persons!inner(full_name)),
-          business_members!loans_collection_agent_membership_id_fkey(persons(full_name)),
+          business_members!loans_collection_agent_membership_id_fkey(persons!business_members_person_id_fkey(full_name)),
           guarantors(guarantor_id, guarantor_name, relationship, phone, address, remarks, status),
           loan_schedule(schedule_id, status),
           penalty_entries(penalty_id, penalty_option, penalty_amount_applied, entry_timestamp, is_waived_or_reduced)

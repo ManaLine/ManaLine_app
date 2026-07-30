@@ -56,16 +56,19 @@ class RecordBookApiService {
 
     final collectionRows = await _db
         .from('collections')
-        .select('collection_id, collected_amount, entry_timestamp, loan_id')
-        .eq('business_date', date);
+        .select('collection_id, collected_amount, entry_timestamp, loan_id, loans!inner(business_id)')
+        .eq('business_date', date)
+        .eq('loans.business_id', businessId);
     final loanRows =
         await _db.from('loans').select('loan_id, repayment_amount, entry_timestamp').eq('business_id', businessId).eq('issue_business_date', date);
     final expenseRows =
         await _db.from('expenses').select('expense_id, amount, entry_timestamp, category').eq('business_id', businessId).eq('business_date', date);
     final adjustmentRows = await _db
         .from('settlement_adjustments')
-        .select('adjustment_id, amount, business_date, adjustment_type')
-        .eq('business_date', date);
+        .select('adjustment_id, amount, business_date, adjustment_type, '
+            'account_settlements!inner(account_periods!inner(business_id))')
+        .eq('business_date', date)
+        .eq('account_settlements.account_periods.business_id', businessId);
 
     return DayDetail(
       ledger: _rowFromMap(ledgerRow),

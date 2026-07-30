@@ -13,6 +13,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../login_registration/state/auth_api_service.dart';
 import '../state/owner_workspace_state.dart';
+import '../state/owner_api_service.dart' show AgentSummary;
 
 /// OW-000 — First Business Setup. 6-step wizard shell over fields that
 /// already exist in OW-012/OW-014 (this screen introduces no new fields,
@@ -985,12 +986,56 @@ class _Step6AssignAreas extends ConsumerWidget {
   final VoidCallback onBack;
   const _Step6AssignAreas({required this.onBack});
 
-  Future<void> _markOwnerRun(
-      BuildContext context, WidgetRef ref, OperatingAreaDraft a) async {
+  // Was permanently disabled with a "agents can't exist yet" tooltip. They
+  // can now: creating the business also makes the creator its first Agent,
+  // so this picker always has at least one row — the Owner themselves,
+  // which is how an Owner who walks a round is represented.
+  Future<void> _assignAgent(BuildContext context, WidgetRef ref, OperatingAreaDraft a) async {
+    final businessId = ref.read(businessSetupProvider).businessId;
+    if (businessId == null) return;
+    final agents = await NetworkErrorHandler.run(context, () async {
+      return ref.read(ownerApiServiceProvider).fetchAgents(businessId: businessId, status: 'Active');
+    });
+    if (agents == null || !context.mounted) return;
+    final chosen = await showModalBottomSheet<AgentSummary>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(ManaSpacing.lg),
+              child: ManaText.raw('Who works ${a.villageName}?',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+            if (agents.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(ManaSpacing.lg),
+                child: ManaText.raw('No active agents found.',
+                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+              )
+            else
+              ...agents.map((agent) => ListTile(
+                    leading: const ManaVerificationRing(isVerified: true, size: 32),
+                    title: ManaText.raw(agent.fullName),
+                    subtitle: ManaText.raw(agent.mlid, style: const TextStyle(fontSize: 13)),
+                    onTap: () => Navigator.of(context).pop(agent),
+                  )),
+            const SizedBox(height: ManaSpacing.md),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null || chosen.membershipId == null || !context.mounted) return;
     await NetworkErrorHandler.run(context, () async {
-      return ref
-          .read(businessSetupProvider.notifier)
-          .markAreaOwnerRun(areaLocalId: a.localId);
+      return ref.read(businessSetupProvider.notifier).assignAreaToAgent(
+            areaLocalId: a.localId,
+            agentId: chosen.agentId,
+            agentMembershipId: chosen.membershipId!,
+            agentName: chosen.fullName,
+          );
     });
   }
 
@@ -1025,9 +1070,9 @@ class _Step6AssignAreas extends ConsumerWidget {
     final state = ref.watch(businessSetupProvider);
     return _StepScaffold(
       title: 'assign operating areas',
-      subtitle: 'Mark at least one area Owner-Run to start your business. '
-          'Assigning specific areas to Agents happens after your business is created, '
-          'via Business Management — agents can\'t be added to a business that doesn\'t exist yet.',
+      subtitle: 'Every area is worked by an agent. You are already registered '
+          'as this business\'s first agent, so you can assign an area to '
+          'yourself now and add more agents later, from Workforce Management.',
       onBack: onBack,
       onNext:
           state.canStartBusiness ? () => _startBusiness(context, ref) : null,
@@ -1046,40 +1091,21 @@ class _Step6AssignAreas extends ConsumerWidget {
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: ManaSpacing.xs),
                   ManaText.raw(
-                    a.ownerRun
-                        ? 'Owner-Run'
-                        : a.assignedAgentId != null
-                            ? 'Assigned to ${a.assignedAgentName}'
-                            : 'Not yet resolved',
+                    a.assignedAgentId != null
+                        ? 'Assigned to ${a.assignedAgentName}'
+                        : 'No agent assigned yet',
                     style: TextStyle(
                       fontSize: 13,
-                      color: a.resolved
-                          ? ManaColors.statusGood
-                          : ManaColors.statusWarn,
+                      color: a.resolved ? ManaColors.statusGood : ManaColors.statusWarn,
                     ),
                   ),
                   const SizedBox(height: ManaSpacing.sm),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Tooltip(
-                          message:
-                              'Assign to an Agent after your business is created, via Business Management.',
-                          child: OutlinedButton(
-                            onPressed:
-                                null, // Was a stub (fake agent picker) — see subtitle above for why this is genuinely disabled here, not a bug.
-                            child: ManaText('assign agent'),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: ManaSpacing.sm),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _markOwnerRun(context, ref, a),
-                          child: const ManaText('owner-run'),
-                        ),
-                      ),
-                    ],
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton(
+                      onPressed: () => _assignAgent(context, ref, a),
+                      child: ManaText(a.resolved ? 'reassign' : 'assign agent'),
+                    ),
                   ),
                 ],
               ),

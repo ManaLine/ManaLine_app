@@ -897,7 +897,7 @@ class _VillagePickerSheet extends StatelessWidget {
                   title: ManaText.raw(a.name),
                   subtitle: ManaText.raw(
                       '${a.villagesLabel}\n'
-                      '${a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}'}',
+                      '${a.isUnassigned ? 'No agent assigned' : 'Assigned to ${a.assignedAgentName}'}',
                       style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   isThreeLine: true,
                   onTap: () => Navigator.of(context).pop(a),

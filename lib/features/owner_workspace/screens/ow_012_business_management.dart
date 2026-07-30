@@ -610,9 +610,9 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     );
     if (choice == null || !mounted) return;
     final businessId = widget.businessId;
-    if (choice.ownerRun) {
+    if (choice.unassign) {
       await NetworkErrorHandler.run(context, () async {
-        return ref.read(businessDetailProvider(businessId).notifier).markAreaOwnerRun(
+        return ref.read(businessDetailProvider(businessId).notifier).unassignArea(
               businessId: businessId,
               operatingAreaId: area.operatingAreaId,
             );
@@ -784,17 +784,22 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                     ListTile(
                       dense: true,
                       leading: Icon(
-                        a.isOwnerRun ? Icons.storefront_outlined : Icons.badge_outlined,
+                        a.isUnassigned ? Icons.person_off_outlined : Icons.badge_outlined,
                         size: 18,
-                        color: ManaColors.textSecondary,
+                        color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
                       ),
                       title: ManaText.raw(
-                        a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}',
-                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                        a.isUnassigned
+                            ? 'No agent assigned — not being worked'
+                            : 'Assigned to ${a.assignedAgentName}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
+                        ),
                       ),
                       trailing: TextButton(
                         onPressed: () => _assignAgent(a),
-                        child: ManaText(a.isOwnerRun ? 'assign agent' : 'reassign'),
+                        child: ManaText(a.isUnassigned ? 'assign agent' : 'reassign'),
                       ),
                     ),
                   ],
@@ -886,11 +891,11 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
 
 class _AreaAssignmentChoice {
   final AgentSummary? agent;
-  final bool ownerRun;
-  _AreaAssignmentChoice.agent(this.agent) : ownerRun = false;
-  _AreaAssignmentChoice.ownerRun()
+  final bool unassign;
+  _AreaAssignmentChoice.agent(this.agent) : unassign = false;
+  _AreaAssignmentChoice.unassign()
       : agent = null,
-        ownerRun = true;
+        unassign = true;
 }
 
 class _AssignAgentSheet extends StatelessWidget {
@@ -917,18 +922,27 @@ class _AssignAgentSheet extends StatelessWidget {
               ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.storefront_outlined),
-            title: const ManaText('owner-run'),
-            subtitle: const ManaText.raw('No agent assigned — the Owner runs this area directly.',
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-            onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.ownerRun()),
-          ),
-          const Divider(height: 1),
+          // Only offered once somebody is actually on the area. This is
+          // "the agent left and there's no successor yet", NOT a way to run
+          // an area without an agent — an Owner who works a round holds an
+          // Agent membership and appears in the list below like anyone else.
+          if (!area.isUnassigned) ...[
+            ListTile(
+              leading: const Icon(Icons.person_off_outlined, color: ManaColors.statusBad),
+              title: const ManaText('unassign'),
+              subtitle: ManaText.raw(
+                  'Take ${area.assignedAgentName} off this area. It stops opening account periods until someone else is assigned.',
+                  style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.unassign()),
+            ),
+            const Divider(height: 1),
+          ],
           if (agents.isEmpty)
             const Padding(
               padding: EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw('No Active agents in this business yet — add one from Workforce Management first.',
+              child: ManaText.raw(
+                  'No Active agents in this business yet — add one from Workforce Management first. '
+                  'If you work this round yourself, add yourself as an agent.',
                   style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             )
           else
@@ -1359,6 +1373,77 @@ class _MemberRow extends ConsumerWidget {
 
 // --- Account Periods tab -----------------------------------------------------
 
+/// Item 9: this tab was a dead end. It said "No Account Periods yet." and
+/// stopped — true, but useless, because nothing on screen said where an
+/// Account Period comes from. It comes from ONE place: assigning an
+/// Operating Area to an Agent seeds that area's first Running period
+/// (assignOperatingAreaToAgent -> _seedFirstAccountPeriodIfNeeded). An
+/// Owner with five areas and no agents could stare at this forever.
+///
+/// So the empty state names the actual reason out of the three that are
+/// possible, and routes to the tab that fixes it.
+class _AccountPeriodsEmptyState extends StatelessWidget {
+  final List<OperatingAreaSummary> areas;
+  const _AccountPeriodsEmptyState({required this.areas});
+
+  @override
+  Widget build(BuildContext context) {
+    final active = areas.where((a) => a.status == 'Active').toList();
+    final assigned = active.where((a) => !a.isUnassigned).toList();
+
+    final (String headline, String detail) = switch ((active.isEmpty, assigned.isEmpty)) {
+      // No areas at all — the first domino, upstream of everything.
+      (true, _) => (
+          'No operating areas yet',
+          'An account period covers one operating area. Add an area first, '
+              'then assign it to an agent.',
+        ),
+      // Areas exist, none assigned. An unassigned area isn't being worked
+      // at all, so it opens no period — assigning an agent is the whole
+      // answer, and it is the only answer.
+      (false, true) => (
+          'No agent is assigned to an area yet',
+          'Account periods open when you assign an operating area to an agent. '
+              'None of your ${active.length} areas has one yet. If you work a '
+              'round yourself, add yourself as an agent and assign it to you.',
+        ),
+      // Assigned areas exist but no period — shouldn't happen, so don't
+      // pretend to explain it.
+      (false, false) => (
+          'No account periods yet',
+          '${assigned.length} of your areas are assigned to an agent, so a '
+              'period was expected here. Pull to refresh; if it stays empty '
+              'this is worth reporting.',
+        ),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xl),
+      child: Column(
+        children: [
+          const Icon(Icons.event_note_outlined, size: 40, color: ManaColors.textSecondary),
+          const SizedBox(height: ManaSpacing.md),
+          ManaText.raw(headline,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: ManaSpacing.sm),
+          ManaText.raw(detail,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          const SizedBox(height: ManaSpacing.lg),
+          FilledButton.tonalIcon(
+            // Same DefaultTabController this tab is already inside, so this
+            // is a tab switch, not a navigation push — the Owner stays put.
+            onPressed: () => DefaultTabController.of(context).animateTo(0),
+            icon: const Icon(Icons.location_on_outlined, size: 18),
+            label: const ManaText('go to operating areas'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AccountPeriodsTab extends ConsumerWidget {
   final String businessId;
   const _AccountPeriodsTab({required this.businessId});
@@ -1396,13 +1481,14 @@ class _AccountPeriodsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final periods = ref.watch(businessDetailProvider(businessId)).accountPeriods;
+    final state = ref.watch(businessDetailProvider(businessId));
+    final periods = state.accountPeriods;
 
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         if (periods.isEmpty)
-          const ManaText.raw('No Account Periods yet.', style: TextStyle(color: ManaColors.textSecondary))
+          _AccountPeriodsEmptyState(areas: state.operatingAreas)
         else
           ...periods.map((p) => Card(
                 child: ListTile(

@@ -181,28 +181,62 @@ class OwnerApiService {
     });
   }
 
-  // --- OW-000 Step 6 — Assign Operating Area to Agent, or mark Owner-run --
+  // --- OW-000 Step 6 — Assign Operating Area to Agent ---------------------
+  //
+  // Every area is worked by an agent. An Owner who walks a round themselves
+  // takes an Agent membership and is assigned here like anyone else — there
+  // is no separate Owner-run mode. markAreaOwnerRun() used to sit alongside
+  // this as a deliberate no-op; it is gone, along with the account-period
+  // gap it carried (account_periods.agent_membership_id is NOT NULL, so an
+  // Owner-run area could never open a period at all).
   Future<void> assignAreaToAgent({
+    required String businessId,
     required String operatingAreaId,
     required String agentId,
+    required String agentMembershipId,
   }) async {
+    await _db
+        .from('agent_area_assignments')
+        .update({'removed_at': DateTime.now().toIso8601String()})
+        .eq('operating_area_id', operatingAreaId)
+        .isFilter('removed_at', null);
     await _db.from('agent_area_assignments').insert({
       'agent_id': agentId,
       'operating_area_id': operatingAreaId,
     });
-  }
-
-  // SCHEMA GAP FOUND: `operating_areas` has no `owner_run` (or similar)
-  // boolean column anywhere in the locked schema — "Owner-run" area status
-  // is not a stored flag at all, it is simply the ABSENCE of any
-  // `agent_area_assignments` row for that area. This method is therefore a
-  // correct no-op against the real schema (an area with zero assignment
-  // rows already reads as Owner-run under that definition) rather than an
-  // unimplemented gap — kept as an explicit method (not deleted) so the
-  // OW-000 screen's call site keeps compiling and its intent stays
-  // documented in one place.
-  Future<void> markAreaOwnerRun({required String operatingAreaId}) async {
-    return; // intentionally a no-op — see SCHEMA GAP note above.
+    // Seeds the area's first Running Account Period, exactly as OW-012's
+    // assignOperatingAreaToAgent does. Without this, an area assigned in
+    // the setup wizard would never open a period and OW-012's Account
+    // Periods tab would sit empty for it — the two assignment paths have
+    // to agree, or where you assigned from silently changes the outcome.
+    final existing = await _db
+        .from('account_periods')
+        .select('account_period_id')
+        .eq('operating_area_id', operatingAreaId)
+        .eq('status', 'Running')
+        .limit(1)
+        .maybeSingle();
+    if (existing != null) return;
+    final area = await _db
+        .from('operating_areas')
+        .select('account_cycle_duration, account_cycle_unit')
+        .eq('operating_area_id', operatingAreaId)
+        .single();
+    final start = DateTime.now();
+    final duration = area['account_cycle_duration'] as int;
+    final end = switch (area['account_cycle_unit'] as String) {
+      'Weeks' => start.add(Duration(days: duration * 7)),
+      'Months' => DateTime(start.year, start.month + duration, start.day),
+      _ => start.add(Duration(days: duration)),
+    };
+    await _db.from('account_periods').insert({
+      'business_id': businessId,
+      'operating_area_id': operatingAreaId,
+      'agent_membership_id': agentMembershipId,
+      'business_start_date': start.toIso8601String(),
+      'planned_business_end_date': end.toIso8601String(),
+      'status': 'Running',
+    });
   }
 
   // --- OW-000 Completion — Start Business ---------------------------------

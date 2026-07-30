@@ -295,7 +295,7 @@ class BusinessManagementApiService {
       // Current (non-removed) agent assignment per area — a separate query
       // rather than embedding through agent_area_assignments, so this
       // doesn't need to lean on nested-embed filter semantics for something
-      // this simple: which areas are Owner-run (no row here) vs assigned.
+      // this simple: which areas are unassigned (no row here) vs assigned.
       _db
           .from('agent_area_assignments')
           .select('operating_area_id, agents!inner(agent_id, membership_id, persons!inner(full_name))')
@@ -350,16 +350,17 @@ class BusinessManagementApiService {
     );
   }
 
-  /// Marks an Operating Area Owner-run — per the schema's own design
-  /// (see owner_api_service.dart's markAreaOwnerRun), this is really just
-  /// "no agent_area_assignments row", so clearing any existing one IS the
-  /// action. Deliberately does NOT auto-seed an Account Period the way
-  /// assignOperatingAreaToAgent does: account_periods.agent_membership_id
-  /// is NOT NULL, and nothing in the locked schema says what value an
-  /// Owner-run period should carry there (the Owner's own membership_id?
-  /// a sentinel?) — flagged rather than guessed, same as the schema gaps
-  /// already flagged elsewhere in this file.
-  Future<void> markOperatingAreaOwnerRun({required String operatingAreaId}) async {
+  /// Unassigns an area — removes the current agent without naming a
+  /// replacement. Kept (rather than folded into reassignment) for the case
+  /// where an agent leaves and no successor is ready yet; the area then
+  /// reads as unassigned and stops opening periods.
+  ///
+  /// Replaces markOperatingAreaOwnerRun. "Owner-run" is not a thing: an
+  /// Owner who works a round holds an Agent membership and is assigned to
+  /// the area like any other agent. That also removes the account-period
+  /// gap the old mode had — agent_membership_id is NOT NULL, and an
+  /// Owner-run area could never populate it.
+  Future<void> unassignOperatingArea({required String operatingAreaId}) async {
     await _db
         .from('agent_area_assignments')
         .update({'removed_at': DateTime.now().toIso8601String()})
@@ -372,11 +373,17 @@ class BusinessManagementApiService {
     required String operatingAreaId,
     required String agentMembershipId,
   }) async {
+    // .limit(1) before .maybeSingle(): this only asks "is there one
+    // already", but a bare .maybeSingle() throws "Results contain 2 rows"
+    // if an area ever ends up with two Running periods — turning a
+    // duplicate-data problem into a hard failure of the assignment itself.
+    // Same trap the universal search hit in OW-001.
     final existing = await _db
         .from('account_periods')
         .select('account_period_id')
         .eq('operating_area_id', operatingAreaId)
         .eq('status', 'Running')
+        .limit(1)
         .maybeSingle();
     if (existing != null) return;
     await createAccountPeriod(
@@ -549,7 +556,7 @@ class BusinessManagementApiService {
         accountPeriodId: r['account_period_id'] as String,
         operatingAreaId: r['operating_area_id'] as String,
         operatingAreaLabel: area?['name'] as String? ?? '',
-        agentName: person?['full_name'] as String? ?? 'Owner-run',
+        agentName: person?['full_name'] as String? ?? 'Unassigned',
         businessStartDate: DateTime.parse(r['business_start_date'] as String),
         plannedBusinessEndDate: DateTime.parse(r['planned_business_end_date'] as String),
         status: r['status'] as String,
@@ -707,8 +714,10 @@ class OperatingAreaSummary {
   int? accountCycleDuration;
   String? accountCycleUnit;
   String? submissionTime;
-  // Null on all three = Owner-run (absence of an agent_area_assignments
-  // row IS "Owner-run" per this schema — there's no separate flag).
+  // Null on all three = nobody is working this area yet. That is an
+  // INCOMPLETE area, not a valid configuration: an Owner who works a round
+  // themselves does it by holding an Agent membership and being assigned
+  // like anyone else. There is no "Owner-run" mode.
   String? assignedAgentId;
   String? assignedAgentMembershipId;
   String? assignedAgentName;
@@ -727,7 +736,9 @@ class OperatingAreaSummary {
   });
 
   bool get cycleConfigured => accountCycleDuration != null && accountCycleUnit != null && submissionTime != null;
-  bool get isOwnerRun => assignedAgentId == null;
+  /// No agent assigned yet — an area in this state is not being worked and
+  /// cannot open an account period.
+  bool get isUnassigned => assignedAgentId == null;
 
   /// "Srikalahasti, Uranduru" — the villages this round actually covers.
   String get villagesLabel => villages.map((v) => v.villageTownName).join(', ');
@@ -1209,11 +1220,11 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
     }
   }
 
-  Future<bool> markAreaOwnerRun({required String businessId, required String operatingAreaId}) async {
+  Future<bool> unassignArea({required String businessId, required String operatingAreaId}) async {
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final api = ref.read(businessManagementApiServiceProvider);
-      await api.markOperatingAreaOwnerRun(operatingAreaId: operatingAreaId);
+      await api.unassignOperatingArea(operatingAreaId: operatingAreaId);
       final areas = await api.fetchOperatingAreas(businessId: businessId);
       state = state.copyWith(operatingAreas: areas, submitting: false);
       return true;

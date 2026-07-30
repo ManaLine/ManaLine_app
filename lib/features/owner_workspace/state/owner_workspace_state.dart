@@ -22,7 +22,6 @@ class OperatingAreaDraft {
   final String villageName;
   int? accountCycleDurationDays;
   String? accountCycleSubmissionTime;
-  bool ownerRun;
   String? assignedAgentId;
   String? assignedAgentName;
 
@@ -32,13 +31,16 @@ class OperatingAreaDraft {
     required this.villageName,
     this.accountCycleDurationDays,
     this.accountCycleSubmissionTime,
-    this.ownerRun = false,
     this.assignedAgentId,
     this.assignedAgentName,
   });
 
   bool get cycleConfigured => accountCycleDurationDays != null && accountCycleSubmissionTime != null;
-  bool get resolved => ownerRun || assignedAgentId != null;
+
+  /// An area is resolved once an agent is on it. There is no Owner-run
+  /// alternative — an Owner who works the round holds an Agent membership
+  /// and is assigned here like anyone else.
+  bool get resolved => assignedAgentId != null;
 }
 
 /// Client-side draft state for the OW-000 wizard. Per spec's own NAVIGATION
@@ -111,11 +113,17 @@ class BusinessSetupState {
       operatingAreas.isNotEmpty && operatingAreas.any((a) => a.cycleConfigured);
 
   // Step 6 gate — RELAXED per explicit product decision: unlocks once AT
-  // LEAST ONE area is resolved (owner-run or assigned to an agent), not
+  // LEAST ONE area is assigned to an agent, not
   // requiring every area. Areas left unresolved here remain reachable
   // later via Business Management (OW-012) — the Owner isn't blocked from
   // starting the business just because they haven't decided every area's
   // handling yet.
+  //
+  // Still an assignment gate, and it is satisfiable again: creating a
+  // business now also makes the creator its first Agent (see the
+  // owner_is_first_agent migration), so there is always somebody to assign
+  // an area to — including the Owner themselves, which is how an Owner who
+  // walks a round is modelled now that Owner-run is gone.
   bool get step6Complete =>
       operatingAreas.isNotEmpty && operatingAreas.any((a) => a.resolved);
 
@@ -302,36 +310,26 @@ class BusinessSetupNotifier extends Notifier<BusinessSetupState> {
     }
   }
 
-  Future<bool> assignAreaToAgent({required String areaLocalId, required String agentId, required String agentName}) async {
+  Future<bool> assignAreaToAgent({
+    required String areaLocalId,
+    required String agentId,
+    required String agentMembershipId,
+    required String agentName,
+  }) async {
+    if (state.businessId == null) return false;
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final api = ref.read(ownerApiServiceProvider);
-      await api.assignAreaToAgent(operatingAreaId: areaLocalId, agentId: agentId);
+      await api.assignAreaToAgent(
+        businessId: state.businessId!,
+        operatingAreaId: areaLocalId,
+        agentId: agentId,
+        agentMembershipId: agentMembershipId,
+      );
       final updated = state.operatingAreas.map((a) {
         if (a.localId != areaLocalId) return a;
-        a.ownerRun = false;
         a.assignedAgentId = agentId;
         a.assignedAgentName = agentName;
-        return a;
-      }).toList();
-      state = state.copyWith(operatingAreas: updated, submitting: false);
-      return true;
-    } catch (e) {
-      state = state.copyWith(submitting: false, error: e.toString());
-      return false;
-    }
-  }
-
-  Future<bool> markAreaOwnerRun({required String areaLocalId}) async {
-    state = state.copyWith(submitting: true, clearError: true);
-    try {
-      final api = ref.read(ownerApiServiceProvider);
-      await api.markAreaOwnerRun(operatingAreaId: areaLocalId);
-      final updated = state.operatingAreas.map((a) {
-        if (a.localId != areaLocalId) return a;
-        a.ownerRun = true;
-        a.assignedAgentId = null;
-        a.assignedAgentName = null;
         return a;
       }).toList();
       state = state.copyWith(operatingAreas: updated, submitting: false);

@@ -183,3 +183,6 @@ supabase/functions/**/.env
 # debugging (a real password + the project's anon key, found in this
 # working tree). Local-only by design; never commit it.
 .claude/settings.local.json
+
+# Supabase CLI version-check cache (churns on every run)
+supabase/.temp/cli-latest

@@ -146,10 +146,7 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ow-002',
-      builder: (c, s) => WorkforceManagementScreen(
-        businessId: _resolveBusinessId(s),
-        initialAction: s.uri.queryParameters['open'],
-      ),
+      builder: (c, s) => WorkforceManagementScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-003',
@@ -161,10 +158,7 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ow-004',
-      builder: (c, s) => CustomerManagementScreen(
-        businessId: _resolveBusinessId(s),
-        autoFocusSearch: s.uri.queryParameters['focus'] == 'search',
-      ),
+      builder: (c, s) => CustomerManagementScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-005',

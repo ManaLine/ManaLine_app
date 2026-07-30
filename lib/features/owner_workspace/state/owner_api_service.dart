@@ -62,8 +62,13 @@ class OwnerApiService {
       try {
         final rows = await _db.schema('app').rpc('create_business_with_owner', params: {
           'p_mlbi': candidateMlbi,
-          'p_business_name': businessName,
-          'p_registered_finance_name': registeredFinanceName,
+          // Title-cased on the way IN, so the stored value is right rather
+          // than every read site having to repair it. Matches how person
+          // names are already normalised (titleCaseName, text_utils.dart) —
+          // business names were simply never included in that rule, so
+          // "sri satyanarayana" was stored and displayed exactly as typed.
+          'p_business_name': titleCaseName(businessName),
+          'p_registered_finance_name': titleCaseName(registeredFinanceName),
           'p_logo_url': logoUrl,
           'p_business_type': businessType,
           'p_business_address': businessAddress,

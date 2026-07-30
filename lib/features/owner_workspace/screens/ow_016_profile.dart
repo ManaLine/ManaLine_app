@@ -53,7 +53,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
       final person = await Supabase.instance.client
           .from('persons')
           .select(
-              'full_name, mlid, mobile_number, verification_ring, father_husband_name')
+              'full_name, mlid, mobile_number, verification_ring, father_husband_name, profile_photo_url')
           .eq('person_id', personId)
           .single();
 
@@ -212,12 +212,29 @@ class _IdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final photoUrl = (person['profile_photo_url'] as String?)?.trim();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Row(
           children: [
-            const CircleAvatar(radius: 28, child: Icon(Icons.person, size: 28)),
+            // The ring IS the verification signal (BR-191/GC-002) — green or
+            // red edge around the photo. The literal "RED"/"GREEN" word pill
+            // that used to sit at the end of this row is gone: it restated the
+            // ring in words, and shouting a raw enum value at the Owner is not
+            // a status anyone needs to read.
+            //
+            // The photo was never rendered at all because profile_photo_url
+            // was not in the persons select above — hence the generic
+            // silhouette. Falls back to that silhouette when the person has no
+            // photo, or when the signed URL has expired (these are private-
+            // bucket signed URLs with a 1-year expiry; see LivePhotoUpload).
+            ManaVerificationRing(
+              isVerified: (person['verification_ring'] as String?) == 'GREEN',
+              size: 56,
+              photo: photoUrl == null ? null : NetworkImage(photoUrl),
+            ),
             const SizedBox(width: ManaSpacing.md),
             Expanded(
               child: Column(
@@ -235,30 +252,9 @@ class _IdentityCard extends StatelessWidget {
                 ],
               ),
             ),
-            _VerificationBadge(ring: person['verification_ring'] as String?),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _VerificationBadge extends StatelessWidget {
-  final String? ring;
-  const _VerificationBadge({required this.ring});
-  @override
-  Widget build(BuildContext context) {
-    final color = ring == 'GREEN'
-        ? ManaColors.statusGood
-        : (ring == 'RED' ? ManaColors.statusBad : ManaColors.statusWarn);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12)),
-      child: ManaText.raw(ring ?? '—',
-          style: TextStyle(
-              color: color, fontSize: 13, fontWeight: FontWeight.bold)),
     );
   }
 }

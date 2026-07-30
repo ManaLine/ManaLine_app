@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/text_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 
@@ -116,7 +117,7 @@ class InvestorDashboardApiService {
 
     return InvestorDashboardData(
       hasActiveMembership: true,
-      businessName: business?['business_name'] as String? ?? '',
+      businessName: titleCaseName(business?['business_name'] as String? ?? ''),
       investorName: person?['full_name'] as String? ?? '',
       investorVerified: membership['verification_status'] == 'Verified',
       totalInvestmentBalance: totalBalance,

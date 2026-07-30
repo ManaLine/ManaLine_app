@@ -87,8 +87,9 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                   businessName: data.businessName,
                   businessOpen: data.businessOpen,
                   notifications: data.notifications,
+                  pendingInvitations: data.pendingInvitations,
+                  pendingAcceptances: data.pendingAcceptances,
                 ),
-                _BusinessStatusBar(businessId: widget.businessId, data: data),
                 const SizedBox(height: ManaSpacing.md),
                 // Staggered entrance so sections resolve in reading order
                 // rather than the whole page popping in at once. 30ms apart and
@@ -99,7 +100,7 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                 for (final (i, section) in <Widget>[
                   _SectionCard(
                     title: "today's business summary",
-                    child: _TodaysSummary(data: data),
+                    child: _BfRow(data: data),
                   ),
                   _SectionCard(
                     title: 'quick actions',
@@ -113,20 +114,6 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                   _SectionCard(
                     title: 'attention required',
                     child: _AttentionRequired(businessId: widget.businessId, cards: data.attentionRequired),
-                  ),
-                  _SectionCard(
-                    title: 'business overview',
-                    child: _BusinessOverview(data: data),
-                  ),
-                  _SectionCard(
-                    title: 'workforce snapshot',
-                    onSeeAll: () => context.push('/ow-002', extra: widget.businessId),
-                    child: _WorkforceSnapshot(data: data),
-                  ),
-                  _SectionCard(
-                    title: 'investor snapshot',
-                    onSeeAll: () => context.push('/ow-003', extra: widget.businessId),
-                    child: _InvestorSnapshot(data: data),
                   ),
                 ].indexed)
                   ManaAppear(index: i, child: section),
@@ -252,17 +239,28 @@ class _Header extends ConsumerWidget {
   final String businessName;
   final bool businessOpen;
   final List<NotificationItem> notifications;
+  // Item 2: the Invitations/Acceptances pills that used to live in
+  // _BusinessStatusBar below the header now ride in the notifications
+  // sheet — they are notifications, not status, and the strip was costing
+  // a full row of above-the-fold height for two counts that are usually 0.
+  final int pendingInvitations;
+  final int pendingAcceptances;
   const _Header({
     required this.businessId,
     required this.businessName,
     required this.businessOpen,
     required this.notifications,
+    required this.pendingInvitations,
+    required this.pendingAcceptances,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
-    final unread = notifications.where((n) => !n.read).length;
+    // The badge counts the pending memberships too, otherwise removing the
+    // strip would hide them behind an unbadged icon.
+    final unread =
+        notifications.where((n) => !n.read).length + pendingInvitations + pendingAcceptances;
 
     // Was a white Container with a hand-rolled Row. Now the shared coloured
     // header block: identity on brandDeep, actions forced to the 48dp floor
@@ -355,7 +353,12 @@ class _Header extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _NotificationsSheet(notifications: notifications),
+      builder: (_) => _NotificationsSheet(
+        businessId: businessId,
+        notifications: notifications,
+        pendingInvitations: pendingInvitations,
+        pendingAcceptances: pendingAcceptances,
+      ),
     );
   }
 
@@ -369,8 +372,24 @@ class _Header extends ConsumerWidget {
 }
 
 class _NotificationsSheet extends StatelessWidget {
+  final String businessId;
   final List<NotificationItem> notifications;
-  const _NotificationsSheet({required this.notifications});
+  final int pendingInvitations;
+  final int pendingAcceptances;
+  const _NotificationsSheet({
+    required this.businessId,
+    required this.notifications,
+    required this.pendingInvitations,
+    required this.pendingAcceptances,
+  });
+
+  // Unchanged destination from the deleted status strip: OW-012's Members
+  // tab already holds the pending-invitation / pending-acceptance lists and
+  // the investor accept/reject queue.
+  void _openInvitations(BuildContext context) {
+    Navigator.of(context).pop();
+    context.push('/ow-012?tab=members', extra: businessId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -384,10 +403,28 @@ class _NotificationsSheet extends StatelessWidget {
           children: [
             const ManaText('notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.md),
+            if (pendingInvitations > 0)
+              _MembershipRow(
+                label: '$pendingInvitations Invitations',
+                subtitle: 'Sent, waiting for the person to respond',
+                onTap: () => _openInvitations(context),
+              ),
+            if (pendingAcceptances > 0)
+              _MembershipRow(
+                label: '$pendingAcceptances Acceptances',
+                subtitle: 'Waiting for you to accept',
+                onTap: () => _openInvitations(context),
+              ),
+            if (pendingInvitations > 0 || pendingAcceptances > 0) const Divider(),
             Expanded(
               child: notifications.isEmpty
-                  ? const Center(
-                      child: ManaText.raw('No notifications yet.', style: TextStyle(color: ManaColors.textSecondary)),
+                  ? Center(
+                      child: ManaText.raw(
+                        pendingInvitations > 0 || pendingAcceptances > 0
+                            ? 'Nothing else to report.'
+                            : 'No notifications yet.',
+                        style: const TextStyle(color: ManaColors.textSecondary),
+                      ),
                     )
                   : ListView.separated(
                       controller: scrollController,
@@ -567,49 +604,51 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
   }
 }
 
-// --- C2 Business Status Bar ---------------------------------------------
+// C2 Business Status Bar was DELETED (item 2). The Open/Closed pill, the
+// Approvals pill and the Day Closure Pending pill went with it: the first
+// duplicated nothing an Owner acts on from here, and the other two are
+// already surfaced as tappable rows in Attention Required, which routes to
+// the screen that actions them. Only the Invitations/Acceptances counts
+// were kept, and they moved into _NotificationsSheet above.
 
-class _BusinessStatusBar extends StatelessWidget {
-  final String businessId;
-  final OwnerDashboardData data;
-  const _BusinessStatusBar({required this.businessId, required this.data});
-
-  // Both pills open OW-012's Members tab, scoped to this business — that
-  // tab already has the pending-invitation/pending-acceptance lists AND
-  // the investor request accept/reject queue, so this is "invitation
-  // details with accept/reject" without inventing a second screen for it.
-  void _openInvitations(BuildContext context) => context.push('/ow-012?tab=members', extra: businessId);
+/// One pending-membership count inside the notifications sheet. Its own
+/// widget rather than a bare ListTile so the whole row is the tap target at
+/// the 48dp floor, and the count is spoken as part of the action.
+class _MembershipRow extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _MembershipRow({required this.label, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: ManaColors.surface,
-      padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
-      child: Wrap(
-        spacing: ManaSpacing.sm,
-        runSpacing: ManaSpacing.sm,
-        children: [
-          ManaStatusPill(
-            label: data.businessOpen ? 'Open' : 'Closed',
-            status: data.businessOpen ? ManaStatus.good : ManaStatus.bad,
+    return Semantics(
+      button: true,
+      label: '$label. $subtitle',
+      excludeSemantics: true,
+      child: ManaPressable(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: kManaMinTapTarget),
+          child: Row(
+            children: [
+              const Icon(Icons.mark_email_unread_outlined, color: ManaColors.brand),
+              const SizedBox(width: ManaSpacing.md),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ManaText.raw(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ManaText.raw(subtitle,
+                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: ManaColors.textSecondary),
+            ],
           ),
-          if (data.pendingApprovals > 0)
-            ManaStatusPill(label: '${data.pendingApprovals} Approvals', status: ManaStatus.warn),
-          if (data.pendingInvitations > 0)
-            InkWell(
-              onTap: () => _openInvitations(context),
-              borderRadius: BorderRadius.circular(999),
-              child: ManaStatusPill(label: '${data.pendingInvitations} Invitations', status: ManaStatus.warn),
-            ),
-          if (data.pendingAcceptances > 0)
-            InkWell(
-              onTap: () => _openInvitations(context),
-              borderRadius: BorderRadius.circular(999),
-              child: ManaStatusPill(label: '${data.pendingAcceptances} Acceptances', status: ManaStatus.warn),
-            ),
-          if (data.pendingDayClosure)
-            const ManaStatusPill(label: 'Day Closure Pending', status: ManaStatus.bad),
-        ],
+        ),
       ),
     );
   }
@@ -646,6 +685,79 @@ class _SectionCard extends StatelessWidget {
 }
 
 // --- C3 Today's Business Summary --------------------------------------------
+
+/// Item 3: the eight-row summary card collapsed to the one figure an Owner
+/// opens this screen for — BF (Brought Forward) = the opening balance. The
+/// full card is unchanged, it just moved behind a tap into a bottom sheet.
+///
+/// The WHOLE row is the tap target, not the digit: on a cheap phone in
+/// sunlight, aiming at a ₹ figure is a miss waiting to happen. 48dp floor,
+/// and the label carries the action for a screen reader rather than leaving
+/// "₹0" as an unexplained tappable.
+class _BfRow extends StatelessWidget {
+  final OwnerDashboardData data;
+  const _BfRow({required this.data});
+
+  void _openSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        expand: false,
+        builder: (context, scrollController) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(ManaSpacing.lg),
+          children: [
+            const ManaText("today's business summary",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: ManaSpacing.md),
+            _TodaysSummary(data: data),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // excludeSemantics so the row is announced once, as one control, rather
+    // than as a button plus a stray "₹0" — the amount is folded into the
+    // label instead.
+    return Semantics(
+      button: true,
+      excludeSemantics: true,
+      label: 'Brought forward, ${_currency.format(data.openingBalance)}. '
+          "Opens today's business summary",
+      child: ManaPressable(
+        onTap: () => _openSheet(context),
+        borderRadius: BorderRadius.circular(ManaRadius.md),
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: kManaMinTapTarget),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: ManaSpacing.md, vertical: ManaSpacing.sm),
+              child: Row(
+                children: [
+                  const ManaText.raw('BF', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(width: ManaSpacing.sm),
+                  const ManaText.raw('=', style: TextStyle(color: ManaColors.textSecondary)),
+                  const SizedBox(width: ManaSpacing.sm),
+                  Expanded(
+                    child: ManaAmount(data.openingBalance),
+                  ),
+                  const Icon(Icons.chevron_right, color: ManaColors.textSecondary),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _TodaysSummary extends StatelessWidget {
   final OwnerDashboardData data;
@@ -747,7 +859,8 @@ class _QuickActions extends StatelessWidget {
           actions: const [
             (Icons.request_quote_outlined, 'New Loan', '/ow-005', null),
             (Icons.point_of_sale_outlined, 'Collections', '/ow-006', null),
-            (Icons.search, 'Search Customers', '/ow-004', 'focus=search'),
+            // 'Search Customers' removed (item 4.1) — the header's Universal
+            // Search covers it, and OW-004 has its own search field.
             (Icons.people_outline, 'Customer Management', '/ow-004', null),
             (Icons.inbox_outlined, 'Loan Requests', '/ow-loan-requests', null),
             // BUG FIXED this pass: OW-015 was a real, fully-built screen
@@ -760,8 +873,9 @@ class _QuickActions extends StatelessWidget {
           title: 'workforce',
           businessId: businessId,
           actions: const [
-            (Icons.person_add_alt_1_outlined, 'Register New Agent', '/ow-002', 'open=register'),
-            (Icons.badge_outlined, 'Add Existing Agent', '/ow-002', 'open=existing'),
+            // 'Register New Agent' and 'Add Existing Agent' removed (item
+            // 5.1) — both already exist as header actions inside Workforce
+            // Management, which this tile opens.
             (Icons.groups_outlined, 'Workforce Management', '/ow-002', null),
             (Icons.lock_clock_outlined, 'Day Closure', '/ow-011', null),
             (Icons.menu_book_outlined, 'Daily Record Book', '/ow-009', null),
@@ -912,129 +1026,6 @@ class _AttentionRequired extends StatelessWidget {
           .toList(),
     );
   }
-}
-
-// --- C7 Business Overview --------------------------------------------
-
-class _BusinessOverview extends StatelessWidget {
-  final OwnerDashboardData data;
-  const _BusinessOverview({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final metrics = <(String, String)>[
-      ('Total Customers', '${data.totalCustomers}'),
-      ('Active Customers', '${data.activeCustomers}'),
-      ('Active Loans', '${data.activeLoans}'),
-      ("Today's Due", '${data.todaysDueCustomers}'),
-      ('Collected Today', _currency.format(data.collectedToday)),
-      ('Pending Collections', _currency.format(data.pendingCollections)),
-      ('Penalty Customers', '${data.penaltyCustomers}'),
-      ('Grace Period', '${data.gracePeriodCustomers}'),
-      ('Active Agents', '${data.activeAgents}'),
-      ('Active Investors', '${data.activeInvestors}'),
-      ('Total Investment', _currency.format(data.totalInvestment)),
-      ('Interest Payable', _currency.format(data.interestPayable)),
-    ];
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: metrics.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: ManaSpacing.sm,
-        crossAxisSpacing: ManaSpacing.sm,
-        childAspectRatio: 2.4,
-      ),
-      itemBuilder: (context, i) {
-        final (label, value) = metrics[i];
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(ManaSpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// --- C8 Workforce Snapshot --------------------------------------------
-
-class _WorkforceSnapshot extends StatelessWidget {
-  final OwnerDashboardData data;
-  const _WorkforceSnapshot({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Wrap(
-          spacing: ManaSpacing.lg,
-          runSpacing: ManaSpacing.sm,
-          children: [
-            _stat('Total Agents', '${data.workforceTotalAgents}'),
-            _stat('Active Today', '${data.workforceActiveToday}'),
-            _stat('Pending Invitations', '${data.workforcePendingInvitations}'),
-            _stat('Pending Acceptance', '${data.workforcePendingAcceptance}'),
-            _stat('Disabled', '${data.workforceDisabled}'),
-            _stat('Suspended', '${data.workforceSuspended}'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _stat(String label, String value) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-        ],
-      );
-}
-
-// --- C9 Investor Snapshot --------------------------------------------
-
-class _InvestorSnapshot extends StatelessWidget {
-  final OwnerDashboardData data;
-  const _InvestorSnapshot({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Wrap(
-          spacing: ManaSpacing.lg,
-          runSpacing: ManaSpacing.sm,
-          children: [
-            _stat('Total Investors', '${data.investorTotal}'),
-            _stat('Active Investors', '${data.investorActive}'),
-            _stat('Pending Invitations', '${data.investorPendingInvitations}'),
-            _stat('Pending Acceptance', '${data.investorPendingAcceptance}'),
-            _stat('Investment Balance', _currency.format(data.investorBalance)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _stat(String label, String value) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-        ],
-      );
 }
 
 // --- C11 Footer Navigation --------------------------------------------

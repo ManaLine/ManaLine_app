@@ -62,7 +62,17 @@ class AccountReviewApiService {
 
     final accessDayRows = await _db
         .from('agent_access_days')
-        .select('access_day_id, allowance_amount, business_members!inner(business_id, persons!business_members_person_id_fkey(full_name))')
+        // FK named explicitly: agent_access_days has TWO foreign keys into
+        // business_members (membership_id = the agent the day was granted
+        // to, granted_by_membership_id = whoever granted it), so a bare
+        // `business_members!inner(...)` is ambiguous and PostgREST rejects
+        // the whole request with PGRST201. That took OW-013's entire load
+        // down — settlements, BF panel and all — and since the screen never
+        // rendered state.error, it looked like an empty screen instead of a
+        // failure. This one means the agent's own membership.
+        .select('access_day_id, allowance_amount, '
+            'business_members!agent_access_days_membership_id_fkey!inner('
+            'business_id, persons!business_members_person_id_fkey(full_name))')
         .eq('business_members.business_id', businessId)
         .order('business_date', ascending: false);
     final accessDays = (accessDayRows as List)

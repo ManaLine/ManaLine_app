@@ -53,11 +53,17 @@ class _ErrorBanner extends StatelessWidget {
 /// Detail with tabs for Operating Areas / Business Agreements / Business
 /// Members / Account Periods.
 class BusinessManagementScreen extends ConsumerStatefulWidget {
-  // Set when reached from a business-scoped screen (e.g. OW-001's header
-  // menu or its Invitations/Acceptances pills) so this jumps straight to
-  // that business's detail instead of making the Owner pick it again from
-  // the list — that "no businessId, always lands on the generic list" gap
-  // was the reported cause of "business details not showing".
+  // Set when reached from a business-scoped screen so the detail screen
+  // knows WHICH business — but on its own this no longer causes a jump.
+  //
+  // FIXED (item 10): every business-scoped caller passes `extra: businessId`,
+  // including OW-001's plain "Business Management" menu entry, so the
+  // unconditional auto-push made this screen a pass-through — the Owner
+  // could never reach the businesses list, which is the whole point of a
+  // screen that supports multiple businesses (BR-119 Revised). The jump now
+  // requires initialTab as well, i.e. the caller asked for a SPECIFIC tab
+  // (the notifications sheet's Invitations/Acceptances rows, `?tab=members`).
+  // "Just open Business Management" lands on the list.
   final String? initialBusinessId;
   final BusinessDetailTab? initialTab;
   const BusinessManagementScreen({super.key, this.initialBusinessId, this.initialTab});
@@ -73,10 +79,11 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(businessListProvider.notifier).load();
       final businessId = widget.initialBusinessId;
-      if (businessId != null) {
+      final initialTab = widget.initialTab;
+      if (businessId != null && initialTab != null) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => _BusinessDetailScreen(businessId: businessId, initialTab: widget.initialTab),
+            builder: (_) => _BusinessDetailScreen(businessId: businessId, initialTab: initialTab),
           ),
         );
       }

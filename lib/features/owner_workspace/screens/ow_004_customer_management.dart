@@ -19,11 +19,7 @@ final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalD
 /// context menu); "Add Customer" is a header action (C4 sub-flow).
 class CustomerManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
-  // Set by OW-001's "Search Customers" Quick Action tile so it lands with
-  // the keyboard already up on the search field, instead of just the
-  // plain browse list ("Customer Management" tile).
-  final bool autoFocusSearch;
-  const CustomerManagementScreen({super.key, required this.businessId, this.autoFocusSearch = false});
+  const CustomerManagementScreen({super.key, required this.businessId});
 
   @override
   ConsumerState<CustomerManagementScreen> createState() => _CustomerManagementScreenState();
@@ -38,7 +34,6 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(customerListProvider.notifier).load(widget.businessId);
-      if (widget.autoFocusSearch) _searchFocus.requestFocus();
     });
   }
 
@@ -76,6 +71,20 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
               context: context,
               isScrollControlled: true,
               builder: (_) => _AddCustomerSheet(businessId: widget.businessId),
+            ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId)),
+          ),
+          // Item 4.2 — mirrors OW-002's "Add Existing Agent" header action.
+          // Same sheet, but locked to the search-and-link path: a customer
+          // who already holds a MANA LINE ID must never be re-registered as
+          // a new person, which is exactly what the shared sheet does today
+          // when a search comes back empty.
+          IconButton(
+            tooltip: 'Existing Customers',
+            icon: const Icon(Icons.badge_outlined),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => _AddCustomerSheet(businessId: widget.businessId, existingOnly: true),
             ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId)),
           ),
         ],
@@ -228,7 +237,10 @@ class _CustomerRow extends StatelessWidget {
 
 class _AddCustomerSheet extends ConsumerStatefulWidget {
   final String businessId;
-  const _AddCustomerSheet({required this.businessId});
+  /// Opened from the "Existing Customers" header action — a miss stays on
+  /// the search stage instead of falling through to Create New.
+  final bool existingOnly;
+  const _AddCustomerSheet({required this.businessId, this.existingOnly = false});
 
   @override
   ConsumerState<_AddCustomerSheet> createState() => _AddCustomerSheetState();
@@ -241,6 +253,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   final _query = TextEditingController();
   CustomerSummary? _foundIdentity;
   bool _searching = false;
+  bool _notFound = false;
 
   // Create New fields (reuses LR-004 field set per spec)
   final _fullName = TextEditingController();
@@ -292,7 +305,10 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
       _searching = false;
       if (result != null) {
         _foundIdentity = result;
+        _notFound = false;
         _stage = _AddCustomerStage.found;
+      } else if (widget.existingOnly) {
+        _notFound = true;
       } else {
         _stage = _AddCustomerStage.createNew;
       }
@@ -437,7 +453,8 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           child: ListView(
             controller: scrollController,
             children: [
-              const ManaText('add customer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ManaText(widget.existingOnly ? 'existing customers' : 'add customer',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: ManaSpacing.lg),
               if (_stage == _AddCustomerStage.search) ..._searchStage(),
               if (_stage == _AddCustomerStage.found) ..._foundStage(),
@@ -450,9 +467,12 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   }
 
   List<Widget> _searchStage() => [
-        const ManaText.raw(
-          'Search by Phone, Aadhaar, MANA LINE ID, or Full Name.',
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+        ManaText.raw(
+          widget.existingOnly
+              ? 'Find a customer who already has a MANA LINE ID and link them '
+                  'to this business. Search by Phone, Aadhaar, MANA LINE ID, or Full Name.'
+              : 'Search by Phone, Aadhaar, MANA LINE ID, or Full Name.',
+          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         Row(
@@ -473,6 +493,17 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
             ),
           ],
         ),
+        // existingOnly never falls through to Create New — an already-
+        // registered customer must be linked, not duplicated. Say so, and
+        // point at the action that does register someone new.
+        if (_notFound) ...[
+          const SizedBox(height: ManaSpacing.md),
+          const ManaText.raw(
+            'No one found with that Phone / Aadhaar / MANA LINE ID / Name. '
+            'Check the value, or use "Add Customer" to register a new person.',
+            style: TextStyle(fontSize: 13, color: ManaColors.statusBad),
+          ),
+        ],
       ];
 
   List<Widget> _foundStage() => [

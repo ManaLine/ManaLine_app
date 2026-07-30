@@ -16,11 +16,7 @@ import '../../../shared/document_viewer.dart';
 /// selecting a row drills into the tabbed Agent Profile (C6).
 class WorkforceManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
-  // Set by OW-001's "Register New Agent" / "Add Existing Agent" Quick
-  // Action tiles ('register' / 'existing') so those land directly on the
-  // sub-flow instead of just the bare list.
-  final String? initialAction;
-  const WorkforceManagementScreen({super.key, required this.businessId, this.initialAction});
+  const WorkforceManagementScreen({super.key, required this.businessId});
 
   @override
   ConsumerState<WorkforceManagementScreen> createState() =>
@@ -36,12 +32,6 @@ class _WorkforceManagementScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(workforceProvider.notifier).load(widget.businessId);
-      switch (widget.initialAction) {
-        case 'register':
-          _openRegisterNewAgent(context);
-        case 'existing':
-          _openAddExistingAgent(context);
-      }
     });
   }
 

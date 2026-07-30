@@ -163,9 +163,17 @@ class LoanApiService {
   // RLS, 0015_rls_module6_loan_domain.sql — Owner already has full
   // access, nothing here needed a schema/RLS change).
   Future<List<LoanRequestSummary>> fetchLoanRequests({required String businessId}) async {
+    // The FK must be named explicitly. `customers` has TWO foreign keys into
+    // business_members — `membership_id` (the customer's own membership) and
+    // `assigned_agent_membership_id` (their collecting agent) — so a bare
+    // `business_members!inner(...)` embed is ambiguous and PostgREST refuses it
+    // with PGRST201 rather than picking one. We want the customer's own
+    // membership: "customers of THIS business", not "customers whose agent
+    // belongs to this business", which is a different set entirely and would
+    // silently return the wrong rows if the other FK were chosen.
     final customerRows = await _db
         .from('customers')
-        .select('customer_id, business_members!inner(business_id)')
+        .select('customer_id, business_members!customers_membership_id_fkey!inner(business_id)')
         .eq('business_members.business_id', businessId);
     final customerIds = (customerRows as List).map((r) => r['customer_id'] as String).toList();
     if (customerIds.isEmpty) return [];

@@ -28,7 +28,7 @@ class CustomerApiService {
         .from('customers')
         .select('''
           customer_id, customer_status, membership_id, person_id,
-          business_members!inner(business_id, membership_status),
+          business_members!customers_membership_id_fkey!inner(business_id, membership_status),
           persons!inner(full_name, father_husband_name, mobile_number, mlid,
             person_addresses(village_id, is_current, locations(village_town_name))),
           loans(loan_id, loan_status, installment_amount, remaining_balance)
@@ -224,7 +224,7 @@ class CustomerApiService {
         .from('customers')
         .select('''
           customer_id, customer_status, occupation, customer_since, membership_id,
-          business_members!inner(membership_status),
+          business_members!customers_membership_id_fkey!inner(membership_status),
           persons!inner(full_name, father_husband_name, mobile_number, mlid,
             person_addresses(village_id, is_current, locations(village_town_name))),
           assigned_agent_membership_id,

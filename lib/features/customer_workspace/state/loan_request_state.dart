@@ -87,7 +87,7 @@ class LoanRequestApiService {
 
     final customerRow = await _db
         .from('customers')
-        .select('customer_id, business_members!inner(business_id, person_id, membership_status)')
+        .select('customer_id, business_members!customers_membership_id_fkey!inner(business_id, person_id, membership_status)')
         .eq('business_members.business_id', businessId)
         .eq('business_members.person_id', personId)
         .eq('business_members.membership_status', 'Active')

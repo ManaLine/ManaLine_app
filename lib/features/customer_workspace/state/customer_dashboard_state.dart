@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/text_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// CW-001 Customer Home Dashboard — real Supabase wiring over Module 3
@@ -28,7 +29,7 @@ class CustomerDashboardApiService {
           .from('customers')
           .select('''
           customer_id,
-          business_members!inner(business_id, membership_status),
+          business_members!customers_membership_id_fkey!inner(business_id, membership_status),
           persons!inner(full_name, profile_photo_url),
           loans(loan_id, loan_status, remaining_balance)
         ''')
@@ -112,7 +113,7 @@ class CustomerDashboardApiService {
 
     return CustomerDashboardData(
       hasActiveMembership: true,
-      businessName: businessRow?['business_name'] as String? ?? '',
+      businessName: titleCaseName(businessRow?['business_name'] as String? ?? ''),
       businessLogoUrl: businessRow?['logo_url'] as String?,
       customerName: person['full_name'] as String? ?? '',
       profilePhotoUrl: person['profile_photo_url'] as String?,

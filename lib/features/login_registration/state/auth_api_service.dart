@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/text_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/supabase_config.dart';
 import 'auth_flow_state.dart';
@@ -336,7 +337,7 @@ class AuthApiService {
       return Membership(
         membershipId: r['membership_id'] as String,
         businessId: r['business_id'] as String,
-        businessName: business?['business_name'] as String? ?? '',
+        businessName: titleCaseName(business?['business_name'] as String? ?? ''),
         role: r['role'] as String,
         membershipStatus: r['membership_status'] as String,
         businessStatus: business?['business_status'] as String? ?? 'Active',

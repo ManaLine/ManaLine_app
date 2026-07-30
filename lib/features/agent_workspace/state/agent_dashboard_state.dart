@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/text_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 
@@ -365,7 +366,7 @@ class AgentApiService {
       excessAmount: 0,
       visibleQuickActions: visibleActions,
       liveActivity: const [], // deferred, same reasoning as owner_api_service.dart
-      businessName: business['business_name'] as String,
+      businessName: titleCaseName(business['business_name'] as String),
       ownerName: owner['full_name'] as String,
       membershipStatus: membershipRow['membership_status'] as String,
       // Notifications/Universal Search are always in visibleActions now

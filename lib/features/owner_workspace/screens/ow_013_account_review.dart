@@ -58,6 +58,30 @@ class _AccountReviewScreenState extends ConsumerState<AccountReviewScreen> {
   }
 }
 
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorBanner({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(ManaSpacing.xl),
+      children: [
+        const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+        const SizedBox(height: ManaSpacing.md),
+        const Center(child: ManaText('could not load data')),
+        const SizedBox(height: ManaSpacing.sm),
+        ManaText.raw(message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+        const SizedBox(height: ManaSpacing.sm),
+        Center(child: ElevatedButton(onPressed: onRetry, child: const ManaText('retry'))),
+      ],
+    );
+  }
+}
+
 class _AccountReviewTab extends ConsumerWidget {
   final String businessId;
   final AccountReviewState state;
@@ -69,6 +93,14 @@ class _AccountReviewTab extends ConsumerWidget {
       onRefresh: () => ref.read(accountReviewProvider.notifier).load(businessId),
       child: state.loading && state.settlements.isEmpty
           ? const Center(child: CircularProgressIndicator())
+          // A failed load previously left this looking exactly like a
+          // business with nothing to review — state.error was set and never
+          // rendered anywhere on the screen. Same fix OW-012 already has.
+          : state.error != null && state.settlements.isEmpty
+              ? _ErrorBanner(
+                  message: state.error!,
+                  onRetry: () => ref.read(accountReviewProvider.notifier).load(businessId),
+                )
           : ListView(
               padding: const EdgeInsets.all(ManaSpacing.lg),
               children: [

@@ -23,11 +23,15 @@ class RecordBookApiService {
     if (dateFrom != null) q = q.gte('business_date', _isoDate(dateFrom));
     if (dateTo != null) q = q.lte('business_date', _isoDate(dateTo));
     if (status != null) q = q.eq('status', status);
-    final rows = await q.order('business_date', ascending: false);
-    final penalties = await _penaltyByDay(businessId: businessId, from: dateFrom, to: dateTo);
-    return (rows as List)
-        .map((r) => _rowFromMap(r as Map<String, dynamic>, penalties))
-        .toList();
+    // PERF: the ledger rows and the penalty totals are independent, so both
+    // go out together instead of one waiting on the other.
+    final results = await Future.wait<dynamic>([
+      q.order('business_date', ascending: false),
+      _penaltyByDay(businessId: businessId, from: dateFrom, to: dateTo),
+    ]);
+    final rows = results[0] as List;
+    final penalties = results[1] as Map<String, double>;
+    return rows.map((r) => _rowFromMap(r as Map<String, dynamic>, penalties)).toList();
   }
 
   /// Recognised penalty totals keyed by ISO business date. One call for the
@@ -70,48 +74,63 @@ class RecordBookApiService {
     required DateTime businessDate,
   }) async {
     final date = _isoDate(businessDate);
-    final ledgerRow = await _db
-        .from('day_ledger')
-        .select()
-        .eq('business_id', businessId)
-        .eq('business_date', date)
-        .single();
 
-    final collectionRows = await _db
-        .from('collections')
-        .select('collection_id, collected_amount, entry_timestamp, loan_id, loans!inner(business_id)')
-        .eq('business_date', date)
-        .eq('loans.business_id', businessId);
-    final loanRows =
-        await _db.from('loans').select('loan_id, repayment_amount, entry_timestamp').eq('business_id', businessId).eq('issue_business_date', date);
-    final expenseRows =
-        await _db.from('expenses').select('expense_id, amount, entry_timestamp, category').eq('business_id', businessId).eq('business_date', date);
-    final adjustmentRows = await _db
-        .from('settlement_adjustments')
-        .select('adjustment_id, amount, business_date, adjustment_type, '
-            'account_settlements!inner(account_periods!inner(business_id))')
-        .eq('business_date', date)
-        .eq('account_settlements.account_periods.business_id', businessId);
+    // PERF: all six reads are scoped to the same business and date and none
+    // depends on another, so they go out as one batch instead of six
+    // sequential round trips. Future.wait (not record `.wait`) so a failure
+    // propagates the original PostgrestException — NetworkErrorHandler
+    // wouldn't recognise a ParallelWaitError as server-reached and would
+    // replace the real message with a generic one.
+    final results = await Future.wait<dynamic>([
+      _db.from('day_ledger').select().eq('business_id', businessId).eq('business_date', date).single(),
+      _db
+          .from('collections')
+          .select('collection_id, collected_amount, entry_timestamp, loan_id, loans!inner(business_id)')
+          .eq('business_date', date)
+          .eq('loans.business_id', businessId),
+      _db
+          .from('loans')
+          .select('loan_id, repayment_amount, entry_timestamp')
+          .eq('business_id', businessId)
+          .eq('issue_business_date', date),
+      _db
+          .from('expenses')
+          .select('expense_id, amount, entry_timestamp, category')
+          .eq('business_id', businessId)
+          .eq('business_date', date),
+      _db
+          .from('settlement_adjustments')
+          .select('adjustment_id, amount, business_date, adjustment_type, '
+              'account_settlements!inner(account_periods!inner(business_id))')
+          .eq('business_date', date)
+          .eq('account_settlements.account_periods.business_id', businessId),
+      _penaltyByDay(businessId: businessId, from: businessDate, to: businessDate),
+    ]);
 
-    final penalties = await _penaltyByDay(businessId: businessId, from: businessDate, to: businessDate);
+    final ledgerRow = results[0] as Map<String, dynamic>;
+    final collectionRows = results[1] as List;
+    final loanRows = results[2] as List;
+    final expenseRows = results[3] as List;
+    final adjustmentRows = results[4] as List;
+    final penalties = results[5] as Map<String, double>;
 
     return DayDetail(
       ledger: _rowFromMap(ledgerRow, penalties),
-      collections: (collectionRows as List).cast<Map<String, dynamic>>().map((c) => DayDetailEntry(
+      collections: collectionRows.cast<Map<String, dynamic>>().map((c) => DayDetailEntry(
             id: c['collection_id'] as String,
             label: 'Collection',
             amount: (c['collected_amount'] as num).toDouble(),
             timestamp: DateTime.parse(c['entry_timestamp'] as String),
             sourceLoanId: c['loan_id'] as String?,
           )).toList(),
-      loans: (loanRows as List).cast<Map<String, dynamic>>().map((l) => DayDetailEntry(
+      loans: loanRows.cast<Map<String, dynamic>>().map((l) => DayDetailEntry(
             id: l['loan_id'] as String,
             label: 'Loan Distribution',
             amount: (l['repayment_amount'] as num).toDouble(),
             timestamp: DateTime.parse(l['entry_timestamp'] as String),
             sourceLoanId: l['loan_id'] as String,
           )).toList(),
-      expenses: (expenseRows as List).cast<Map<String, dynamic>>().map((e) => DayDetailEntry(
+      expenses: expenseRows.cast<Map<String, dynamic>>().map((e) => DayDetailEntry(
             id: e['expense_id'] as String,
             label: e['category'] as String? ?? 'Expense',
             amount: (e['amount'] as num).toDouble(),
@@ -119,7 +138,7 @@ class RecordBookApiService {
           )).toList(),
       deposits: const [], // requires an investments query scoped to business_date — not fetched by this summary view
       withdrawals: const [], // requires an investment_withdrawals query scoped to business_date — not fetched by this summary view
-      adjustments: (adjustmentRows as List).cast<Map<String, dynamic>>().map((a) => DayDetailEntry(
+      adjustments: adjustmentRows.cast<Map<String, dynamic>>().map((a) => DayDetailEntry(
             id: a['adjustment_id'] as String,
             label: a['adjustment_type'] as String? ?? 'Adjustment',
             amount: (a['amount'] as num).toDouble(),

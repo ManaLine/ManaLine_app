@@ -379,12 +379,35 @@ class OwnerDashboardNotifier extends AsyncNotifier<OwnerDashboardData> {
     return OwnerDashboardData.zero(businessName: '');
   }
 
+  /// Which business the currently-held value belongs to. Needed because this
+  /// same method serves both "revisit the dashboard" and "switch business" —
+  /// see the guard in [load].
+  String? _loadedForBusinessId;
+
   Future<void> load(String businessId) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    // PERF/UX: only blank the screen to a spinner when there is nothing
+    // useful to show. The screen calls this from initState on every visit, so
+    // unconditionally setting AsyncLoading meant navigating back to the
+    // dashboard always flashed a full-screen spinner over data that was
+    // already loaded and still valid. Keeping the previous value lets the
+    // refetch happen behind the existing content — figures appear instantly
+    // and update in place a moment later. Nothing goes stale: the fetch still
+    // runs every visit, only the spinner is gone.
+    //
+    // The businessId check is not optional. This method is also the
+    // "Business Switched" path, and holding the old value across a switch
+    // would leave one business's outstanding balances on screen while a
+    // different business loaded — actively misleading in a financial app. On
+    // a switch we blank to loading as before.
+    final sameBusiness = _loadedForBusinessId == businessId;
+    if (!state.hasValue || !sameBusiness) state = const AsyncLoading();
+
+    final next = await AsyncValue.guard(() async {
       final api = ref.read(ownerApiServiceProvider);
       return api.fetchDashboard(businessId: businessId);
     });
+    _loadedForBusinessId = next.hasValue ? businessId : null;
+    state = next;
   }
 }
 

@@ -35,13 +35,31 @@ class AgentApiService {
     return int.parse(id);
   }
 
+  /// PERF: `agents.agent_id -> membership_id` is immutable for the life of an
+  /// agent record, but eight separate methods in this file each resolved it
+  /// with their own round trip — the AG-001 entry flow alone did three
+  /// identical `agents` lookups (fetchCurrentBfAssignment,
+  /// fetchRunningAccountPeriods, fetchDashboard). Memoised per service
+  /// instance, which is a kept-alive Provider, so each agent is looked up once
+  /// per app run.
+  ///
+  /// Safe to cache precisely because the mapping never changes: an agent's
+  /// membership_id is set when the agents row is created and there is no code
+  /// path anywhere that reassigns it. If that ever becomes untrue, this cache
+  /// is the thing to invalidate.
+  final Map<String, String> _membershipIdCache = {};
+
   Future<String> _resolveMembershipId(String agentId) async {
+    final cached = _membershipIdCache[agentId];
+    if (cached != null) return cached;
     final row = await _db
         .from('agents')
         .select('membership_id')
         .eq('agent_id', agentId)
         .single();
-    return row['membership_id'] as String;
+    final membershipId = row['membership_id'] as String;
+    _membershipIdCache[agentId] = membershipId;
+    return membershipId;
   }
 
   // GET current agent_bf_assignments row — RLS (rls_role_matrix.md:
@@ -227,24 +245,62 @@ class AgentApiService {
     required String agentId,
     DateTime? businessDate,
   }) async {
-    final membershipId = await _resolveMembershipId(agentId);
+    // PERF: this was 11 sequential round trips. Restructured into two waves
+    // by actual data dependency — only two things genuinely have to wait for
+    // something else: `owner` needs business.owner_person_id, and the five
+    // membership-scoped reads need the resolved membershipId.
+    //
+    // Future.wait (not record `.wait`) throughout: it propagates the first
+    // original error rather than wrapping everything in a ParallelWaitError,
+    // which NetworkErrorHandler would fail to recognise as server-reached and
+    // would report as a generic "Something went wrong", hiding the real
+    // Postgres message.
+    //
+    // WAVE 1 — nothing here depends on anything else in this method.
+    final wave1 = await Future.wait<dynamic>([
+      _resolveMembershipId(agentId),
+      _db.from('businesses').select('business_name, owner_person_id').eq('business_id', businessId).single(),
+      _db
+          .from('account_settlements')
+          .select('settlement_id')
+          .eq('agent_id', agentId)
+          .eq('status', 'Pending Owner Review')
+          .limit(1),
+      _db
+          .from('agent_compensation_history')
+          .select('fixed_salary_amount, salary_cycle, daily_allowance, profit_share_percent')
+          .eq('agent_id', agentId)
+          .isFilter('superseded_at', null)
+          .maybeSingle(),
+    ]);
+    final membershipId = wave1[0] as String;
+    final business = wave1[1] as Map<String, dynamic>;
+    final pendingSettlementRows = wave1[2] as List;
+    final compHistory = wave1[3] as Map<String, dynamic>?;
 
-    final business = await _db
-        .from('businesses')
-        .select('business_name, owner_person_id')
-        .eq('business_id', businessId)
-        .single();
-    final owner = await _db
-        .from('persons')
-        .select('full_name')
-        .eq('person_id', business['owner_person_id'])
-        .single();
-
-    final membershipRow = await _db
-        .from('business_members')
-        .select('membership_status')
-        .eq('membership_id', membershipId)
-        .single();
+    // WAVE 2 — `owner` needs business from wave 1; the rest need membershipId.
+    final wave2 = await Future.wait<dynamic>([
+      _db.from('persons').select('full_name').eq('person_id', business['owner_person_id']).single(),
+      _db.from('business_members').select('membership_status').eq('membership_id', membershipId).single(),
+      _db
+          .from('loans')
+          .select('loan_status, remaining_balance')
+          .eq('collection_agent_membership_id', membershipId)
+          .inFilter('loan_status', ['Active', 'Grace Period', 'Penalty']),
+      _db.from('customers').select('customer_id').eq('assigned_agent_membership_id', membershipId),
+      _db
+          .from('collection_drafts')
+          .select('draft_id')
+          .eq('created_by_membership_id', membershipId)
+          .eq('status', 'Draft'),
+      _db.from('routes').select('route_name').eq('default_agent_id', membershipId).limit(1).maybeSingle(),
+    ]);
+    final owner = wave2[0] as Map<String, dynamic>;
+    final membershipRow = wave2[1] as Map<String, dynamic>;
+    final assignedLoans = wave2[2] as List;
+    final customersAssignedCount = wave2[3] as List;
+    final pendingDrafts = wave2[4] as List;
+    final routeRow = wave2[5] as Map<String, dynamic>?;
 
     final permRow = await _db
         .from('agent_permissions')
@@ -279,44 +335,6 @@ class AgentApiService {
       });
     }
 
-    final assignedLoans = await _db
-        .from('loans')
-        .select('loan_status, remaining_balance')
-        .eq('collection_agent_membership_id', membershipId)
-        .inFilter('loan_status', ['Active', 'Grace Period', 'Penalty']);
-    final customersAssignedCount = await _db
-        .from('customers')
-        .select('customer_id')
-        .eq('assigned_agent_membership_id', membershipId);
-
-    final pendingDrafts = await _db
-        .from('collection_drafts')
-        .select('draft_id')
-        .eq('created_by_membership_id', membershipId)
-        .eq('status', 'Draft');
-
-    final pendingSettlementRows = await _db
-        .from('account_settlements')
-        .select('settlement_id')
-        .eq('agent_id', agentId)
-        .eq('status', 'Pending Owner Review')
-        .limit(1);
-
-    final compHistory = await _db
-        .from('agent_compensation_history')
-        .select(
-            'fixed_salary_amount, salary_cycle, daily_allowance, profit_share_percent')
-        .eq('agent_id', agentId)
-        .isFilter('superseded_at', null)
-        .maybeSingle();
-
-    final routeRow = await _db
-        .from('routes')
-        .select('route_name')
-        .eq('default_agent_id', membershipId)
-        .limit(1)
-        .maybeSingle();
-
     return AgentDashboardData(
       // BUG FIXED this pass: previously hardcoded DateTime.now() with a
       // comment saying the real source "isn't in scope at call time" —
@@ -327,11 +345,11 @@ class AgentApiService {
       // any Running period exists.
       businessDate: businessDate ?? DateTime.now(),
       assignedRoute: (routeRow?['route_name'] as String?) ?? '',
-      pendingDraftsCount: (pendingDrafts as List).length,
-      pendingSettlement: (pendingSettlementRows as List).isNotEmpty,
+      pendingDraftsCount: pendingDrafts.length,
+      pendingSettlement: pendingSettlementRows.isNotEmpty,
       todaysTarget:
           0, // requires loan_schedule due-today sum — same gap as collection_mode_state.dart's fetchDueList
-      customersAssigned: (customersAssignedCount as List).length,
+      customersAssigned: customersAssignedCount.length,
       customersVisited:
           0, // requires today-scoped collections/no_collection_visits count — deferred, same "today" cutoff caveat as above
       collectionsCash: 0,
@@ -340,7 +358,7 @@ class AgentApiService {
       collectionsCheque: 0,
       collectionsMixed: 0,
       loansIssued: 0, // today-scoped — deferred
-      pendingCollections: (assignedLoans as List).length,
+      pendingCollections: assignedLoans.length,
       skippedCustomers: 0,
       shortAmount:
           0, // Settlement Short/Excess math — Calculation Engine territory, not reimplemented here
@@ -672,12 +690,20 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
     AgentBfAssignment? bf,
   }) async {
     final api = ref.read(agentApiServiceProvider);
-    final areas = await api.fetchAreaAssignments(agentId: agentId);
-    // BUG FIXED this pass: this used to check `state.runningPeriods
-    // .isNotEmpty`, but nothing ever populated that list, so a session
-    // could never be detected as running. Now actually queried.
-    final runningPeriods =
-        await api.fetchRunningAccountPeriods(agentId: agentId);
+    // PERF: these two reads are independent, so they are started together.
+    // These are `async` methods, so calling one runs its body up to its first
+    // await — where the request is issued — meaning both are in flight before
+    // the awaits below. Awaited individually rather than via record `.wait` so
+    // a failure keeps its original PostgrestException instead of becoming a
+    // ParallelWaitError that NetworkErrorHandler would report generically.
+    //
+    // BUG FIXED an earlier pass: runningPeriods used to check
+    // `state.runningPeriods.isNotEmpty`, but nothing ever populated that list,
+    // so a session could never be detected as running. Now actually queried.
+    final areasFuture = api.fetchAreaAssignments(agentId: agentId);
+    final runningPeriodsFuture = api.fetchRunningAccountPeriods(agentId: agentId);
+    final areas = await areasFuture;
+    final runningPeriods = await runningPeriodsFuture;
     final runningAreaIds = runningPeriods.map((p) => p.operatingAreaId).toSet();
     final markedAreas = areas
         .map((a) => a.copyWith(

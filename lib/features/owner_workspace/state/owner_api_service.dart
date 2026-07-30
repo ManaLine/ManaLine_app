@@ -203,22 +203,46 @@ class OwnerApiService {
   // real fix, same as the collection-due-list gap in
   // collection_mode_state.dart.
   Future<OwnerDashboardData> fetchDashboard({required String businessId}) async {
-    final business = await _db.from('businesses').select('business_name, logo_url, business_status').eq('business_id', businessId).single();
+    // PERF: these five reads are mutually independent, so they go out
+    // together rather than one after another. This is the first screen after
+    // login and it was previously five sequential round trips — roughly five
+    // times the latency for no reason.
+    //
+    // Future.wait is required, not stylistic: PostgrestBuilder implements
+    // Future and only issues the request when `then` is called (see
+    // postgrest_builder.dart), so assigning builders to variables and
+    // awaiting them one by one would still run them serially. Future.wait
+    // subscribes to all of them immediately.
+    final results = await Future.wait<dynamic>([
+      _db.from('businesses').select('business_name, logo_url, business_status').eq('business_id', businessId).single(),
+      _db.from('business_members').select('role, membership_status').eq('business_id', businessId),
+      _db.from('loans').select('loan_status, remaining_balance').eq('business_id', businessId),
+      _db.from('investments').select('principal_amount, status').eq('business_id', businessId),
+      _db
+          .from('notifications')
+          .select('notification_type, message, created_at, is_read')
+          .eq('business_id', businessId)
+          .order('created_at', ascending: false)
+          .limit(20),
+    ]);
 
-    final members = await _db.from('business_members').select('role, membership_status').eq('business_id', businessId);
+    final business = results[0] as Map<String, dynamic>;
+    final members = results[1] as List;
+    final loans = results[2] as List;
+    final investments = results[3] as List;
+    final notificationsRaw = results[4] as List;
+
     int countWhere(String role, String status) =>
-        (members as List).where((m) => m['role'] == role && m['membership_status'] == status).length;
+        members.where((m) => m['role'] == role && m['membership_status'] == status).length;
     int countRole(String role) => (members).where((m) => m['role'] == role).length;
 
-    final loans = await _db.from('loans').select('loan_status, remaining_balance').eq('business_id', businessId);
     final activeLoanStatuses = {'Active', 'Grace Period', 'Penalty'};
-    final activeLoansList = (loans as List).where((l) => activeLoanStatuses.contains(l['loan_status']));
+    final activeLoansList = loans.where((l) => activeLoanStatuses.contains(l['loan_status']));
     final penaltyCount = (loans).where((l) => l['loan_status'] == 'Penalty').length;
     final graceCount = (loans).where((l) => l['loan_status'] == 'Grace Period').length;
     final outstandingSum = activeLoansList.fold<double>(0, (sum, l) => sum + (l['remaining_balance'] as num).toDouble());
 
-    final investments = await _db.from('investments').select('principal_amount, status').eq('business_id', businessId);
-    final activeInvestmentSum = (investments as List)
+    final activeInvestmentSum = investments
         .where((i) => i['status'] == 'Active')
         .fold<double>(0, (sum, i) => sum + (i['principal_amount'] as num).toDouble());
 
@@ -229,13 +253,6 @@ class OwnerApiService {
         .where((m) => m['role'] == 'Customer' && m['membership_status'] == 'Active')
         .length;
     final totalCustomerMembershipIds = (members).where((m) => m['role'] == 'Customer').length;
-
-    final notificationsRaw = await _db
-        .from('notifications')
-        .select('notification_type, message, created_at, is_read')
-        .eq('business_id', businessId)
-        .order('created_at', ascending: false)
-        .limit(20);
 
     return OwnerDashboardData(
       businessName: business['business_name'] as String,
@@ -280,7 +297,7 @@ class OwnerApiService {
       investorBalance: activeInvestmentSum,
       liveActivity: const [], // audit_log/collections-derived feed — needs its own query design, deferred (Priority 4-adjacent, not attempted this pass)
       attentionRequired: const [],
-      notifications: (notificationsRaw as List)
+      notifications: notificationsRaw
           .map((n) => NotificationItem(
                 type: n['notification_type'] as String,
                 label: n['message'] as String,

@@ -18,17 +18,25 @@ class BusinessManagementApiService {
   }
 
   Future<BusinessSummary> _summaryFor(String businessId) async {
-    final b = await _db.from('businesses').select('business_id, mlbi, business_name, logo_url, business_status').eq('business_id', businessId).single();
-    final members = await _db.from('business_members').select('role, membership_status').eq('business_id', businessId);
-    final areas = await _db.from('operating_areas').select('operating_area_id').eq('business_id', businessId);
-    int count(String role) => (members as List).where((m) => m['role'] == role && m['membership_status'] == 'Active').length;
+    // PERF: three independent reads. Future.wait rather than assign-then-await
+    // because a PostgrestBuilder only issues its request when `then` is
+    // called, so awaiting them in sequence would still be three serial trips.
+    final results = await Future.wait<dynamic>([
+      _db.from('businesses').select('business_id, mlbi, business_name, logo_url, business_status').eq('business_id', businessId).single(),
+      _db.from('business_members').select('role, membership_status').eq('business_id', businessId),
+      _db.from('operating_areas').select('operating_area_id').eq('business_id', businessId),
+    ]);
+    final b = results[0] as Map<String, dynamic>;
+    final members = results[1] as List;
+    final areas = results[2] as List;
+    int count(String role) => members.where((m) => m['role'] == role && m['membership_status'] == 'Active').length;
     return BusinessSummary(
       businessId: b['business_id'] as String,
       mlbi: b['mlbi'] as String,
       businessName: b['business_name'] as String,
       logoUrl: b['logo_url'] as String?,
       businessStatus: b['business_status'] as String,
-      operatingAreaCount: (areas as List).length,
+      operatingAreaCount: areas.length,
       activeCustomers: count('Customer'),
       activeAgents: count('Agent'),
       activeInvestors: count('Investor'),
@@ -851,12 +859,34 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
     state = state.copyWith(loading: true, clearError: true);
     try {
       final api = ref.read(businessManagementApiServiceProvider);
-      final detail = await api.fetchBusinessDetail(businessId: arg);
-      final areas = await api.fetchOperatingAreas(businessId: arg);
-      final agreements = await api.fetchAgreements(businessId: arg);
-      final members = await api.fetchMembers(businessId: arg);
-      final requests = await api.fetchMembershipRequests(businessId: arg);
-      final periods = await api.fetchAccountPeriods(businessId: arg);
+      // PERF: six independent reads, previously awaited one at a time.
+      //
+      // Started here, awaited below. This works because these are `async`
+      // functions: calling one runs its body synchronously until its first
+      // `await`, which is where the HTTP request is issued — so all six are
+      // in flight before the first `await` line below. (A raw
+      // PostgrestBuilder would NOT behave this way; it only issues its
+      // request when `then` is called, so those need Future.wait instead —
+      // see _summaryFor above.)
+      //
+      // Deliberately not record `.wait`: that throws ParallelWaitError,
+      // which NetworkErrorHandler doesn't recognise as a server-reached
+      // error, so a real Postgres message would get masked behind the
+      // generic "Something went wrong". Awaiting individually keeps the
+      // original PostgrestException.
+      final detailFuture = api.fetchBusinessDetail(businessId: arg);
+      final areasFuture = api.fetchOperatingAreas(businessId: arg);
+      final agreementsFuture = api.fetchAgreements(businessId: arg);
+      final membersFuture = api.fetchMembers(businessId: arg);
+      final requestsFuture = api.fetchMembershipRequests(businessId: arg);
+      final periodsFuture = api.fetchAccountPeriods(businessId: arg);
+
+      final detail = await detailFuture;
+      final areas = await areasFuture;
+      final agreements = await agreementsFuture;
+      final members = await membersFuture;
+      final requests = await requestsFuture;
+      final periods = await periodsFuture;
       state = state.copyWith(
         detail: detail,
         operatingAreas: areas,

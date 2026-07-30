@@ -17,22 +17,26 @@ class CustomerDashboardApiService {
   SupabaseClient get _db => Supabase.instance.client;
 
   Future<CustomerDashboardData> fetchDashboard({required String businessId}) async {
-    final businessRow = await _db
-        .from('businesses')
-        .select('business_name, logo_url')
-        .eq('business_id', businessId)
-        .maybeSingle();
-
-    final customerRow = await _db
-        .from('customers')
-        .select('''
+    // PERF: business and customer lookups are independent of each other, so
+    // they go out together. Future.wait (not record `.wait`) because it
+    // propagates the original PostgrestException rather than wrapping it in a
+    // ParallelWaitError, which NetworkErrorHandler would report as a generic
+    // "Something went wrong" instead of the real server message.
+    final wave1 = await Future.wait<dynamic>([
+      _db.from('businesses').select('business_name, logo_url').eq('business_id', businessId).maybeSingle(),
+      _db
+          .from('customers')
+          .select('''
           customer_id,
           business_members!inner(business_id, membership_status),
           persons!inner(full_name, profile_photo_url),
           loans(loan_id, loan_status, remaining_balance)
         ''')
-        .eq('business_members.business_id', businessId)
-        .maybeSingle();
+          .eq('business_members.business_id', businessId)
+          .maybeSingle(),
+    ]);
+    final businessRow = wave1[0] as Map<String, dynamic>?;
+    final customerRow = wave1[1] as Map<String, dynamic>?;
 
     if (customerRow == null) {
       return CustomerDashboardData.noMemberships();
@@ -57,17 +61,37 @@ class CustomerDashboardApiService {
     // Next payment due: earliest still-Pending loan_schedule row across
     // this customer's active loans. loan_schedule_customer_select_own
     // (0015) scopes this to the caller's own loans.
+    // WAVE 2 — everything below needs customerId (or the loan ids) from wave
+    // 1, but nothing here depends on anything else in wave 2, so all three
+    // go out together. The schedule read is skipped entirely when there are
+    // no active loans rather than spending a round trip on an empty filter.
+    final scheduleFuture = activeLoanIds.isEmpty
+        ? null
+        : _db
+            .from('loan_schedule')
+            .select('due_date, installment_amount, loan_id')
+            .inFilter('loan_id', activeLoanIds)
+            .eq('status', 'Pending')
+            .order('due_date', ascending: true)
+            .limit(1);
+
+    final wave2 = await Future.wait<dynamic>([
+      _db.from('loan_requests').select('request_id').eq('customer_id', customerId).eq('status', 'Pending'),
+      _db
+          .from('customer_online_payments')
+          .select('online_payment_id')
+          .eq('customer_id', customerId)
+          .eq('status', 'Submitted'),
+      if (scheduleFuture != null) scheduleFuture,
+    ]);
+
+    final pendingLoanRequestsRows = wave2[0] as List;
+    final pendingOnlinePaymentsRows = wave2[1] as List;
+
     DateTime? nextDueDate;
     double? nextDueAmount;
-    if (activeLoanIds.isNotEmpty) {
-      final scheduleRows = await _db
-          .from('loan_schedule')
-          .select('due_date, installment_amount, loan_id')
-          .inFilter('loan_id', activeLoanIds)
-          .eq('status', 'Pending')
-          .order('due_date', ascending: true)
-          .limit(1);
-      final rows = (scheduleRows as List).cast<Map<String, dynamic>>();
+    if (scheduleFuture != null) {
+      final rows = (wave2[2] as List).cast<Map<String, dynamic>>();
       if (rows.isNotEmpty) {
         nextDueDate = DateTime.parse(rows.first['due_date'] as String);
         nextDueAmount = (rows.first['installment_amount'] as num).toDouble();
@@ -83,20 +107,8 @@ class CustomerDashboardApiService {
     // flagged for confirmation against the real CW-003 screen spec if
     // "pending" there was meant to include something broader than the
     // enum's own Pending value.
-    final pendingLoanRequestsRows = await _db
-        .from('loan_requests')
-        .select('request_id')
-        .eq('customer_id', customerId)
-        .eq('status', 'Pending');
-    final pendingLoanRequestsCount = (pendingLoanRequestsRows as List).length;
-
-    // Pending online payments awaiting Owner/Agent confirmation.
-    final pendingOnlinePaymentsRows = await _db
-        .from('customer_online_payments')
-        .select('online_payment_id')
-        .eq('customer_id', customerId)
-        .eq('status', 'Submitted');
-    final pendingOnlinePaymentsCount = (pendingOnlinePaymentsRows as List).length;
+    final pendingLoanRequestsCount = pendingLoanRequestsRows.length;
+    final pendingOnlinePaymentsCount = pendingOnlinePaymentsRows.length;
 
     return CustomerDashboardData(
       hasActiveMembership: true,
@@ -183,13 +195,25 @@ class CustomerDashboardNotifier extends AsyncNotifier<CustomerDashboardData> {
     return CustomerDashboardData.noMemberships();
   }
 
+  /// Which business the currently-held value belongs to — see [load].
+  String? _loadedForBusinessId;
+
   // S1/S2 — initial load, and reload on Business Switched.
   Future<void> load(String businessId) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() {
+    // Keep the existing value on screen while revalidating, so revisiting the
+    // dashboard doesn't flash a spinner over data that is already loaded.
+    // Except on a Business Switch (this method serves both) — holding the
+    // previous business's loan balances while another one loads would show
+    // the customer figures that aren't theirs for that business.
+    final sameBusiness = _loadedForBusinessId == businessId;
+    if (!state.hasValue || !sameBusiness) state = const AsyncLoading();
+
+    final next = await AsyncValue.guard(() {
       final api = ref.read(customerDashboardApiServiceProvider);
       return api.fetchDashboard(businessId: businessId);
     });
+    _loadedForBusinessId = next.hasValue ? businessId : null;
+    state = next;
   }
 }
 

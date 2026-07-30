@@ -21,14 +21,37 @@ class InvestorDashboardApiService {
   InvestorDashboardApiService(this._db);
 
   Future<InvestorDashboardData> fetchDashboard({required String businessId, required String personId}) async {
-    final membershipRows = await _db
-        .from('business_members')
-        .select('membership_id, membership_status, verification_status, businesses(business_name), persons!business_members_person_id_fkey(full_name)')
-        .eq('person_id', personId)
-        .eq('business_id', businessId)
-        .eq('role', 'Investor')
-        .limit(1);
-    final memberships = (membershipRows as List).cast<Map<String, dynamic>>();
+    // PERF: this method is a genuine dependency chain — membership ->
+    // investor -> investments -> {ledger, withdrawals} — so there is less to
+    // parallelise here than on the other dashboards. Two wins are available
+    // and taken: notifications only need personId, so they ride along with
+    // the membership lookup instead of waiting for the whole chain; and the
+    // ledger and withdrawal reads both depend only on investmentIds, so they
+    // go out together at the end. 6 sequential trips become 4 waves.
+    //
+    // A deeper win exists — embedding investors(investor_id) and investments
+    // into the membership select would collapse three trips into one — but
+    // nested-embed filters are where this codebase has hit PGRST201
+    // ambiguity bugs before, so it is deliberately not attempted right
+    // before live testing.
+    final wave1 = await Future.wait<dynamic>([
+      _db
+          .from('business_members')
+          .select('membership_id, membership_status, verification_status, businesses(business_name), persons!business_members_person_id_fkey(full_name)')
+          .eq('person_id', personId)
+          .eq('business_id', businessId)
+          .eq('role', 'Investor')
+          .limit(1),
+      _db
+          .from('notifications')
+          .select('notification_type, message, created_at, is_read')
+          .eq('recipient_person_id', personId)
+          .order('created_at', ascending: false)
+          .limit(20),
+    ]);
+    final membershipRows = wave1[0] as List;
+    final notificationRows = wave1[1] as List;
+    final memberships = membershipRows.cast<Map<String, dynamic>>();
     if (memberships.isEmpty || memberships.first['membership_status'] != 'Active') {
       return InvestorDashboardData.noMemberships();
     }
@@ -54,14 +77,30 @@ class InvestorDashboardApiService {
     final totalBalance = activeInvestments.fold<double>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toDouble() ?? 0));
     final investmentIds = investments.map((i) => i['investment_id']).toList();
 
+    // Both of these depend only on investmentIds, so they go out together
+    // rather than one after the other. Skipped entirely when the investor has
+    // no investments, instead of spending two trips on empty filters.
+    //
+    // Notifications were fetched back in wave 1 (notifications_self_select,
+    // 0018 RLS, scopes them to the caller's own recipient_person_id — safe
+    // for any logged-in role, unlike OW-001 which reads the same table
+    // business_id-scoped since an Owner has one identity per business).
     double totalAccrued = 0;
     double totalPaid = 0;
+    int pendingWithdrawals = 0;
+    int pendingInterestPayments = 0;
+
     if (investmentIds.isNotEmpty) {
-      final ledgerRows = await _db
-          .from('investment_interest_ledger')
-          .select('amount, entry_type')
-          .inFilter('investment_id', investmentIds);
-      for (final row in (ledgerRows as List).cast<Map<String, dynamic>>()) {
+      final wave4 = await Future.wait<dynamic>([
+        _db.from('investment_interest_ledger').select('amount, entry_type').inFilter('investment_id', investmentIds),
+        _db
+            .from('investment_withdrawal_requests')
+            .select('withdrawal_type, status')
+            .inFilter('investment_id', investmentIds)
+            .eq('status', 'Pending'),
+      ]);
+
+      for (final row in (wave4[0] as List).cast<Map<String, dynamic>>()) {
         final amount = (row['amount'] as num?)?.toDouble() ?? 0;
         if (row['entry_type'] == 'Payment') {
           totalPaid += amount;
@@ -69,31 +108,11 @@ class InvestorDashboardApiService {
           totalAccrued += amount;
         }
       }
-    }
 
-    int pendingWithdrawals = 0;
-    int pendingInterestPayments = 0;
-    if (investmentIds.isNotEmpty) {
-      final withdrawalRows = await _db
-          .from('investment_withdrawal_requests')
-          .select('withdrawal_type, status')
-          .inFilter('investment_id', investmentIds)
-          .eq('status', 'Pending');
-      final withdrawals = (withdrawalRows as List).cast<Map<String, dynamic>>();
+      final withdrawals = (wave4[1] as List).cast<Map<String, dynamic>>();
       pendingWithdrawals = withdrawals.length;
       pendingInterestPayments = withdrawals.where((w) => w['withdrawal_type'] == 'Interest Only').length;
     }
-
-    // notifications_self_select (0018 RLS) scopes this to the caller's
-    // own recipient_person_id — safe for any logged-in role, not just
-    // Owner (whose OW-001 dashboard reads the same table business_id-
-    // scoped instead, since an Owner has one identity per business).
-    final notificationRows = await _db
-        .from('notifications')
-        .select('notification_type, message, created_at, is_read')
-        .eq('recipient_person_id', personId)
-        .order('created_at', ascending: false)
-        .limit(20);
 
     return InvestorDashboardData(
       hasActiveMembership: true,
@@ -106,7 +125,7 @@ class InvestorDashboardApiService {
       interestPaidToDate: totalPaid,
       pendingWithdrawalRequests: pendingWithdrawals,
       pendingInterestPaymentRequests: pendingInterestPayments,
-      notifications: (notificationRows as List)
+      notifications: notificationRows
           .map((n) => InvestorNotification(
                 type: n['notification_type'] as String,
                 message: n['message'] as String,
@@ -169,14 +188,25 @@ class InvestorDashboardNotifier extends AsyncNotifier<InvestorDashboardData> {
     return InvestorDashboardData.noMemberships();
   }
 
+  /// Which business the currently-held value belongs to — see [load].
+  String? _loadedForBusinessId;
+
   Future<void> load(String businessId) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() {
+    // Keep the existing value visible while revalidating, so a revisit doesn't
+    // flash a spinner over already-loaded figures. Except on a Business
+    // Switch, where holding the previous business's investment balances would
+    // show the investor another business's money.
+    final sameBusiness = _loadedForBusinessId == businessId;
+    if (!state.hasValue || !sameBusiness) state = const AsyncLoading();
+
+    final next = await AsyncValue.guard(() {
       final api = ref.read(investorDashboardApiServiceProvider);
       final personId = ref.read(authFlowProvider).personId;
       if (personId == null) return Future.value(InvestorDashboardData.noMemberships());
       return api.fetchDashboard(businessId: businessId, personId: personId);
     });
+    _loadedForBusinessId = next.hasValue ? businessId : null;
+    state = next;
   }
 }
 

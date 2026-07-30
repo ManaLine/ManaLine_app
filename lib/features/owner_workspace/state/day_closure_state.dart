@@ -47,27 +47,34 @@ class DayClosureApiService {
     final dayStart = '$businessDate 00:00:00';
     final dayEnd = '$businessDate 23:59:59';
 
-    final draftRows = await _db
-        .from('collection_drafts')
-        .select('draft_id, business_members!inner(business_id)')
-        .eq('business_members.business_id', businessId)
-        .eq('status', 'Draft')
-        .gte('created_at', dayStart)
-        .lte('created_at', dayEnd);
-    final pendingDraftCount = (draftRows as List).length;
+    // PERF: the draft count and the ledger row are independent, so both go
+    // out together. app.day_closure_expected deliberately stays OUT of this
+    // batch — it raises P0002 when no day_ledger row exists, which would turn
+    // the graceful "No Ledger Activity" result below into a thrown error.
+    final results = await Future.wait<dynamic>([
+      _db
+          .from('collection_drafts')
+          .select('draft_id, business_members!inner(business_id)')
+          .eq('business_members.business_id', businessId)
+          .eq('status', 'Draft')
+          .gte('created_at', dayStart)
+          .lte('created_at', dayEnd),
+      _db
+          .from('day_ledger')
+          .select('opening_balance, total_collections, total_loan_distribution, '
+              'investor_deposits, investor_withdrawals, total_expenses, closing_balance, status')
+          .eq('business_id', businessId)
+          .eq('business_date', businessDate)
+          .maybeSingle(),
+    ]);
+    final draftRows = results[0] as List;
+    final ledgerRow = results[1] as Map<String, dynamic>?;
 
+    final pendingDraftCount = draftRows.length;
     final blockingIssues = <DayClosureBlockingIssue>[
       if (pendingDraftCount > 0)
         DayClosureBlockingIssue(type: 'Pending Drafts', count: pendingDraftCount, detailLink: '/ag-005'),
     ];
-
-    final ledgerRow = await _db
-        .from('day_ledger')
-        .select('opening_balance, total_collections, total_loan_distribution, '
-            'investor_deposits, investor_withdrawals, total_expenses, closing_balance, status')
-        .eq('business_id', businessId)
-        .eq('business_date', businessDate)
-        .maybeSingle();
 
     if (ledgerRow == null) {
       // No day_ledger row yet for this date — nothing has happened on this

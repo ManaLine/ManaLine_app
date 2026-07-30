@@ -54,9 +54,29 @@ class _ManaSkeletonGroupState extends State<ManaSkeletonGroup>
 
   @override
   Widget build(BuildContext context) {
-    return _SkeletonTicker(
-      animation: _controller,
-      child: widget.child,
+    // Stop the ticker entirely under reduce-motion rather than just ignoring
+    // its value downstream — a repeating controller still schedules a frame
+    // every vsync, which is wasted battery on the low-end phones this app
+    // targets.
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (reduceMotion && _controller.isAnimating) {
+      _controller.stop();
+    } else if (!reduceMotion && !_controller.isAnimating) {
+      _controller.repeat();
+    }
+
+    // Screen readers otherwise find a screenful of decorative boxes and
+    // announce nothing useful. One "Loading" label for the whole group, with
+    // the placeholders themselves excluded from the tree.
+    return Semantics(
+      label: 'Loading',
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: _SkeletonTicker(
+          animation: _controller,
+          child: widget.child,
+        ),
+      ),
     );
   }
 }
@@ -105,6 +125,13 @@ class ManaSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final animation = _SkeletonTicker.maybeOf(context);
 
+    // ACCESSIBILITY: honour the OS "reduce motion" setting. A repeating sweep
+    // is exactly the kind of looping animation that triggers discomfort for
+    // people with vestibular sensitivity, and on a low-end phone it also burns
+    // frames for a purely decorative effect. The static block still reads as
+    // a placeholder, so nothing is lost but the shimmer.
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
     final block = Container(
       width: width,
       height: height,
@@ -117,7 +144,7 @@ class ManaSkeleton extends StatelessWidget {
 
     // No group above us: render the static block. Still a better loading
     // affordance than a spinner, and never throws for a missing ancestor.
-    if (animation == null) return block;
+    if (animation == null || reduceMotion) return block;
 
     return AnimatedBuilder(
       animation: animation,

@@ -91,7 +91,7 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
               const SizedBox(height: 4),
               const ManaText.raw(
                 'FINANCE · GROWTH · TRUST',
-                style: TextStyle(color: ManaColors.brassLight, letterSpacing: 2, fontSize: 12),
+                style: TextStyle(color: ManaColors.brassLight, letterSpacing: 2, fontSize: 13),
               ),
               const SizedBox(height: ManaSpacing.xxl),
               if (_state == _StartupState.slowLoad) ...[

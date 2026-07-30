@@ -311,7 +311,7 @@ class _IncompleteStep extends StatelessWidget {
             title: const ManaText('complete profile'),
             subtitle: const ManaText.raw(
               'Capture Photo, Password, Address, PIN Code, Village, Identity Documents, OTP Verification, Terms Acceptance.',
-              style: TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: 13),
             ),
             trailing: const Icon(Icons.chevron_right),
             enabled: _canOpen,
@@ -328,7 +328,7 @@ class _IncompleteStep extends StatelessWidget {
           const SizedBox(height: ManaSpacing.sm),
           const ManaText.raw(
             'No member selected — create or select a member first.',
-            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
           ),
         ],
       ],

@@ -226,7 +226,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                     child: const ManaText.raw(
                       'Available Balance is below ₹1.00 — withdrawal requests are disabled.',
                       style:
-                          TextStyle(color: ManaColors.statusWarn, fontSize: 12),
+                          TextStyle(color: ManaColors.statusWarn, fontSize: 13),
                     ),
                   ),
                 ],

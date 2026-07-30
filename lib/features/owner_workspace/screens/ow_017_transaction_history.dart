@@ -164,7 +164,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                           child: Column(
                             children: [
                               const ManaText('net change (this view)',
-                                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                               const SizedBox(height: 4),
                               ManaText.raw(
                                 _currency.format(netChange),
@@ -225,8 +225,8 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          ManaText.raw(e.key, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
-                          ManaText.raw('${e.value}', style: const TextStyle(fontSize: 12)),
+                          ManaText.raw(e.key, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                          ManaText.raw('${e.value}', style: const TextStyle(fontSize: 13)),
                         ],
                       ),
                     )),
@@ -266,18 +266,18 @@ class _TxnTile extends StatelessWidget {
         child: Icon(_icon, color: color, size: 20),
       ),
       title: ManaText.raw(txn.title, style: const TextStyle(fontSize: 14)),
-      subtitle: ManaText.raw(_dateFmt.format(txn.timestamp), style: const TextStyle(fontSize: 12)),
+      subtitle: ManaText.raw(_dateFmt.format(txn.timestamp), style: const TextStyle(fontSize: 13)),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           ManaText.raw(
             '${txn.isCredit ? '+' : '-'}${_currency.format(txn.amount)}',
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
+            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
           ),
           ManaText.raw(
             _currency.format(runningBalance),
-            style: const TextStyle(color: ManaColors.textSecondary, fontSize: 11),
+            style: const TextStyle(color: ManaColors.textSecondary, fontSize: 16),
           ),
         ],
       ),

@@ -79,7 +79,7 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
         child: async.when(
           // Only shown on a genuine cold load — revisits keep the previous
           // data on screen and revalidate behind it (see load()).
-          loading: () => const ManaSkeletonList(itemCount: 5, itemHeight: 104),
+          loading: () => const ManaSkeletonList(itemCount: 5, itemHeight: 120),
           error: (e, _) => _errorState(e),
           data: (data) => data.hasActiveMembership
               ? RefreshIndicator(
@@ -126,7 +126,7 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
               child: ManaText.raw(
                 e.toString(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: ManaColors.statusBad),
+                style: const TextStyle(fontSize: 13, color: ManaColors.statusBad),
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),

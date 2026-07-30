@@ -98,7 +98,7 @@ class _WorkforceManagementScreenState
                         child: Center(
                           child: ManaText.raw('Could not load agents.\n${state.error}',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+                              style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                         ),
                       )
                     else if (state.filtered.isEmpty)
@@ -257,7 +257,7 @@ class _AgentRow extends StatelessWidget {
           child: ManaText.raw(
             '${agent.mlid} · ${agent.phoneNumber}',
             style:
-                const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
           ),
         ),
         trailing: ManaStatusPill(label: agent.status, status: _statusKind),
@@ -341,7 +341,7 @@ class _RegisterNewAgentSheetState
               const ManaText.raw(
                 'For an agent who does not yet have a MANA LINE ID. Reuses the same '
                 'Identity Registration fields as account registration.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: ManaSpacing.lg),
               TextField(
@@ -470,7 +470,7 @@ class _AddExistingAgentSheetState
             const SizedBox(height: ManaSpacing.xs),
             const ManaText.raw(
               'For an agent who already has a MANA LINE ID (MLID/MLPI/MLTI).',
-              style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
             Row(
@@ -519,7 +519,7 @@ class _AddExistingAgentSheetState
               const ManaText.raw(
                   'No match found yet — search to look up this MLID.',
                   style:
-                      TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                      TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ],
         ),
       ),
@@ -802,7 +802,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
         const SizedBox(height: ManaSpacing.xs),
         const ManaText.raw(
             'Not an expense — reduced from final salary (BR-046).',
-            style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _profitShare,
@@ -876,7 +876,7 @@ class _AreasTab extends ConsumerWidget {
         const ManaText.raw(
           'Agent cannot choose areas outside those assigned here — Agent-side area '
           'selection (e.g. Collection Mode) is restricted to this set.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         if (profile.assignedAreas.isEmpty)
@@ -918,14 +918,14 @@ class _VillagePickerSheet extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw('No Operating Areas exist yet for this business — add one from Business Management first.',
-                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             )
           else
             ...areas.map((a) => ListTile(
                   leading: const Icon(Icons.location_on_outlined, color: ManaColors.brass),
                   title: ManaText.raw('${a.villageTownName} — ${a.pinCode}'),
                   subtitle: ManaText.raw(a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}',
-                      style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                      style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   onTap: () => Navigator.of(context).pop(a),
                 )),
           const SizedBox(height: ManaSpacing.md),

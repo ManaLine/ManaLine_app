@@ -64,7 +64,7 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
                       child: const ManaText.raw(
                         'GAP: no confirmed loan-groups API exists yet — this screen is built against '
                         'the implied shape only, pending a dedicated API addendum.',
-                        style: TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: 13),
                       ),
                     ),
                     const SizedBox(height: ManaSpacing.md),
@@ -274,7 +274,7 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 4),
                       const ManaText.raw(
                         'Computed live from member loans — never stored.',
-                        style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
                     ],
                   ),
@@ -302,7 +302,7 @@ class GroupLoanDetailScreen extends ConsumerWidget {
               const SizedBox(height: ManaSpacing.md),
               const ManaText.raw(
                 'Membership is fixed permanently at creation — no additions or removals.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
             ],
           ),

@@ -50,7 +50,7 @@ class _DocumentsListViewState extends State<DocumentsListView> {
             child: Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw('Could not load documents.\n${snapshot.error}',
-                  textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+                  textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ),
           );
         }
@@ -71,7 +71,7 @@ class _DocumentsListViewState extends State<DocumentsListView> {
                     color: doc != null ? ManaColors.brass : null),
                 title: ManaText(label),
                 subtitle: doc == null
-                    ? const ManaText.raw('Not uploaded yet', style: TextStyle(fontSize: 11, color: ManaColors.textSecondary))
+                    ? const ManaText.raw('Not uploaded yet', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))
                     : null,
                 trailing: const Icon(Icons.chevron_right),
                 onTap: doc == null

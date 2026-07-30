@@ -71,7 +71,7 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
                     'Temporary ID issued. Add your Aadhaar later from your '
                     'profile to get your permanent ID.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: ManaColors.statusWarn, fontSize: 12),
+                    style: TextStyle(color: ManaColors.statusWarn, fontSize: 13),
                   ),
                 ],
                 const SizedBox(height: ManaSpacing.xxl),

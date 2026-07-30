@@ -247,7 +247,7 @@ class _StepChip extends StatelessWidget {
       child: ManaText.raw(
         label,
         style:
-            TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+            TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
       ),
     );
   }
@@ -265,7 +265,7 @@ class _InlineErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(
           horizontal: ManaSpacing.lg, vertical: ManaSpacing.sm),
       child: ManaText.raw(message,
-          style: const TextStyle(fontSize: 12, color: ManaColors.statusBad)),
+          style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
     );
   }
 }
@@ -344,7 +344,7 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
         const ManaText.raw(
           'Look up the existing account by MLID or Aadhaar, then attach the '
           'second person\'s submitted proof document.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         _SectionCard(
@@ -352,7 +352,7 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const ManaText.raw('Search by MLID or Aadhaar Number',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               Row(
                 children: [
@@ -394,16 +394,16 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
                       ManaText.raw(
                           'Existing MLID: ${caseState.existingAccount!.currentMlid}',
                           style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w700)),
+                              fontSize: 13, fontWeight: FontWeight.w700)),
                       ManaText.raw(
                           'Account Holder: ${caseState.existingAccount!.fullName}',
                           style: const TextStyle(
-                              fontSize: 12, color: ManaColors.textSecondary)),
+                              fontSize: 13, color: ManaColors.textSecondary)),
                       const SizedBox(height: 4),
                       const ManaText.raw(
                         'Visible to Support only — never shown to the registrant.',
                         style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 13,
                             color: ManaColors.textDisabled,
                             fontStyle: FontStyle.italic),
                       ),
@@ -420,7 +420,7 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const ManaText.raw('Second Person\'s Proof Document',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -498,14 +498,14 @@ class _ManualVerificationStep extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(description,
             style:
-                const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         _SectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const ManaText.raw('Decision',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               _DecisionTile(
                 label: 'Verified',
@@ -533,7 +533,7 @@ class _ManualVerificationStep extends ConsumerWidget {
           const ManaText.raw(
             'Marked Not Verified. Case stays open at this step until '
             'genuine proof is submitted — no automatic escalation or timeout.',
-            style: TextStyle(fontSize: 12, color: ManaColors.statusWarn),
+            style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
           ),
         ],
         const SizedBox(height: ManaSpacing.xl),
@@ -613,7 +613,7 @@ class _SuspensionConfirmStep extends ConsumerWidget {
           'this suspends the original account\'s business(es) where they hold '
           'Owner, and their memberships elsewhere. This does not suspend '
           'businesses they don\'t own.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (caseState.loadingSuspensionImpact)
@@ -625,7 +625,7 @@ class _SuspensionConfirmStep extends ConsumerWidget {
           const _SectionCard(
               child: ManaText.raw('No impact rows returned.',
                   style:
-                      TextStyle(fontSize: 12, color: ManaColors.textSecondary)))
+                      TextStyle(fontSize: 13, color: ManaColors.textSecondary)))
         else
           _SectionCard(
             child: Column(
@@ -633,7 +633,7 @@ class _SuspensionConfirmStep extends ConsumerWidget {
               children: [
                 const ManaText.raw('Will Be Suspended',
                     style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: ManaSpacing.sm),
                 for (final row in rows)
                   Padding(
@@ -720,7 +720,7 @@ class _OriginalHolderIntakeStepState
         const ManaText.raw(
           'Original account holder has been notified and asked to submit '
           'their own correct Aadhaar and proof to Support.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         _SectionCard(
@@ -728,7 +728,7 @@ class _OriginalHolderIntakeStepState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const ManaText.raw('Corrected Aadhaar Number',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               TextField(
                 controller: _aadhaarController,
@@ -738,7 +738,7 @@ class _OriginalHolderIntakeStepState
               ),
               const SizedBox(height: ManaSpacing.lg),
               const ManaText.raw('Proof Document',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -845,7 +845,7 @@ class _CaseClosedStep extends ConsumerWidget {
           'and the MLID correction is complete. person_id never changed — '
           'every historical loan, investment, and membership stays correctly '
           'attributed automatically. Nothing to manually reattach.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (history != null)
@@ -855,7 +855,7 @@ class _CaseClosedStep extends ConsumerWidget {
               children: [
                 const ManaText.raw('MLID Correction Record (Read-Only)',
                     style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw('Old MLID: ${history.oldMlid}',
                     style: const TextStyle(fontSize: 13)),
@@ -863,7 +863,7 @@ class _CaseClosedStep extends ConsumerWidget {
                     style: const TextStyle(fontSize: 13)),
                 ManaText.raw('Reason: ${history.reason}',
                     style: const TextStyle(
-                        fontSize: 12, color: ManaColors.textSecondary)),
+                        fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ),
           ),
@@ -873,13 +873,13 @@ class _CaseClosedStep extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ManaText.raw('Next Step',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
                 'The disputed MLID slot is now free. The second person\'s real '
                 'registration can proceed — either Support completes it '
                 'separately, or hands back to self-service.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
             ],
           ),

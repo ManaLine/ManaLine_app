@@ -152,7 +152,7 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
         child: switch (state.stage) {
           // Structure-shaped placeholder instead of a spinner while the
           // Opening-BF gate resolves.
-          AgentSessionStage.loadingGate => const ManaSkeletonList(itemCount: 4, itemHeight: 96),
+          AgentSessionStage.loadingGate => const ManaSkeletonList(itemCount: 4, itemHeight: 112),
           AgentSessionStage.bfBlockedNoAssignment => const _BfNotGrantedBlock(),
           AgentSessionStage.bfConfirmPending => _BfGate(state: state, agentId: widget.agentId, businessId: widget.businessId),
           AgentSessionStage.bfUpdateRequested => const _BfUpdateRequestedBlock(),
@@ -269,7 +269,7 @@ class _BfGateState extends ConsumerState<_BfGate> {
                   'Confirm this figure to proceed, or Update if it looks wrong — '
                   'you will be blocked from the workspace until the Owner corrects it.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
                 const SizedBox(height: ManaSpacing.lg),
                 Row(
@@ -396,7 +396,7 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
         const SizedBox(height: ManaSpacing.xs),
         const ManaText.raw(
           'Only areas enabled by your Owner are shown. Select one or more to start today\'s Business Session.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         if (areas.isEmpty)
@@ -472,7 +472,7 @@ class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
             const SizedBox(height: ManaSpacing.xs),
             const ManaText.raw(
               'Adding an area starts working it immediately; removing one stops new collections there for today (its Account Period keeps running to its own end date).',
-              style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
             ...areas.map((area) => CheckboxListTile(
@@ -604,7 +604,7 @@ class _SectionCard extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ManaText.raw(r.$1, style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                      ManaText.raw(r.$1, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                       ManaText.raw(r.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
@@ -636,7 +636,7 @@ class _CompensationSection extends StatelessWidget {
             const ManaText('my compensation', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.xs),
             const ManaText.raw('Read-only, set by Owner.',
-                style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             ...[
               ('Fixed Salary', _currency.format(d.fixedSalary)),
@@ -651,14 +651,14 @@ class _CompensationSection extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ManaText.raw(r.$1, style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                      ManaText.raw(r.$1, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                       ManaText.raw(r.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 )),
             if (d.salaryHistory.isNotEmpty) ...[
               const SizedBox(height: ManaSpacing.sm),
-              const ManaText.raw('Salary History', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const ManaText.raw('Salary History', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.xs),
               ...d.salaryHistory.take(6).map((h) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -666,8 +666,8 @@ class _CompensationSection extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ManaText.raw(h.cycleLabel,
-                            style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
-                        ManaText.raw(_currency.format(h.amount), style: const TextStyle(fontSize: 12)),
+                            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        ManaText.raw(_currency.format(h.amount), style: const TextStyle(fontSize: 16)),
                       ],
                     ),
                   )),
@@ -844,7 +844,7 @@ class _QuickActionTile extends StatelessWidget {
           children: [
             Icon(icon, color: ManaColors.ink),
             const SizedBox(height: ManaSpacing.xs),
-            ManaText(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11)),
+            ManaText(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13)),
           ],
         ),
       ),
@@ -867,14 +867,14 @@ class _LiveActivity extends StatelessWidget {
             const ManaText('live activity', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
-              const ManaText.raw('Nothing yet today.', style: TextStyle(fontSize: 12, color: ManaColors.textSecondary))
+              const ManaText.raw('Nothing yet today.', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))
             else
               ...entries.take(10).map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
                     child: Row(
                       children: [
                         ManaText.raw(_time.format(e.at),
-                            style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         const SizedBox(width: ManaSpacing.sm),
                         Expanded(child: ManaText.raw(e.description, style: const TextStyle(fontSize: 13))),
                       ],

@@ -547,7 +547,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                       const SizedBox(height: ManaSpacing.sm),
                       ManaText.raw(
                         'PIN Code above (${_pinCode.text.trim().isEmpty ? "not yet entered" : _pinCode.text.trim()}) will be used for this village.',
-                        style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
                       const SizedBox(height: ManaSpacing.sm),
                       Row(
@@ -579,7 +579,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               if (_selectedVillageLabel != null) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw('Selected: $_selectedVillageLabel',
-                    style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
               const SizedBox(height: ManaSpacing.xl),
 
@@ -622,13 +622,13 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: ManaText.raw(_aadhaarError!,
-                      style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+                      style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                 ),
               const SizedBox(height: ManaSpacing.sm),
               const ManaText.raw(
                 'Enter your Aadhaar Number carefully. Incorrect entry may result '
                 'in account suspension until resolved.',
-                style: TextStyle(fontSize: 12, color: ManaColors.statusWarn),
+                style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
               ),
               const SizedBox(height: ManaSpacing.lg),
 
@@ -661,10 +661,10 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const ManaText('still needed to register',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 4),
                       ..._missingRequirements.map(
-                        (m) => ManaText.raw('• $m', style: const TextStyle(fontSize: 12)),
+                        (m) => ManaText.raw('• $m', style: const TextStyle(fontSize: 13)),
                       ),
                     ],
                   ),

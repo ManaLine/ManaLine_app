@@ -49,13 +49,13 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
                     ManaText.raw(DateFormat('d MMM yyyy').format(DateTime.now()),
-                        style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                     const SizedBox(height: ManaSpacing.sm),
                     _AgentSummaryStrip(state: state),
                     const SizedBox(height: ManaSpacing.xs),
                     const ManaText.raw(
                       'Sorted by: penalty → grace period → today\'s due → village',
-                      style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
                     if (state.sorted.isEmpty)
@@ -161,9 +161,9 @@ class _CustomerDueRow extends StatelessWidget {
           ],
         ),
         subtitle: ManaText.raw('${row.village} · ${row.loanNumber} · LRI ${row.lineRepaymentIndex}',
-            style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         trailing: ManaText.raw(_currency.format(row.installmentDue),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         onTap: onTap,
       ),
     );

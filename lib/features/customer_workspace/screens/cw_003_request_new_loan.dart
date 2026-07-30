@@ -251,7 +251,7 @@ class _TemplateTile extends StatelessWidget {
         title: ManaText.raw(template.templateName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
           '${_currency.format(template.defaultAmount)} · ${template.durationValue} × ${template.repaymentFrequency}',
-          style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
         onTap: onTap,
       ),
@@ -275,7 +275,7 @@ class _CustomAmountTile extends StatelessWidget {
         title: const ManaText('request custom amount'),
         subtitle: const ManaText.raw(
           'Not tied to a template — enter your own amount and frequency.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         onTap: onTap,
       ),

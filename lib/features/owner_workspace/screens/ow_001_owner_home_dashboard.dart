@@ -134,7 +134,7 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
               child: ManaText.raw(
                 e.toString(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: ManaColors.statusBad),
+                style: const TextStyle(fontSize: 13, color: ManaColors.statusBad),
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -272,7 +272,7 @@ class _Header extends ConsumerWidget {
                 ManaText.raw(businessName.isEmpty ? 'Business' : businessName,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ManaText.raw(DateFormat('EEE, d MMM').format(now),
-                    style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ),
           ),
@@ -384,9 +384,9 @@ class _NotificationsSheet extends StatelessWidget {
                             color: n.read ? ManaColors.textSecondary : ManaColors.brass,
                           ),
                           title: ManaText.raw(n.label, style: const TextStyle(fontSize: 13)),
-                          subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                          subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                           trailing: ManaText.raw(DateFormat('d MMM, hh:mm a').format(n.timestamp),
-                              style: const TextStyle(fontSize: 10, color: ManaColors.textSecondary)),
+                              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         );
                       },
                     ),
@@ -492,7 +492,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
             const ManaText('search', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.xs),
             const ManaText.raw('Search by Phone, MANA LINE ID, Aadhaar, or Name.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
             Row(
               children: [
@@ -514,7 +514,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
             ),
             const SizedBox(height: ManaSpacing.md),
             if (_error != null)
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             if (_found != null)
               Card(
                 child: Column(
@@ -528,7 +528,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                       const Padding(
                         padding: EdgeInsets.fromLTRB(ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
                         child: ManaText.raw('Not a member of this business.',
-                            style: TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+                            style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                       )
                     else
                       // A person can hold more than one role in the same
@@ -658,7 +658,7 @@ class _TodaysSummary extends StatelessWidget {
                       ManaText.raw(
                         _currency.format(r.$2),
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: r.$3 && r.$2 < 0 ? ManaColors.statusBad : ManaColors.textPrimary,
                         ),
@@ -774,7 +774,7 @@ class _QuickActionGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
+        ManaText(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.xs),
         GridView.builder(
           shrinkWrap: true,
@@ -800,7 +800,7 @@ class _QuickActionGroup extends StatelessWidget {
                     children: [
                       Icon(icon, color: ManaColors.brass),
                       const SizedBox(height: ManaSpacing.xs),
-                      ManaText(label, textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 11)),
+                      ManaText(label, textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 13)),
                     ],
                   ),
                 ),
@@ -837,7 +837,7 @@ class _LiveActivity extends StatelessWidget {
                   leading: const Icon(Icons.circle, size: 8, color: ManaColors.brass),
                   title: ManaText.raw(a.label, style: const TextStyle(fontSize: 13)),
                   trailing: ManaText.raw(DateFormat('hh:mm a').format(a.timestamp),
-                      style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                      style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                 ))
             .toList(),
       ),
@@ -886,7 +886,7 @@ class _AttentionRequired extends StatelessWidget {
                       color: c.priority == 'High' ? ManaColors.statusBad : ManaColors.statusWarn),
                   title: ManaText.raw(c.type, style: const TextStyle(fontSize: 13)),
                   subtitle: ManaText.raw('Updated ${DateFormat('d MMM, hh:mm a').format(c.lastUpdated)}',
-                      style: const TextStyle(fontSize: 11)),
+                      style: const TextStyle(fontSize: 13)),
                   trailing: ManaStatusPill(
                     label: '${c.count}',
                     status: c.priority == 'High' ? ManaStatus.bad : ManaStatus.warn,
@@ -941,7 +941,7 @@ class _BusinessOverview extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                ManaText(label, style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ),
           ),
@@ -982,7 +982,7 @@ class _WorkforceSnapshot extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ManaText(label, style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+          ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ],
       );
 }
@@ -1017,7 +1017,7 @@ class _InvestorSnapshot extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ManaText(label, style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+          ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ],
       );
 }

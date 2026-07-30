@@ -67,7 +67,7 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
           child: state.loading && state.rows.isEmpty
               // Ledger rows carry ~10 figures each, so the placeholders are
               // tall to match — a short skeleton would jump when data lands.
-              ? const ManaSkeletonList(itemHeight: 150)
+              ? const ManaSkeletonList(itemHeight: 220)
               : state.rows.isEmpty
                   ? ListView(
                       children: const [
@@ -164,7 +164,7 @@ class _LedgerRowCard extends StatelessWidget {
               if (row.remarks != null && row.remarks!.isNotEmpty) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(row.remarks!,
-                    style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ],
           ),
@@ -177,11 +177,11 @@ class _LedgerRowCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText(label, style: const TextStyle(fontSize: 10, color: ManaColors.textSecondary)),
+        ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ManaText.raw(
           _currency.format(amount),
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
             color: warn ? ManaColors.statusWarn : ManaColors.textPrimary,
           ),
@@ -253,7 +253,7 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                     child: ManaText.raw(
                       'Read-only — this day is closed. Corrections still go through '
                       'each entry type\'s own screen as a new offsetting entry.',
-                      style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                   ),
                 ),
@@ -382,7 +382,7 @@ class _EntryList extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           title: ManaText.raw(e.label),
           subtitle: ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.timestamp),
-              style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -431,9 +431,9 @@ class _AuditList extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           title: ManaText(e.actionType),
           subtitle: ManaText.raw('${e.entityType} · ${e.entityId}',
-              style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           trailing: ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.entryTimestamp),
-              style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         );
       },
     );

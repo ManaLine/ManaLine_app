@@ -130,7 +130,7 @@ class _BusinessResultCard extends ConsumerWidget {
         title: ManaText.raw(business.businessName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
           '${business.mlbi}${business.operatingAreas.isNotEmpty ? ' · ${business.operatingAreas.join(', ')}' : ''}',
-          style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         trailing: ManaStatusPill(
           label: business.acceptingNewInvestors ? 'Active' : 'Not Accepting New Investors',

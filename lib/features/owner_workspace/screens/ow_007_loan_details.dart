@@ -167,12 +167,12 @@ class _GuarantorSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ManaText.raw(guarantor!.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ManaText.raw(guarantor!.relationship, style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                      ManaText.raw(guarantor!.relationship, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                       const SizedBox(height: ManaSpacing.xs),
-                      ManaText.raw(guarantor!.phone, style: const TextStyle(fontSize: 12)),
-                      ManaText.raw(guarantor!.address, style: const TextStyle(fontSize: 12)),
+                      ManaText.raw(guarantor!.phone, style: const TextStyle(fontSize: 13)),
+                      ManaText.raw(guarantor!.address, style: const TextStyle(fontSize: 13)),
                       if (guarantor!.remarks != null && guarantor!.remarks!.isNotEmpty)
-                        ManaText.raw(guarantor!.remarks!, style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                        ManaText.raw(guarantor!.remarks!, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
                     ],
                   ),
                 ),
@@ -296,7 +296,7 @@ class _ActionsSection extends ConsumerWidget {
               'Information only. Loan Amount, Amount Given, Interest, '
               'Processing Fee, Historical Collections, and Business Date are '
               'permanently locked (BR-016/169).',
-              style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
             TextField(controller: remarks, decoration: const InputDecoration(labelText: 'Remarks')),
@@ -449,7 +449,7 @@ class _PaymentHistorySection extends StatelessWidget {
                   title: ManaText.raw(_currency.format(p.amount)),
                   subtitle: ManaText.raw('${p.paymentMode} · ${p.collector} · #${p.receiptNumber}'),
                   trailing: ManaText.raw(DateFormat('d MMM').format(p.businessDate),
-                      style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                      style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
                 ),
               )),
       ],
@@ -479,7 +479,7 @@ class _PenaltySection extends ConsumerWidget {
                 title: ManaText.raw('${_currency.format(p.penaltyAmount)} · ${p.penaltyOption}'),
                 subtitle: ManaText.raw(
                   '${DateFormat('d MMM yyyy').format(p.appliedDate)}${p.isWaivedOrReduced ? ' · Waived/Reduced' : ''}',
-                  style: const TextStyle(fontSize: 11),
+                  style: const TextStyle(fontSize: 16),
                 ),
                 trailing: (!p.isWaivedOrReduced && loan.canWaivePenalty)
                     ? TextButton(
@@ -508,7 +508,7 @@ class _PenaltySection extends ConsumerWidget {
               const ManaText.raw(
                 'Owner-only action — a higher-trust concession than applying '
                 'the penalty in the first place.',
-                style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,

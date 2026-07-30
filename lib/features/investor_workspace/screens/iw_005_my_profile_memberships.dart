@@ -562,7 +562,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
             const SizedBox(height: 4),
             ManaText.raw(
               'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
-              style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ],
         ],

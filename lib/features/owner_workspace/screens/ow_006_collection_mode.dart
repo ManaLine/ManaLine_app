@@ -51,7 +51,7 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                     const SizedBox(height: ManaSpacing.xs),
                     const ManaText.raw(
                       'Sorted by: penalty → grace period → today\'s due → village → name',
-                      style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
                     if (state.sorted.isEmpty)
@@ -153,15 +153,15 @@ class _DueRow extends StatelessWidget {
           ],
         ),
         subtitle: ManaText.raw('${row.village} · ${row.loanNumber}',
-            style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             ManaText.raw(_currency.format(row.installmentDue),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ManaText.raw('LRI ${row.lineRepaymentIndex}',
-                style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ],
         ),
         onTap: onTap,
@@ -383,7 +383,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           const SizedBox(height: ManaSpacing.xs),
           ManaText.raw('Split sum: ${_currency.format(_splitSum)} (must equal collected amount)',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 16,
                 color: (_splitSum - _collected).abs() > 0.01 ? ManaColors.statusBad : ManaColors.statusGood,
               )),
         ],

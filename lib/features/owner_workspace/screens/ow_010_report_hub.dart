@@ -351,7 +351,7 @@ class _RecordBookRowCard extends StatelessWidget {
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(row.remarks!,
                     style: const TextStyle(
-                        fontSize: 12, color: ManaColors.textSecondary)),
+                        fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ],
           ),
@@ -365,7 +365,7 @@ class _RecordBookRowCard extends StatelessWidget {
         children: [
           ManaText(label,
               style: const TextStyle(
-                  fontSize: 10, color: ManaColors.textSecondary)),
+                  fontSize: 13, color: ManaColors.textSecondary)),
           ManaText.raw(value,
               style:
                   const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),

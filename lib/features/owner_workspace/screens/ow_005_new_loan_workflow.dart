@@ -119,7 +119,7 @@ class _StepIndicator extends StatelessWidget {
           ),
           const SizedBox(width: ManaSpacing.md),
           ManaText.raw('Step $current of $total',
-              style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ],
       ),
     );
@@ -212,7 +212,7 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
         else if (_query.text.trim().isNotEmpty && !_searching)
           const ManaText.raw('No matching customer. New customers must be physically present '
               'and created via Customer Management before a first loan can be issued.',
-              style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
       ],
     );
   }
@@ -288,7 +288,7 @@ class _Step2Eligibility extends ConsumerWidget {
                           const SizedBox(width: ManaSpacing.sm),
                           Expanded(child: ManaText(c, style: const TextStyle(fontSize: 13))),
                           const ManaText.raw('at confirm',
-                              style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         ],
                       ),
                     )),
@@ -304,7 +304,7 @@ class _Step2Eligibility extends ConsumerWidget {
             'BF Cash Validation (BR-165): the collecting Agent\'s (or Owner\'s) available '
             'BF Cash must cover the loan amount — hard block, not a warning. Verified at '
             'confirm time inside the create call.',
-            style: TextStyle(fontSize: 12),
+            style: TextStyle(fontSize: 13),
           ),
         ),
         if (state.eligibilityFailureReason != null) ...[
@@ -463,7 +463,7 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
           child: Row(
             children: [
               const Expanded(
-                child: ManaText('amount given (system-derived, read-only)', style: TextStyle(fontSize: 12)),
+                child: ManaText('amount given (system-derived, read-only)', style: TextStyle(fontSize: 13)),
               ),
               ManaText.raw('₹${_amountGiven.toStringAsFixed(0)}',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -519,7 +519,7 @@ class _Step4GuarantorState extends ConsumerState<_Step4Guarantor> {
         const SizedBox(height: ManaSpacing.xs),
         const ManaText.raw('Guarantor is loan-scoped, not customer-scoped — different loans '
             'for the same customer may have different guarantors.',
-            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         const ManaText('need guarantor?', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: ManaSpacing.sm),
@@ -609,7 +609,7 @@ class _Step4bLivePhotoState extends ConsumerState<_Step4bLivePhoto> {
         const ManaText.raw(
           'Mandatory before this loan can be created (BR-036/081, fraud prevention). '
           'Camera capture only — gallery upload is never offered.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (state.livePhotoBytes == null)
@@ -636,7 +636,7 @@ class _Step4bLivePhotoState extends ConsumerState<_Step4bLivePhoto> {
         const ManaText.raw(
           'Internal only — never shown to the customer (BR-206). Owner-configurable, '
           'overridable per loan (BR-007/381).',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.sm),
         TextFormField(

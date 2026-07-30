@@ -88,7 +88,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
               if (snapshot.connectionState != ConnectionState.done) {
                 // Card-shaped placeholders matching the request rows below,
                 // rather than a spinner on an empty screen.
-                return const ManaSkeletonList(itemHeight: 132);
+                return const ManaSkeletonList(itemHeight: 152);
               }
               if (snapshot.hasError) {
                 return ListView(
@@ -96,7 +96,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                     Padding(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       child: ManaText.raw('Could not load loan requests.\n${snapshot.error}',
-                          textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+                          textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                     ),
                   ],
                 );
@@ -129,18 +129,18 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                                     ),
                                     ManaText.raw(_currency.format(r.requestedAmount),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                   ],
                                 ),
                                 ManaText.raw(r.customerMlid,
-                                    style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                                 if (r.purposeRemark != null && r.purposeRemark!.isNotEmpty) ...[
                                   const SizedBox(height: ManaSpacing.xs),
-                                  ManaText.raw(r.purposeRemark!, style: const TextStyle(fontSize: 12)),
+                                  ManaText.raw(r.purposeRemark!, style: const TextStyle(fontSize: 13)),
                                 ],
                                 const SizedBox(height: ManaSpacing.xs),
                                 ManaText.raw('Requested ${DateFormat('d MMM yyyy').format(r.createdAt)}',
-                                    style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                                 const SizedBox(height: ManaSpacing.sm),
                                 Row(
                                   children: [

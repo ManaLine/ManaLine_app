@@ -93,7 +93,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
                           const SizedBox(height: ManaSpacing.xs),
                           const ManaText.raw(
                             'Each Owner sees only their own tenancy\'s data for you — nothing here is shared or blended across businesses.',
-                            style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+                            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                           ),
                           const SizedBox(height: ManaSpacing.sm),
                           ...state.memberships.map((m) => _MembershipTile(membership: m)),
@@ -250,7 +250,7 @@ class _CompensationLinkOutRow extends StatelessWidget {
         title: ManaText.raw(s != null ? _currency.format(s.fixedSalary) : '—',
             style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: ManaText.raw(s?.salaryCycleStatus ?? 'Compensation not yet available',
-            style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+            style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
         trailing: const Icon(Icons.chevron_right),
         // Opens AG-001, scrolled/anchored to its "MY COMPENSATION
         // (Read-Only, Set By Owner)" panel — see END RESULT integration

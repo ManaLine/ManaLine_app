@@ -258,7 +258,7 @@ class _VerificationBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(12)),
       child: ManaText.raw(ring ?? '—',
           style: TextStyle(
-              color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+              color: color, fontSize: 13, fontWeight: FontWeight.bold)),
     );
   }
 }
@@ -480,7 +480,7 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                       return ListTile(
                         dense: true,
                         title: ManaText.raw(label,
-                            style: const TextStyle(fontSize: 12)),
+                            style: const TextStyle(fontSize: 13)),
                         onTap: () => setState(() {
                           _selectedVillage = v;
                           _villageSearch.text =
@@ -585,7 +585,7 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                 ManaText.raw(
                   'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
                   style: const TextStyle(
-                      fontSize: 12, color: ManaColors.textSecondary),
+                      fontSize: 13, color: ManaColors.textSecondary),
                 ),
               ],
             ],

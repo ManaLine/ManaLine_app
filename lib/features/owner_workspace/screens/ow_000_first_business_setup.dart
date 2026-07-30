@@ -140,7 +140,7 @@ class _StepIndicator extends StatelessWidget {
           const SizedBox(width: ManaSpacing.md),
           ManaText.raw('Step $current of $total',
               style: const TextStyle(
-                  fontSize: 12, color: ManaColors.textSecondary)),
+                  fontSize: 13, color: ManaColors.textSecondary)),
         ],
       ),
     );
@@ -702,7 +702,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw('Selected: $_selectedVillage',
                 style: const TextStyle(
-                    fontSize: 12, color: ManaColors.textSecondary)),
+                    fontSize: 13, color: ManaColors.textSecondary)),
           ],
           const SizedBox(height: ManaSpacing.md),
           Align(
@@ -914,7 +914,7 @@ class _Step4ExistingMembers extends ConsumerWidget {
               const Icon(Icons.group_add_outlined, color: ManaColors.brass),
           title: const ManaText('start pre-existing member migration'),
           subtitle: const ManaText.raw('Launches OW-014 Global Workflow.',
-              style: TextStyle(fontSize: 12)),
+              style: TextStyle(fontSize: 13)),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1052,7 +1052,7 @@ class _Step6AssignAreas extends ConsumerWidget {
                             ? 'Assigned to ${a.assignedAgentName}'
                             : 'Not yet resolved',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: a.resolved
                           ? ManaColors.statusGood
                           : ManaColors.statusWarn,

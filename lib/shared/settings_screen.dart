@@ -230,7 +230,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) => ManaText(
         label,
         style: const TextStyle(
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             color: ManaColors.textSecondary,
             letterSpacing: 1),
@@ -260,7 +260,7 @@ class _SettingsTile extends StatelessWidget {
       leading: Icon(icon, color: titleColor),
       title: ManaText.raw(title, style: TextStyle(color: titleColor)),
       subtitle: subtitle != null
-          ? ManaText.raw(subtitle!, style: const TextStyle(fontSize: 12))
+          ? ManaText.raw(subtitle!, style: const TextStyle(fontSize: 13))
           : null,
       trailing: trailing,
       onTap: onTap,

@@ -45,7 +45,7 @@ class AdminPanelScreen extends ConsumerWidget {
                   Expanded(
                     child: ManaText.raw(
                       'Every action below is permanent and cannot be undone. A snapshot is logged before deletion, but the live data itself is gone forever once you confirm.',
-                      style: TextStyle(color: ManaColors.statusBad, fontSize: 12),
+                      style: TextStyle(color: ManaColors.statusBad, fontSize: 13),
                     ),
                   ),
                 ],
@@ -162,7 +162,7 @@ class _DeletePersonCardState extends State<_DeletePersonCard> {
             const ManaText.raw('Delete Person', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
             const SizedBox(height: 4),
             const ManaText.raw('Search by MLID first — deletes the person and everything referencing them.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
               children: [
@@ -191,10 +191,10 @@ class _DeletePersonCardState extends State<_DeletePersonCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ManaText.raw('${_found!['full_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ManaText.raw('MLID: ${_found!['mlid']}   Mobile: ${_found!['mobile_number']}', style: const TextStyle(fontSize: 12)),
-                    ManaText.raw('Aadhaar: ${_found!['aadhaar_number'] ?? 'Not provided'}', style: const TextStyle(fontSize: 12)),
+                    ManaText.raw('MLID: ${_found!['mlid']}   Mobile: ${_found!['mobile_number']}', style: const TextStyle(fontSize: 13)),
+                    ManaText.raw('Aadhaar: ${_found!['aadhaar_number'] ?? 'Not provided'}', style: const TextStyle(fontSize: 13)),
                     ManaText.raw('Verification: ${_found!['verification_ring']}   Businesses: ${_found!['business_count']}',
-                        style: const TextStyle(fontSize: 12)),
+                        style: const TextStyle(fontSize: 13)),
                   ],
                 ),
               ),
@@ -208,7 +208,7 @@ class _DeletePersonCardState extends State<_DeletePersonCard> {
             ],
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             SizedBox(
@@ -324,7 +324,7 @@ class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
             const ManaText.raw('Delete Business', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
             const SizedBox(height: 4),
             const ManaText.raw('Search by MLBI first — deletes the business and everything under it, not the people themselves.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
               children: [
@@ -353,11 +353,11 @@ class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ManaText.raw('${_found!['business_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ManaText.raw('MLBI: ${_found!['mlbi']}   Status: ${_found!['business_status']}', style: const TextStyle(fontSize: 12)),
-                    ManaText.raw('Owner: ${_found!['owner_name']} (${_found!['owner_mlid']})', style: const TextStyle(fontSize: 12)),
+                    ManaText.raw('MLBI: ${_found!['mlbi']}   Status: ${_found!['business_status']}', style: const TextStyle(fontSize: 13)),
+                    ManaText.raw('Owner: ${_found!['owner_name']} (${_found!['owner_mlid']})', style: const TextStyle(fontSize: 13)),
                     ManaText.raw(
                         'Agents: ${_found!['agent_count']}   Customers: ${_found!['customer_count']}   Investors: ${_found!['investor_count']}',
-                        style: const TextStyle(fontSize: 12)),
+                        style: const TextStyle(fontSize: 13)),
                   ],
                 ),
               ),
@@ -371,7 +371,7 @@ class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
             ],
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             SizedBox(
@@ -487,7 +487,7 @@ class _DeleteLoanCardState extends State<_DeleteLoanCard> {
             const ManaText.raw('Delete Loan (Transaction)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
             const SizedBox(height: 4),
             const ManaText.raw('No human-readable code exists for loans — Loan ID (UUID) only, found via Report Hub/History.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
               children: [
@@ -516,10 +516,10 @@ class _DeleteLoanCardState extends State<_DeleteLoanCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ManaText.raw('Loan ${_found!['loan_number']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ManaText.raw('Customer: ${_found!['customer_name']} (${_found!['customer_mlid']})', style: const TextStyle(fontSize: 12)),
+                    ManaText.raw('Customer: ${_found!['customer_name']} (${_found!['customer_mlid']})', style: const TextStyle(fontSize: 13)),
                     ManaText.raw(
                         'Given: ${_currency.format(_found!['amount_given'])}   Outstanding: ${_currency.format(_found!['remaining_balance'])}   Status: ${_found!['loan_status']}',
-                        style: const TextStyle(fontSize: 12)),
+                        style: const TextStyle(fontSize: 16)),
                   ],
                 ),
               ),
@@ -533,7 +533,7 @@ class _DeleteLoanCardState extends State<_DeleteLoanCard> {
             ],
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             SizedBox(
@@ -649,7 +649,7 @@ class _DeleteCollectionCardState extends State<_DeleteCollectionCard> {
             const ManaText.raw('Delete Collection (Transaction)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
             const SizedBox(height: 4),
             const ManaText.raw('No human-readable code exists for collections — Collection ID (UUID) only, found via History.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
               children: [
@@ -678,8 +678,8 @@ class _DeleteCollectionCardState extends State<_DeleteCollectionCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ManaText.raw(_currency.format(_found!['collected_amount']), style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ManaText.raw('Customer: ${_found!['customer_name']} (${_found!['customer_mlid']})', style: const TextStyle(fontSize: 12)),
-                    ManaText.raw('Loan: ${_found!['loan_number'] ?? 'N/A'}   Date: ${_found!['entry_timestamp']}', style: const TextStyle(fontSize: 12)),
+                    ManaText.raw('Customer: ${_found!['customer_name']} (${_found!['customer_mlid']})', style: const TextStyle(fontSize: 16)),
+                    ManaText.raw('Loan: ${_found!['loan_number'] ?? 'N/A'}   Date: ${_found!['entry_timestamp']}', style: const TextStyle(fontSize: 13)),
                   ],
                 ),
               ),
@@ -693,7 +693,7 @@ class _DeleteCollectionCardState extends State<_DeleteCollectionCard> {
             ],
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             SizedBox(

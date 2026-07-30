@@ -14,10 +14,15 @@ class ManaTheme {
       brightness: Brightness.light,
       scaffoldBackgroundColor: ManaColors.surfaceMuted,
       colorScheme: const ColorScheme.light(
-        primary: ManaColors.ink,
+        // brandDeep, not brand: Flutter puts onPrimary (white) text on this,
+        // and small white-on-#007ACC is only 4.51:1 — too thin to read in
+        // direct sun. On brandDeep it is 7.18:1.
+        primary: ManaColors.brandDeep,
         onPrimary: ManaColors.textOnDark,
-        secondary: ManaColors.brass,
-        onSecondary: ManaColors.ink,
+        // Amber accent carries DARK text, never white: textPrimary on accent
+        // is 8.0:1, white on accent would be 1.76:1 and unreadable.
+        secondary: ManaColors.accent,
+        onSecondary: ManaColors.textPrimary,
         error: ManaColors.statusBad,
         surface: ManaColors.surface,
         onSurface: ManaColors.textPrimary,
@@ -50,8 +55,8 @@ class ManaTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: ManaColors.brass,
-          foregroundColor: ManaColors.ink,
+          backgroundColor: ManaColors.accent,
+          foregroundColor: ManaColors.textPrimary, // 8.0:1 on accent
           disabledBackgroundColor: ManaColors.surfaceSunken,
           disabledForegroundColor: ManaColors.textDisabled,
           textStyle: textTheme.labelLarge,
@@ -65,8 +70,10 @@ class ManaTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: ManaColors.ink,
-          side: const BorderSide(color: ManaColors.ink, width: 1.2),
+          // Outlined = secondary action. Blue reads as interactive without
+          // competing with the amber filled button for primary attention.
+          foregroundColor: ManaColors.brandDeep,
+          side: const BorderSide(color: ManaColors.brandDeep, width: 1.2),
           textStyle: textTheme.labelLarge,
           padding: const EdgeInsets.symmetric(
             horizontal: ManaSpacing.lg, vertical: ManaSpacing.md,
@@ -92,7 +99,9 @@ class ManaTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ManaRadius.sm),
-          borderSide: const BorderSide(color: ManaColors.brass, width: 1.5),
+          // Focused field = blue, matching the interactive family. Amber is
+          // reserved for filled actions so it stays unambiguous.
+          borderSide: const BorderSide(color: ManaColors.brand, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ManaRadius.sm),
@@ -102,7 +111,7 @@ class ManaTheme {
       dividerTheme: const DividerThemeData(color: ManaColors.divider, thickness: 1),
       // Visible keyboard focus everywhere — quality floor per design skill's
       // "responsive, focus-visible, reduced-motion" baseline.
-      focusColor: ManaColors.brass.withValues(alpha: 0.24),
+      focusColor: ManaColors.brand.withValues(alpha: 0.24),
     );
   }
 }

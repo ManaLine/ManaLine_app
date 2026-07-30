@@ -75,7 +75,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
         child: async.when(
           // Only shown on a genuine cold load — revisits keep the previous
           // data on screen and revalidate behind it (see load()).
-          loading: () => const ManaSkeletonList(itemCount: 5, itemHeight: 104),
+          loading: () => const ManaSkeletonList(itemCount: 5, itemHeight: 120),
           error: (e, _) => _errorState(e),
           data: (data) => data.hasActiveMembership
               ? RefreshIndicator(
@@ -125,7 +125,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
               child: ManaText.raw(
                 e.toString(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: ManaColors.statusBad),
+                style: const TextStyle(fontSize: 13, color: ManaColors.statusBad),
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -219,9 +219,9 @@ class _NotificationsSheet extends StatelessWidget {
                             color: n.read ? ManaColors.textSecondary : ManaColors.brass,
                           ),
                           title: ManaText.raw(n.message, style: const TextStyle(fontSize: 13)),
-                          subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                          subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                           trailing: ManaText.raw(DateFormat('d MMM, hh:mm a').format(n.timestamp),
-                              style: const TextStyle(fontSize: 10, color: ManaColors.textSecondary)),
+                              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         );
                       },
                     ),

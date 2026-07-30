@@ -127,15 +127,15 @@ class _LoanCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (loan.templateName != null)
-                ManaText.raw(loan.templateName!, style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                ManaText.raw(loan.templateName!, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ManaText.raw(
                 'Outstanding ${_currency.format(loan.outstandingBalance)} of ${_currency.format(loan.principalAmount)}',
-                style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary),
               ),
               if (loan.nextDueDate != null)
                 ManaText.raw(
                   'Next due ${_currency.format(loan.nextDueAmount ?? 0)} on ${_dateFmt.format(loan.nextDueDate!)}',
-                  style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary),
                 ),
             ],
           ),
@@ -342,11 +342,11 @@ class _ScheduleCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ManaText.raw('#${e.installmentNumber} · ${_dateFmt.format(e.dueDate)}',
-                            style: const TextStyle(fontSize: 12)),
+                            style: const TextStyle(fontSize: 13)),
                         Row(
                           children: [
                             ManaText.raw(_currency.format(e.installmentAmount),
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                             const SizedBox(width: ManaSpacing.xs),
                             ManaStatusPill(
                               label: e.status,
@@ -402,11 +402,11 @@ class _PaymentHistoryCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ManaText.raw('${_dateFmt.format(h.businessDate)} · ${h.receiptNumber}',
-                            style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         Row(
                           children: [
                             ManaText.raw(_currency.format(h.collectedAmount),
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                             const SizedBox(width: ManaSpacing.xs),
                             ManaStatusPill(
                               label: h.paymentMode,
@@ -440,15 +440,15 @@ class _PendingOnlinePaymentsCard extends StatelessWidget {
             const ManaText('pending online payments', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: ManaSpacing.xs),
             const ManaText.raw('Awaiting Owner/Agent confirmation.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             ...pending.map((p) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ManaText.raw(_dateFmt.format(p.submittedAt), style: const TextStyle(fontSize: 12)),
-                      ManaText.raw(_currency.format(p.amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ManaText.raw(_dateFmt.format(p.submittedAt), style: const TextStyle(fontSize: 13)),
+                      ManaText.raw(_currency.format(p.amount), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 )),
@@ -477,7 +477,7 @@ class _PenaltyGraceCard extends StatelessWidget {
                 children: [
                   const ManaText('penalty', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                   ManaText.raw(_currency.format(detail.penaltyAmount!),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ManaColors.statusBad)),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ManaColors.statusBad)),
                 ],
               ),
             if (detail.gracePeriodEndDate != null)

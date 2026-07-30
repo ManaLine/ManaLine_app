@@ -112,7 +112,7 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                         child: Center(
                           child: ManaText.raw('Could not load investors.\n${state.error}',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: ManaColors.statusBad, fontSize: 12)),
+                              style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                         ),
                       )
                     else if (state.filtered.isEmpty)
@@ -242,7 +242,7 @@ class _PendingRequestCard extends ConsumerWidget {
                     children: [
                       ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
                       ManaText.raw(investor.mlid,
-                          style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                     ],
                   ),
                 ),
@@ -302,7 +302,7 @@ class _InvestorRow extends StatelessWidget {
         title: ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
           '${investor.mlid} · ${_currency.format(investor.investmentBalance)} @ ${investor.roi}%',
-          style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
         trailing: ManaStatusPill(label: investor.membershipStatus, status: _statusKind),
         onTap: onTap,
@@ -531,7 +531,7 @@ class _InvestmentsTab extends ConsumerWidget {
             padding: const EdgeInsets.only(top: ManaSpacing.xs),
             child: ManaText.raw(
               'Only Active investors can have new investments recorded (current status: ${profile.summary.membershipStatus}).',
-              style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ),
         const SizedBox(height: ManaSpacing.lg),
@@ -558,7 +558,7 @@ class _InvestmentsTab extends ConsumerWidget {
                       ),
                       ManaText.raw(
                         '${inv.roiRate}% ROI · ${inv.interestMethod} · since ${DateFormat('d MMM yyyy').format(inv.effectiveDate)}',
-                        style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
                       const SizedBox(height: ManaSpacing.sm),
                       Row(
@@ -610,7 +610,7 @@ class _InvestmentsTab extends ConsumerWidget {
   Widget _small(String label, String value) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText(label, style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+          ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         ],
       );
@@ -773,7 +773,7 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ManaText.raw('${widget.investment.profitSharePercent}% of total profit for this period',
-                style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: amountController,

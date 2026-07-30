@@ -35,7 +35,7 @@ class _ErrorBanner extends StatelessWidget {
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load data'),
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: ManaColors.statusBad)),
+            ManaText.raw(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
             const SizedBox(height: ManaSpacing.sm),
             ElevatedButton(onPressed: onRetry, child: const ManaText('retry')),
           ],
@@ -172,7 +172,7 @@ class _BusinessSummaryCard extends StatelessWidget {
                         ManaText.raw(business.businessName,
                             style: Theme.of(context).textTheme.titleLarge),
                         ManaText.raw(business.mlbi,
-                            style: const TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+                            style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -210,7 +210,7 @@ class _StatChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: ManaColors.textSecondary),
         const SizedBox(width: 4),
-        ManaText.raw(label, style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+        ManaText.raw(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
       ],
     );
   }
@@ -540,7 +540,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
         const ManaText.raw(
           'Search PIN Code → Matching PIN List → Select PIN → Village Search → '
           'Select Village → Add. Repeat until complete. Unlimited villages allowed.',
-          style: TextStyle(color: ManaColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
@@ -609,7 +609,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                       ),
                       title: ManaText.raw(
                         a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}',
-                        style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
                       trailing: TextButton(
                         onPressed: () => _assignAgent(a),
@@ -654,7 +654,7 @@ class _AssignAgentSheet extends StatelessWidget {
             leading: const Icon(Icons.storefront_outlined),
             title: const ManaText('owner-run'),
             subtitle: const ManaText.raw('No agent assigned — the Owner runs this area directly.',
-                style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.ownerRun()),
           ),
           const Divider(height: 1),
@@ -662,13 +662,13 @@ class _AssignAgentSheet extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw('No Active agents in this business yet — add one from Workforce Management first.',
-                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             )
           else
             ...agents.map((agent) => ListTile(
                   leading: const ManaVerificationRing(isVerified: true, size: 32),
                   title: ManaText.raw(agent.fullName),
-                  subtitle: ManaText.raw(agent.mlid, style: const TextStyle(fontSize: 11)),
+                  subtitle: ManaText.raw(agent.mlid, style: const TextStyle(fontSize: 13)),
                   onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.agent(agent)),
                 )),
           const SizedBox(height: ManaSpacing.md),
@@ -786,7 +786,7 @@ class _AgreementsTabState extends ConsumerState<_AgreementsTab> {
         const ManaText.raw(
           'Business Agreements are business-specific — a multi-business Owner '
           'sets these independently per MLBI; they do not carry over.',
-          style: TextStyle(color: ManaColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: ManaSpacing.md),
         FilledButton.tonalIcon(

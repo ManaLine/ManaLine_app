@@ -173,7 +173,7 @@ class _SummaryCard extends ConsumerWidget {
                     children: [
                       ManaText.raw(profile.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                       const SizedBox(height: 2),
-                      ManaText.raw(profile.mlid, style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                      ManaText.raw(profile.mlid, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                     ],
                   ),
                 ),
@@ -229,7 +229,7 @@ class _FieldRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText(label, style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary, fontWeight: FontWeight.w600)),
+              ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary, fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
               ManaText.raw(value, style: const TextStyle(fontSize: 14)),
             ],
@@ -578,7 +578,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
             const SizedBox(height: 4),
             ManaText.raw(
               'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
-              style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ],
         ],

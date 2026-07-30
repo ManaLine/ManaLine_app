@@ -89,7 +89,7 @@ class _Ag007LoanDistributionScreenState extends ConsumerState<Ag007LoanDistribut
                 'Send or receive BF Cash with another Agent. A transfer only moves '
                 'the balance once BOTH agents confirm (BR-173) — no Owner approval '
                 'gate applies.',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: ManaSpacing.md),
               _SendBfCashCard(agentId: widget.agentId),
@@ -155,7 +155,7 @@ class _BfCashPanel extends StatelessWidget {
               const ManaText.raw(
                 'No BF Cash assignment found for this session yet — loan issuance is '
                 'blocked until the Owner grants BF Cash access via AG-001\'s Opening BF gate.',
-                style: TextStyle(fontSize: 12, color: ManaColors.statusWarn),
+                style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
               ),
             ],
           ],
@@ -288,7 +288,7 @@ class _TransferList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (transfers.isEmpty) {
-      return ManaText.raw('No transfers — $title.', style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary));
+      return ManaText.raw('No transfers — $title.', style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary));
     }
     // BUG FIXED this pass: the Confirm button had no in-flight guard at
     // all — confirmTransfer() does a real balance-affecting write, and a
@@ -311,7 +311,7 @@ class _TransferList extends ConsumerWidget {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: ManaText.raw('${t.businessDate} · ${_currency.format(t.amount)}',
-                    style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                    style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
                 trailing: showConfirmAction
                     ? ElevatedButton(
                         onPressed: confirming ? null : () => _confirm(context, ref, t),
@@ -380,7 +380,7 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
                   ),
                   const SizedBox(width: ManaSpacing.md),
                   ManaText.raw('Step ${stepIndex + 1} of ${_steps.length}',
-                      style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                      style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                 ],
               ),
             ),
@@ -489,7 +489,7 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
             ),
           )
         else if (_query.text.trim().isNotEmpty && !_searching)
-          const ManaText.raw('No matching customer found.', style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+          const ManaText.raw('No matching customer found.', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
       ],
     );
   }
@@ -554,12 +554,12 @@ class _AgStep2Eligibility extends ConsumerWidget {
                 "BF Cash Validation (BR-165): this Agent's BF Cash must cover the "
                 'loan amount — hard block, not a warning. Verified at confirm time '
                 'inside the create call.',
-                style: TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: 13),
               ),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
                 'Current BF Cash Balance: ${bf == null ? '—' : _currency.format(bf.openingBf)}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -704,7 +704,7 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
           child: Row(
             children: [
               const Expanded(
-                child: ManaText('amount given (system-derived, read-only)', style: TextStyle(fontSize: 12)),
+                child: ManaText('amount given (system-derived, read-only)', style: TextStyle(fontSize: 13)),
               ),
               ManaText.raw('₹${_amountGiven.toStringAsFixed(0)}',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -757,7 +757,7 @@ class _AgStep4GuarantorState extends ConsumerState<_AgStep4Guarantor> {
         ManaText('guarantor', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         const ManaText.raw('Guarantor is loan-scoped, not customer-scoped.',
-            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         const ManaText('need guarantor?', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: ManaSpacing.sm),
@@ -836,7 +836,7 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
         const ManaText.raw(
           'Mandatory before this loan can be created (BR-036/081, fraud prevention). '
           'Camera capture only — gallery upload is never offered.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (state.livePhotoBytes == null)
@@ -863,7 +863,7 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
         const ManaText.raw(
           'Internal only — never shown to the customer (BR-206). Owner-configurable, '
           'overridable per loan (BR-007/381).',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.sm),
         TextFormField(
@@ -954,7 +954,7 @@ class _AgStep5Confirm extends ConsumerWidget {
                     'Loan Creation Blocked (BR-165). Top up BF Cash after the Owner sends '
                     'money outside the app, or receive a BF Cash Transfer from another '
                     'Agent — see the BF Cash Transfer section on the previous screen.',
-                    style: TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: 13),
                   ),
                 ],
               ],

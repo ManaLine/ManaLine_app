@@ -186,7 +186,7 @@ class _InvestmentListCard extends StatelessWidget {
               ManaText.raw(
                 '${investment.investmentId} · ${investment.roiRate}% ROI · ${investment.interestMethod} · since ${_dateFmt.format(investment.effectiveDate)}',
                 style: const TextStyle(
-                    fontSize: 12, color: ManaColors.textSecondary),
+                    fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: 4),
               Row(
@@ -194,12 +194,12 @@ class _InvestmentListCard extends StatelessWidget {
                   Expanded(
                     child: ManaText.raw(
                         'Accrued: ${_currency.format(investment.interestAccrued)}',
-                        style: const TextStyle(fontSize: 12)),
+                        style: const TextStyle(fontSize: 16)),
                   ),
                   Expanded(
                     child: ManaText.raw(
                         'Paid: ${_currency.format(investment.interestPaid)}',
-                        style: const TextStyle(fontSize: 12)),
+                        style: const TextStyle(fontSize: 16)),
                   ),
                 ],
               ),
@@ -349,20 +349,20 @@ class _StatementSheet extends StatelessWidget {
                   ManaText('interest ledger', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (ledger.isEmpty)
-                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 12))
+                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
                   else
                     ...ledger.map((e) => ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: ManaText.raw('${e['entry_type']} · ${_currency.format((e['amount'] as num).toDouble())}'),
                           subtitle: ManaText.raw('${e['business_date']}${e['remarks'] != null ? ' · ${e['remarks']}' : ''}',
-                              style: const TextStyle(fontSize: 11)),
+                              style: const TextStyle(fontSize: 16)),
                         )),
                   const SizedBox(height: ManaSpacing.md),
                   ManaText('distributions', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (distributions.isEmpty)
-                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 12))
+                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
                   else
                     ...distributions.map((d) => ListTile(
                           dense: true,
@@ -371,20 +371,20 @@ class _StatementSheet extends StatelessWidget {
                               '${d['status']} · ${_currency.format((d['declared_amount'] as num).toDouble())}'),
                           subtitle: ManaText.raw(
                               '${d['business_date']}${d['paid_amount'] != null ? ' · paid ${_currency.format((d['paid_amount'] as num).toDouble())}' : ''}',
-                              style: const TextStyle(fontSize: 11)),
+                              style: const TextStyle(fontSize: 16)),
                         )),
                   const SizedBox(height: ManaSpacing.md),
                   ManaText('withdrawal requests', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (withdrawals.isEmpty)
-                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 12))
+                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
                   else
                     ...withdrawals.map((w) => ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: ManaText.raw(
                               '${w['withdrawal_type']} · ${_currency.format((w['requested_amount'] as num).toDouble())}'),
-                          subtitle: ManaText.raw('${w['status']} · ${w['created_at']}', style: const TextStyle(fontSize: 11)),
+                          subtitle: ManaText.raw('${w['status']} · ${w['created_at']}', style: const TextStyle(fontSize: 16)),
                         )),
                 ],
               ),
@@ -415,7 +415,7 @@ class _AgreementSnapshotCard extends StatelessWidget {
             const ManaText.raw(
                 'Frozen terms at time of investment — never live-recalculated.',
                 style:
-                    TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                    TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
             _row('Original Principal Amount',
                 _currency.format(snapshot.originalPrincipalAmount)),
@@ -482,12 +482,12 @@ class _InterestLedgerSection extends StatelessWidget {
                                       fontSize: 13)),
                               ManaText.raw(_dateFmt.format(e.businessDate),
                                   style: const TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 13,
                                       color: ManaColors.textSecondary)),
                               if (e.remarks != null && e.remarks!.isNotEmpty)
                                 ManaText.raw(e.remarks!,
                                     style: const TextStyle(
-                                        fontSize: 11,
+                                        fontSize: 13,
                                         color: ManaColors.textSecondary)),
                             ],
                           ),
@@ -558,13 +558,13 @@ class _WithdrawalHistorySection extends StatelessWidget {
                               ManaText.raw(
                                 '${_dateFmt.format(e.businessDate)} · Approved by ${e.approvedBy}',
                                 style: const TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 13,
                                     color: ManaColors.textSecondary),
                               ),
                               if (e.remarks != null && e.remarks!.isNotEmpty)
                                 ManaText.raw(e.remarks!,
                                     style: const TextStyle(
-                                        fontSize: 11,
+                                        fontSize: 13,
                                         color: ManaColors.textSecondary)),
                             ],
                           ),
@@ -608,7 +608,7 @@ class _DistributionHistorySection extends StatelessWidget {
             const ManaText.raw(
               'Profit Share — Declaration and Payment are recorded separately; '
               'a row may show Declared with no Paid data yet.',
-              style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
@@ -627,7 +627,7 @@ class _DistributionHistorySection extends StatelessWidget {
                                   'Declared: ${_currency.format(e.declaredAmount)}',
                                   style: const TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      fontSize: 13)),
+                                      fontSize: 16)),
                             ),
                             ManaStatusPill(
                               label: e.declaredStatus,
@@ -638,14 +638,14 @@ class _DistributionHistorySection extends StatelessWidget {
                         ),
                         ManaText.raw(_dateFmt.format(e.declaredDate),
                             style: const TextStyle(
-                                fontSize: 11, color: ManaColors.textSecondary)),
+                                fontSize: 13, color: ManaColors.textSecondary)),
                         if (e.isPaid) ...[
                           const SizedBox(height: 4),
                           ManaText.raw(
                             'Paid: ${_currency.format(e.paidAmount ?? 0)} on ${_dateFmt.format(e.paidDate!)}'
                             '${(e.paidInterestAmount ?? 0) > 0 ? ' (+ ${_currency.format(e.paidInterestAmount!)} interest on unpaid gap)' : ''}',
                             style: const TextStyle(
-                                fontSize: 12, color: ManaColors.statusGood),
+                                fontSize: 16, color: ManaColors.statusGood),
                           ),
                         ],
                         const Divider(height: ManaSpacing.lg),

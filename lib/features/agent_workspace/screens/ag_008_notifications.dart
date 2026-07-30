@@ -225,7 +225,7 @@ class _NotificationRow extends StatelessWidget {
               ManaText.raw(notification.message, style: const TextStyle(fontSize: 13)),
               const SizedBox(height: 2),
               ManaText.raw(_dateTime.format(notification.createdAt),
-                  style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                  style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             ],
           ),
         ),

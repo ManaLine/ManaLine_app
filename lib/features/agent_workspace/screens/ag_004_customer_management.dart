@@ -204,17 +204,17 @@ class _CustomerRow extends StatelessWidget {
         ),
         subtitle: ManaText.raw(
           '${customer.fatherHusbandName} · ${customer.village} · LRI ${customer.lineRepaymentIndex}',
-          style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             ManaText.raw(_currency.format(customer.outstandingBalance),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             if (customer.todaysDue > 0)
               ManaText.raw('Due ${_currency.format(customer.todaysDue)}',
-                  style: const TextStyle(fontSize: 11, color: ManaColors.statusWarn)),
+                  style: const TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
           ],
         ),
         onTap: onTap,
@@ -440,7 +440,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                   if (selectedVillageLabel != null) ...[
                     const SizedBox(height: ManaSpacing.xs),
                     ManaText.raw('Selected: $selectedVillageLabel',
-                        style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   ],
                   const SizedBox(height: ManaSpacing.lg),
                   ElevatedButton(
@@ -528,7 +528,7 @@ class _SummaryTab extends StatelessWidget {
         const ManaText.raw(
           'Outstanding, Today\'s Due, and loan figures are read-only here — '
           'collection and loan-issue writes only happen via Collection Mode / Loan Distribution.',
-          style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
       ],
     );
@@ -595,8 +595,8 @@ class _LoanInformationTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 12))),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
       );
@@ -622,7 +622,7 @@ class _CollectionHistoryTab extends StatelessWidget {
                 title: ManaText.raw(_currency.format(c.amount)),
                 subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
                 trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),
-                    style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                    style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
               ))
           .toList(),
     );

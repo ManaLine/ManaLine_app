@@ -113,7 +113,7 @@ class _OwnerBfPanel extends StatelessWidget {
             const SizedBox(height: 4),
             const ManaText.raw(
               'Provisional until each pending account is Approved.',
-              style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ],
         ),
@@ -169,7 +169,7 @@ class _SettlementCard extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ManaText.raw(_dateFmt.format(settlement.businessDate),
-                    style: const TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+                    style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                 ManaStatusPill(label: settlement.status, status: _statusKind),
               ],
             ),
@@ -197,7 +197,7 @@ class _SettlementCard extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: ManaText.raw(breakdown.join(' / '),
-                    style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
@@ -238,7 +238,7 @@ class _SettlementCard extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           ManaText(label, style: TextStyle(fontSize: 13, color: color)),
-          ManaText.raw(_currency.format(amount), style: TextStyle(fontSize: 13, color: color)),
+          ManaText.raw(_currency.format(amount), style: TextStyle(fontSize: 16, color: color)),
         ],
       ),
     );
@@ -361,7 +361,7 @@ class _DailyAllowanceTab extends ConsumerWidget {
       children: [
         const ManaText.raw(
           'Tracking/visibility only — no linkage to Payable Salary or any figure elsewhere on this screen.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         if (state.accessDays.isEmpty)

@@ -286,7 +286,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             ManaText.raw('${_dateFmt.format(widget.periodStart)} – ${_dateFmt.format(widget.periodEnd)}',
-                style: const TextStyle(color: ManaColors.textSecondary, fontSize: 12)),
+                style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             // cycle_type is Business-level/Owner-set (OW-012 Account Cycle
             // config) — read-only display here, never an Agent choice per
             // submission.

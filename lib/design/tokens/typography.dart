@@ -63,15 +63,15 @@ class ManaTypography {
       bodyMedium:
           GoogleFonts.inter(fontSize: 14, color: baseColor, height: 1.4),
       bodySmall:
-          GoogleFonts.inter(fontSize: 12, color: secondaryColor, height: 1.35),
+          GoogleFonts.inter(fontSize: 13, color: secondaryColor, height: 1.35),
 
       // Labels — Inter, medium weight, used for form fields/buttons/chips
       labelLarge: GoogleFonts.inter(
           fontSize: 14, fontWeight: FontWeight.w600, color: baseColor),
       labelMedium: GoogleFonts.inter(
-          fontSize: 12, fontWeight: FontWeight.w600, color: secondaryColor),
+          fontSize: 13, fontWeight: FontWeight.w600, color: secondaryColor),
       labelSmall: GoogleFonts.inter(
-          fontSize: 11, fontWeight: FontWeight.w500, color: secondaryColor),
+          fontSize: 13, fontWeight: FontWeight.w500, color: secondaryColor),
     );
   }
 

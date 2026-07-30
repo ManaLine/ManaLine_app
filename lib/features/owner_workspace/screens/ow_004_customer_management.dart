@@ -84,7 +84,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         child: RefreshIndicator(
           onRefresh: () => ref.read(customerListProvider.notifier).load(widget.businessId),
           child: state.loading && state.customers.isEmpty
-              ? const ManaSkeletonList(itemHeight: 84)
+              ? const ManaSkeletonList(itemHeight: 96)
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
@@ -104,7 +104,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                     const SizedBox(height: ManaSpacing.xs),
                     const ManaText.raw(
                       'Sorted by: highest outstanding → penalty → grace period → today\'s due → village → name',
-                      style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
                     if (state.filtered.isEmpty)
@@ -205,17 +205,17 @@ class _CustomerRow extends StatelessWidget {
         ),
         subtitle: ManaText.raw(
           '${customer.village} · ${customer.mlid} · LRI ${customer.lineRepaymentIndex}',
-          style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             ManaText.raw(_currency.format(customer.outstandingBalance),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             if (customer.todaysDue > 0)
               ManaText.raw('Due ${_currency.format(customer.todaysDue)}',
-                  style: const TextStyle(fontSize: 11, color: ManaColors.statusWarn)),
+                  style: const TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
           ],
         ),
         onTap: onTap,
@@ -452,7 +452,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   List<Widget> _searchStage() => [
         const ManaText.raw(
           'Search by Phone, Aadhaar, MANA LINE ID, or Full Name.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         Row(
@@ -504,7 +504,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
         const ManaText.raw(
           'New customer must be physically present — this reuses the same '
           'registration fields as account registration.',
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
@@ -702,7 +702,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
         if (_selectedVillageLabel != null) ...[
           const SizedBox(height: ManaSpacing.xs),
           ManaText.raw('Selected: $_selectedVillageLabel',
-              style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ],
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
@@ -874,7 +874,7 @@ class _LoansTab extends StatelessWidget {
                   title: ManaText.raw(l.loanNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: ManaText.raw(
                     'Issued ${DateFormat('d MMM yyyy').format(l.issueDate)} · Outstanding ${_currency.format(l.outstanding)}',
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 16),
                   ),
                   trailing: ManaStatusPill(
                     label: l.status,
@@ -914,7 +914,7 @@ class _CollectionsTab extends StatelessWidget {
                 title: ManaText.raw(_currency.format(c.amount)),
                 subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
                 trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),
-                    style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+                    style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
               ))
           .toList(),
     );

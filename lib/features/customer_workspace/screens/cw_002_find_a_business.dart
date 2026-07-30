@@ -131,7 +131,7 @@ class _BusinessResultCard extends ConsumerWidget {
         title: ManaText.raw(business.businessName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
           '${business.mlbi}${business.operatingAreas.isNotEmpty ? ' · ${business.operatingAreas.join(', ')}' : ''}',
-          style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         // Business Status pill per SEARCH RESULT (Active / Not Accepting
         // New Customers) — display only. Unlike IW-002's onTap gate,

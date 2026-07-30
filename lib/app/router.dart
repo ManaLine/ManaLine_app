@@ -31,6 +31,7 @@ import '../features/owner_workspace/screens/ow_012_business_management.dart';
 import '../features/owner_workspace/state/business_management_state.dart' show BusinessDetailTab;
 import '../features/owner_workspace/screens/ow_013_account_review.dart';
 import '../features/owner_workspace/screens/ow_014_global_workflow.dart';
+import '../features/owner_workspace/screens/ow_014_profile_completion.dart';
 import '../features/owner_workspace/screens/ow_015_group_loan_management.dart';
 import '../features/owner_workspace/screens/ow_016_profile.dart';
 import '../features/owner_workspace/screens/ow_017_transaction_history.dart';
@@ -231,6 +232,17 @@ final manaRouter = GoRouter(
       builder: (c, s) => GlobalWorkflowScreen(
         businessId: _resolveBusinessId(s),
         currentOwnerPersonId: ManaSession.instance.currentPersonId ?? 'stub-person-id',
+      ),
+    ),
+    // OW-014's Profile Completion sub-flow. Separate route rather than a
+    // fourth WizardStage: it is also the natural destination for any future
+    // "incomplete profiles" list (fetchIncompleteProfiles), which carries a
+    // personId/membershipId pair but no wizard state at all.
+    GoRoute(
+      path: '/ow-014-complete-profile',
+      builder: (c, s) => ProfileCompletionScreen(
+        personId: s.uri.queryParameters['personId'] ?? '',
+        membershipId: s.uri.queryParameters['membershipId'] ?? '',
       ),
     ),
     GoRoute(

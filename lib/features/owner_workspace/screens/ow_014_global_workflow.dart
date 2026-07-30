@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
@@ -271,6 +272,16 @@ class _IncompleteStep extends StatelessWidget {
   final GlobalWorkflowState state;
   const _IncompleteStep({required this.state});
 
+  // BUG FIXED this pass: this tile fired a SnackBar saying the Profile
+  // Completion sub-flow was out of scope. It now navigates to the real
+  // screen (ProfileCompletionScreen) — which needed migration 0053 to
+  // exist first, since every write it performs is RLS-blocked for an Owner
+  // acting on another person's rows. Disabled (with the reason shown)
+  // rather than navigating when the wizard has no created member to point
+  // at — reachable if this step is entered from a stage other than the
+  // createPreExistingMember success path.
+  bool get _canOpen => state.createdPersonId != null && state.createdMembershipId != null;
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -303,13 +314,23 @@ class _IncompleteStep extends StatelessWidget {
               style: TextStyle(fontSize: 12),
             ),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Profile Completion sub-flow — separate screen, not in this pass\'s scope.')),
-              );
-            },
+            enabled: _canOpen,
+            onTap: !_canOpen
+                ? null
+                : () => context.push(
+                      '/ow-014-complete-profile'
+                      '?personId=${state.createdPersonId}'
+                      '&membershipId=${state.createdMembershipId}',
+                    ),
           ),
         ),
+        if (!_canOpen) ...[
+          const SizedBox(height: ManaSpacing.sm),
+          const ManaText.raw(
+            'No member selected — create or select a member first.',
+            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          ),
+        ],
       ],
     );
   }

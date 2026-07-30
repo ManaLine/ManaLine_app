@@ -141,29 +141,79 @@ class GlobalWorkflowApiService {
     }).toList();
   }
 
-  Future<void> updatePersonFields({required String personId, required Map<String, dynamic> fields}) async {
-    await _db.from('persons').update(fields).eq('person_id', int.parse(personId));
+  // --- Profile Completion sub-flow (OW-014 "Complete Profile" tile) ---------
+  //
+  // Every write below goes through a migration-0053 RPC rather than a raw
+  // table write. Not a style choice: 0012's RLS makes persons UPDATE,
+  // person_addresses INSERT and identity_documents INSERT self-only, so the
+  // raw-table versions these replaced could never have succeeded for an
+  // Owner acting on a member's rows — they'd have failed with a bare 42501
+  // (or, on the person_addresses path, silently written nothing). See the
+  // 0053 header for the full policy-by-policy account.
+
+  Future<MemberProfileChecklist> fetchProfileChecklist({required String personId}) async {
+    final rows = await _db.schema('app').rpc('owner_member_profile_checklist', params: {
+      'p_person_id': int.parse(personId),
+    });
+    final row = (rows as List).first as Map<String, dynamic>;
+    return MemberProfileChecklist(
+      fullName: row['full_name'] as String? ?? '',
+      mlid: row['mlid'] as String? ?? '',
+      profileStatus: row['profile_status'] as String? ?? 'Incomplete',
+      hasPhoto: row['has_photo'] as bool? ?? false,
+      hasAddress: row['has_address'] as bool? ?? false,
+      hasDocument: row['has_document'] as bool? ?? false,
+      hasMobile: row['has_mobile'] as bool? ?? false,
+      hasCredential: row['has_credential'] as bool? ?? false,
+      termsAccepted: row['terms_accepted'] as bool? ?? false,
+      addressSummary: row['address_summary'] as String?,
+    );
   }
 
-  Future<void> submitAddress({required String personId, required Map<String, dynamic> address}) async {
-    await _db.from('person_addresses').insert({
-      'person_id': int.parse(personId),
-      'door_no': address['door_no'] ?? '-',
-      'pin_code': address['pin_code'] ?? '000000',
-      'village_id': address['village_id'],
-      'mandal': address['mandal'] ?? '-',
-      'district': address['district'] ?? '-',
-      'state': address['state'] ?? '-',
-      'from_date': DateTime.now().toIso8601String().split('T').first,
-      'is_current': true,
+  Future<void> updateMemberIdentity({
+    required String personId,
+    String? mobileNumber,
+    String? dob,
+    String? aadhaarNumber,
+    String? profilePhotoUrl,
+  }) async {
+    await _db.schema('app').rpc('owner_update_member_identity', params: {
+      'p_person_id': int.parse(personId),
+      'p_mobile_number': mobileNumber,
+      'p_dob': dob,
+      'p_aadhaar_number': aadhaarNumber,
+      'p_profile_photo_url': profilePhotoUrl,
     });
   }
 
-  Future<void> submitDocument({required String personId, required String documentUrl}) async {
-    await _db.from('identity_documents').insert({
-      'person_id': int.parse(personId),
-      'document_type': 'Aadhaar', // FLAGGED: stub's own signature has no document_type param — defaulted, not guessed silently
-      'file_url': documentUrl,
+  /// Reuses `app.owner_update_customer_address` (migration 0027) unchanged —
+  /// it is keyed on person_id, not customer_id, and already derives
+  /// mandal/district/state from the village, so it covers an Agent's or
+  /// Investor's address here just as well as a Customer's. Not duplicated
+  /// into a second OW-014-specific RPC.
+  Future<void> submitAddress({
+    required String personId,
+    required String doorNo,
+    required String pinCode,
+    required String villageId,
+  }) async {
+    await _db.schema('app').rpc('owner_update_customer_address', params: {
+      'p_person_id': int.parse(personId),
+      'p_door_no': doorNo,
+      'p_pin_code': pinCode,
+      'p_village_id': villageId,
+    });
+  }
+
+  Future<void> submitDocument({
+    required String personId,
+    required String documentType,
+    required String fileUrl,
+  }) async {
+    await _db.schema('app').rpc('owner_upload_member_document', params: {
+      'p_person_id': int.parse(personId),
+      'p_document_type': documentType,
+      'p_file_url': fileUrl,
     });
   }
 
@@ -198,14 +248,49 @@ class GlobalWorkflowApiService {
     );
   }
 
-  Future<void> approveProfileComplete({required String personId, required String membershipId}) async {
-    await _db.from('persons').update({'profile_status': 'Complete'}).eq('person_id', int.parse(personId));
-    await _db.from('business_members').update({'verification_status': 'Verified'}).eq('membership_id', membershipId);
+  /// Returns the status the server actually applied — 'Complete' only when
+  /// the member-side steps (mobile, credential, terms) are done too,
+  /// otherwise 'Pending Verification'. The prerequisite checks live in the
+  /// RPC, so a failure here surfaces as a real exception with the missing
+  /// artifact named, not as a no-op.
+  Future<String> markProfileComplete({required String personId, required String membershipId}) async {
+    final result = await _db.schema('app').rpc('owner_mark_member_profile_complete', params: {
+      'p_person_id': int.parse(personId),
+      'p_membership_id': membershipId,
+    });
+    return result as String;
   }
+}
 
-  Future<void> submitProfileCompleteDirect({required String personId, required String membershipId}) async {
-    await approveProfileComplete(personId: personId, membershipId: membershipId);
-  }
+class MemberProfileChecklist {
+  final String fullName;
+  final String mlid;
+  final String profileStatus;
+  final bool hasPhoto;
+  final bool hasAddress;
+  final bool hasDocument;
+  // Member-side steps — an Owner cannot perform these (see 0053 header).
+  // Surfaced read-only so the screen can show what is still outstanding
+  // instead of implying the Owner forgot something.
+  final bool hasMobile;
+  final bool hasCredential;
+  final bool termsAccepted;
+  final String? addressSummary;
+
+  const MemberProfileChecklist({
+    required this.fullName,
+    required this.mlid,
+    required this.profileStatus,
+    required this.hasPhoto,
+    required this.hasAddress,
+    required this.hasDocument,
+    required this.hasMobile,
+    required this.hasCredential,
+    required this.termsAccepted,
+    this.addressSummary,
+  });
+
+  bool get ownerStepsDone => hasPhoto && hasAddress && hasDocument;
 }
 
 class PersonSearchResult {

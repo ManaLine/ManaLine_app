@@ -3,50 +3,29 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// OW-011 — Day Closure. Real Supabase wiring.
 ///
-/// SCHEMA/RLS GAP FOUND (flag prominently — see END RESULT): the original
-/// stub's own comment on `recordDifferenceAdjustment` correctly identified
-/// that no documented endpoint creates a `settlement_adjustments` row
-/// directly from Day Closure's Difference Analyzer (settlement_id NULL,
-/// business_date-scoped). Having now read the REAL schema
-/// (0009_module8_finance_cash.sql), the gap is worse than "no documented
-/// endpoint" — it's structurally unscopable:
-///   `settlement_adjustments` has NO `business_id` column at all. It's only
-///   reachable via `settlement_id` (→ account_settlements → business_id) or
-///   `agent_id` (→ agents → business_members → business_id). A Day-Closure-
-///   created adjustment has neither (it's business-date-scoped, not tied to
-///   any one agent's settlement) — `target_customer_id` doesn't reach
-///   business_id either without ALSO knowing which business that customer's
-///   membership is under (a customer's `customer_id` isn't itself
-///   business-scoped in a single hop the way this table is shaped).
-///   The RLS policy this session's earlier work wrote for this table
-///   (0017_rls_module8_finance_cash.sql, `settlement_adjustments_owner_all`)
-///   ONLY grants access via those same two paths — a row with both
-///   `agent_id` and `settlement_id` NULL would be **written successfully
-///   but then invisible to everyone, Owner included**, since RLS would
-///   reject every SELECT against it. This is not a client-side wiring
-///   problem to work around; it needs either a `business_id` column added
-///   to `settlement_adjustments` (schema chat) or a written policy amending
-///   `settlement_adjustments_owner_all` to also allow `business_date`-only
-///   rows scoped some other way (RLS chat) — flagged for master chat, not
-///   silently resolved here.
+/// SCHEMA/RLS GAP — RESOLVED in migration 0054. Recorded here because the
+/// shape of the fix explains the RPCs below.
 ///
-/// Given that, `recordDifferenceAdjustment` is wired as a BLOCKED RPC
-/// (matching the calc-engine convention already established in
-/// agent_settlement_state.dart's `submit_agent_settlement`) rather than a
-/// raw insert that would currently write an orphaned, RLS-invisible row.
+/// `settlement_adjustments` (0009) had NO `business_id` column: it was
+/// reachable only via `settlement_id` (→ account_settlements → business_id)
+/// or `agent_id` (→ agents → business_members → business_id). A Day-Closure
+/// difference adjustment has neither — it is business-date-scoped, not tied
+/// to any one agent's settlement — and `target_customer_id` does not reach
+/// business_id in a single hop either. Since
+/// `settlement_adjustments_owner_all` (0017) tested exactly those two paths,
+/// a row with both NULL would have been written successfully and then been
+/// invisible to every role including the Owner who created it. 0054 adds the
+/// nullable `business_id` column and a third policy branch for it, which is
+/// what makes `recordDifferenceAdjustment` a real, readable write rather
+/// than an orphan.
 ///
-/// `closeDay` is ALSO wired as a blocked RPC even though 15_Calculation_
-/// Engine.md wasn't attached to this specific session to confirm it by
-/// name (only BF Cash Validation / Salary Formula / Settlement Short-Excess
-/// were named explicitly in the briefing) — flagged as an extension of that
-/// pattern, not a literal instruction: closing a day authoritatively
-/// commits `expected_*`/`difference` figures and updates `day_ledger.status`
-/// in the same transaction as the BR-043/219 zero-difference hard gate, and
-/// doing that as a client-side multi-table write (INSERT day_closures +
-/// UPDATE day_ledger) risks the exact "client-side recompute could drift
-/// from what's enforced server-side" problem the briefing warned about for
-/// the other three operations. Confirm with master chat before relying on
-/// this classification.
+/// `closeDay` is an RPC for the reason its own blocked note gave: closing a
+/// day commits `expected_*`/`difference` and flips `day_ledger.status` in
+/// the same transaction as the BR-043/219 zero-difference hard gate, and a
+/// client-side multi-table write could drift from what is enforced
+/// server-side. The Expected figures used by both the gate and `precheck`
+/// below come from one shared function (`app.day_closure_expected`) so the
+/// advisory client check and the authoritative server check cannot disagree.
 class DayClosureApiService {
   SupabaseClient get _db => Supabase.instance.client;
 
@@ -103,20 +82,26 @@ class DayClosureApiService {
       );
     }
 
+    // The per-method Expected split now comes from
+    // `app.day_closure_expected` (migration 0054) — the SAME function
+    // close_business_day uses for its BR-043/219 gate, so this advisory
+    // precheck and the authoritative server check cannot disagree. This
+    // replaces an approximation that dumped day_ledger.closing_balance into
+    // expectedCash and zeroed UPI/Bank/Cheque; on any business taking
+    // non-cash payments that showed the Owner a green zero-difference on a
+    // day the server would then refuse to close. day_ledger itself has no
+    // per-method columns — the split is derived from
+    // collection_payment_splits.payment_mode; see 0054 for the derivation.
+    final expectedRows = await _db.schema('app').rpc('day_closure_expected', params: {
+      'p_business_id': businessId,
+      'p_business_date': businessDate,
+    });
+    final e = (expectedRows as List).first as Map<String, dynamic>;
     final expected = ExpectedFigures(
-      // day_ledger doesn't split "expected" by payment method (Cash/UPI/
-      // Bank/Cheque) — it tracks a single closing_balance. This maps the
-      // aggregate onto expectedCash and zeroes the other three, which is
-      // almost certainly wrong for a business using multiple payment
-      // methods. FLAGGED: either day_ledger needs per-method columns, or
-      // the per-method expected split needs to come from the (also
-      // blocked) close_business_day RPC instead of being read from
-      // day_ledger directly. Do not ship this approximation without
-      // confirming against the real calculation engine spec.
-      expectedCash: (ledgerRow['closing_balance'] as num).toDouble(),
-      expectedUpi: 0,
-      expectedBank: 0,
-      expectedCheque: 0,
+      expectedCash: (e['expected_cash'] as num).toDouble(),
+      expectedUpi: (e['expected_upi'] as num).toDouble(),
+      expectedBank: (e['expected_bank'] as num).toDouble(),
+      expectedCheque: (e['expected_cheque'] as num).toDouble(),
     );
 
     return DayClosurePrecheckResult(
@@ -126,18 +111,14 @@ class DayClosureApiService {
     );
   }
 
-  // BLOCKED ON RPC — see class-level note above.
-  // Expected: supabase.rpc('close_business_day', params: {
-  //   'p_business_id': businessId, 'p_business_date': businessDate,
-  //   'p_physical_cash': physicalCash, 'p_upi_balance': upiBalance,
-  //   'p_bank_balance': bankBalance, 'p_cheque_balance': chequeBalance,
-  //   'p_remarks': remarks,
-  // }) — server re-derives expected_* and difference authoritatively,
-  // hard-rejects (422-equivalent Postgres exception) if difference != 0
-  // per BR-043/219, and performs the day_closures INSERT + day_ledger
-  // status UPDATE atomically. Also expected to serve as the "close-again"
-  // path (server auto-detects via day_ledger.status per the original
-  // stub's §8.6.1 alias note) — no separate client method needed for that.
+  /// Backed by `app.close_business_day` (migration 0054). The server
+  /// re-derives expected_* and difference authoritatively, hard-rejects with
+  /// a PostgrestException if difference != 0 per BR-043/219 (no override
+  /// parameter exists), and performs the day_closures write + day_ledger
+  /// status UPDATE atomically. It also serves the "close again" path — it
+  /// detects a reopened closure from that row's own reopened_at and updates
+  /// it rather than inserting a second closure for the same business day, so
+  /// no separate client method is needed.
   Future<DayClosureResult> closeDay({
     required String businessId,
     required String businessDate,
@@ -147,11 +128,21 @@ class DayClosureApiService {
     required double chequeBalance,
     String? remarks,
   }) async {
-    throw UnimplementedError(
-      'BLOCKED on RPC "close_business_day" (not yet built). Authoritative '
-      'Expected-vs-Actual recomputation + the BR-043/219 zero-difference '
-      'hard gate must happen server-side, not as a client-side multi-table '
-      'write — see class-level note.',
+    final result = await _db.schema('app').rpc('close_business_day', params: {
+      'p_business_id': businessId,
+      'p_business_date': businessDate,
+      'p_physical_cash': physicalCash,
+      'p_upi_balance': upiBalance,
+      'p_bank_balance': bankBalance,
+      'p_cheque_balance': chequeBalance,
+      'p_remarks': remarks,
+    }) as Map<String, dynamic>;
+    return DayClosureResult(
+      closureId: result['closure_id'] as String,
+      businessDate: result['business_date'] as String,
+      difference: (result['difference'] as num).toDouble(),
+      closingBalance: (result['closing_balance'] as num).toDouble(),
+      status: result['status'] as String,
     );
   }
 
@@ -233,15 +224,13 @@ class DayClosureApiService {
     }).eq('closure_id', closureId);
   }
 
-  // BLOCKED ON RPC — see class-level note above (settlement_adjustments has
-  // no business_id column; a raw insert here would write an orphaned,
-  // RLS-invisible row).
-  // Expected: supabase.rpc('record_day_closure_adjustment', params: {
-  //   'p_business_id': businessId, 'p_business_date': businessDate,
-  //   'p_adjustment_type': adjustmentType, 'p_amount': amount,
-  //   'p_applied_to': appliedTo, 'p_target_customer_id': targetCustomerId,
-  // })
-  Future<void> recordDifferenceAdjustment({
+  /// Backed by `app.record_day_closure_adjustment` (migration 0054), which
+  /// resolved the class-level gap: settlement_adjustments gained a nullable
+  /// business_id column and settlement_adjustments_owner_all gained a third
+  /// branch for it, so a business-day adjustment (settlement_id and agent_id
+  /// both NULL) is now readable by the Owner who created it instead of being
+  /// written and then hidden by RLS from everyone.
+  Future<String> recordDifferenceAdjustment({
     required String businessId,
     required String businessDate,
     required String adjustmentType,
@@ -249,14 +238,15 @@ class DayClosureApiService {
     required String appliedTo,
     String? targetCustomerId,
   }) async {
-    throw UnimplementedError(
-      'BLOCKED on RPC "record_day_closure_adjustment" (not yet built). '
-      'settlement_adjustments has no business_id column and no path to one '
-      'when settlement_id and agent_id are both NULL — a raw insert here '
-      'would create a row invisible to every RLS policy, Owner included. '
-      'Needs either a schema change (add business_id) or an RLS policy '
-      'change before this can be a plain insert — see class-level note.',
-    );
+    final result = await _db.schema('app').rpc('record_day_closure_adjustment', params: {
+      'p_business_id': businessId,
+      'p_business_date': businessDate,
+      'p_adjustment_type': adjustmentType,
+      'p_amount': amount,
+      'p_applied_to': appliedTo,
+      'p_target_customer_id': targetCustomerId,
+    });
+    return result as String;
   }
 }
 

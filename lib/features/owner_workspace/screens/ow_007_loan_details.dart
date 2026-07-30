@@ -357,9 +357,22 @@ class _ActionsSection extends ConsumerWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await NetworkErrorHandler.run(context, () async {
+    final result = await NetworkErrorHandler.run(context, () async {
       return ref.read(loanDetailsProvider(loanId).notifier).closeLoan(writeOffRemaining: isWriteOff);
     });
+    if (result == null || !context.mounted) return;
+    // Only a genuine payoff recognises penalty income — the server decides
+    // that from the balance it saw before the write, so report what it
+    // actually did rather than what the button was labelled.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.recognisedPenalty
+            ? 'Loan closed. ${_currency.format(result.penaltyRecognised)} penalty recorded as collected today.'
+            : result.writtenOff
+                ? 'Loan written off. No penalty recorded as collected.'
+                : 'Loan closed.'),
+      ),
+    );
   }
 
   Future<void> _showApplyPenaltyDialog(BuildContext context, WidgetRef ref) async {
@@ -400,10 +413,15 @@ class _ActionsSection extends ConsumerWidget {
     if (result != true) return;
     final amt = double.tryParse(amount.text.trim());
     if (amt == null || amt <= 0 || !context.mounted) return;
-    await NetworkErrorHandler.run(context, () async {
-      return ref.read(loanDetailsProvider(loanId).notifier).applyPenalty(penaltyOption: option, penaltyAmount: amt);
+    // Gate the confirmation on the call actually succeeding — the RPC can
+    // legitimately reject (Closed loan, missing can_apply_penalty), and
+    // NetworkErrorHandler returns null with the server's reason already
+    // shown in that case.
+    final applied = await NetworkErrorHandler.run(context, () async {
+      await ref.read(loanDetailsProvider(loanId).notifier).applyPenalty(penaltyOption: option, penaltyAmount: amt);
+      return true;
     });
-    if (context.mounted) {
+    if (applied == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Penalty applied — customer notified.')),
       );
@@ -526,12 +544,17 @@ class _PenaltySection extends ConsumerWidget {
       ),
     );
     if (result != true || !context.mounted) return;
-    await NetworkErrorHandler.run(context, () async {
+    final reversed = await NetworkErrorHandler.run(context, () async {
       return ref.read(loanDetailsProvider(loanId).notifier).waiveOrReducePenalty(
             penaltyEntryId: entry.penaltyEntryId,
             waive: waiveFully,
             reducedAmount: waiveFully ? null : double.tryParse(reduced.text.trim()),
           );
     });
+    if (reversed != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('₹${reversed.toStringAsFixed(0)} reversed off the outstanding balance.')),
+      );
+    }
   }
 }

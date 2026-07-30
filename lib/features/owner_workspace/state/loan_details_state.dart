@@ -21,12 +21,12 @@ class LoanDetailsApiService {
         .from('loans')
         .select('''
           loan_id, loan_number, loan_status, repayment_type, installment_amount,
-          repayment_amount, amount_given, remaining_balance,
+          repayment_amount, amount_given, remaining_balance, grace_period_days,
           collection_agent_membership_id,
           customers!inner(customer_id, persons!inner(full_name)),
           business_members!loans_collection_agent_membership_id_fkey(persons!business_members_person_id_fkey(full_name)),
           guarantors(guarantor_id, guarantor_name, relationship, phone, address, remarks, status),
-          loan_schedule(schedule_id, status),
+          loan_schedule(schedule_id, status, due_date),
           penalty_entries(penalty_id, penalty_option, penalty_amount_applied, entry_timestamp, is_waived_or_reduced)
         ''')
         .eq('loan_id', loanId)
@@ -41,6 +41,20 @@ class LoanDetailsApiService {
     final guarantorRows = ((row['guarantors'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final penaltyRows = ((row['penalty_entries'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final status = _statusFromString(row['loan_status'] as String);
+
+    // Overdue-past-grace is computed from the schedule, NOT read off
+    // loan_status. `loan_status = 'Penalty'` exists in the enum but nothing
+    // in this codebase ever writes it — loans are created 'Active' by
+    // create_loan_with_bf_check and only ever move to 'Closed' — so gating
+    // the Apply Penalty action on that status made it permanently
+    // unreachable. This reads the same boundary function the server's own
+    // hard gate uses (app.loan_penalty_eligible_from), so the button and the
+    // RPC cannot disagree about when a penalty is allowed.
+    final lastDue = schedule
+        .map((s) => DateTime.parse(s['due_date'] as String))
+        .fold<DateTime?>(null, (max, d) => max == null || d.isAfter(max) ? d : max);
+    final graceDays = (row['grace_period_days'] as num?)?.toInt() ?? 0;
+    final penaltyEligibleFrom = lastDue?.add(Duration(days: graceDays + 1));
 
     final penalties = penaltyRows
         .map((p) => PenaltyEntry(
@@ -67,7 +81,7 @@ class LoanDetailsApiService {
       completedInstallments: completed,
       remainingInstallments: schedule.length - completed,
       inGracePeriod: status == LoanStatus.gracePeriod,
-      penaltyEligible: status == LoanStatus.penaltyEligible,
+      penaltyEligibleFrom: penaltyEligibleFrom,
       collectionAgentId: row['collection_agent_membership_id'] as String,
       collectionAgentName: agentPerson?['full_name'] as String? ?? '',
       guarantor: guarantorRows.isEmpty
@@ -125,25 +139,27 @@ class LoanDetailsApiService {
     await _db.from('loans').update({'collection_agent_membership_id': newAgentMembershipId}).eq('loan_id', loanId);
   }
 
-  Future<void> applyPenalty({
+  /// Applying a penalty must atomically insert penalty_entries AND increase
+  /// loans.remaining_balance by the same amount (per
+  /// penalty_entries.penalty_amount_applied's own column comment: "resolved
+  /// Rs amount added to remaining_balance"). Now backed by
+  /// `app.apply_loan_penalty` (migration 0054) — the insert+update pair this
+  /// replaced could half-apply on a dropped connection between the steps.
+  ///
+  /// The RPC also enforces the authorization the client cannot: Owner of the
+  /// loan's business, or an Agent covering the customer who holds
+  /// can_apply_penalty (OFF by default, BR-236).
+  Future<String> applyPenalty({
     required String loanId,
     required String penaltyOption,
     required double penaltyAmount,
   }) async {
-    // BLOCKED ON RPC: applying a penalty must atomically insert
-    // penalty_entries AND increase loans.remaining_balance by the same
-    // amount (per penalty_entries.penalty_amount_applied's own column
-    // comment: "resolved Rs amount added to remaining_balance") — the
-    // same class of atomicity requirement already flagged for
-    // record_collection/create_loan_with_bf_check elsewhere this session,
-    // not something a plain two-step .insert()+.update() can safely
-    // guarantee under a dropped connection between steps.
-    throw UnimplementedError(
-      'BLOCKED on RPC "apply_loan_penalty" (not yet built) — must atomically insert penalty_entries and increase '
-      'loans.remaining_balance together; a plain insert+update pair risks a partial write. Expected: '
-      "supabase.rpc('apply_loan_penalty', params: {'p_loan_id': loanId, 'p_penalty_option': penaltyOption, "
-      "'p_penalty_amount': penaltyAmount})",
-    );
+    final result = await _db.schema('app').rpc('apply_loan_penalty', params: {
+      'p_loan_id': loanId,
+      'p_penalty_option': penaltyOption,
+      'p_penalty_amount': penaltyAmount,
+    });
+    return result as String;
   }
 
   Future<List<PenaltyEntry>> fetchPenaltyEntries({required String loanId}) async {
@@ -166,24 +182,56 @@ class LoanDetailsApiService {
 
   /// Same atomicity concern as applyPenalty above — waiving/reducing must
   /// also reverse the corresponding amount out of loans.remaining_balance.
-  Future<void> waiveOrReducePenalty({
+  /// Backed by `app.waive_loan_penalty` (migration 0054); returns the rupee
+  /// amount actually reversed.
+  ///
+  /// NOTE: the RPC overwrites penalty_amount_applied with the new effective
+  /// amount (0 on a full waive), so the originally-applied figure is not
+  /// recoverable afterwards — there is no penalty history table in the
+  /// schema to hold it. See the 0054 header for why consistency with
+  /// remaining_balance was chosen over preserving the original.
+  Future<double> waiveOrReducePenalty({
     required String penaltyEntryId,
     required bool waive,
     double? reducedAmount,
   }) async {
-    throw UnimplementedError(
-      'BLOCKED on RPC "waive_loan_penalty" (not yet built) — same atomicity requirement as applyPenalty: must '
-      'reverse the corresponding amount out of loans.remaining_balance in the same transaction as marking '
-      'is_waived_or_reduced.',
+    final result = await _db.schema('app').rpc('waive_loan_penalty', params: {
+      'p_penalty_id': penaltyEntryId,
+      'p_waive': waive,
+      'p_reduced_amount': reducedAmount,
+    });
+    return (result as num).toDouble();
+  }
+
+  /// Backed by `app.close_loan` (migration 0055) rather than a raw UPDATE,
+  /// because closing a loan is ALSO the penalty recognition event and the two
+  /// must not be separable. The server recognises penalty income only when
+  /// the balance was already zero before this call — a genuine payoff — so a
+  /// write-off (and therefore a Defaulted or Cancelled loan) recognises
+  /// nothing. Returns what was actually recognised so the screen can report
+  /// it instead of guessing.
+  Future<LoanCloseResult> closeLoan({required String loanId, bool writeOffRemaining = false}) async {
+    final result = await _db.schema('app').rpc('close_loan', params: {
+      'p_loan_id': loanId,
+      'p_write_off': writeOffRemaining,
+    }) as Map<String, dynamic>;
+    return LoanCloseResult(
+      writtenOff: result['written_off'] as bool? ?? false,
+      penaltyRecognised: ((result['penalty_recognised'] as num?) ?? 0).toDouble(),
+      recognisedBusinessDate: result['recognised_business_date'] as String?,
     );
   }
 
-  Future<void> closeLoan({required String loanId, bool writeOffRemaining = false}) async {
-    await _db.from('loans').update({
-      'loan_status': 'Closed',
-      'closed_at': DateTime.now().toIso8601String(),
-      if (writeOffRemaining) 'remaining_balance': 0,
-    }).eq('loan_id', loanId);
+  /// First date a penalty may be applied — last installment's due_date +
+  /// grace_period_days + 1. Null when the loan has no schedule at all, in
+  /// which case `applyPenalty` will reject. Lets OW-007 disable the Apply
+  /// Penalty action and say *when* it unlocks, rather than letting the Owner
+  /// type an amount and only then hit the server's rejection.
+  Future<DateTime?> penaltyEligibleFrom({required String loanId}) async {
+    final result = await _db.schema('app').rpc('loan_penalty_eligible_from', params: {
+      'p_loan_id': loanId,
+    });
+    return result == null ? null : DateTime.parse(result as String);
   }
 
   Future<void> addRemark({required String loanId, required String remark}) async {
@@ -193,6 +241,24 @@ class LoanDetailsApiService {
       'customer_id, not loan_id, and would misattribute the remark.',
     );
   }
+}
+
+/// What `app.close_loan` actually did — a write-off and a payoff both leave
+/// the loan Closed at a zero balance, but only the payoff recognises penalty
+/// income, and only the server can tell them apart (it sees the balance
+/// before the write).
+class LoanCloseResult {
+  final bool writtenOff;
+  final double penaltyRecognised;
+  final String? recognisedBusinessDate;
+
+  const LoanCloseResult({
+    required this.writtenOff,
+    required this.penaltyRecognised,
+    this.recognisedBusinessDate,
+  });
+
+  bool get recognisedPenalty => penaltyRecognised > 0;
 }
 
 final loanDetailsApiServiceProvider = Provider<LoanDetailsApiService>((ref) {
@@ -267,7 +333,11 @@ class LoanDetail {
   final int completedInstallments;
   final int remainingInstallments;
   final bool inGracePeriod;
-  final bool penaltyEligible;
+  /// First date a penalty may be applied: last installment's due_date +
+  /// grace_period_days + 1. Null when the loan has no schedule rows, in
+  /// which case eligibility cannot be assessed and stays false. Mirrors
+  /// `app.loan_penalty_eligible_from`, which the server's hard gate uses.
+  final DateTime? penaltyEligibleFrom;
   final String collectionAgentId;
   final String collectionAgentName;
   final GuarantorDetail? guarantor;
@@ -292,7 +362,7 @@ class LoanDetail {
     required this.completedInstallments,
     required this.remainingInstallments,
     required this.inGracePeriod,
-    required this.penaltyEligible,
+    this.penaltyEligibleFrom,
     required this.collectionAgentId,
     required this.collectionAgentName,
     this.guarantor,
@@ -309,7 +379,18 @@ class LoanDetail {
   bool get canCollectPayment => !isReadOnlyFinancials;
   bool get canTransferAgent => !isReadOnlyFinancials;
   bool get canEditAllowedFields => !isReadOnlyFinancials;
-  bool get canApplyPenalty => status == LoanStatus.penaltyEligible;
+  /// "Loan not paid AND past both due date and grace period" — the same two
+  /// conditions `app.apply_loan_penalty` enforces server-side. Not read off
+  /// loan_status: the 'Penalty' status this used to check is never written by
+  /// anything, which made the action permanently unreachable.
+  bool get penaltyEligible {
+    if (penaltyEligibleFrom == null) return false;
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    return outstandingBalance > 0 && !todayDate.isBefore(penaltyEligibleFrom!);
+  }
+
+  bool get canApplyPenalty => penaltyEligible && !isReadOnlyFinancials;
   bool get canWaivePenalty => penaltyEntries.any((p) => !p.isWaivedOrReduced) && !isReadOnlyFinancials;
   bool get canCloseLoan => outstandingBalance <= 0 || status == LoanStatus.defaulted;
 }
@@ -349,42 +430,42 @@ class LoanDetailsNotifier extends FamilyAsyncNotifier<LoanDetail, String> {
     }
   }
 
-  Future<bool> applyPenalty({required String penaltyOption, required double penaltyAmount}) async {
-    try {
-      await ref
-          .read(loanDetailsApiServiceProvider)
-          .applyPenalty(loanId: arg, penaltyOption: penaltyOption, penaltyAmount: penaltyAmount);
-      await refresh();
-      return true;
-    } catch (_) {
-      return false;
-    }
+  // These two deliberately do NOT swallow into `false` the way the rest of
+  // this notifier does. Both now hit a real RPC (migration 0054) that
+  // rejects for reasons the Owner needs to read — not authorized, loan
+  // already Closed, penalty already waived, reduced amount out of range —
+  // and both move money on loans.remaining_balance. Returning a bare
+  // `false` let the screen show "Penalty applied" on a rejected write.
+  // Letting the PostgrestException through means NetworkErrorHandler
+  // surfaces the server's own message instead.
+  Future<void> applyPenalty({required String penaltyOption, required double penaltyAmount}) async {
+    await ref
+        .read(loanDetailsApiServiceProvider)
+        .applyPenalty(loanId: arg, penaltyOption: penaltyOption, penaltyAmount: penaltyAmount);
+    await refresh();
   }
 
-  Future<bool> waiveOrReducePenalty({
+  Future<double> waiveOrReducePenalty({
     required String penaltyEntryId,
     required bool waive,
     double? reducedAmount,
   }) async {
-    try {
-      await ref
-          .read(loanDetailsApiServiceProvider)
-          .waiveOrReducePenalty(penaltyEntryId: penaltyEntryId, waive: waive, reducedAmount: reducedAmount);
-      await refresh();
-      return true;
-    } catch (_) {
-      return false;
-    }
+    final reversed = await ref
+        .read(loanDetailsApiServiceProvider)
+        .waiveOrReducePenalty(penaltyEntryId: penaltyEntryId, waive: waive, reducedAmount: reducedAmount);
+    await refresh();
+    return reversed;
   }
 
-  Future<bool> closeLoan({bool writeOffRemaining = false}) async {
-    try {
-      await ref.read(loanDetailsApiServiceProvider).closeLoan(loanId: arg, writeOffRemaining: writeOffRemaining);
-      await refresh();
-      return true;
-    } catch (_) {
-      return false;
-    }
+  // Rethrows for the same reason applyPenalty/waiveOrReducePenalty do: this
+  // now hits an RPC that rejects for readable reasons (not the Owner, loan
+  // already Closed or Cancelled) and it recognises penalty income. A bare
+  // `false` would have let the screen report a close that never happened.
+  Future<LoanCloseResult> closeLoan({bool writeOffRemaining = false}) async {
+    final result =
+        await ref.read(loanDetailsApiServiceProvider).closeLoan(loanId: arg, writeOffRemaining: writeOffRemaining);
+    await refresh();
+    return result;
   }
 
   Future<bool> addRemark(String remark) async {

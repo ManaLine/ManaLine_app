@@ -143,6 +143,11 @@ class _LedgerRowCard extends StatelessWidget {
                 children: [
                   _figure('Opening (BF)', row.openingBalance),
                   _figure('Collections', row.totalCollections),
+                  // Sits beside Collections, not inside it — these rupees
+                  // arrived as part of ordinary collections and are already
+                  // counted there and in Closing. This line classifies them
+                  // as penalty income; it is not a separate inflow.
+                  _figure('Penalty Collected', row.penaltyCollected),
                   _figure('Loan Dist.', row.totalLoanDistribution),
                   _figure('Investor Dep.', row.investorDeposits),
                   _figure('Investor W/D', row.investorWithdrawals),

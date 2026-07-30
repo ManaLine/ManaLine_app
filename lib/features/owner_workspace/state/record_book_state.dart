@@ -24,10 +24,32 @@ class RecordBookApiService {
     if (dateTo != null) q = q.lte('business_date', _isoDate(dateTo));
     if (status != null) q = q.eq('status', status);
     final rows = await q.order('business_date', ascending: false);
-    return (rows as List).map((r) => _rowFromMap(r as Map<String, dynamic>)).toList();
+    final penalties = await _penaltyByDay(businessId: businessId, from: dateFrom, to: dateTo);
+    return (rows as List)
+        .map((r) => _rowFromMap(r as Map<String, dynamic>, penalties))
+        .toList();
   }
 
-  DayLedgerRow _rowFromMap(Map<String, dynamic> r) => DayLedgerRow(
+  /// Recognised penalty totals keyed by ISO business date. One call for the
+  /// whole range rather than per row — the RPC returns only days that
+  /// actually have penalties, so absent days read as zero.
+  Future<Map<String, double>> _penaltyByDay({
+    required String businessId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final rows = await _db.schema('app').rpc('penalty_collected_by_day', params: {
+      'p_business_id': businessId,
+      'p_from': from == null ? null : _isoDate(from),
+      'p_to': to == null ? null : _isoDate(to),
+    });
+    return {
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        r['business_date'] as String: (r['penalty_collected'] as num).toDouble(),
+    };
+  }
+
+  DayLedgerRow _rowFromMap(Map<String, dynamic> r, [Map<String, double> penalties = const {}]) => DayLedgerRow(
         businessDate: DateTime.parse(r['business_date'] as String),
         openingBalance: (r['opening_balance'] as num).toDouble(),
         totalCollections: (r['total_collections'] as num).toDouble(),
@@ -40,6 +62,7 @@ class RecordBookApiService {
         closingBalance: (r['closing_balance'] as num).toDouble(),
         status: r['status'] as String,
         remarks: r['remarks'] as String?,
+        penaltyCollected: penalties[r['business_date'] as String] ?? 0,
       );
 
   Future<DayDetail> fetchDayDetail({
@@ -70,8 +93,10 @@ class RecordBookApiService {
         .eq('business_date', date)
         .eq('account_settlements.account_periods.business_id', businessId);
 
+    final penalties = await _penaltyByDay(businessId: businessId, from: businessDate, to: businessDate);
+
     return DayDetail(
-      ledger: _rowFromMap(ledgerRow),
+      ledger: _rowFromMap(ledgerRow, penalties),
       collections: (collectionRows as List).cast<Map<String, dynamic>>().map((c) => DayDetailEntry(
             id: c['collection_id'] as String,
             label: 'Collection',
@@ -137,6 +162,21 @@ class DayLedgerRow {
   final double closingBalance;
   final String status; // Open | Closed
   final String? remarks;
+  /// Penalty income recognised on this business day — penalties on loans
+  /// that were closed today having already been paid down to zero.
+  ///
+  /// NOT part of closingBalance and NOT subtracted out of totalCollections:
+  /// those penalty rupees physically arrived inside ordinary collections and
+  /// are already counted once in the cash flow that reconciles against
+  /// day_closures. This is a classification of money already in the ledger,
+  /// not an extra inflow — adding it to any total would double-count it.
+  ///
+  /// Sourced from `app.penalty_collected_by_day`, which sums
+  /// penalty_entries.recognised_business_date. It is deliberately not a
+  /// day_ledger column: nothing in this codebase inserts day_ledger rows, so
+  /// a penalty recognised on a day with no ledger row would have had nowhere
+  /// to live. See migration 0055's header.
+  final double penaltyCollected;
 
   DayLedgerRow({
     required this.businessDate,
@@ -151,6 +191,7 @@ class DayLedgerRow {
     required this.closingBalance,
     required this.status,
     this.remarks,
+    this.penaltyCollected = 0,
   });
 
   double get difference => excessAmount - shortAmount;

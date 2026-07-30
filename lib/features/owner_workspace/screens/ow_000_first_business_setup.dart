@@ -133,7 +133,7 @@ class _StepIndicator extends StatelessWidget {
                 value: current / total,
                 minHeight: 6,
                 backgroundColor: ManaColors.surfaceSunken,
-                color: ManaColors.brass,
+                color: ManaColors.brand,
               ),
             ),
           ),
@@ -724,7 +724,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
             ...state.operatingAreas.map((a) => Card(
                   child: ListTile(
                     leading:
-                        const Icon(Icons.location_on, color: ManaColors.brass),
+                        const Icon(Icons.location_on, color: ManaColors.brand),
                     title: ManaText.raw('${a.villageName} — ${a.pinCode}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.close, size: 18),
@@ -911,7 +911,7 @@ class _Step4ExistingMembers extends ConsumerWidget {
       child: Card(
         child: ListTile(
           leading:
-              const Icon(Icons.group_add_outlined, color: ManaColors.brass),
+              const Icon(Icons.group_add_outlined, color: ManaColors.brand),
           title: const ManaText('start pre-existing member migration'),
           subtitle: const ManaText.raw('Launches OW-014 Global Workflow.',
               style: TextStyle(fontSize: 13)),
@@ -965,7 +965,7 @@ class _Step5Agreements extends ConsumerWidget {
             child: ListTile(
               leading: Icon(
                   created ? Icons.check_circle : Icons.description_outlined,
-                  color: created ? ManaColors.statusGood : ManaColors.brass),
+                  color: created ? ManaColors.statusGood : ManaColors.brand),
               title: ManaText.raw('$type Agreement'),
               trailing: TextButton(
                 onPressed: created ? null : () => _create(context, ref, type),

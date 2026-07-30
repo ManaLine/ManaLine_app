@@ -202,7 +202,7 @@ class _NotificationRow extends StatelessWidget {
     final t = _typeIcon;
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      color: notification.isRead ? null : ManaColors.brassFaint,
+      color: notification.isRead ? null : ManaColors.brandFaint,
       child: ListTile(
         leading: Icon(t.icon, color: t.color),
         title: Row(

@@ -7,6 +7,9 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
+import '../../../design/components/mana_header.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/motion.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
@@ -55,7 +58,13 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
     final async = ref.watch(ownerDashboardProvider);
 
     return Scaffold(
+      // top: false so the coloured header block bleeds under the status bar —
+      // that edge-to-edge colour is the whole point of the pattern. SafeArea
+      // wraps its child in MediaQuery.removePadding, so leaving top on would
+      // hide the inset from ManaHeaderBlock and leave a white strip above the
+      // blue. Bottom is still guarded, and ManaBottomNav has its own SafeArea.
       body: SafeArea(
+        top: false,
         child: async.when(
           // Skeleton rather than a centred spinner: it shows the page's real
           // structure (header, status bar, two section cards) so the wait
@@ -70,6 +79,9 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
             child: ListView(
               padding: const EdgeInsets.only(bottom: ManaSpacing.xxl),
               children: [
+                // The header is deliberately NOT wrapped in ManaAppear: fading
+                // in the thing that identifies the screen reads as hesitation.
+                // Identity lands immediately; the content below it arrives.
                 _Header(
                   businessId: widget.businessId,
                   businessName: data.businessName,
@@ -78,37 +90,46 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                 ),
                 _BusinessStatusBar(businessId: widget.businessId, data: data),
                 const SizedBox(height: ManaSpacing.md),
-                _SectionCard(
-                  title: "today's business summary",
-                  child: _TodaysSummary(data: data),
-                ),
-                _SectionCard(
-                  title: 'quick actions',
-                  child: _QuickActions(businessId: widget.businessId),
-                ),
-                _SectionCard(
-                  title: 'live business activity',
-                  onSeeAll: data.liveActivity.isEmpty ? null : () {},
-                  child: _LiveActivity(items: data.liveActivity),
-                ),
-                _SectionCard(
-                  title: 'attention required',
-                  child: _AttentionRequired(businessId: widget.businessId, cards: data.attentionRequired),
-                ),
-                _SectionCard(
-                  title: 'business overview',
-                  child: _BusinessOverview(data: data),
-                ),
-                _SectionCard(
-                  title: 'workforce snapshot',
-                  onSeeAll: () => context.push('/ow-002', extra: widget.businessId),
-                  child: _WorkforceSnapshot(data: data),
-                ),
-                _SectionCard(
-                  title: 'investor snapshot',
-                  onSeeAll: () => context.push('/ow-003', extra: widget.businessId),
-                  child: _InvestorSnapshot(data: data),
-                ),
+                // Staggered entrance so sections resolve in reading order
+                // rather than the whole page popping in at once. 30ms apart and
+                // capped at 8, so the last card is in place ~240ms after the
+                // first — fast enough that it reads as the page settling, not
+                // as an animation being performed at you. Skipped entirely
+                // under reduce-motion.
+                for (final (i, section) in <Widget>[
+                  _SectionCard(
+                    title: "today's business summary",
+                    child: _TodaysSummary(data: data),
+                  ),
+                  _SectionCard(
+                    title: 'quick actions',
+                    child: _QuickActions(businessId: widget.businessId),
+                  ),
+                  _SectionCard(
+                    title: 'live business activity',
+                    onSeeAll: data.liveActivity.isEmpty ? null : () {},
+                    child: _LiveActivity(items: data.liveActivity),
+                  ),
+                  _SectionCard(
+                    title: 'attention required',
+                    child: _AttentionRequired(businessId: widget.businessId, cards: data.attentionRequired),
+                  ),
+                  _SectionCard(
+                    title: 'business overview',
+                    child: _BusinessOverview(data: data),
+                  ),
+                  _SectionCard(
+                    title: 'workforce snapshot',
+                    onSeeAll: () => context.push('/ow-002', extra: widget.businessId),
+                    child: _WorkforceSnapshot(data: data),
+                  ),
+                  _SectionCard(
+                    title: 'investor snapshot',
+                    onSeeAll: () => context.push('/ow-003', extra: widget.businessId),
+                    child: _InvestorSnapshot(data: data),
+                  ),
+                ].indexed)
+                  ManaAppear(index: i, child: section),
               ],
             ),
           ),
@@ -161,40 +182,27 @@ class _DashboardSkeleton extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.only(bottom: ManaSpacing.xxl),
         physics: const NeverScrollableScrollPhysics(),
-        children: const [
-          // Header: logo, business name + status, action icons.
-          Padding(
-            padding: EdgeInsets.all(ManaSpacing.lg),
-            child: Row(
-              children: [
-                ManaSkeleton.circle(size: 40),
-                SizedBox(width: ManaSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ManaSkeleton(width: 160, height: 16),
-                      SizedBox(height: ManaSpacing.xs),
-                      ManaSkeleton(width: 90, height: 11),
-                    ],
-                  ),
-                ),
-                ManaSkeleton.circle(size: 24),
-                SizedBox(width: ManaSpacing.md),
-                ManaSkeleton.circle(size: 24),
-              ],
-            ),
+        children: [
+          // The header is rendered as the FINAL brandDeep block, not as
+          // placeholders. Shimmering grey where the coloured header will be
+          // would flash white-to-blue the moment data lands, which is a worse
+          // artifact than the wait itself. The colour and geometry are known
+          // before the fetch returns, so they are drawn immediately and only
+          // the unknown parts below shimmer.
+          Container(
+            height: MediaQuery.paddingOf(context).top + 84,
+            color: ManaColors.brandDeep,
           ),
           // Business status strip.
-          Padding(
+          const Padding(
             padding: EdgeInsets.symmetric(horizontal: ManaSpacing.lg),
             child: ManaSkeleton(height: 44, radius: ManaRadius.md),
           ),
-          SizedBox(height: ManaSpacing.md),
+          const SizedBox(height: ManaSpacing.md),
           // Today's Business Summary — a grid of figures.
-          _SkeletonSection(rows: 3),
+          const _SkeletonSection(rows: 3),
           // Quick Actions — a grid of tiles.
-          _SkeletonSection(rows: 2),
+          const _SkeletonSection(rows: 2),
         ],
       ),
     );
@@ -254,41 +262,53 @@ class _Header extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
-    return Container(
-      color: ManaColors.surface,
-      padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, ManaSpacing.md),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 20,
-            backgroundColor: ManaColors.inkFaint,
-            child: Icon(Icons.storefront, color: ManaColors.ink),
-          ),
-          const SizedBox(width: ManaSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ManaText.raw(businessName.isEmpty ? 'Business' : businessName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ManaText.raw(DateFormat('EEE, d MMM').format(now),
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Notifications',
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => _openNotifications(context),
-          ),
-          IconButton(
-            tooltip: 'Universal Search',
-            icon: const Icon(Icons.search),
-            onPressed: () => _openUniversalSearch(context),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (v) {
+    final unread = notifications.where((n) => !n.read).length;
+
+    // Was a white Container with a hand-rolled Row. Now the shared coloured
+    // header block: identity on brandDeep, actions forced to the 48dp floor
+    // with real accessible names, and the unread count surfaced as a badge
+    // instead of being invisible until the sheet is opened.
+    return ManaHeaderBlock(
+      title: businessName.isEmpty ? 'Business' : businessName,
+      subtitle: DateFormat('EEE, d MMM').format(now),
+      leading: Container(
+        color: ManaColors.brandFaint,
+        child: const Icon(Icons.storefront, color: ManaColors.brandDeep),
+      ),
+      actions: [
+        ManaHeaderAction(
+          icon: Icons.notifications_outlined,
+          label: 'Notifications',
+          badgeCount: unread,
+          onPressed: () => _openNotifications(context),
+        ),
+        ManaHeaderAction(
+          icon: Icons.search,
+          label: 'Universal Search',
+          onPressed: () => _openUniversalSearch(context),
+        ),
+        _overflowMenu(context, ref),
+      ],
+      // The status pills stay on the light body below, not inside the header:
+      // ManaStatusPill uses faint tinted backgrounds that are designed to sit
+      // on white and would lose their contrast on brandDeep. Putting them
+      // there would mean restyling the whole status vocabulary for one screen.
+    );
+  }
+
+  /// Kept as a PopupMenuButton rather than a ManaHeaderAction: this opens a
+  /// menu rather than performing an action, so it needs Flutter's own anchor
+  /// and dismissal behaviour. Sized and labelled to the same floor by hand.
+  Widget _overflowMenu(BuildContext context, WidgetRef ref) {
+    return Semantics(
+      button: true,
+      label: 'More options',
+      child: PopupMenuButton<String>(
+        tooltip: 'More options',
+        iconSize: 24,
+        constraints: const BoxConstraints(minWidth: kManaMinTapTarget),
+        icon: const Icon(Icons.more_vert, color: ManaColors.textOnDark),
+        onSelected: (v) {
               switch (v) {
                 case 'switch_business':
                   context.go('/lr-012');
@@ -325,8 +345,6 @@ class _Header extends ConsumerWidget {
               ],
               const PopupMenuDivider(),
               const PopupMenuItem(value: 'logout', child: ManaText('logout')),
-            ],
-          ),
         ],
       ),
     );
@@ -381,7 +399,7 @@ class _NotificationsSheet extends StatelessWidget {
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(
                             n.read ? Icons.notifications_none : Icons.notifications_active,
-                            color: n.read ? ManaColors.textSecondary : ManaColors.brass,
+                            color: n.read ? ManaColors.textSecondary : ManaColors.brand,
                           ),
                           title: ManaText.raw(n.label, style: const TextStyle(fontSize: 13)),
                           subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
@@ -655,13 +673,20 @@ class _TodaysSummary extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(child: ManaText.raw(r.$1, style: const TextStyle(fontSize: 13))),
-                      ManaText.raw(
-                        _currency.format(r.$2),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: r.$3 && r.$2 < 0 ? ManaColors.statusBad : ManaColors.textPrimary,
-                        ),
+                      // ManaAmount rather than a raw formatted string: tabular
+                      // figures so this column of rupee values actually aligns
+                      // digit-for-digit, and a spoken form ("Today's
+                      // Collections, 4,500 rupees") instead of a screen reader
+                      // spelling out the symbol and every comma.
+                      ManaAmount(
+                        r.$2,
+                        size: ManaAmountSize.compact,
+                        tone: r.$3 && r.$2 < 0 ? ManaAmountTone.negative : ManaAmountTone.neutral,
+                        // Only the Difference row shows a sign — direction is
+                        // the information there, whereas a signed balance just
+                        // adds noise.
+                        showSign: r.$3,
+                        semanticLabel: r.$1,
                       ),
                     ],
                   ),
@@ -672,9 +697,11 @@ class _TodaysSummary extends StatelessWidget {
                 const Expanded(
                   child: ManaText('live closing balance', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                ManaText.raw(
-                  _currency.format(data.liveClosingBalance),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ManaColors.brass),
+                // The figure this card exists to deliver, so it gets the
+                // larger size rather than matching the rows above it.
+                ManaAmount(
+                  data.liveClosingBalance,
+                  semanticLabel: 'Live closing balance',
                 ),
               ],
             ),
@@ -776,37 +803,25 @@ class _QuickActionGroup extends StatelessWidget {
       children: [
         ManaText(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.xs),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: actions.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: ManaSpacing.sm,
-            crossAxisSpacing: ManaSpacing.sm,
-            childAspectRatio: 0.95,
-          ),
-          itemBuilder: (context, i) {
-            final (icon, label, route, query) = actions[i];
-            final destination = query == null ? route : '$route?$query';
-            return Card(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => context.push(destination, extra: businessId),
-                child: Padding(
-                  padding: const EdgeInsets.all(ManaSpacing.sm),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon, color: ManaColors.brass),
-                      const SizedBox(height: ManaSpacing.xs),
-                      ManaText(label, textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(fontSize: 13)),
-                    ],
-                  ),
+        // Was a GridView with crossAxisCount: 3 and childAspectRatio: 0.95 —
+        // a fixed aspect ratio wrapping up-to-2-line labels, i.e. the same
+        // latent overflow shape that broke the five stat strips. A user raising
+        // their system font size would have clipped every tile. ManaActionGrid
+        // sizes to content instead, and goes 4-up on phones (5 or 6 on larger
+        // screens) so the tile a thumb has memorised doesn't move between
+        // devices.
+        ManaActionGrid(
+          actions: [
+            for (final (icon, label, route, query) in actions)
+              ManaAction(
+                icon: icon,
+                label: label,
+                onTap: () => context.push(
+                  query == null ? route : '$route?$query',
+                  extra: businessId,
                 ),
               ),
-            );
-          },
+          ],
         ),
       ],
     );
@@ -834,7 +849,7 @@ class _LiveActivity extends StatelessWidget {
         children: items
             .take(5)
             .map((a) => ListTile(
-                  leading: const Icon(Icons.circle, size: 8, color: ManaColors.brass),
+                  leading: const Icon(Icons.circle, size: 8, color: ManaColors.brand),
                   title: ManaText.raw(a.label, style: const TextStyle(fontSize: 13)),
                   trailing: ManaText.raw(DateFormat('hh:mm a').format(a.timestamp),
                       style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
@@ -1030,24 +1045,41 @@ class _FooterNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return NavigationBar(
-      selectedIndex: 0,
-      destinations: [
-        NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: ref.t('home')),
-        NavigationDestination(icon: const Icon(Icons.people_outline), label: ref.t('customers')),
-        NavigationDestination(icon: const Icon(Icons.point_of_sale_outlined), label: ref.t('collections')),
-        NavigationDestination(icon: const Icon(Icons.history), label: ref.t('history')),
+    // Was a Material NavigationBar. Swapped for the shared ManaBottomNav so
+    // Owner/Agent/Customer/Investor all get identical navigation — the other
+    // three workspaces will adopt the same widget rather than each
+    // reinterpreting it. It also supplies selectedIcon per item (the old
+    // version only set one for Home, so the other three never changed shape
+    // when selected) and refuses to re-navigate to the current tab, which
+    // pushed a duplicate route and broke Back.
+    return ManaBottomNav(
+      currentIndex: 0,
+      items: [
+        ManaNavItem(
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home,
+          label: ref.t('home'),
+          onTap: () {},
+        ),
+        ManaNavItem(
+          icon: Icons.people_outline,
+          selectedIcon: Icons.people,
+          label: ref.t('customers'),
+          onTap: () => context.go('/ow-004', extra: businessId),
+        ),
+        ManaNavItem(
+          icon: Icons.point_of_sale_outlined,
+          selectedIcon: Icons.point_of_sale,
+          label: ref.t('collections'),
+          onTap: () => context.go('/ow-006', extra: businessId),
+        ),
+        ManaNavItem(
+          icon: Icons.history,
+          selectedIcon: Icons.history_toggle_off,
+          label: ref.t('history'),
+          onTap: () => context.go('/ow-017', extra: businessId),
+        ),
       ],
-      onDestinationSelected: (i) {
-        switch (i) {
-          case 1:
-            context.go('/ow-004', extra: businessId);
-          case 2:
-            context.go('/ow-006', extra: businessId);
-          case 3:
-            context.go('/ow-017', extra: businessId);
-        }
-      },
     );
   }
 }

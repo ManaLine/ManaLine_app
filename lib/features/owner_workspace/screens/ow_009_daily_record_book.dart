@@ -327,7 +327,7 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                     ),
                     const SizedBox(width: ManaSpacing.sm),
                     FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: ManaColors.brass),
+                      style: FilledButton.styleFrom(backgroundColor: ManaColors.accent),
                       onPressed: () async {
                         final ok = await NetworkErrorHandler.run(context, () async {
                           return ref.read(recordBookProvider.notifier).updateRemarks(

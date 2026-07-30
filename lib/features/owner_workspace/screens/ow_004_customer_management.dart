@@ -910,7 +910,7 @@ class _CollectionsTab extends StatelessWidget {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: profile.collections
           .map((c) => ListTile(
-                leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brass),
+                leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
                 title: ManaText.raw(_currency.format(c.amount)),
                 subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
                 trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),

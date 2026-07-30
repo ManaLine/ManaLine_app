@@ -484,7 +484,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
               for (final type in AgentDocumentType.values)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.description_outlined, color: ManaColors.brass),
+                  leading: const Icon(Icons.description_outlined, color: ManaColors.brand),
                   title: ManaText(type.displayLabel),
                   onTap: () => Navigator.of(sheetContext).pop(type),
                 ),
@@ -618,7 +618,7 @@ class _CollectionHistoryTab extends StatelessWidget {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: profile.collections
           .map((c) => ListTile(
-                leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brass),
+                leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
                 title: ManaText.raw(_currency.format(c.amount)),
                 subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
                 trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),

@@ -216,7 +216,7 @@ class _NotificationsSheet extends StatelessWidget {
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(
                             n.read ? Icons.notifications_none : Icons.notifications_active,
-                            color: n.read ? ManaColors.textSecondary : ManaColors.brass,
+                            color: n.read ? ManaColors.textSecondary : ManaColors.brand,
                           ),
                           title: ManaText.raw(n.message, style: const TextStyle(fontSize: 13)),
                           subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
@@ -317,7 +317,7 @@ class _QuickActions extends ConsumerWidget {
             const SizedBox(height: ManaSpacing.sm),
             ...actions.map((a) => ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(a.$2, color: ManaColors.brass),
+                  leading: Icon(a.$2, color: ManaColors.brand),
                   title: ManaText(a.$1),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () => context.push(a.$3, extra: a.$4),

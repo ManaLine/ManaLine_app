@@ -58,9 +58,9 @@ class ManaLanguageSelector extends StatelessWidget {
           label: Text(l.nativeLabel),
           selected: selected,
           onSelected: (_) => onChanged(l),
-          selectedColor: ManaColors.brassFaint,
+          selectedColor: ManaColors.brandFaint,
           labelStyle: TextStyle(
-            color: selected ? ManaColors.brass : ManaColors.textSecondary,
+            color: selected ? ManaColors.brand : ManaColors.textSecondary,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
         );

@@ -374,7 +374,7 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
                         value: (stepIndex + 1) / _steps.length,
                         minHeight: 6,
                         backgroundColor: ManaColors.surfaceSunken,
-                        color: ManaColors.brass,
+                        color: ManaColors.brand,
                       ),
                     ),
                   ),
@@ -700,7 +700,7 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
         const SizedBox(height: ManaSpacing.lg),
         Container(
           padding: const EdgeInsets.all(ManaSpacing.md),
-          decoration: BoxDecoration(color: ManaColors.brassFaint, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: ManaColors.brandFaint, borderRadius: BorderRadius.circular(8)),
           child: Row(
             children: [
               const Expanded(

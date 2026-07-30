@@ -38,7 +38,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 ref.t('app_name'),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: ManaColors.brass,
+                      color: ManaColors.brand,
                     ),
               ),
               const Spacer(),
@@ -121,7 +121,7 @@ class _ProductCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: enabled ? ManaColors.brassFaint : ManaColors.surfaceSunken,
+                  backgroundColor: enabled ? ManaColors.brandFaint : ManaColors.surfaceSunken,
                   child: ManaText.raw(code, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: ManaSpacing.md),

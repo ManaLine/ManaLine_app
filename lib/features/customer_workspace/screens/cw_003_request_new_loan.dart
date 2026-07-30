@@ -246,7 +246,7 @@ class _TemplateTile extends StatelessWidget {
       child: ListTile(
         leading: Icon(
           selected ? Icons.check_circle : Icons.radio_button_unchecked,
-          color: selected ? ManaColors.brass : ManaColors.textSecondary,
+          color: selected ? ManaColors.brand : ManaColors.textSecondary,
         ),
         title: ManaText.raw(template.templateName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
@@ -270,7 +270,7 @@ class _CustomAmountTile extends StatelessWidget {
       child: ListTile(
         leading: Icon(
           selected ? Icons.check_circle : Icons.radio_button_unchecked,
-          color: selected ? ManaColors.brass : ManaColors.textSecondary,
+          color: selected ? ManaColors.brand : ManaColors.textSecondary,
         ),
         title: const ManaText('request custom amount'),
         subtitle: const ManaText.raw(
@@ -406,7 +406,7 @@ class _FrequencyTile extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: Icon(
         selected ? Icons.check_circle : Icons.radio_button_unchecked,
-        color: selected ? ManaColors.brass : ManaColors.textSecondary,
+        color: selected ? ManaColors.brand : ManaColors.textSecondary,
         size: 20,
       ),
       title: ManaText(label),

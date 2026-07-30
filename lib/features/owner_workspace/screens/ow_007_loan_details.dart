@@ -445,7 +445,7 @@ class _PaymentHistorySection extends StatelessWidget {
         else
           ...loan.paymentHistory.map((p) => Card(
                 child: ListTile(
-                  leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brass),
+                  leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
                   title: ManaText.raw(_currency.format(p.amount)),
                   subtitle: ManaText.raw('${p.paymentMode} · ${p.collector} · #${p.receiptNumber}'),
                   trailing: ManaText.raw(DateFormat('d MMM').format(p.businessDate),

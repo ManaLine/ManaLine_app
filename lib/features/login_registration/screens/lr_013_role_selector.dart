@@ -206,7 +206,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: Row(
             children: [
-              Icon(icon, color: ManaColors.brass),
+              Icon(icon, color: ManaColors.brand),
               const SizedBox(width: ManaSpacing.md),
               Expanded(child: ManaText(role)),
               const Icon(Icons.chevron_right, color: ManaColors.textSecondary),

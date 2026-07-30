@@ -117,17 +117,20 @@ class ManaColors {
   static const primary = brandDeep;
   static const divider = surfaceSunken;
 
-  // --- Back-compat aliases ----------------------------------------------
-  // ~90 call sites across lib/features still reference `ink` and `brass` by
-  // name. Rather than a risky mass rename right before live testing, they now
-  // resolve to the new palette: `ink` to the text colour it was always used
-  // as, `brass` to the accent that replaced it. New code should use
-  // textPrimary / accent / brand directly.
+  // --- Back-compat alias -------------------------------------------------
+  // `ink` is kept because every one of its ~30 call sites genuinely meant "the
+  // dark text/foreground colour", which is exactly what textPrimary is.
   static const ink = textPrimary;
   static const inkLight = Color(0xFF334166);
   static const inkFaint = Color(0xFFEEF0F5);
 
-  static const brass = accent;
-  static const brassLight = Color(0xFFFFCF5E);
-  static const brassFaint = accentFaint;
+  // `brass` / `brassLight` / `brassFaint` ARE DELIBERATELY GONE. Aliasing
+  // brass to accent looked harmless and was not: accent is a FILL colour at
+  // 1.76:1 on white, while nearly all 49 brass call sites were icons, dots,
+  // progress fills and text on LIGHT surfaces — including the PIN entry dots,
+  // which would have been near-invisible during login. Every site has been
+  // remapped explicitly (brand for foreground on light, accent for fills
+  // carrying dark text, brandFaint for tints), and the names are removed so
+  // the ambiguity cannot come back: `brass` no longer compiles, which is the
+  // point. Use brand / brandDeep / brandFaint / accent / accentFaint.
 }

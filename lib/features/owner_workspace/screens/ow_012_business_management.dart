@@ -589,7 +589,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.location_on, color: ManaColors.brass),
+                      leading: const Icon(Icons.location_on, color: ManaColors.brand),
                       title: ManaText.raw('${a.villageTownName} — ${a.pinCode}'),
                       subtitle: ManaText.raw(a.cycleConfigured
                           ? 'Cycle: ${a.accountCycleDuration} ${a.accountCycleUnit}, submits ${a.submissionTime}'

@@ -214,7 +214,7 @@ class _MonthlySummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(ManaSpacing.md),
       decoration: BoxDecoration(
-        color: ManaColors.brassFaint,
+        color: ManaColors.brandFaint,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -461,7 +461,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
                                 const SizedBox(width: ManaSpacing.sm),
                                 FilledButton(
                                   style: FilledButton.styleFrom(
-                                      backgroundColor: ManaColors.brass),
+                                      backgroundColor: ManaColors.accent),
                                   onPressed: () async {
                                     final ok = await NetworkErrorHandler.run(
                                         context, () async {

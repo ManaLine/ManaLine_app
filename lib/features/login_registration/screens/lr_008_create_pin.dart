@@ -166,7 +166,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
               width: 16, height: 16,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: filled ? ManaColors.brass : ManaColors.surfaceSunken,
+                color: filled ? ManaColors.brand : ManaColors.surfaceSunken,
               ),
             );
           }),
@@ -226,7 +226,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.fingerprint, size: 56, color: ManaColors.brass),
+        const Icon(Icons.fingerprint, size: 56, color: ManaColors.brand),
         const SizedBox(height: ManaSpacing.md),
         ManaText.raw(ref.t('enable_biometric_q'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.xl),

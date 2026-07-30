@@ -78,7 +78,7 @@ class BusinessSuspendedScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.pause_circle_outline, size: 56, color: ManaColors.brass),
+                const Icon(Icons.pause_circle_outline, size: 56, color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.lg),
                 const ManaText.raw(
                   'This business is temporarily suspended. Will be available soon.',

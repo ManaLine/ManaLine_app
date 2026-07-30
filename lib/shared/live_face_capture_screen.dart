@@ -213,9 +213,9 @@ class _LiveFaceCaptureScreenState extends State<LiveFaceCaptureScreen> {
                                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: ManaColors.brass,
+                                backgroundColor: ManaColors.accent,
                                 foregroundColor: Colors.white,
-                                disabledBackgroundColor: ManaColors.brass.withValues(alpha: 0.4),
+                                disabledBackgroundColor: ManaColors.accent.withValues(alpha: 0.4),
                                 disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
                                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
                                 minimumSize: const Size(200, 56),

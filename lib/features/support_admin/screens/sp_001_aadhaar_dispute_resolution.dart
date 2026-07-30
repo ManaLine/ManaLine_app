@@ -450,7 +450,7 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
             onPressed: caseState.canProceedFromIntake
                 ? notifier.goToSecondPersonVerification
                 : null,
-            style: ElevatedButton.styleFrom(backgroundColor: ManaColors.brass),
+            style: ElevatedButton.styleFrom(backgroundColor: ManaColors.accent),
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: ManaSpacing.sm),
               child: ManaText.raw('Proceed to Manual Verification'),
@@ -545,7 +545,7 @@ class _ManualVerificationStep extends ConsumerWidget {
                     ? notifier.resolveCase()
                     : notifier.proceedToSuspensionSummary()
                 : null,
-            style: ElevatedButton.styleFrom(backgroundColor: ManaColors.brass),
+            style: ElevatedButton.styleFrom(backgroundColor: ManaColors.accent),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
               child: caseState.resolving || caseState.loadingSuspensionImpact
@@ -580,7 +580,7 @@ class _DecisionTile extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: Icon(
         selected ? Icons.check_circle : Icons.radio_button_unchecked,
-        color: selected ? ManaColors.brass : ManaColors.textSecondary,
+        color: selected ? ManaColors.brand : ManaColors.textSecondary,
       ),
       title: ManaText(label),
       onTap: onTap,
@@ -774,7 +774,7 @@ class _OriginalHolderIntakeStepState
                       );
                     })
                 : null,
-            style: ElevatedButton.styleFrom(backgroundColor: ManaColors.brass),
+            style: ElevatedButton.styleFrom(backgroundColor: ManaColors.accent),
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: ManaSpacing.sm),
               child: ManaText.raw('Proceed to Manual Verification'),

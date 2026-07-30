@@ -49,7 +49,7 @@ class _DesignShowcaseScreenState extends State<DesignShowcaseScreen> {
             runSpacing: ManaSpacing.sm,
             children: [
               _Swatch('Ink', ManaColors.ink),
-              _Swatch('Brass', ManaColors.brass),
+              _Swatch('Brass', ManaColors.brand),
               _Swatch('Good', ManaColors.statusGood),
               _Swatch('Bad', ManaColors.statusBad),
               _Swatch('Warn', ManaColors.statusWarn),

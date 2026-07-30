@@ -68,7 +68,7 @@ class _DocumentsListViewState extends State<DocumentsListView> {
             return Card(
               child: ListTile(
                 leading: Icon(doc != null ? Icons.description : Icons.description_outlined,
-                    color: doc != null ? ManaColors.brass : null),
+                    color: doc != null ? ManaColors.brand : null),
                 title: ManaText(label),
                 subtitle: doc == null
                     ? const ManaText.raw('Not uploaded yet', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))

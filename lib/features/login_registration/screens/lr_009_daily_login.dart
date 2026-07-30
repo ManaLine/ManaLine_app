@@ -253,7 +253,7 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color:
-                          filled ? ManaColors.brass : ManaColors.surfaceSunken,
+                          filled ? ManaColors.brand : ManaColors.surfaceSunken,
                     ),
                   );
                 }),

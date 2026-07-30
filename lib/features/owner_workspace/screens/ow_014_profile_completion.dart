@@ -316,7 +316,7 @@ class _StepTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: ListTile(
-        leading: Icon(icon, color: done ? ManaColors.statusGood : ManaColors.brass),
+        leading: Icon(icon, color: done ? ManaColors.statusGood : ManaColors.brand),
         title: ManaText.raw(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(subtitle, style: const TextStyle(fontSize: 13)),
         trailing: done

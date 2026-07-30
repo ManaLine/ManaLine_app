@@ -363,7 +363,7 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
               width: 16, height: 16,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: filled ? ManaColors.brass : ManaColors.surfaceSunken,
+                color: filled ? ManaColors.brand : ManaColors.surfaceSunken,
               ),
             );
           }),

@@ -258,7 +258,7 @@ class _BfGateState extends ConsumerState<_BfGate> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.account_balance_wallet_outlined, size: 40, color: ManaColors.brass),
+                const Icon(Icons.account_balance_wallet_outlined, size: 40, color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.md),
                 const ManaText('opening bf for this session'),
                 const SizedBox(height: ManaSpacing.sm),

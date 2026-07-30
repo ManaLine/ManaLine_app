@@ -867,7 +867,7 @@ class _AreasTab extends ConsumerWidget {
           ...profile.assignedAreas.map((a) => Card(
                 child: ListTile(
                   leading: const Icon(Icons.location_on_outlined,
-                      color: ManaColors.brass),
+                      color: ManaColors.brand),
                   title: ManaText.raw(a),
                 ),
               )),
@@ -903,7 +903,7 @@ class _VillagePickerSheet extends StatelessWidget {
             )
           else
             ...areas.map((a) => ListTile(
-                  leading: const Icon(Icons.location_on_outlined, color: ManaColors.brass),
+                  leading: const Icon(Icons.location_on_outlined, color: ManaColors.brand),
                   title: ManaText.raw('${a.villageTownName} — ${a.pinCode}'),
                   subtitle: ManaText.raw(a.isOwnerRun ? 'Owner-run' : 'Assigned to ${a.assignedAgentName}',
                       style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),

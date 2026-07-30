@@ -248,7 +248,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
               enabled: !widget.disabled,
               leading: Icon(
                 selected ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: selected ? ManaColors.brass : ManaColors.textSecondary,
+                color: selected ? ManaColors.brand : ManaColors.textSecondary,
               ),
               title: ManaText(type.label),
               onTap: widget.disabled

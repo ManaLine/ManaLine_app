@@ -368,7 +368,7 @@ class _VisitOutcomeSheet extends StatelessWidget {
                   outcome == VisitOutcome.collected || outcome == VisitOutcome.partial
                       ? Icons.payments_outlined
                       : Icons.event_note_outlined,
-                  color: outcome.isNoCollectionOutcome ? ManaColors.textSecondary : ManaColors.brass,
+                  color: outcome.isNoCollectionOutcome ? ManaColors.textSecondary : ManaColors.brand,
                 ),
                 // "Customer Not Home" — exact canonical label, matching the
                 // schema ENUM literally.

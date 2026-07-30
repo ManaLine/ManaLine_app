@@ -274,7 +274,7 @@ class _QuickActions extends ConsumerWidget {
             const SizedBox(height: ManaSpacing.sm),
             ...actions.map((a) => ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(a.$2, color: ManaColors.brass),
+                  leading: Icon(a.$2, color: ManaColors.brand),
                   title: ManaText(a.$1),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () => context.push(a.$3, extra: a.$4),

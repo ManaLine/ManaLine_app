@@ -91,11 +91,11 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
               const SizedBox(height: 4),
               const ManaText.raw(
                 'FINANCE · GROWTH · TRUST',
-                style: TextStyle(color: ManaColors.brassLight, letterSpacing: 2, fontSize: 13),
+                style: TextStyle(color: ManaColors.accent, letterSpacing: 2, fontSize: 13),
               ),
               const SizedBox(height: ManaSpacing.xxl),
               if (_state == _StartupState.slowLoad) ...[
-                const CircularProgressIndicator(color: ManaColors.brass),
+                const CircularProgressIndicator(color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.md),
                 const ManaText.raw('Loading...', style: TextStyle(color: ManaColors.textOnDark)),
               ],

@@ -70,7 +70,7 @@ class _SelectTypeStep extends ConsumerWidget {
         for (final type in MemberType.values)
           Card(
             child: ListTile(
-              leading: const Icon(Icons.person_outline, color: ManaColors.brass),
+              leading: const Icon(Icons.person_outline, color: ManaColors.brand),
               title: ManaText(type.label),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => ref.read(globalWorkflowProvider.notifier).selectType(type),

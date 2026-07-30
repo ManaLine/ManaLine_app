@@ -218,7 +218,7 @@ class _RouteAreaSummary extends StatelessWidget {
           children: enabled
               .map((a) => ListTile(
                     dense: true,
-                    leading: const Icon(Icons.route_outlined, color: ManaColors.brass),
+                    leading: const Icon(Icons.route_outlined, color: ManaColors.brand),
                     title: ManaText.raw(a.areaName),
                     trailing: a.selectedInSession
                         ? const ManaStatusPill(label: 'In Session', status: ManaStatus.good)
@@ -246,7 +246,7 @@ class _CompensationLinkOutRow extends StatelessWidget {
     final s = summary;
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.account_balance_wallet_outlined, color: ManaColors.brass),
+        leading: const Icon(Icons.account_balance_wallet_outlined, color: ManaColors.brand),
         title: ManaText.raw(s != null ? _currency.format(s.fixedSalary) : '—',
             style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: ManaText.raw(s?.salaryCycleStatus ?? 'Compensation not yet available',

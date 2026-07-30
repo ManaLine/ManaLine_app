@@ -78,7 +78,7 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
                     else
                       ...state.groups.map((g) => Card(
                             child: ListTile(
-                              leading: const Icon(Icons.groups_outlined, color: ManaColors.brass),
+                              leading: const Icon(Icons.groups_outlined, color: ManaColors.brand),
                               title: ManaText.raw(g.groupName),
                               subtitle: ManaText.raw('${g.memberCount} members'),
                               trailing: const Icon(Icons.chevron_right),

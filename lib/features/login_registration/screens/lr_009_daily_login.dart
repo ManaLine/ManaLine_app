@@ -228,9 +228,20 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        // Scrollable, and the Column sizes to its content instead of using
+        // Spacer to push the footer down.
+        //
+        // WHY: this was a fixed-height Column with a Spacer, which cannot
+        // absorb growth. Switching the language to Kannada made the footer
+        // labels materially longer ("Login with Password" -> "ಪಾಸ್‌ವರ್ಡ್‌ನೊಂದಿಗೆ
+        // ಲಾಗಿನ್"), and the same is true at larger system font sizes — the
+        // Spacer's flex space went negative and the layout overflowed. A login
+        // screen must be reachable in every language on every device, so it
+        // scrolls rather than trying to fit.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: ManaSpacing.xl),
               const ManaVerificationRing(isVerified: true, size: 64),
@@ -241,7 +252,7 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                     : 'Welcome back, $_personName',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const Spacer(),
+              const SizedBox(height: ManaSpacing.xl),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(_pinLength!, (i) {
@@ -265,9 +276,14 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               ],
               const SizedBox(height: ManaSpacing.xl),
               _numberPad(),
-              const Spacer(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              const SizedBox(height: ManaSpacing.xl),
+              // Wrap, not Row: these labels come from ui_translations, so their
+              // width is data, not a constant. Two unconstrained TextButtons in
+              // a Row overflowed as soon as the language changed to Kannada.
+              // Wrap reflows to as many lines as the longest translation needs.
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: ManaSpacing.sm,
                 children: [
                   TextButton(
                     onPressed: () => context.push(
@@ -277,10 +293,30 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                     ),
                     child: ManaText.raw(ref.t('forgot_pin')),
                   ),
-                  const SizedBox(width: ManaSpacing.md),
                   TextButton(
                     onPressed: () => context.push('/lr-007'),
                     child: ManaText.raw(ref.t('login_with_password')),
+                  ),
+                  // Both of these were missing entirely, which made this screen
+                  // a dead end: the remembered person's name and a PIN pad, with
+                  // no way to reach anyone else's login and no way to register.
+                  // If the wrong person was remembered, or someone else picked
+                  // up the phone, the only escape was clearing app data.
+                  TextButton(
+                    onPressed: () {
+                      // Clear the remembered identity before leaving, or the
+                      // next screen would still be scoped to the old person.
+                      ref.read(authFlowProvider.notifier).reset();
+                      context.go('/lr-003');
+                    },
+                    child: ManaText.raw(ref.t('change_user')),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      ref.read(authFlowProvider.notifier).reset();
+                      context.go('/lr-004');
+                    },
+                    child: ManaText.raw(ref.t('register_button')),
                   ),
                 ],
               ),

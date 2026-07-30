@@ -282,6 +282,16 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                       onPressed: () => context.push('/lr-010'),
                       child: ManaText.raw(ref.t('forgot_password')),
                     ),
+                    // Was missing: someone who is not yet registered could
+                    // reach this password form (it is the generic login screen)
+                    // and had no route to registration from it. No "change
+                    // user" here, unlike LR-009 — on this screen you simply
+                    // type a different mobile number, so there is no remembered
+                    // identity to switch away from.
+                    TextButton(
+                      onPressed: () => context.push('/lr-004'),
+                      child: ManaText.raw(ref.t('register_button')),
+                    ),
                   ],
                 ),
               ),

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/design/components/mana_amount.dart';
 import 'package:mana_line/design/components/mana_header.dart';
 import 'package:mana_line/design/components/mana_skeleton.dart';
+import 'package:mana_line/design/motion.dart';
 
 /// Enforces the accessibility properties of the shared components, because
 /// "absolute accessibility" is only real if it fails the build when broken.
@@ -102,8 +103,9 @@ void main() {
       );
 
       // The icon puck itself is the floor; the tile is taller still because of
-      // the label beneath it.
-      final tile = tester.getSize(find.byType(InkWell).first);
+      // the label beneath it. Measured on the whole pressable surface, since
+      // the tap target is the tile and not just the icon.
+      final tile = tester.getSize(find.byType(ManaPressable).first);
       expect(tile.height, greaterThanOrEqualTo(kManaMinTapTarget));
     });
 

@@ -24,6 +24,7 @@ library;
 import 'package:flutter/material.dart';
 import '../tokens/colors.dart';
 import '../tokens/spacing.dart';
+import '../motion.dart';
 
 /// Minimum interactive size. Material specifies 48dp; this app's users are
 /// often standing, one-handed, in a hurry, sometimes with wet or dusty hands,
@@ -286,9 +287,14 @@ class _ActionTile extends StatelessWidget {
       enabled: !disabled,
       label: showBadge ? '${action.label}, ${action.badgeCount} pending' : action.label,
       excludeSemantics: true,
-      child: InkWell(
+      // Press-scale rather than a ripple for tiles and cards. A ripple tells
+      // you where you touched; a slight shrink of the whole surface tells you
+      // the surface IS the button and that the tap registered — which matters
+      // more outdoors, where a ripple can be almost invisible in sunlight.
+      // Small controls (header icons, nav items) keep the ripple, since at
+      // that size it's the expected affordance.
+      child: ManaPressable(
         onTap: action.onTap,
-        borderRadius: BorderRadius.circular(ManaRadius.md),
         child: Padding(
           // Vertical padding plus the icon puck keeps the whole tile well over
           // the 48dp floor, so the tap area is the tile and not just the icon.

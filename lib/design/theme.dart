@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'tokens/colors.dart';
 import 'tokens/typography.dart';
 import 'tokens/spacing.dart';
+import 'motion.dart';
 
 class ManaTheme {
   ManaTheme._();
@@ -28,6 +29,22 @@ class ManaTheme {
         onSurface: ManaColors.textPrimary,
       ),
       textTheme: textTheme,
+      // One declaration gives all ~60 GoRoute screens the same transition,
+      // including any added later — they all use GoRoute's `builder:`, which
+      // produces a MaterialPage and therefore honours this. Doing it
+      // per-route with CustomTransitionPage would have been 60 edits and
+      // would have drifted on the 61st. Flutter's default here is the M3 zoom
+      // transition, which is noticeably slower than the 240ms this uses.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: ManaPageTransitions(),
+          TargetPlatform.iOS: ManaPageTransitions(),
+          TargetPlatform.windows: ManaPageTransitions(),
+          TargetPlatform.macOS: ManaPageTransitions(),
+          TargetPlatform.linux: ManaPageTransitions(),
+          TargetPlatform.fuchsia: ManaPageTransitions(),
+        },
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: ManaColors.surface,
         foregroundColor: ManaColors.textPrimary,

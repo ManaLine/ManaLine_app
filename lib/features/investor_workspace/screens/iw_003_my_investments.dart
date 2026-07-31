@@ -7,6 +7,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/text_utils.dart';
 import '../state/my_investments_state.dart';
 
 final _currency =
@@ -184,7 +185,7 @@ class _InvestmentListCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ManaText.raw(
-                '${investment.investmentId} · ${investment.roiRate}% ROI · ${investment.interestMethod} · since ${_dateFmt.format(investment.effectiveDate)}',
+                '${investment.investmentId} · ${roiLabel(investment.roiRate)} · ${investment.interestMethod} · since ${_dateFmt.format(investment.effectiveDate)}',
                 style: const TextStyle(
                     fontSize: 13, color: ManaColors.textSecondary),
               ),
@@ -419,7 +420,8 @@ class _AgreementSnapshotCard extends StatelessWidget {
             const SizedBox(height: ManaSpacing.md),
             _row('Original Principal Amount',
                 _currency.format(snapshot.originalPrincipalAmount)),
-            _row('ROI Rate', '${snapshot.roiRate}%'),
+            _row('ROI Rate', roiLabel(snapshot.roiRate)),
+            _row('Yearly equivalent', roiAnnualEquivalent(snapshot.roiRate)),
             _row('Interest Type', snapshot.interestType),
             _row('Effective Date', _dateFmt.format(snapshot.effectiveDate)),
             if (profitSharePercent != null)

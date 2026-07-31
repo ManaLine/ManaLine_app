@@ -6,6 +6,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/text_utils.dart';
 import '../state/investor_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -284,7 +285,7 @@ class _InvestorRow extends StatelessWidget {
         leading: const ManaVerificationRing(isVerified: true, size: 40),
         title: ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
-          '${investor.mlid} · ${_currency.format(investor.investmentBalance)} @ ${investor.roi}%',
+          '${investor.mlid} · ${_currency.format(investor.investmentBalance)} @ ${roiLabel(investor.roi)}',
           style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
         trailing: ManaStatusPill(label: investor.membershipStatus, status: _statusKind),
@@ -467,7 +468,8 @@ class _OverviewTab extends StatelessWidget {
         const SizedBox(height: ManaSpacing.lg),
         _row('Phone Number', investor.phoneNumber),
         _row('Investment Balance', _currency.format(investor.investmentBalance)),
-        _row('ROI', '${investor.roi}%'),
+        _row('ROI', roiLabel(investor.roi)),
+        _row('ROI, yearly equivalent', roiAnnualEquivalent(investor.roi)),
         _row('Interest Due', _currency.format(investor.interestDue)),
         _row('Membership Status', investor.membershipStatus),
         _row('Last Transaction',
@@ -540,7 +542,7 @@ class _InvestmentsTab extends ConsumerWidget {
                         ],
                       ),
                       ManaText.raw(
-                        '${inv.roiRate}% ROI · ${inv.interestMethod} · since ${DateFormat('d MMM yyyy').format(inv.effectiveDate)}',
+                        '${roiLabel(inv.roiRate)} · ${inv.interestMethod} · since ${DateFormat('d MMM yyyy').format(inv.effectiveDate)}',
                         style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
                       const SizedBox(height: ManaSpacing.sm),
@@ -617,14 +619,37 @@ class _InvestmentsTab extends ConsumerWidget {
             children: [
               TextField(
                 controller: amount,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(labelText: 'Amount *'),
+                onChanged: (_) => setState(() {}),
               ),
               TextField(
                 controller: roi,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'ROI % *'),
+                // decimal:true — the plain number keyboard on Android has
+                // no decimal point, and this field is routinely a fraction
+                // (₹1.50 per 100).
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'ROI — ₹ per 100 per month *',
+                  helperText: 'e.g. 1.5 means ₹1.50 per ₹100 each month',
+                ),
+                onChanged: (_) => setState(() {}),
               ),
+              // The yearly number is the one most people sanity-check
+              // against, so show it live rather than making the Owner do
+              // x12 in their head while deciding whether they typed it
+              // right.
+              if (double.tryParse(roi.text.trim()) != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: ManaText.raw(
+                      '= ${roiAnnualEquivalent(double.parse(roi.text.trim()))}',
+                      style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                    ),
+                  ),
+                ),
               DropdownButtonFormField<String>(
                 initialValue: method,
                 decoration: const InputDecoration(labelText: 'Interest Method'),
@@ -654,7 +679,16 @@ class _InvestmentsTab extends ConsumerWidget {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const ManaText('save')),
+            // Was always enabled, and the parse failure afterwards just
+            // `return`ed — a second silent no-op on top of the schema one.
+            // Gate the button on the values actually parsing instead.
+            ElevatedButton(
+              onPressed: (double.tryParse(amount.text.trim()) != null &&
+                      double.tryParse(roi.text.trim()) != null)
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: const ManaText('save'),
+            ),
           ],
         ),
       ),

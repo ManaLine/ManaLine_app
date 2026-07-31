@@ -85,6 +85,7 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                 _Header(
                   businessId: widget.businessId,
                   businessName: data.businessName,
+                  logoUrl: data.logoUrl,
                   businessOpen: data.businessOpen,
                   notifications: data.notifications,
                   pendingInvitations: data.pendingInvitations,
@@ -237,6 +238,10 @@ class _SkeletonSection extends StatelessWidget {
 class _Header extends ConsumerWidget {
   final String businessId;
   final String businessName;
+  /// The business logo. It was fetched into OwnerDashboardData all along
+  /// and never rendered — the header hardcoded a storefront icon, so a
+  /// business that had uploaded a logo still showed the placeholder.
+  final String? logoUrl;
   final bool businessOpen;
   final List<NotificationItem> notifications;
   // Item 2: the Invitations/Acceptances pills that used to live in
@@ -248,6 +253,7 @@ class _Header extends ConsumerWidget {
   const _Header({
     required this.businessId,
     required this.businessName,
+    required this.logoUrl,
     required this.businessOpen,
     required this.notifications,
     required this.pendingInvitations,
@@ -271,7 +277,17 @@ class _Header extends ConsumerWidget {
       subtitle: DateFormat('EEE, d MMM').format(now),
       leading: Container(
         color: ManaColors.brandFaint,
-        child: const Icon(Icons.storefront, color: ManaColors.brandDeep),
+        child: logoUrl == null
+            ? const Icon(Icons.storefront, color: ManaColors.brandDeep)
+            : Image.network(
+                logoUrl!,
+                fit: BoxFit.cover,
+                // A signed storage URL can expire or 404. Falling back to
+                // the placeholder is right; showing a broken-image glyph in
+                // the header of every screen is not.
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.storefront, color: ManaColors.brandDeep),
+              ),
       ),
       actions: [
         ManaHeaderAction(

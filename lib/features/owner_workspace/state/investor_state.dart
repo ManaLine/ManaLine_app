@@ -194,11 +194,20 @@ class InvestorApiService {
       'business_id': businessId,
       'principal_amount': amount,
       'original_principal_amount': amount,
+      // Rupees per 100 per month, NOT a percent per year. See
+      // ManaRoi.label() — the column is a bare numeric either way, so the
+      // unit lives in the UI and in this comment.
       'roi_rate': roiRate,
       'interest_type': interestMethod,
-      'effective_date': effectiveDate,
+      // effective_date is a DATE column; sending a full ISO timestamp
+      // relied on Postgres casting it. Send what the column actually is.
+      'effective_date': effectiveDate.split('T').first,
       'status': 'Active',
-      'remaining_balance': amount,
+      // BUG FIXED: this insert also sent 'remaining_balance', which is NOT
+      // a column on investments. PostgREST rejected the whole request with
+      // PGRST204, so recording an investment could never succeed — and the
+      // notifier swallowed the error into `false`, so the dialog just
+      // closed and nothing happened.
     });
   }
 
@@ -629,8 +638,13 @@ class InvestorProfileNotifier extends FamilyAsyncNotifier<InvestorProfile, Strin
           );
       await refresh();
       return true;
-    } catch (_) {
-      return false;
+    } catch (e) {
+      // Deliberately RETHROWN, not swallowed into `false`. This method
+      // records money. Returning false hid a hard PGRST204 schema error
+      // behind a silent no-op for as long as this screen has existed —
+      // the Owner pressed Save, the dialog closed, and nothing was
+      // written. NetworkErrorHandler shows the real Postgres message.
+      rethrow;
     }
   }
 

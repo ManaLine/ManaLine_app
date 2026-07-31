@@ -315,7 +315,12 @@ class OwnerApiService {
     final totalCustomerMembershipIds = (members).where((m) => m['role'] == 'Customer').length;
 
     return OwnerDashboardData(
-      businessName: business['business_name'] as String,
+      // titleCaseName at the READ point, because rows created before
+      // createBusiness started normalising are already lower-case in
+      // production ("sri tirumala finance"). Same treatment the agent,
+      // customer and investor dashboards already give it — OW-001 was the
+      // one that got missed, which is why the header read lower-case.
+      businessName: titleCaseName(business['business_name'] as String),
       logoUrl: business['logo_url'] as String?,
       businessOpen: business['business_status'] == 'Active',
       pendingApprovals: countWhere('Customer', 'Pending Approval'),

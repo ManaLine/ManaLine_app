@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/live_face_capture_screen.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 
 /// OW-016 — Owner Profile. NEW screen (extends beyond the original locked
@@ -30,10 +31,54 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
   Map<String, dynamic>? _address;
   List<Map<String, dynamic>> _businesses = [];
 
+  bool _savingPhoto = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  /// Sets (or replaces) the profile photo.
+  ///
+  /// LR-007 already tells people a failed registration-time upload can be
+  /// retried "later via Profile" — but no such path existed on any profile
+  /// screen, so anyone whose upload failed (or who registered before that
+  /// step) was stuck with the silhouette permanently. That is the actual
+  /// reason the welcome header shows no photo: the row's
+  /// profile_photo_url is NULL, not a rendering bug.
+  ///
+  /// Uses the same live face capture as registration rather than a gallery
+  /// pick, deliberately: this photo sits inside the verification ring and
+  /// is identity evidence, so it must stay a live capture of the person in
+  /// front of the camera and not an arbitrary image from the device.
+  Future<void> _changePhoto() async {
+    final personId = ref.read(authFlowProvider).personId;
+    if (personId == null) return;
+    final bytes = await LiveFaceCaptureScreen.capture(context);
+    if (bytes == null || !mounted) return;
+
+    setState(() => _savingPhoto = true);
+    // Through NetworkErrorHandler, not a silent try/catch — if this fails
+    // the person needs to know it failed, otherwise they are back to
+    // wondering why there is still no photo.
+    final ok = await NetworkErrorHandler.run(context, () async {
+      final db = Supabase.instance.client;
+      // Same bucket and path shape LR-007 writes, so a retry overwrites
+      // the original rather than orphaning it.
+      final path = '$personId/photo.jpg';
+      await db.storage.from('profile-photos').uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+          );
+      final url = await db.storage.from('profile-photos').createSignedUrl(path, 60 * 60 * 24 * 365);
+      await db.from('persons').update({'profile_photo_url': url}).eq('person_id', personId);
+      return true;
+    });
+    if (!mounted) return;
+    setState(() => _savingPhoto = false);
+    if (ok == true) await _load();
   }
 
   Future<void> _load() async {
@@ -95,7 +140,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
     if (result == null) return;
 
     final personId = ref.read(authFlowProvider).personId;
-    if (personId == null) return;
+    if (personId == null || !mounted) return;
 
     final ok = await NetworkErrorHandler.run(context, () async {
       // Prior current address, if any, is superseded — not deleted
@@ -145,7 +190,11 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                 : ListView(
                     padding: const EdgeInsets.all(ManaSpacing.lg),
                     children: [
-                      _IdentityCard(person: _person!),
+                      _IdentityCard(
+                        person: _person!,
+                        onChangePhoto: _changePhoto,
+                        savingPhoto: _savingPhoto,
+                      ),
                       const SizedBox(height: ManaSpacing.lg),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -208,7 +257,13 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
 
 class _IdentityCard extends StatelessWidget {
   final Map<String, dynamic> person;
-  const _IdentityCard({required this.person});
+  final VoidCallback onChangePhoto;
+  final bool savingPhoto;
+  const _IdentityCard({
+    required this.person,
+    required this.onChangePhoto,
+    required this.savingPhoto,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -230,10 +285,43 @@ class _IdentityCard extends StatelessWidget {
             // silhouette. Falls back to that silhouette when the person has no
             // photo, or when the signed URL has expired (these are private-
             // bucket signed URLs with a 1-year expiry; see LivePhotoUpload).
-            ManaVerificationRing(
-              isVerified: (person['verification_ring'] as String?) == 'GREEN',
-              size: 56,
-              photo: photoUrl == null ? null : NetworkImage(photoUrl),
+            // Tappable: this is the only place a profile photo can be set
+            // after registration. Labelled for a screen reader by the
+            // ACTION, and sized past the 48dp floor by the badge below.
+            Semantics(
+              button: true,
+              label: photoUrl == null ? 'Add profile photo' : 'Change profile photo',
+              excludeSemantics: true,
+              child: InkWell(
+                onTap: savingPhoto ? null : onChangePhoto,
+                borderRadius: BorderRadius.circular(999),
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    ManaVerificationRing(
+                      isVerified: (person['verification_ring'] as String?) == 'GREEN',
+                      size: 56,
+                      photo: photoUrl == null ? null : NetworkImage(photoUrl),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: ManaColors.brandDeep,
+                        shape: BoxShape.circle,
+                      ),
+                      child: savingPhoto
+                          ? const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: ManaColors.textOnDark),
+                            )
+                          : const Icon(Icons.photo_camera,
+                              size: 12, color: ManaColors.textOnDark),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(width: ManaSpacing.md),
             Expanded(

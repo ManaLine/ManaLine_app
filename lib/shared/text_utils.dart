@@ -14,3 +14,25 @@ String titleCaseName(String input) {
     return word[0].toUpperCase() + word.substring(1).toLowerCase();
   }).join(' ');
 }
+
+/// Investor interest, quoted the way this trade actually quotes it:
+/// RUPEES PER 100 OF PRINCIPAL, PER MONTH. `investments.roi_rate` stores
+/// that figure — 1.5 means ₹1.50 per ₹100 per month.
+///
+/// It was previously rendered as "1.5%", which is ambiguous at best and
+/// wrong at worst: read as an annual percentage it understates the real
+/// rate by 12x. Every display goes through here so the six render sites
+/// cannot drift apart again.
+///
+/// NOTE: nothing in this app computes interest from roi_rate yet — not in
+/// Dart, and not in app.get_investment_statement, which only returns the
+/// raw figure. So this is currently a labelling fix. When the interest
+/// engine is built, "per 100 per month" is the definition it must use:
+/// monthly interest = principal / 100 * roi_rate.
+String roiLabel(num ratePer100PerMonth) =>
+    '₹${ratePer100PerMonth.toStringAsFixed(2)} / 100 / month';
+
+/// The same figure as an annual percentage, for a secondary line where the
+/// yearly cost is the more familiar number. ₹1.50/100/month -> "18% / year".
+String roiAnnualEquivalent(num ratePer100PerMonth) =>
+    '${(ratePer100PerMonth * 12).toStringAsFixed(1)}% / year';

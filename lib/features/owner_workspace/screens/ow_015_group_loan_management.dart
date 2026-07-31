@@ -57,22 +57,39 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(ManaSpacing.md),
-                      decoration:
-                          BoxDecoration(color: ManaColors.statusWarnFaint, borderRadius: BorderRadius.circular(8)),
-                      child: const ManaText.raw(
-                        'GAP: no confirmed loan-groups API exists yet — this screen is built against '
-                        'the implied shape only, pending a dedicated API addendum.',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                    ),
-                    const SizedBox(height: ManaSpacing.md),
+                    // The "GAP: no confirmed loan-groups API exists yet"
+                    // banner that used to sit here was stale — it
+                    // contradicted this file's own header comment, which
+                    // records that the screen was wired against the real
+                    // loan_groups / loan_group_members tables and that no
+                    // UnimplementedError paths remain. It was alarming the
+                    // Owner about a gap that had already been closed.
                     if (state.groups.isEmpty)
                       const Padding(
-                        padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          child: ManaText.raw('No groups yet.', style: TextStyle(color: ManaColors.textSecondary)),
+                        padding: EdgeInsets.symmetric(
+                            vertical: ManaSpacing.xxl, horizontal: ManaSpacing.md),
+                        child: Column(
+                          children: [
+                            Icon(Icons.groups_2_outlined, size: 40, color: ManaColors.textSecondary),
+                            SizedBox(height: ManaSpacing.md),
+                            ManaText.raw('No groups yet',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            SizedBox(height: ManaSpacing.sm),
+                            // The dead end: "Create Group" builds a group
+                            // out of EXISTING loans, and this business has
+                            // none, so the create screen has nothing to
+                            // select and cannot be completed. Say that here
+                            // rather than letting the Owner discover it two
+                            // taps in.
+                            ManaText.raw(
+                              'A group is formed from customers who already have a loan — '
+                              'it groups them for collection only, and does not merge their money. '
+                              'Create the loans first, then come back and group them.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                            ),
+                          ],
                         ),
                       )
                     else
@@ -189,6 +206,7 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
               onPressed: _nameController.text.trim().isEmpty || _selectedLoanIds.isEmpty || _saving
                   ? null
                   : () async {
+                      final navigator = Navigator.of(context);
                       setState(() => _saving = true);
                       final ok = await NetworkErrorHandler.run(context, () async {
                         return ref.read(groupLoanListProvider.notifier).createGroup(
@@ -199,7 +217,7 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
                       });
                       if (!mounted) return;
                       setState(() => _saving = false);
-                      if (ok == true) Navigator.of(context).pop();
+                      if (ok == true) navigator.pop();
                     },
               child: _saving
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))

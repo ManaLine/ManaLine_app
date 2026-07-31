@@ -539,6 +539,25 @@ class _InvestmentsTab extends ConsumerWidget {
                             label: inv.status,
                             status: inv.status == 'Active' ? ManaStatus.good : ManaStatus.neutral,
                           ),
+                          // Correcting a mis-typed investment. Edit keeps
+                          // the old values in audit_log (BR-169's pattern
+                          // for loans); Delete refuses once any interest
+                          // payment or withdrawal exists, because that is
+                          // money movement and BR-002 makes it permanent.
+                          PopupMenuButton<String>(
+                            tooltip: 'Investment options',
+                            onSelected: (v) => v == 'edit'
+                                ? _showInvestDialog(context, ref, existing: inv)
+                                : _confirmDeleteInvestment(context, ref, inv),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'edit', child: ManaText('edit investment')),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: ManaText.raw('delete investment',
+                                    style: TextStyle(color: ManaColors.statusBad)),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                       ManaText.raw(
@@ -600,20 +619,56 @@ class _InvestmentsTab extends ConsumerWidget {
         ],
       );
 
-  Future<void> _showInvestDialog(BuildContext context, WidgetRef ref) async {
-    final amount = TextEditingController();
-    final roi = TextEditingController();
-    String method = 'Simple';
+  Future<void> _confirmDeleteInvestment(
+      BuildContext context, WidgetRef ref, InvestmentRecord inv) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const ManaText('delete investment?'),
+        content: ManaText.raw(
+          '${_currency.format(inv.principalAmount)} at ${roiLabel(inv.roiRate)}, '
+          'effective ${DateFormat('d MMM yyyy').format(inv.effectiveDate)}.\n\n'
+          'This removes the record entirely. It is refused if any interest '
+          'payment or withdrawal has been made against it — correct those '
+          'with Edit instead.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: ManaColors.statusBad),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const ManaText('delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await NetworkErrorHandler.run(context, () async {
+      return ref
+          .read(investorProfileProvider(investorId).notifier)
+          .deleteInvestment(investmentId: inv.investmentId);
+    });
+  }
+
+  /// Records a new investment, or corrects an existing one when `existing`
+  /// is supplied — same fields either way, so they share one dialog.
+  Future<void> _showInvestDialog(BuildContext context, WidgetRef ref,
+      {InvestmentRecord? existing}) async {
+    final amount = TextEditingController(
+        text: existing == null ? '' : existing.principalAmount.toStringAsFixed(0));
+    final roi =
+        TextEditingController(text: existing == null ? '' : existing.roiRate.toString());
+    String method = existing?.interestMethod ?? 'Simple';
     // Defaults to today, but backdateable — a business onboarding onto
     // this app after already running for years needs to record
     // investments that started well before "today" (e.g. this investor's
     // original entry date), not just brand-new ones.
-    DateTime effectiveDate = DateTime.now();
+    DateTime effectiveDate = existing?.effectiveDate ?? DateTime.now();
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const ManaText('record investment'),
+          title: ManaText(existing == null ? 'record investment' : 'edit investment'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -699,12 +754,21 @@ class _InvestmentsTab extends ConsumerWidget {
     if (amt == null || r == null) return;
     if (!context.mounted) return;
     await NetworkErrorHandler.run(context, () async {
-      return ref.read(investorProfileProvider(investorId).notifier).recordInvestment(
-            amount: amt,
-            roiRate: r,
-            interestMethod: method,
-            effectiveDate: effectiveDate.toIso8601String(),
-          );
+      final notifier = ref.read(investorProfileProvider(investorId).notifier);
+      return existing == null
+          ? notifier.recordInvestment(
+              amount: amt,
+              roiRate: r,
+              interestMethod: method,
+              effectiveDate: effectiveDate.toIso8601String(),
+            )
+          : notifier.editInvestment(
+              investmentId: existing.investmentId,
+              amount: amt,
+              roiRate: r,
+              interestMethod: method,
+              effectiveDate: effectiveDate.toIso8601String(),
+            );
     });
   }
 

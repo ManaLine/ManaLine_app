@@ -68,19 +68,15 @@ class InvestorApiService {
   }
 
   /// accrued_interest per investment id, via the calculation engine.
-  /// Failures degrade that row to 0 rather than failing the list.
   Future<Map<String, double>> _accruedFor(List<String> investmentIds) async {
     if (investmentIds.isEmpty) return {};
     final results = await Future.wait(investmentIds.map((id) async {
-      try {
-        final rows = await _db.rpc('investment_interest_snapshot', params: {'p_investment_id': id});
-        final list = (rows as List?) ?? const [];
-        if (list.isEmpty) return MapEntry(id, 0.0);
-        return MapEntry(
-            id, ((list.first as Map<String, dynamic>)['accrued_interest'] as num?)?.toDouble() ?? 0);
-      } catch (_) {
-        return MapEntry(id, 0.0);
-      }
+      final rows =
+          await _db.schema('app').rpc('investment_interest_snapshot', params: {'p_investment_id': id});
+      final list = (rows as List?) ?? const [];
+      if (list.isEmpty) return MapEntry(id, 0.0);
+      return MapEntry(
+          id, ((list.first as Map<String, dynamic>)['accrued_interest'] as num?)?.toDouble() ?? 0);
     }));
     return Map.fromEntries(results);
   }
@@ -215,16 +211,21 @@ class InvestorApiService {
   /// right: interest is derived and re-derivable, not a recorded movement
   /// of money.
   Future<List<InvestmentRecord>> _withInterest(List<Map<String, dynamic>> investments) async {
+    // .schema('app') is REQUIRED — these functions live in the `app`
+    // schema, and a bare .rpc() targets `public`. Every other app.* call
+    // in this codebase does this; these three did not, so they 404'd and
+    // the accrued figure silently fell back to zero on screen.
+    //
+    // Errors are NOT caught here any more either. A swallowed failure is
+    // what hid that wiring bug: the screen showed a confident ₹0 for a
+    // real accruing investment, which on a money screen is worse than an
+    // error. Let it reach NetworkErrorHandler.
     final snapshots = await Future.wait(
       investments.map((i) async {
-        try {
-          final rows = await _db.rpc('investment_interest_snapshot',
-              params: {'p_investment_id': i['investment_id']});
-          final list = (rows as List?) ?? const [];
-          return list.isEmpty ? null : list.first as Map<String, dynamic>;
-        } catch (_) {
-          return null;
-        }
+        final rows = await _db.schema('app').rpc('investment_interest_snapshot',
+            params: {'p_investment_id': i['investment_id']});
+        final list = (rows as List?) ?? const [];
+        return list.isEmpty ? null : list.first as Map<String, dynamic>;
       }),
     );
 
@@ -251,7 +252,7 @@ class InvestorApiService {
   /// Materialises any due compounding anniversaries (CALC BR-053). Owner
   /// only, server-side. Returns how many events were written.
   Future<int> applyCompounding({required String investmentId}) async {
-    final result = await _db.rpc('apply_investment_compounding',
+    final result = await _db.schema('app').rpc('apply_investment_compounding',
         params: {'p_investment_id': investmentId});
     return (result as num?)?.toInt() ?? 0;
   }
@@ -264,7 +265,7 @@ class InvestorApiService {
     required double amount,
     String? remarks,
   }) async {
-    await _db.rpc('record_investment_interest_payment', params: {
+    await _db.schema('app').rpc('record_investment_interest_payment', params: {
       'p_investment_id': investmentId,
       'p_amount': amount,
       'p_business_date': DateTime.now().toIso8601String().split('T').first,
@@ -282,27 +283,63 @@ class InvestorApiService {
     required String interestMethod,
     required String effectiveDate,
   }) async {
-    final investor = await _db.from('investors').select('business_members!inner(business_id)').eq('investor_id', investorId).single();
-    final businessId = (investor['business_members'] as Map<String, dynamic>)['business_id'];
-    await _db.from('investments').insert({
-      'investor_id': investorId,
-      'business_id': businessId,
-      'principal_amount': amount,
-      'original_principal_amount': amount,
-      // Rupees per 100 per month, NOT a percent per year. See
-      // ManaRoi.label() — the column is a bare numeric either way, so the
-      // unit lives in the UI and in this comment.
-      'roi_rate': roiRate,
-      'interest_type': interestMethod,
-      // effective_date is a DATE column; sending a full ISO timestamp
-      // relied on Postgres casting it. Send what the column actually is.
-      'effective_date': effectiveDate.split('T').first,
-      'status': 'Active',
-      // BUG FIXED: this insert also sent 'remaining_balance', which is NOT
-      // a column on investments. PostgREST rejected the whole request with
-      // PGRST204, so recording an investment could never succeed — and the
-      // notifier swallowed the error into `false`, so the dialog just
-      // closed and nothing happened.
+    // Through app.record_investment, not a bare insert: recording an
+    // investment now also credits the business cash pool (BR-022 — the
+    // investor's money IS business cash) and refreshes that day's ledger.
+    // Those writes must not be able to drift apart, so they live in one
+    // server-side transaction rather than three client round trips.
+    //
+    // roi_rate is rupees per 100 per month, not a percent per year
+    // (CALC BR-233).
+    await _db.schema('app').rpc('record_investment', params: {
+      'p_investor_id': investorId,
+      'p_amount': amount,
+      'p_roi_rate': roiRate,
+      'p_interest_type': interestMethod,
+      'p_effective_date': effectiveDate.split('T').first,
+    });
+  }
+
+  /// Corrects a wrongly-entered investment.
+  ///
+  /// BR-169's pattern for loans applies here: a saved financial record is
+  /// corrected through an edit that preserves the previous values, never a
+  /// silent overwrite. The old row is written to audit_log first.
+  ///
+  /// original_principal_amount moves too, deliberately: it is the frozen
+  /// Agreement Snapshot (BR-034), and if the amount was simply typed wrong
+  /// then the "original" was wrong as well. This is a correction of a
+  /// mistake, not a change of terms.
+  Future<void> editInvestment({
+    required String investmentId,
+    required double amount,
+    required double roiRate,
+    required String interestMethod,
+    required String effectiveDate,
+  }) async {
+    await _db.schema('app').rpc('edit_investment', params: {
+      'p_investment_id': investmentId,
+      'p_amount': amount,
+      'p_roi_rate': roiRate,
+      'p_interest_type': interestMethod,
+      'p_effective_date': effectiveDate.split('T').first,
+    });
+  }
+
+  /// Deletes an investment entered by mistake.
+  ///
+  /// Refuses once the investment has real history — any interest PAYMENT
+  /// or any withdrawal means money has moved, and BR-002 makes those
+  /// records permanent. Compounding events are not history in that sense:
+  /// they are derived and are recreated by the engine, so they do not
+  /// block. Audited before removal either way.
+  Future<void> deleteInvestment({required String investmentId}) async {
+    // Server-side: the guards (no interest payment, no withdrawal), the
+    // audit row, the deletes and the cash-pool debit have to be one
+    // transaction. Doing the guards client-side would let a withdrawal
+    // land between the check and the delete.
+    await _db.schema('app').rpc('delete_investment', params: {
+      'p_investment_id': investmentId,
     });
   }
 
@@ -715,6 +752,30 @@ class InvestorProfileNotifier extends FamilyAsyncNotifier<InvestorProfile, Strin
     state = const AsyncLoading();
     state = await AsyncValue.guard(
         () => ref.read(investorApiServiceProvider).fetchInvestorProfile(investorId: arg));
+  }
+
+  Future<bool> editInvestment({
+    required String investmentId,
+    required double amount,
+    required double roiRate,
+    required String interestMethod,
+    required String effectiveDate,
+  }) async {
+    await ref.read(investorApiServiceProvider).editInvestment(
+          investmentId: investmentId,
+          amount: amount,
+          roiRate: roiRate,
+          interestMethod: interestMethod,
+          effectiveDate: effectiveDate,
+        );
+    await refresh();
+    return true;
+  }
+
+  Future<bool> deleteInvestment({required String investmentId}) async {
+    await ref.read(investorApiServiceProvider).deleteInvestment(investmentId: investmentId);
+    await refresh();
+    return true;
   }
 
   Future<bool> recordInvestment({

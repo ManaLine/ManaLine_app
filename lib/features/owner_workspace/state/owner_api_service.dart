@@ -278,7 +278,11 @@ class OwnerApiService {
     // awaiting them one by one would still run them serially. Future.wait
     // subscribes to all of them immediately.
     final results = await Future.wait<dynamic>([
-      _db.from('businesses').select('business_name, logo_url, business_status').eq('business_id', businessId).single(),
+      _db
+          .from('businesses')
+          .select('business_name, logo_url, business_status, owner_bf_balance')
+          .eq('business_id', businessId)
+          .single(),
       _db.from('business_members').select('role, membership_status').eq('business_id', businessId),
       _db.from('loans').select('loan_status, remaining_balance').eq('business_id', businessId),
       _db.from('investments').select('principal_amount, status').eq('business_id', businessId),
@@ -295,6 +299,40 @@ class OwnerApiService {
     final loans = results[2] as List;
     final investments = results[3] as List;
     final notificationsRaw = results[4] as List;
+
+    // Opens today's day_ledger row if it does not exist yet, carrying
+    // yesterday's closing balance forward, then reads it. Nothing in the
+    // app had ever written a day_ledger row, which is why BF, Day Closure
+    // and the Daily Record Book were all permanently empty.
+    //
+    // open_business_day is idempotent, so calling it on every dashboard
+    // load is safe and means the Owner never has to remember to "start the
+    // day" before their own figures appear. Non-fatal: a failure here must
+    // not take the whole dashboard down, so it falls back to the standing
+    // cash pool.
+    final today = DateTime.now().toIso8601String().split('T').first;
+    double? ledgerOpening;
+    try {
+      await _db.schema('app').rpc('open_business_day', params: {
+        'p_business_id': businessId,
+        'p_business_date': today,
+      });
+      await _db.schema('app').rpc('refresh_day_ledger', params: {
+        'p_business_id': businessId,
+        'p_business_date': today,
+      });
+      final ledgerRow = await _db
+          .from('day_ledger')
+          .select('opening_balance')
+          .eq('business_id', businessId)
+          .eq('business_date', today)
+          .maybeSingle();
+      ledgerOpening = (ledgerRow?['opening_balance'] as num?)?.toDouble();
+    } catch (_) {
+      ledgerOpening = null;
+    }
+    final openingBf =
+        ledgerOpening ?? (business['owner_bf_balance'] as num?)?.toDouble() ?? 0;
 
     int countWhere(String role, String status) =>
         members.where((m) => m['role'] == role && m['membership_status'] == status).length;
@@ -331,7 +369,20 @@ class OwnerApiService {
       pendingInvitations: (members).where((m) => m['membership_status'] == 'Pending Invitation').length,
       pendingAcceptances: (members).where((m) => m['membership_status'] == 'Pending Acceptance').length,
       pendingDayClosure: false, // requires day_ledger/day_closures reconciliation — left for day_closure_state.dart (Priority 3), not duplicated here
-      openingBalance: 0, // requires today's day_ledger row — Priority 3 (day_closure_state.dart) owns this read
+      // BF (Brought Forward) was hardcoded to 0 — it read nothing at all,
+      // so the dashboard's headline figure could never be anything but
+      // zero regardless of the business's actual cash.
+      //
+      // Reads today's day_ledger.opening_balance when a row exists, and
+      // otherwise falls back to businesses.owner_bf_balance, which is the
+      // Owner's cash pool and the only BF figure this schema actually
+      // maintains today (settlement returns an agent's cash into it).
+      //
+      // KNOWN GAP, not fixed here: nothing writes day_ledger at all, and
+      // recording an investment does not credit owner_bf_balance — so BF
+      // stays 0 until one of those changes. Whether an investment should
+      // move the cash pool is a money decision, not a display one.
+      openingBalance: openingBf,
       todaysCollections: 0, // ditto — day-scoped aggregate, not duplicated here to avoid two different "today" computations drifting apart
       todaysLoanDistribution: 0,
       todaysInvestments: 0,
@@ -606,7 +657,8 @@ class OwnerApiService {
     bool deductShorts = false,
     double otherApprovedExpenses = 0,
   }) async {
-    final rows = await _db.rpc('agent_payable_salary', params: {
+    // .schema('app') — these live in the app schema, not public.
+    final rows = await _db.schema('app').rpc('agent_payable_salary', params: {
       'p_agent_id': agentId,
       'p_period_start': periodStart.toIso8601String().split('T').first,
       'p_period_end': periodEnd.toIso8601String().split('T').first,

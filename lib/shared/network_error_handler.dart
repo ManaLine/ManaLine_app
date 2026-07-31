@@ -72,10 +72,28 @@ class NetworkErrorHandler {
       return 'Server error (${e.status}). Please try again later.';
     }
     if (e is PostgrestException) {
+      if (isSessionExpired(e)) return sessionExpiredMessage;
       return e.message.isNotEmpty ? e.message : genericErrorMessage;
     }
     return genericErrorMessage;
   }
+
+  /// The session token died mid-use.
+  ///
+  /// The minted JWT has a 1-hour TTL and there is no refresh endpoint, so
+  /// this is a normal end-of-session event rather than a fault. PostgREST
+  /// reports it as PGRST303; the raw text is "JWT expired", which means
+  /// nothing to an Owner standing in a field.
+  static bool isSessionExpired(Object e) {
+    if (e is PostgrestException) {
+      if (e.code == 'PGRST303') return true;
+      return e.message.toLowerCase().contains('jwt expired');
+    }
+    return e.toString().toLowerCase().contains('jwt expired');
+  }
+
+  static const sessionExpiredMessage =
+      'Your session has timed out. Enter your PIN to continue.';
 
   static bool _looksLikeConnectivityError(Object e) {
     final s = e.toString().toLowerCase();

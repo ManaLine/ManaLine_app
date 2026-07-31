@@ -15,6 +15,7 @@ import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
 import '../../../shared/translation_service.dart';
+import '../../../shared/network_error_handler.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -128,26 +129,40 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
   }
 
   Widget _errorState(Object e) {
+    // A timed-out session is not a load failure and Retry cannot fix it —
+    // the same dead token goes back out. Send the person to PIN entry,
+    // which re-mints, and say so in words rather than showing
+    // "PostgrestException(... JWT expired ...)".
+    final expired = NetworkErrorHandler.isSessionExpired(e);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+            Icon(expired ? Icons.lock_clock : Icons.cloud_off,
+                size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('could not load dashboard'),
+            ManaText(expired ? 'session timed out' : 'could not load dashboard'),
             const SizedBox(height: ManaSpacing.sm),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
               child: ManaText.raw(
-                e.toString(),
+                expired ? NetworkErrorHandler.sessionExpiredMessage : e.toString(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: ManaColors.statusBad),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: expired ? ManaColors.textSecondary : ManaColors.statusBad,
+                ),
               ),
             ),
-            const SizedBox(height: ManaSpacing.sm),
-            ElevatedButton(onPressed: _refresh, child: const ManaText('retry')),
+            const SizedBox(height: ManaSpacing.md),
+            expired
+                ? ElevatedButton(
+                    onPressed: () => context.go('/lr-009'),
+                    child: const ManaText('enter pin'),
+                  )
+                : ElevatedButton(onPressed: _refresh, child: const ManaText('retry')),
           ],
         ),
       ),

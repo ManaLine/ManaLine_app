@@ -39,10 +39,23 @@
 // against, per Supabase's own migration notice on that page).
 import * as djwt from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 
-const ACCESS_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour. Not specified anywhere
-// in the reference material — flagged as an assumption in END RESULT.
-// Session refresh strategy (silent refresh vs re-login) is out of scope
-// for this Edge Function batch.
+// 12 hours — one working day. CONFIRMED with the Owner 2026-07-31.
+//
+// Was 1 hour, which is wrong for this app: there is NO refresh endpoint
+// (this file mints, nothing renews), so an agent halfway through a
+// collection round was silently logged out and every request started
+// failing with PGRST303. A working day is the natural session length for
+// a field app whose users are outdoors on one device all day.
+//
+// The tradeoff, stated plainly: these tokens cannot be revoked, so a
+// stolen token stays usable for up to 12 hours instead of 1. What limits
+// that exposure is the single-device policy (GLOBAL BR-197) — logging in
+// elsewhere invalidates the previous session and notifies the Owner.
+//
+// The real fix is still a refresh endpoint (short-lived access token plus
+// a revocable refresh token). This buys a usable day; it does not remove
+// the need for that.
+const ACCESS_TOKEN_TTL_SECONDS = 60 * 60 * 12;
 
 let cachedKey: CryptoKey | null = null;
 

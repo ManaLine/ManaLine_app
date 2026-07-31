@@ -463,6 +463,28 @@ class ManaSession {
     _lastInvestorId = await _storage.read(key: _kLastInvestorId);
   }
 
+  /// True when there is a token but it has already expired.
+  ///
+  /// The token carries a 1-hour TTL and this app has NO refresh endpoint —
+  /// `auth-login` mints, nothing renews. Expiry mid-session therefore
+  /// turns every subsequent request into a hard PGRST303 "JWT expired",
+  /// and any Retry button re-sends the same dead token forever. Callers
+  /// use this to send the person back to PIN entry, which re-mints, rather
+  /// than leaving them on an error screen that cannot recover.
+  bool get isAccessTokenExpired {
+    final token = _accessToken;
+    return token != null && _isJwtExpired(token);
+  }
+
+  /// Drops an expired token so the app presents as logged-out rather than
+  /// logged-in-and-silently-failing. Deliberately keeps personId and the
+  /// last-business/role ids: those make the re-login land the person back
+  /// where they were instead of starting from business selection.
+  Future<void> clearExpiredAccessToken() async {
+    _accessToken = null;
+    await _storage.delete(key: _kAccessToken);
+  }
+
   /// Reads the `exp` claim out of a JWT's payload segment without
   /// verifying its signature (there's no secret to verify with
   /// client-side, and none is needed just to read a public, unencrypted

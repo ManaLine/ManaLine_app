@@ -33,7 +33,26 @@ Future<void> main() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,
-    accessToken: () async => ManaSession.instance.currentAccessToken,
+    // This callback runs before EVERY Postgrest/Realtime request, which
+    // makes it the one place that catches a session dying mid-use.
+    //
+    // The minted token has a 1-hour TTL and there is no refresh endpoint —
+    // auth-login mints, nothing renews. Before this, an expired token kept
+    // being sent: every screen failed with PGRST303 "JWT expired" and the
+    // Retry button re-sent the same dead token, so the app was stuck until
+    // it was force-closed.
+    //
+    // Now expiry drops the token and bounces to PIN entry, which re-mints.
+    // Daily login is PIN-only by design (GLOBAL BR-195), so this is the
+    // intended path back in, not a workaround.
+    accessToken: () async {
+      final session = ManaSession.instance;
+      if (session.isAccessTokenExpired) {
+        await session.clearExpiredAccessToken();
+        _redirectToPinLogin();
+      }
+      return session.currentAccessToken;
+    },
   );
 
   // Cold-start hydration (LR-001's actual job per this session's Item E) —
@@ -42,6 +61,26 @@ Future<void> main() async {
   await ManaSession.instance.hydrateFromSecureStorage();
 
   runApp(const ProviderScope(child: ManaLineApp()));
+}
+
+/// Sends the person to PIN entry once, from wherever they were.
+///
+/// Guarded because the accessToken callback fires per request and a screen
+/// typically issues several at once — without this, one expiry would push
+/// half a dozen duplicate routes onto the stack. The flag clears on the
+/// next frame, so a genuinely later expiry still redirects.
+bool _redirectingToLogin = false;
+
+void _redirectToPinLogin() {
+  if (_redirectingToLogin) return;
+  _redirectingToLogin = true;
+  // Scheduled rather than immediate: this runs inside a network callback,
+  // which may be mid-build or mid-frame, and go_router must not be driven
+  // from there.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    manaRouter.go('/lr-009');
+    _redirectingToLogin = false;
+  });
 }
 
 class ManaLineApp extends StatelessWidget {

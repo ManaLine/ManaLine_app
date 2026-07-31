@@ -296,18 +296,18 @@ class _AgreementSummaryCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
-            _Row('Principal Amount', _currency.format(s.principalAmount)),
-            _Row('Outstanding Balance', _currency.format(s.outstandingBalance)),
-            _Row('Repayment Type', '${detail.durationValue} × ${detail.repaymentType}'),
-            _Row('Installment Amount', _currency.format(detail.installmentAmount)),
-            _Row('Effective Date', _dateFmt.format(detail.effectiveDate)),
+            _row('Principal Amount', _currency.format(s.principalAmount)),
+            _row('Outstanding Balance', _currency.format(s.outstandingBalance)),
+            _row('Repayment Type', '${detail.durationValue} × ${detail.repaymentType}'),
+            _row('Installment Amount', _currency.format(detail.installmentAmount)),
+            _row('Effective Date', _dateFmt.format(detail.effectiveDate)),
           ],
         ),
       ),
     );
   }
 
-  Widget _Row(String label, String value) => Padding(
+  Widget _row(String label, String value) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

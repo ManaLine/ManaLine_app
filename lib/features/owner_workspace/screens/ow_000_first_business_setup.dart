@@ -278,6 +278,7 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
       if (chosen != null) setState(() => _businessName.text = chosen);
       return; // let the person review/confirm before submitting again
     }
+    if (!mounted) return;
     final ok = await NetworkErrorHandler.run(context, () async {
       return ref.read(businessSetupProvider.notifier).submitStep1(
             businessName: _businessName.text.trim(),
@@ -759,6 +760,7 @@ class _Step3AccountCycleState extends ConsumerState<_Step3AccountCycle> {
       builder: (_) => const _DurationPickerDialog(),
     );
     if (duration == null) return;
+    if (!mounted) return;
     await NetworkErrorHandler.run(context, () async {
       return ref.read(businessSetupProvider.notifier).configureAccountCycle(
             areaLocalId: area.localId,

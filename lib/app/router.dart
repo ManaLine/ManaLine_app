@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'design_showcase_screen.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
@@ -414,25 +413,3 @@ final manaRouter = GoRouter(
     GoRoute(path: '/admin-panel', builder: (c, s) => const AdminPanelScreen()),
   ],
 );
-
-class _Placeholder extends StatelessWidget {
-  final String label;
-  const _Placeholder(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(label)),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            '$label\n\nNot yet built — placeholder proves the route exists\nand matches the locked screen inventory.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ),
-      ),
-    );
-  }
-}

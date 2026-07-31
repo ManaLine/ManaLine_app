@@ -106,6 +106,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
     // before it can work — pin_length locally-remembered metadata, and
     // the PIN value itself for biometric-unlock reuse (LR-009 API BINDING).
     await LocalAuthStore.savePin(pin: _pin, biometricEnabled: biometricEnabled);
+    if (!mounted) return;
 
     // Fresh registration -> PIN creation is the first point a session
     // exists with no memberships fetched yet (LR-007's path already

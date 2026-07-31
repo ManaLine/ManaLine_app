@@ -295,10 +295,6 @@ class AgentSettlementApiService {
         .maybeSingle();
     if (row == null) return null;
 
-    final adjustmentRows = await _db
-        .from('settlement_adjustments')
-        .select('adjustment_type, amount, applied_to')
-        .eq('settlement_id', row['settlement_id']);
     final returnReasonRow = row['status'] == 'Returned'
         ? await _db.from('account_settlements').select('return_reason').eq('settlement_id', row['settlement_id']).single()
         : null;

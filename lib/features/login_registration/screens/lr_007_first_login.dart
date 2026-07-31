@@ -85,6 +85,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     });
 
     final fingerprint = await LocalAuthStore.deviceFingerprint();
+    if (!mounted) return;
 
     LoginResult? result;
     AccountLockedException? locked;

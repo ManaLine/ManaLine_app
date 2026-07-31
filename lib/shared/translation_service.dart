@@ -35,8 +35,9 @@ class TranslationCache {
 
   String t(String key, String languageEnumValue) {
     final row = _rows[key];
-    if (row == null)
+    if (row == null) {
       return key; // untranslated key — shows the raw key so it's obviously missing, not blank
+    }
     return row[languageEnumValue] ?? row['English'] ?? key;
   }
 }

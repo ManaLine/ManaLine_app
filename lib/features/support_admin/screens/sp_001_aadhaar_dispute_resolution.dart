@@ -428,13 +428,15 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
                       await NetworkErrorHandler.run(context, () async {
                     final documentUrl = await _pickAndUploadDisputeDocument(
                         'second_person_proof');
-                    if (documentUrl == null)
+                    if (documentUrl == null) {
                       return null; // person cancelled the picker
+                    }
                     await notifier.uploadSecondPersonProof(documentUrl);
                     return documentUrl;
                   });
-                  if (result != null)
+                  if (result != null) {
                     setState(() => _attachedDocName = result.split('/').last);
+                  }
                 },
                 icon: const Icon(Icons.upload_file, size: 18),
                 label:

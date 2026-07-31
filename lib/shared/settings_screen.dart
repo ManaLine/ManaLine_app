@@ -93,6 +93,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // prompt. That native prompt is a separate, not-yet-built piece
     // (LR-009's own code has a TODO for wiring the `local_auth` package)
     // — flagged honestly here rather than implied as already working.
+    if (!mounted) return;
     final entered = await showDialog<String>(
         context: context, builder: (_) => const _PinVerifyDialog());
     if (entered == null || entered.length != pinLength) return;
@@ -104,6 +105,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() => _togglingBiometric = false);
       return;
     }
+    if (!mounted) return;
 
     final result = await NetworkErrorHandler.run(context, () async {
       return ref.read(authApiServiceProvider).login(

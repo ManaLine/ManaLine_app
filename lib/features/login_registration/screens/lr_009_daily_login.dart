@@ -82,8 +82,9 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
       _entered += d;
       _error = null;
     });
-    if (_entered.length == _pinLength)
+    if (_entered.length == _pinLength) {
       _submit(); // auto-submit on last digit, per F1
+    }
   }
 
   void _onBackspace() {
@@ -95,7 +96,9 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
     setState(() => _submitting = true);
 
     final deviceFingerprint = await LocalAuthStore.deviceFingerprint();
+    if (!mounted) return;
     final mobile = await LocalAuthStore.readLastMobileNumber();
+    if (!mounted) return;
 
     if (mobile == null) {
       // Defensive — LR-009's own entry condition requires a remembered

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/text_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../login_registration/state/auth_flow_state.dart';
 
 /// AG-001 Agent Home Dashboard — real Supabase wiring. Per the spec's own
 /// API BINDING, there is no persisted "session" object — Business Session
@@ -29,12 +28,6 @@ class AgentApiService {
   AgentApiService({required this.ref});
 
   SupabaseClient get _db => Supabase.instance.client;
-
-  int get _personId {
-    final id = ref.read(authFlowProvider).personId;
-    if (id == null) throw StateError('No logged-in person_id available.');
-    return int.parse(id);
-  }
 
   /// PERF: `agents.agent_id -> membership_id` is immutable for the life of an
   /// agent record, but eight separate methods in this file each resolved it
@@ -794,8 +787,9 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
 
   Future<bool> startBusinessSession(
       {required String agentId, required String businessId}) async {
-    if (!state.canStartSession)
+    if (!state.canStartSession) {
       return false; // "cannot start a session without selecting at least one area"
+    }
     try {
       final api = ref.read(agentApiServiceProvider);
       await api.startBusinessSession(

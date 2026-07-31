@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../owner_workspace/state/customer_state.dart'
-    show CustomerSummary, CustomerLoanSummary, CustomerCollectionRow, CustomerRemark, CustomerProfile;
+    show CustomerSummary, CustomerLoanSummary, CustomerRemark, CustomerProfile;
 
 /// AG-004 Customer Management — real Supabase wiring, Agent-side
 /// counterpart to OW-004 (owner_workspace/state/customer_state.dart).

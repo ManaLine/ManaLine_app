@@ -56,7 +56,6 @@ class OtpVerificationScreen extends ConsumerStatefulWidget {
 class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   final List<TextEditingController> _digits = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _nodes = List.generate(6, (_) => FocusNode());
-  int _resendSeconds = 30;
   int _resendCount = 0;
   int _incorrectCount = 0;
   bool _verifying = false;
@@ -158,7 +157,6 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     ref.read(authFlowProvider.notifier).setPendingOtpId(newOtpId);
     setState(() {
       _resendCount++;
-      _resendSeconds = 30;
       _error = null;
     });
   }

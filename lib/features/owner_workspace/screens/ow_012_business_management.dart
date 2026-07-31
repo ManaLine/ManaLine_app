@@ -265,6 +265,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
       if (chosen != null) setState(() => _businessName.text = chosen);
       return;
     }
+    if (!mounted) return;
     final ok = await NetworkErrorHandler.run(context, () async {
       return ref.read(createBusinessFormProvider.notifier).submit(
             businessName: _businessName.text.trim(),
@@ -294,6 +295,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
         }
       }
       ref.read(createBusinessFormProvider.notifier).reset();
+      if (!mounted) return;
       Navigator.of(context).pop();
       if (businessId != null) {
         Navigator.of(context).push(

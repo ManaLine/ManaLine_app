@@ -5,7 +5,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 
-enum _StartupState { loading, slowLoad, failure, versionBlock }
+enum _StartupState { loading, slowLoad, failure }
 
 /// LR-001 — root screen, no user input, sequential health checks then
 /// auto-navigate. Per spec: System Status Indicator only appears if

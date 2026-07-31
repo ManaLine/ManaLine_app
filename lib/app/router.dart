@@ -30,10 +30,12 @@ import '../features/owner_workspace/screens/ow_012_business_management.dart';
 import '../features/owner_workspace/state/business_management_state.dart' show BusinessDetailTab;
 import '../features/owner_workspace/screens/ow_013_account_review.dart';
 import '../features/owner_workspace/screens/ow_014_global_workflow.dart';
+import '../features/owner_workspace/state/global_workflow_state.dart' show MemberType;
 import '../features/owner_workspace/screens/ow_014_profile_completion.dart';
 import '../features/owner_workspace/screens/ow_015_group_loan_management.dart';
 import '../features/owner_workspace/screens/ow_016_profile.dart';
 import '../features/owner_workspace/screens/ow_017_transaction_history.dart';
+import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/loan_requests_screen.dart';
 import '../features/owner_workspace/screens/withdrawal_requests_screen.dart';
 import '../shared/settings_screen.dart';
@@ -225,6 +227,14 @@ final manaRouter = GoRouter(
       builder: (c, s) => GlobalWorkflowScreen(
         businessId: _resolveBusinessId(s),
         currentOwnerPersonId: ManaSession.instance.currentPersonId ?? 'stub-person-id',
+        // Each entry point already knows which kind of member it is
+        // creating, so Step 1 is pre-filled rather than asked again.
+        preSelectedType: switch (s.uri.queryParameters['type']) {
+          'customer' => MemberType.customer,
+          'agent' => MemberType.agent,
+          'investor' => MemberType.investor,
+          _ => null,
+        },
       ),
     ),
     // OW-014's Profile Completion sub-flow. Separate route rather than a
@@ -246,6 +256,10 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ow-017',
       builder: (c, s) => TransactionHistoryScreen(businessId: _resolveBusinessId(s)),
+    ),
+    GoRoute(
+      path: '/ow-018',
+      builder: (c, s) => BusinessMigrationScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(path: '/ow-settings', builder: (c, s) => SettingsScreen(homeRoute: '/ow-001', businessId: s.extra as String?)),
     // Not part of the original locked screen inventory (no OW-0xx number)

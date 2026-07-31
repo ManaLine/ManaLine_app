@@ -11,6 +11,7 @@ import '../../../shared/business_name_checker.dart';
 import '../state/business_management_state.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
+import 'ow_018_business_migration.dart';
 
 // A failed load previously left every one of this screen's tabs looking
 // like a legitimate empty state ("No Operating Areas yet.", "No active
@@ -429,6 +430,23 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: ManaText.raw(detail?.summary.businessName ?? 'business detail'),
+          actions: [
+            // OW-018 — for a business that was already running before it
+            // joined. Lives here rather than on OW-001 because it is a
+            // one-off setup act, not daily work.
+            IconButton(
+              tooltip: 'Pre-Existing Business',
+              icon: const Icon(Icons.move_to_inbox_outlined),
+              // Navigator, not go_router: this detail screen is pushed as a
+              // MaterialPageRoute from the list, so it is outside the
+              // router's stack.
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => BusinessMigrationScreen(businessId: widget.businessId),
+                ),
+              ),
+            ),
+          ],
           bottom: TabBar(
             isScrollable: true,
             onTap: (i) => ref

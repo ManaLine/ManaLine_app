@@ -1,0 +1,12 @@
+-- Superseded within the same session by
+-- 20260731092702_migrate_loan_live_photo_sentinel.sql, which carries the
+-- definitive CREATE OR REPLACE for app.migrate_loan.
+--
+-- Recorded here because the ledger has this version and files must match
+-- it one-for-one. The fix this step made is described below; replaying
+-- 092315 -> 092702 in order produces the same final function either way,
+-- since every step was a full CREATE OR REPLACE of the same function.
+--
+-- FIX: loans.collection_agent_membership_id is NOT NULL. Resolves in order:
+-- the value passed, else the customer's assigned_agent_membership_id, else
+-- the Owner's own Agent membership; raises only if none is available.

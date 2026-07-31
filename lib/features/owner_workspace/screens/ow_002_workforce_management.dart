@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -53,6 +54,15 @@ class _WorkforceManagementScreenState
             tooltip: 'Add Existing Agent',
             icon: const Icon(Icons.badge_outlined),
             onPressed: () => _openAddExistingAgent(context),
+          ),
+          // OW-014 Global Workflow — an agent who already worked for this
+          // business before it joined MANA LINE, so has no MANA LINE ID yet.
+          IconButton(
+            tooltip: 'Pre-Existing Agent',
+            icon: const Icon(Icons.history_edu_outlined),
+            onPressed: () => context
+                .push('/ow-014?type=agent', extra: widget.businessId)
+                .then((_) => ref.read(workforceProvider.notifier).load(widget.businessId)),
           ),
         ],
       ),
@@ -691,6 +701,12 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
       'can_cancel_own_drafts': 'Can Cancel Own Drafts',
       'can_upload_documents': 'Can Upload Documents',
       'can_add_remarks': 'Can Add Remarks',
+    },
+    'pre-existing records': {
+      // Deliberately its own group and its own column, not folded into
+      // can_issue_loans: entering a pre-existing loan restates the opening
+      // cash position, which is a heavier power than lending today.
+      'can_migrate_records': 'Can Enter Pre-Existing Records',
     },
     'visibility': {
       'can_view_reports': 'Can View Reports',

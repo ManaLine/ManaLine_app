@@ -87,6 +87,16 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
               builder: (_) => _AddCustomerSheet(businessId: widget.businessId, existingOnly: true),
             ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId)),
           ),
+          // OW-014 Global Workflow — for a customer who was already on the
+          // books before this business joined MANA LINE. The screen was
+          // fully built but had no link from anywhere in the app.
+          IconButton(
+            tooltip: 'Pre-Existing Customer',
+            icon: const Icon(Icons.history_edu_outlined),
+            onPressed: () => context
+                .push('/ow-014?type=customer', extra: widget.businessId)
+                .then((_) => ref.read(customerListProvider.notifier).load(widget.businessId)),
+          ),
         ],
       ),
       body: SafeArea(

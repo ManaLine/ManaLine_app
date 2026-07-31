@@ -556,6 +556,70 @@ class BusinessManagementApiService {
     }
   }
 
+  // --- Pre-existing business migration (BR-159) ---------------------------
+  //
+  // BF for a migrated book is CASH IN HAND:
+  //   BF = investment principal - amount given out + already collected
+  // and the money still on the line is a separate figure. Confirmed with
+  // the Owner 2026-07-31. Every write is server-side so the loan, its
+  // schedule and the cash movement cannot half-apply.
+
+  Future<MigrationSummary> fetchMigrationSummary({required String businessId}) async {
+    final rows = await _db.schema('app').rpc('migration_summary', params: {
+      'p_business_id': businessId,
+    });
+    final r = ((rows as List).first) as Map<String, dynamic>;
+    return MigrationSummary(
+      migrationLocked: r['migration_locked'] as bool? ?? true,
+      businessStartedAt: r['business_started_at'] == null
+          ? null
+          : DateTime.parse(r['business_started_at'] as String),
+      investmentPrincipal: (r['investment_principal'] as num?)?.toDouble() ?? 0,
+      migratedLoanCount: (r['migrated_loan_count'] as num?)?.toInt() ?? 0,
+      totalGiven: (r['total_given'] as num?)?.toDouble() ?? 0,
+      totalCollected: (r['total_collected'] as num?)?.toDouble() ?? 0,
+      lineBalance: (r['line_balance'] as num?)?.toDouble() ?? 0,
+      bf: (r['bf'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  Future<void> reopenMigration({required String businessId, required String reason}) async {
+    await _db.schema('app').rpc('reopen_migration', params: {
+      'p_business_id': businessId,
+      'p_reason': reason,
+    });
+  }
+
+  Future<void> lockMigration({required String businessId}) async {
+    await _db.schema('app').rpc('lock_migration', params: {'p_business_id': businessId});
+  }
+
+  Future<void> migrateLoan({
+    required String businessId,
+    required String customerId,
+    required double amountGiven,
+    required double repaymentAmount,
+    required double remainingBalance,
+    required DateTime effectiveDate,
+    required String repaymentType,
+    required double installmentAmount,
+    int gracePeriodDays = 0,
+    double processingFee = 0,
+  }) async {
+    await _db.schema('app').rpc('migrate_loan', params: {
+      'p_customer_id': customerId,
+      'p_business_id': businessId,
+      'p_amount_given': amountGiven,
+      'p_repayment_amount': repaymentAmount,
+      'p_remaining_balance': remainingBalance,
+      'p_effective_date': effectiveDate.toIso8601String().split('T').first,
+      'p_repayment_type': repaymentType,
+      'p_installment_amount': installmentAmount,
+      'p_grace_period_days': gracePeriodDays,
+      'p_processing_fee': processingFee,
+    });
+  }
+
   Future<List<AccountPeriodSummary>> fetchAccountPeriods({required String businessId, String? status, String? operatingAreaId}) async {
     var query = _db
         .from('account_periods')
@@ -702,6 +766,34 @@ class LocationOption {
   final String pinCode;
   final String villageTownName;
   LocationOption({required this.locationId, required this.pinCode, required this.villageTownName});
+}
+
+/// Migration position for a pre-existing business.
+///
+/// [bf] is cash in hand — investment principal, less what went out on the
+/// old book, plus what has already come back. [lineBalance] is the money
+/// still with customers and is deliberately NOT inside BF: BF everywhere
+/// else in this app means a figure you can physically count.
+class MigrationSummary {
+  final bool migrationLocked;
+  final DateTime? businessStartedAt;
+  final double investmentPrincipal;
+  final int migratedLoanCount;
+  final double totalGiven;
+  final double totalCollected;
+  final double lineBalance;
+  final double bf;
+
+  MigrationSummary({
+    required this.migrationLocked,
+    required this.businessStartedAt,
+    required this.investmentPrincipal,
+    required this.migratedLoanCount,
+    required this.totalGiven,
+    required this.totalCollected,
+    required this.lineBalance,
+    required this.bf,
+  });
 }
 
 /// One agent working an operating area. A round may have several

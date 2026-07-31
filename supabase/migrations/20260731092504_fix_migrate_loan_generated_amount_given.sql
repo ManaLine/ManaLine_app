@@ -1,0 +1,15 @@
+-- Superseded within the same session by
+-- 20260731092702_migrate_loan_live_photo_sentinel.sql, which carries the
+-- definitive CREATE OR REPLACE for app.migrate_loan.
+--
+-- Recorded here because the ledger has this version and files must match
+-- it one-for-one. The fix this step made is described below; replaying
+-- 092315 -> 092702 in order produces the same final function either way,
+-- since every step was a full CREATE OR REPLACE of the same function.
+--
+-- FIX: loans.amount_given is a GENERATED column
+-- (repayment_amount - interest_amount - processing_fee) — BR-004/BR-011 is
+-- enforced by the schema, not just the UI, so it cannot be inserted.
+-- Removed it from the INSERT; setting interest_amount to
+-- (repayment - given - fee) makes the generated column resolve to exactly
+-- the Amount Given the Owner typed.

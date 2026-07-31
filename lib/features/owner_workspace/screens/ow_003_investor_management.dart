@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -76,6 +77,15 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
               isScrollControlled: true,
               builder: (_) => _AddExistingInvestorSheet(businessId: widget.businessId),
             ).then((_) => ref.read(investorWorkforceProvider.notifier).load(widget.businessId)),
+          ),
+          // OW-014 Global Workflow — an investor whose money predates this
+          // business joining MANA LINE.
+          IconButton(
+            tooltip: 'Pre-Existing Investor',
+            icon: const Icon(Icons.history_edu_outlined),
+            onPressed: () => context
+                .push('/ow-014?type=investor', extra: widget.businessId)
+                .then((_) => ref.read(investorWorkforceProvider.notifier).load(widget.businessId)),
           ),
         ],
       ),

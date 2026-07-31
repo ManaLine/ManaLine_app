@@ -433,7 +433,7 @@ class OwnerApiService {
     var query = _db
         .from('business_members')
         .select('''
-          membership_id, membership_status, joined_at,
+          membership_id, membership_status, joined_at, person_id,
           persons!business_members_person_id_fkey(full_name, mlid, mobile_number),
           agents!inner(agent_id, current_status, joined_date)
         ''')
@@ -442,7 +442,30 @@ class OwnerApiService {
     if (status != null) query = query.eq('membership_status', status);
     final rows = await query;
 
+    // devices is self-only under RLS (`devices_self_all`: person_id =
+    // current_person_id), so this returns the caller's own rows and
+    // nothing else. That is exactly why lastLogin used to be hardcoded
+    // null — but hardcoding it meant an Owner looking at their OWN agent
+    // record saw "Never" while the row plainly held a last_login_at.
+    //
+    // Fetch what RLS allows and let the mapping below distinguish "never
+    // logged in" from "not visible to you": zero rows means never only
+    // when the agent IS the caller.
+    final myPersonId = ref.read(authFlowProvider).personId;
+    final deviceRows = await _db
+        .from('devices')
+        .select('person_id, last_login_at')
+        .not('last_login_at', 'is', null);
+    final lastLoginByPerson = <int, DateTime>{};
+    for (final d in (deviceRows as List)) {
+      final pid = (d['person_id'] as num).toInt();
+      final at = DateTime.parse(d['last_login_at'] as String);
+      final existing = lastLoginByPerson[pid];
+      if (existing == null || at.isAfter(existing)) lastLoginByPerson[pid] = at;
+    }
+
     return (rows as List).map((r) {
+      final personId = (r['person_id'] as num).toInt();
       final person = r['persons'] as Map<String, dynamic>?;
       final agent = r['agents'] as Map<String, dynamic>;
       return AgentSummary(
@@ -457,7 +480,11 @@ class OwnerApiService {
         todaysCollections: 0, // day-scoped aggregate — deferred, same reasoning as fetchDashboard's "today" fields
         todaysLoans: 0,
         joinedDate: DateTime.parse((agent['joined_date'] as String)),
-        lastLogin: null, // devices.last_login_at — self-only per RLS (rls_role_matrix.md: "devices: Self only, full access... literally everyone else, including Owner"); an Owner CANNOT read this column at all, so it is correctly left null here, not a gap
+        lastLogin: lastLoginByPerson[personId],
+        // Distinguishes "no login recorded" from "RLS hides this from
+        // you". Without it the profile said "Never" for an agent who had
+        // just logged in, which is worse than admitting it cannot be seen.
+        lastLoginVisible: myPersonId != null && int.tryParse(myPersonId) == personId,
       );
     }).toList();
   }
@@ -1010,6 +1037,10 @@ class AgentSummary {
   final double todaysLoans;
   final DateTime joinedDate;
   final DateTime? lastLogin;
+  /// `devices` is self-only under RLS, so an Owner can only ever see their
+  /// OWN last login. False means "hidden from you", not "never happened" —
+  /// the screen must not render those two the same way.
+  final bool lastLoginVisible;
 
   AgentSummary({
     required this.agentId,
@@ -1025,6 +1056,7 @@ class AgentSummary {
     required this.todaysLoans,
     required this.joinedDate,
     this.lastLogin,
+    this.lastLoginVisible = false,
   });
 }
 

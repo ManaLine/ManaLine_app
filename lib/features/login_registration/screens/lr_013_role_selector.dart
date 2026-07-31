@@ -44,7 +44,31 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _applyRoutingRule());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Refresh memberships before deciding what to show.
+      //
+      // `memberships` is a snapshot taken at login, and this screen's whole
+      // job is listing roles from it. A role granted (or a verification
+      // status corrected) after that login was invisible until the person
+      // fully logged out and back in — which reads as "switch role is
+      // broken", because the role genuinely is not in the list.
+      //
+      // Non-fatal: on failure we fall through to the cached snapshot,
+      // which is what this screen used before.
+      final auth = ref.read(authFlowProvider);
+      if (auth.personId != null) {
+        try {
+          final fresh =
+              await ref.read(authApiServiceProvider).fetchMemberships(auth.personId!);
+          if (!mounted) return;
+          if (fresh.isNotEmpty) ref.read(authFlowProvider.notifier).setMemberships(fresh);
+        } catch (_) {
+          // keep the cached list
+        }
+      }
+      if (!mounted) return;
+      _applyRoutingRule();
+    });
   }
 
   ({String businessName, List<String> roles})? _eligibleRoles() {

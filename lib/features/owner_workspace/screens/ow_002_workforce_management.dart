@@ -632,11 +632,16 @@ class _OverviewTab extends StatelessWidget {
         _infoRow("Today's Loans", '₹${agent.todaysLoans.toStringAsFixed(0)}'),
         _infoRow(
             'Joined Date', DateFormat('d MMM yyyy').format(agent.joinedDate)),
+        // "Never" is only truthful for your OWN record — devices is
+        // self-only under RLS, so for any other agent the Owner simply
+        // cannot see it. Saying "Never" there asserts something false.
         _infoRow(
             'Last Login',
-            agent.lastLogin == null
-                ? 'Never'
-                : DateFormat('d MMM yyyy, hh:mm a').format(agent.lastLogin!)),
+            agent.lastLogin != null
+                ? DateFormat('d MMM yyyy, hh:mm a').format(agent.lastLogin!)
+                : agent.lastLoginVisible
+                    ? 'Never'
+                    : 'Not visible'),
       ],
     );
   }

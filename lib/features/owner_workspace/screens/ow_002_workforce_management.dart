@@ -660,11 +660,43 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
   // OFF by default per BR-236 pattern (can_apply_penalty, can_record_expenses,
   // ADDENDUM v7 §13) — every toggle here defaults to whatever the profile
   // reports, never silently assumed ON.
-  static const _labels = {
-    'can_collect_payments': 'Can Collect Payments',
-    'can_issue_loans': 'Can Issue Loans',
-    'can_apply_penalty': 'Can Apply Penalty',
-    'can_record_expenses': 'Can Record Expenses', // ADDENDUM v7
+  // BUG FIXED: this listed 4 of the 20 permission columns, and NONE of the
+  // ones AG-001 actually gates its Quick Action tiles on. The agent
+  // dashboard shows "Collection Mode" only when can_access_collection_mode
+  // is true, "Customer List" on can_view_customers, and so on — columns
+  // the Owner had no way to switch on. That is why an agent had no way to
+  // reach Collection Mode no matter what was granted here.
+  //
+  // Grouped, because 14 flat toggles is a wall. Order follows what an
+  // Owner decides first: can they work at all, then what can they touch.
+  static const _groups = <String, Map<String, String>>{
+    'daily work': {
+      'can_view_dashboard': 'Can Open Work Session',
+      'can_access_collection_mode': 'Can Use Collection Mode',
+      'can_collect_payments': 'Can Collect Payments',
+      'can_perform_day_settlement': 'Can Submit Settlement',
+    },
+    'customers & loans': {
+      'can_view_customers': 'Can View Customers',
+      'can_create_customer': 'Can Register Customers',
+      'can_edit_customer_contact': 'Can Edit Customer Contact',
+      'can_issue_loans': 'Can Issue Loans',
+      'can_apply_penalty': 'Can Apply Penalty',
+    },
+    'money & records': {
+      'can_record_expenses': 'Can Record Expenses',
+      'can_transfer_collections': 'Can Transfer Cash to Another Agent',
+      'can_create_drafts': 'Can Create Drafts',
+      'can_edit_own_drafts': 'Can Edit Own Drafts',
+      'can_cancel_own_drafts': 'Can Cancel Own Drafts',
+      'can_upload_documents': 'Can Upload Documents',
+      'can_add_remarks': 'Can Add Remarks',
+    },
+    'visibility': {
+      'can_view_reports': 'Can View Reports',
+      'can_export_reports': 'Can Export Reports',
+      'can_view_investor_info': 'Can View Investor Info',
+    },
   };
 
   late Map<String, bool> _permissions;
@@ -688,13 +720,25 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ..._labels.entries.map((e) => SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: ManaText(e.value),
-              value: _permissions[e.key] ?? false,
-              onChanged: (v) => setState(() => _permissions[e.key] = v),
-            )),
-        const SizedBox(height: ManaSpacing.lg),
+        const ManaText.raw(
+          'An agent sees only what is switched on here. With everything off '
+          'their home screen has no actions at all.',
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        for (final group in _groups.entries) ...[
+          ManaText(group.key,
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
+          ...group.value.entries.map((e) => SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: ManaText(e.value),
+                value: _permissions[e.key] ?? false,
+                onChanged: (v) => setState(() => _permissions[e.key] = v),
+              )),
+          const SizedBox(height: ManaSpacing.md),
+        ],
+        const SizedBox(height: ManaSpacing.sm),
         ElevatedButton(
             onPressed: _save, child: const ManaText('save permissions')),
       ],
@@ -1085,7 +1129,7 @@ class _VillagePickerSheet extends StatelessWidget {
                   title: ManaText.raw(a.name),
                   subtitle: ManaText.raw(
                       '${a.villagesLabel}\n'
-                      '${a.isUnassigned ? 'No agent assigned' : 'Assigned to ${a.assignedAgentName}'}',
+                      '${a.isUnassigned ? 'No agent assigned' : 'Agents: ${a.assignedAgentsLabel}'}',
                       style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   isThreeLine: true,
                   onTap: () => Navigator.of(context).pop(a),

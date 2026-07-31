@@ -612,11 +612,12 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     );
     if (choice == null || !mounted) return;
     final businessId = widget.businessId;
-    if (choice.unassign) {
+    if (choice.unassignAgentId != null) {
       await NetworkErrorHandler.run(context, () async {
-        return ref.read(businessDetailProvider(businessId).notifier).unassignArea(
+        return ref.read(businessDetailProvider(businessId).notifier).unassignAgent(
               businessId: businessId,
               operatingAreaId: area.operatingAreaId,
+              agentId: choice.unassignAgentId!,
             );
       });
     } else if (choice.agent?.membershipId != null) {
@@ -793,7 +794,8 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                       title: ManaText.raw(
                         a.isUnassigned
                             ? 'No agent assigned — not being worked'
-                            : 'Assigned to ${a.assignedAgentName}',
+                            : '${a.assignedAgents.length == 1 ? 'Agent' : 'Agents'}: '
+                                '${a.assignedAgentsLabel}',
                         style: TextStyle(
                           fontSize: 13,
                           color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
@@ -801,7 +803,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                       ),
                       trailing: TextButton(
                         onPressed: () => _assignAgent(a),
-                        child: ManaText(a.isUnassigned ? 'assign agent' : 'reassign'),
+                        child: ManaText(a.isUnassigned ? 'assign agent' : 'manage agents'),
                       ),
                     ),
                   ],
@@ -893,11 +895,10 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
 
 class _AreaAssignmentChoice {
   final AgentSummary? agent;
-  final bool unassign;
-  _AreaAssignmentChoice.agent(this.agent) : unassign = false;
-  _AreaAssignmentChoice.unassign()
-      : agent = null,
-        unassign = true;
+  /// Set when the Owner chose to take one specific agent off the round.
+  final String? unassignAgentId;
+  _AreaAssignmentChoice.agent(this.agent) : unassignAgentId = null;
+  _AreaAssignmentChoice.unassign(this.unassignAgentId) : agent = null;
 }
 
 class _AssignAgentSheet extends StatelessWidget {
@@ -924,21 +925,36 @@ class _AssignAgentSheet extends StatelessWidget {
               ],
             ),
           ),
-          // Only offered once somebody is actually on the area. This is
-          // "the agent left and there's no successor yet", NOT a way to run
-          // an area without an agent — an Owner who works a round holds an
-          // Agent membership and appears in the list below like anyone else.
+          // Agents already on this round, each removable on its own. A
+          // round may be shared (GLOBAL BR-065), so taking one person off
+          // must not disturb the others.
           if (!area.isUnassigned) ...[
-            ListTile(
-              leading: const Icon(Icons.person_off_outlined, color: ManaColors.statusBad),
-              title: const ManaText('unassign'),
-              subtitle: ManaText.raw(
-                  'Take ${area.assignedAgentName} off this area. It stops opening account periods until someone else is assigned.',
-                  style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-              onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.unassign()),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                  ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.xs),
+              child: ManaText('working this round',
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
             ),
+            ...area.assignedAgents.map((a) => ListTile(
+                  leading: const ManaVerificationRing(isVerified: true, size: 32),
+                  title: ManaText.raw(a.fullName),
+                  trailing: TextButton(
+                    style: TextButton.styleFrom(foregroundColor: ManaColors.statusBad),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_AreaAssignmentChoice.unassign(a.agentId)),
+                    child: const ManaText('remove'),
+                  ),
+                )),
             const Divider(height: 1),
           ],
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+                ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.xs),
+            child: ManaText('add an agent',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
+          ),
           if (agents.isEmpty)
             const Padding(
               padding: EdgeInsets.all(ManaSpacing.lg),
@@ -948,12 +964,16 @@ class _AssignAgentSheet extends StatelessWidget {
                   style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             )
           else
-            ...agents.map((agent) => ListTile(
-                  leading: const ManaVerificationRing(isVerified: true, size: 32),
-                  title: ManaText.raw(agent.fullName),
-                  subtitle: ManaText.raw(agent.mlid, style: const TextStyle(fontSize: 13)),
-                  onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.agent(agent)),
-                )),
+            // Anyone already on the round is filtered out — assigning the
+            // same agent twice is rejected by uq_area_assignment_live.
+            ...agents
+                .where((agent) => !area.assignedAgents.any((a) => a.agentId == agent.agentId))
+                .map((agent) => ListTile(
+                      leading: const ManaVerificationRing(isVerified: true, size: 32),
+                      title: ManaText.raw(agent.fullName),
+                      subtitle: ManaText.raw(agent.mlid, style: const TextStyle(fontSize: 13)),
+                      onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.agent(agent)),
+                    )),
           const SizedBox(height: ManaSpacing.md),
         ],
       ),

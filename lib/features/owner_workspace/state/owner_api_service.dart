@@ -552,11 +552,32 @@ class OwnerApiService {
     // doc — a judgment call, not silently resolved as "obviously both."
   }
 
+  /// BUG FIXED: this was a bare UPDATE ... WHERE agent_id = ?. An agent
+  /// with no agent_permissions row — which every Owner-as-Agent created by
+  /// the owner_is_first_agent migration was — matched zero rows, and
+  /// PostgREST returns 200 for an UPDATE that changes nothing. Save
+  /// Permissions therefore did nothing, silently, forever.
+  ///
+  /// Now creates the row when it is missing, so a profile that predates
+  /// the fix heals itself the first time the Owner saves.
   Future<void> updateAgentPermissions({
     required String agentId,
     required Map<String, bool> permissions,
   }) async {
-    await _db.from('agent_permissions').update(permissions).eq('agent_id', agentId);
+    final existing = await _db
+        .from('agent_permissions')
+        .select('permission_profile_id')
+        .eq('agent_id', agentId)
+        .maybeSingle();
+
+    if (existing == null) {
+      await _db.from('agent_permissions').insert({'agent_id': agentId, ...permissions});
+      return;
+    }
+    await _db
+        .from('agent_permissions')
+        .update({...permissions, 'updated_at': DateTime.now().toIso8601String()})
+        .eq('agent_id', agentId);
   }
 
   Future<void> setCompensation({

@@ -584,14 +584,12 @@ class AgentProfileNotifier extends FamilyAsyncNotifier<AgentProfile, String> {
   }
 
   Future<bool> updatePermissions(Map<String, bool> permissions) async {
-    try {
-      final api = ref.read(ownerApiServiceProvider);
-      await api.updateAgentPermissions(agentId: arg, permissions: permissions);
-      await refresh();
-      return true;
-    } catch (_) {
-      return false;
-    }
+    // Rethrown, not swallowed into `false`. A permission grant governs who
+    // may take money; a save that quietly fails is the worst outcome here.
+    final api = ref.read(ownerApiServiceProvider);
+    await api.updateAgentPermissions(agentId: arg, permissions: permissions);
+    await refresh();
+    return true;
   }
 
   Future<bool> setCompensation({

@@ -263,12 +263,31 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
       // lookup fails, same as it did before this method existed.
     }
 
+    // Switching INTO a role must not blank the ids of the others: this
+    // used to pass all four every time, so choosing Agent wrote
+    // customerId/investorId back as null. Only the id we actually
+    // resolved is written; rememberResolvedIds ignores the nulls.
+    //
+    // If the role's own lookup failed, that id is deliberately NOT
+    // written either — better to keep the last good value than to blank
+    // it and have router.dart fall through to 'stub-agent-id', which is
+    // what makes a workspace open against an agent that does not exist.
     await ManaSession.instance.rememberResolvedIds(
       membershipId: membershipId,
       agentId: agentId,
       customerId: customerId,
       investorId: investorId,
     );
+
+    // A role selected with no resolvable entity row is a real problem —
+    // AG-001/CW-001/IW-001 will query a stub id and come back empty with
+    // no explanation. Surface it rather than opening a dead workspace.
+    if (role != 'Owner' && agentId == null && customerId == null && investorId == null) {
+      throw StateError(
+        'Could not open the $role workspace: no $role record exists for this '
+        'membership. Ask the Owner to re-add you to this business.',
+      );
+    }
   }
 
   Future<void> reset() async {
@@ -380,10 +399,16 @@ class ManaSession {
     String? customerId,
     String? investorId,
   }) async {
-    _lastMembershipId = membershipId;
-    _lastAgentId = agentId;
-    _lastCustomerId = customerId;
-    _lastInvestorId = investorId;
+    // Only overwrite what was actually resolved. This used to assign all
+    // four unconditionally, so a role switch blanked the other three in
+    // memory even though the storage writes below have always been
+    // null-guarded — memory and storage disagreed after every switch, and
+    // router.dart reads memory. A blanked agentId is what makes /ag-001
+    // build with 'stub-agent-id' and query an agent that does not exist.
+    if (membershipId != null) _lastMembershipId = membershipId;
+    if (agentId != null) _lastAgentId = agentId;
+    if (customerId != null) _lastCustomerId = customerId;
+    if (investorId != null) _lastInvestorId = investorId;
     await Future.wait([
       if (membershipId != null) _storage.write(key: _kLastMembershipId, value: membershipId),
       if (agentId != null) _storage.write(key: _kLastAgentId, value: agentId),

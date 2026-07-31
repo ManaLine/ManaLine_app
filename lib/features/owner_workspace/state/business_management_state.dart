@@ -219,11 +219,17 @@ class BusinessManagementApiService {
   /// than deleting: account_periods and agent_area_assignments reference
   /// this row, and `operating_areas_agent_select` already treats non-Active
   /// as disabled for the agent.
+  /// Removing an area also frees its villages and releases its agents.
+  ///
+  /// BUG FIXED: this used to flip status only. The village rows stayed
+  /// live, so uq_oal_business_location kept holding their slot and adding
+  /// one of those villages to another round failed with "already covered
+  /// by one of your operating areas" — naming an area the Owner had
+  /// already removed. Server-side so the three writes cannot half-apply.
   Future<void> deactivateOperatingArea({required String operatingAreaId}) async {
-    await _db
-        .from('operating_areas')
-        .update({'status': 'Inactive'})
-        .eq('operating_area_id', operatingAreaId);
+    await _db.schema('app').rpc('deactivate_operating_area', params: {
+      'p_operating_area_id': operatingAreaId,
+    });
   }
 
   Future<void> renameOperatingArea({
@@ -308,12 +314,21 @@ class BusinessManagementApiService {
     for (final area in areas) {
       area.villages = villagesByArea[area.operatingAreaId] ?? const [];
     }
+    // Accumulate rather than overwrite — an area can carry several agents.
+    for (final area in areas) {
+      area.assignedAgents = [];
+    }
     for (final row in assignmentRows) {
       final area = areas.firstWhere((a) => a.operatingAreaId == row['operating_area_id']);
       final agent = row['agents'] as Map<String, dynamic>;
-      area.assignedAgentId = agent['agent_id'] as String;
-      area.assignedAgentMembershipId = agent['membership_id'] as String;
-      area.assignedAgentName = titleCaseName((agent['persons'] as Map<String, dynamic>)['full_name'] as String);
+      area.assignedAgents = [
+        ...area.assignedAgents,
+        AreaAgent(
+          agentId: agent['agent_id'] as String,
+          membershipId: agent['membership_id'] as String,
+          fullName: titleCaseName((agent['persons'] as Map<String, dynamic>)['full_name'] as String),
+        ),
+      ];
     }
     return areas;
   }
@@ -334,11 +349,13 @@ class BusinessManagementApiService {
     required String agentId,
     required String agentMembershipId,
   }) async {
-    await _db
-        .from('agent_area_assignments')
-        .update({'removed_at': DateTime.now().toIso8601String()})
-        .eq('operating_area_id', operatingAreaId)
-        .isFilter('removed_at', null);
+    // ADDS an agent. It used to soft-remove every existing assignment on
+    // the area first, so assigning a second agent silently unassigned the
+    // first and a round could only ever have one person on it. GLOBAL
+    // BR-065 explicitly allows a shared route. Removing a specific agent
+    // is now its own action (unassignAgentFromArea).
+    //
+    // uq_area_assignment_live stops the SAME agent being added twice.
     await _db.from('agent_area_assignments').insert({
       'agent_id': agentId,
       'operating_area_id': operatingAreaId,
@@ -350,21 +367,21 @@ class BusinessManagementApiService {
     );
   }
 
-  /// Unassigns an area — removes the current agent without naming a
-  /// replacement. Kept (rather than folded into reassignment) for the case
-  /// where an agent leaves and no successor is ready yet; the area then
-  /// reads as unassigned and stops opening periods.
+  /// Takes ONE named agent off an area, leaving any others in place.
   ///
-  /// Replaces markOperatingAreaOwnerRun. "Owner-run" is not a thing: an
-  /// Owner who works a round holds an Agent membership and is assigned to
-  /// the area like any other agent. That also removes the account-period
-  /// gap the old mode had — agent_membership_id is NOT NULL, and an
-  /// Owner-run area could never populate it.
-  Future<void> unassignOperatingArea({required String operatingAreaId}) async {
+  /// "Owner-run" is not a thing: an Owner who works a round holds an Agent
+  /// membership and is assigned like any other agent. That also removes
+  /// the account-period gap the old mode had — agent_membership_id is NOT
+  /// NULL, and an Owner-run area could never populate it.
+  Future<void> unassignAgentFromArea({
+    required String operatingAreaId,
+    required String agentId,
+  }) async {
     await _db
         .from('agent_area_assignments')
         .update({'removed_at': DateTime.now().toIso8601String()})
         .eq('operating_area_id', operatingAreaId)
+        .eq('agent_id', agentId)
         .isFilter('removed_at', null);
   }
 
@@ -687,6 +704,15 @@ class LocationOption {
   LocationOption({required this.locationId, required this.pinCode, required this.villageTownName});
 }
 
+/// One agent working an operating area. A round may have several
+/// (GLOBAL BR-065 — shared route, individual accountability).
+class AreaAgent {
+  final String agentId;
+  final String membershipId;
+  final String fullName;
+  AreaAgent({required this.agentId, required this.membershipId, required this.fullName});
+}
+
 /// One village attached to an operating area. Carries the join-row id,
 /// because detaching addresses the attachment, not the village.
 class AreaVillage {
@@ -714,13 +740,16 @@ class OperatingAreaSummary {
   int? accountCycleDuration;
   String? accountCycleUnit;
   String? submissionTime;
-  // Null on all three = nobody is working this area yet. That is an
-  // INCOMPLETE area, not a valid configuration: an Owner who works a round
-  // themselves does it by holding an Agent membership and being assigned
-  // like anyone else. There is no "Owner-run" mode.
-  String? assignedAgentId;
-  String? assignedAgentMembershipId;
-  String? assignedAgentName;
+  // Empty = nobody is working this area yet. That is an INCOMPLETE area,
+  // not a valid configuration: an Owner who works a round themselves does
+  // it by holding an Agent membership and being assigned like anyone else.
+  // There is no "Owner-run" mode.
+  //
+  // A LIST, not one agent: GLOBAL BR-065 is explicit that a route may be
+  // shared — "Shared route but individual transaction accountability".
+  // This used to hold a single agent and every assign superseded the
+  // previous one, so a second agent silently unassigned the first.
+  List<AreaAgent> assignedAgents;
 
   OperatingAreaSummary({
     required this.operatingAreaId,
@@ -730,15 +759,16 @@ class OperatingAreaSummary {
     this.accountCycleDuration,
     this.accountCycleUnit,
     this.submissionTime,
-    this.assignedAgentId,
-    this.assignedAgentMembershipId,
-    this.assignedAgentName,
+    this.assignedAgents = const [],
   });
 
   bool get cycleConfigured => accountCycleDuration != null && accountCycleUnit != null && submissionTime != null;
   /// No agent assigned yet — an area in this state is not being worked and
   /// cannot open an account period.
-  bool get isUnassigned => assignedAgentId == null;
+  bool get isUnassigned => assignedAgents.isEmpty;
+
+  /// "Ravi, Suresh" — every agent working this round.
+  String get assignedAgentsLabel => assignedAgents.map((a) => a.fullName).join(', ');
 
   /// "Srikalahasti, Uranduru" — the villages this round actually covers.
   String get villagesLabel => villages.map((v) => v.villageTownName).join(', ');
@@ -1093,17 +1123,19 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
   /// villages is not something an Agent can be sent to, and the
   /// at-least-one-area rule would be satisfied by a round that covers
   /// nowhere. Remove the area instead.
+  /// Detaches a village.
+  ///
+  /// BUG FIXED: this used to refuse when the area had only one village
+  /// left, telling the Owner to remove the whole area instead. Since every
+  /// area starts with exactly one village, that made "remove village"
+  /// impossible on a fresh area — and it was paired with an add that was
+  /// itself broken, so there was no way out. An area with no villages is
+  /// now allowed and flagged on the card instead; it simply cannot be
+  /// worked until a village is attached.
   Future<bool> removeVillageFromArea({
     required String operatingAreaId,
     required String operatingAreaLocationId,
   }) async {
-    final area = state.operatingAreas.firstWhere((a) => a.operatingAreaId == operatingAreaId);
-    if (area.villages.length <= 1) {
-      state = state.copyWith(
-        error: 'An operating area must cover at least one village. Remove the area instead.',
-      );
-      return false;
-    }
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final api = ref.read(businessManagementApiServiceProvider);
@@ -1220,11 +1252,15 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
     }
   }
 
-  Future<bool> unassignArea({required String businessId, required String operatingAreaId}) async {
+  Future<bool> unassignAgent({
+    required String businessId,
+    required String operatingAreaId,
+    required String agentId,
+  }) async {
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final api = ref.read(businessManagementApiServiceProvider);
-      await api.unassignOperatingArea(operatingAreaId: operatingAreaId);
+      await api.unassignAgentFromArea(operatingAreaId: operatingAreaId, agentId: agentId);
       final areas = await api.fetchOperatingAreas(businessId: businessId);
       state = state.copyWith(operatingAreas: areas, submitting: false);
       return true;

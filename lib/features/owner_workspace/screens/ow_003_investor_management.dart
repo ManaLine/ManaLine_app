@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
+import '../../../design/components/mana_amount.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/text_utils.dart';
 import '../state/investor_state.dart';
@@ -567,9 +568,51 @@ class _InvestmentsTab extends ConsumerWidget {
                       const SizedBox(height: ManaSpacing.sm),
                       Row(
                         children: [
-                          Expanded(child: _small('Accrued', _currency.format(inv.interestAccrued))),
+                          // "Accrued" resets at each anniversary on a
+                          // compound investment, because the prior year
+                          // became principal (BR-052). Saying so in the
+                          // label stops the figure reading as too small.
+                          Expanded(
+                            child: _small(
+                              inv.isCompound ? 'Accrued this year' : 'Accrued',
+                              _currency.format(inv.interestAccrued),
+                            ),
+                          ),
                           Expanded(child: _small('Paid', _currency.format(inv.interestPaid))),
                         ],
+                      ),
+                      // Where the compounded years went. Without this the
+                      // principal silently grows and the earlier interest
+                      // looks like it vanished.
+                      if (inv.hasCompounded) ...[
+                        const SizedBox(height: ManaSpacing.sm),
+                        Row(
+                          children: [
+                            Expanded(
+                                child: _small('Invested', _currency.format(inv.originalPrincipal))),
+                            Expanded(
+                                child: _small('Added to principal',
+                                    _currency.format(inv.principalAmount - inv.originalPrincipal))),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: ManaSpacing.sm),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: ManaSpacing.sm, vertical: ManaSpacing.xs),
+                        decoration: BoxDecoration(
+                          color: ManaColors.brandFaint,
+                          borderRadius: BorderRadius.circular(ManaRadius.sm),
+                        ),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: ManaText.raw('Total interest earned',
+                                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                            ),
+                            ManaAmount(inv.totalInterestEarned, size: ManaAmountSize.compact),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: ManaSpacing.sm),
                       Row(

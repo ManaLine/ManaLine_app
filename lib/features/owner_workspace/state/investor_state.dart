@@ -172,8 +172,8 @@ class InvestorApiService {
         .select('investor_id, membership_id, '
             'business_members!inner(membership_status), '
             'persons!inner(full_name, mlid, mobile_number), '
-            'investments(investment_id, principal_amount, roi_rate, interest_type, effective_date, '
-            'status, profit_share_percent)')
+            'investments(investment_id, principal_amount, original_principal_amount, roi_rate, '
+            'interest_type, effective_date, status, profit_share_percent)')
         .eq('investor_id', investorId)
         .single();
 
@@ -243,6 +243,11 @@ class InvestorApiService {
           effectiveDate: DateTime.parse(i['effective_date'] as String),
           interestAccrued: (snapshots[index]?['accrued_interest'] as num?)?.toDouble() ?? 0,
           interestPaid: (snapshots[index]?['interest_paid_to_date'] as num?)?.toDouble() ?? 0,
+          originalPrincipal: (snapshots[index]?['original_principal'] as num?)?.toDouble() ??
+              (i['original_principal_amount'] as num?)?.toDouble() ??
+              (i['principal_amount'] as num).toDouble(),
+          totalInterestEarned:
+              (snapshots[index]?['total_interest_earned'] as num?)?.toDouble() ?? 0,
           status: i['status'] as String,
           profitSharePercent: (i['profit_share_percent'] as num?)?.toDouble(),
         ),
@@ -578,8 +583,21 @@ class InvestmentRecord {
   final double roiRate;
   final String interestMethod;
   final DateTime effectiveDate;
+  /// CURRENT PERIOD only for Yearly Compound — it resets at each
+  /// anniversary because prior years' interest has already become
+  /// principal (Appendix A Case B / BR-052). For Simple it is cumulative
+  /// since the last payment. This is the figure an "Interest Only"
+  /// withdrawal is capped at.
   final double interestAccrued;
   final double interestPaid;
+  /// The Agreement Snapshot amount (BR-034) — what was originally put in,
+  /// before any compounding grew `principalAmount`.
+  final double originalPrincipal;
+  /// Everything this investment has earned since inception: compounded
+  /// into principal, plus accrued now, plus already paid out. REPORTING
+  /// ONLY — never a withdrawal cap, since the compounded part is
+  /// withdrawable as principal rather than as interest.
+  final double totalInterestEarned;
   final String status; // Active | Closed
   final double? profitSharePercent;
 
@@ -591,9 +609,18 @@ class InvestmentRecord {
     required this.effectiveDate,
     required this.interestAccrued,
     required this.interestPaid,
+    required this.originalPrincipal,
+    required this.totalInterestEarned,
     required this.status,
     this.profitSharePercent,
   });
+
+  bool get isCompound => interestMethod == 'Yearly Compound';
+
+  /// Compounding has moved money into capital, so the split is worth
+  /// showing. False for Simple, and for a compound investment that has
+  /// not reached its first anniversary yet.
+  bool get hasCompounded => principalAmount > originalPrincipal;
 }
 
 class InvestorProfile {

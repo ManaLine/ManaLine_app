@@ -194,7 +194,9 @@ class _InvestmentListCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: ManaText.raw(
-                        'Accrued: ${_currency.format(investment.interestAccrued)}',
+                        '${investment.isCompound ? 'Accrued this year' : 'Accrued'}: '
+                        '${_currency.format(investment.interestAccrued)}'
+                        ' · Total earned: ${_currency.format(investment.totalInterestEarned)}',
                         style: const TextStyle(fontSize: 16)),
                   ),
                   Expanded(

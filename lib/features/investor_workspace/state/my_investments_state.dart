@@ -51,27 +51,41 @@ class MyInvestmentsApiService {
         .eq('investor_id', investorId)
         .order('effective_date', ascending: false);
 
-    return (rows as List).cast<Map<String, dynamic>>().map((r) {
-      return InvestorInvestmentSummary(
-        investmentId: r['investment_id'] as String,
-        principalAmount: (r['principal_amount'] as num).toDouble(),
-        roiRate: (r['roi_rate'] as num).toDouble(),
-        interestMethod: r['interest_type'] as String,
-        effectiveDate: DateTime.parse(r['effective_date'] as String),
-        // interestAccrued is deliberately NOT computed here — BR-032/BR-234
-        // define it as a LIVE calculation (Calculation Engine §3: Simple vs
-        // Yearly Compound formulas against days-elapsed), not a stored
-        // column. Same simplification already accepted in
-        // owner_workspace/state/investor_state.dart's `interestDue: 0`
-        // (that file's own comment: "requires investment_interest_ledger
-        // aggregation"). A real fix needs either a Postgres view/RPC that
-        // runs the Calc Engine formula server-side, or client-side
-        // reimplementation of §3 here — not invented in this pass.
-        interestAccrued: 0,
-        interestPaid: 0,
-        status: r['status'] as String,
-      );
-    }).toList();
+    final list = (rows as List).cast<Map<String, dynamic>>();
+
+    // The RPC this file's old comment asked for now exists. It said
+    // interestAccrued "needs either a Postgres view/RPC that runs the Calc
+    // Engine formula server-side, or client-side reimplementation of §3" —
+    // app.investment_interest_snapshot is the former, and it is the same
+    // function the Owner's screens use, so both sides cannot disagree.
+    //
+    // .schema('app') is required; a bare .rpc() targets public.
+    final snapshots = await Future.wait(list.map((r) async {
+      final snap = await _db.schema('app').rpc('investment_interest_snapshot',
+          params: {'p_investment_id': r['investment_id']});
+      final rowsOut = (snap as List?) ?? const [];
+      return rowsOut.isEmpty ? null : rowsOut.first as Map<String, dynamic>;
+    }));
+
+    return [
+      for (final (index, r) in list.indexed)
+        InvestorInvestmentSummary(
+          investmentId: r['investment_id'] as String,
+          // Snapshot principal includes compounding that is due but not
+          // yet materialised; the stored column does not.
+          principalAmount: (snapshots[index]?['principal'] as num?)?.toDouble() ??
+              (r['principal_amount'] as num).toDouble(),
+          roiRate: (r['roi_rate'] as num).toDouble(),
+          interestMethod: r['interest_type'] as String,
+          effectiveDate: DateTime.parse(r['effective_date'] as String),
+          interestAccrued: (snapshots[index]?['accrued_interest'] as num?)?.toDouble() ?? 0,
+          interestPaid: (snapshots[index]?['interest_paid_to_date'] as num?)?.toDouble() ?? 0,
+          originalPrincipal: (r['original_principal_amount'] as num).toDouble(),
+          totalInterestEarned:
+              (snapshots[index]?['total_interest_earned'] as num?)?.toDouble() ?? 0,
+          status: r['status'] as String,
+        ),
+    ];
   }
 
   Future<InvestmentDetail> fetchInvestmentDetail({required String investmentId}) async {
@@ -204,8 +218,15 @@ class InvestorInvestmentSummary {
   final double roiRate;
   final String interestMethod; // Simple | Yearly Compound
   final DateTime effectiveDate;
+  /// CURRENT PERIOD only for Yearly Compound — resets at each anniversary
+  /// because the prior year became principal (BR-052). Cumulative since
+  /// the last payment for Simple.
   final double interestAccrued; // system-calculated daily, BR-032/BR-055
   final double interestPaid;
+  final double originalPrincipal;
+  /// Everything earned since inception — compounded + accrued + paid.
+  /// Reporting only; never a withdrawal cap.
+  final double totalInterestEarned;
   final String status; // Active | Closed
 
   InvestorInvestmentSummary({
@@ -216,8 +237,12 @@ class InvestorInvestmentSummary {
     required this.effectiveDate,
     required this.interestAccrued,
     required this.interestPaid,
+    required this.originalPrincipal,
+    required this.totalInterestEarned,
     required this.status,
   });
+
+  bool get isCompound => interestMethod == 'Yearly Compound';
 }
 
 // Agreement Snapshot — frozen terms at time of investment (BR-034),

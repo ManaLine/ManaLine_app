@@ -221,7 +221,13 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
-        child: Padding(
+        // SCROLLS. This was a fixed Column, so the login button at the
+        // bottom overflowed by ~22px on a real handset — and the keyboard
+        // opening for the mobile/password fields makes it far worse. A
+        // login screen has to survive every device height, a raised system
+        // font, and a longer language; a Column that cannot scroll survives
+        // none of them.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -14,9 +14,15 @@ class TranslationCache {
   Future<void> load() async {
     if (_loaded) return;
     try {
+      // Bounded. A build made without --dart-define points at
+      // REPLACE-ME.supabase.co, which does not fail — it HANGS, so this
+      // future never completed and every screen rendered raw keys forever
+      // with no error anywhere. A timeout turns an invisible hang into a
+      // recorded failure that the next screen's load() can retry.
       final rows = await Supabase.instance.client
           .from('ui_translations')
-          .select('translation_key, english, telugu, hindi, tamil, kannada');
+          .select('translation_key, english, telugu, hindi, tamil, kannada')
+          .timeout(const Duration(seconds: 10));
       for (final r in (rows as List).cast<Map<String, dynamic>>()) {
         _rows[r['translation_key'] as String] = {
           'English': r['english'] as String?,
@@ -27,11 +33,22 @@ class TranslationCache {
         };
       }
       _loaded = true;
+      lastError = null;
     } catch (e) {
-      // Non-fatal — every lookup just falls through to the raw key
-      // until a retry succeeds (e.g. next screen's load() call).
+      // Kept non-fatal — a missing translation must never block a screen.
+      // But it is no longer INVISIBLE: this swallowed the reason entirely,
+      // and the whole pre-login flow rendering raw keys ("app_name",
+      // "choose_workspace") was the result of one failed fetch that nobody
+      // could see. Recorded so it can be surfaced and retried.
+      lastError = e;
     }
   }
+
+  /// Why the last load failed, or null. Non-null with an empty cache means
+  /// every `t()` on screen is showing a raw key.
+  Object? lastError;
+
+  bool get isLoaded => _loaded;
 
   String t(String key, String languageEnumValue) {
     final row = _rows[key];

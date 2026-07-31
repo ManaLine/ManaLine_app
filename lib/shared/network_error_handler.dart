@@ -95,13 +95,25 @@ class NetworkErrorHandler {
   static const sessionExpiredMessage =
       'Your session has timed out. Enter your PIN to continue.';
 
+  /// NARROWED. This used to match a bare 'connection' anywhere in the
+  /// error text, which swallowed unrelated failures into "No internet
+  /// connection" and sent people to check their WiFi over a bug that had
+  /// nothing to do with the network — including, on a real handset, a
+  /// missing android.permission.INTERNET, which presents as a socket
+  /// failure and is not a connectivity problem the person can fix.
+  ///
+  /// Now only matches the transport-layer failures that genuinely mean
+  /// "the request never reached a server".
   static bool _looksLikeConnectivityError(Object e) {
     final s = e.toString().toLowerCase();
-    return s.contains('socket') ||
-        s.contains('timeout') ||
-        s.contains('network') ||
+    return s.contains('socketexception') ||
         s.contains('failed host lookup') ||
-        s.contains('connection') ||
+        s.contains('connection refused') ||
+        s.contains('connection closed') ||
+        s.contains('connection reset') ||
+        s.contains('connection timed out') ||
+        s.contains('timeoutexception') ||
+        s.contains('network is unreachable') ||
         s.contains('clientexception');
   }
 }

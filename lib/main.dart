@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/router.dart';
 import 'design/theme.dart';
+import 'design/tokens/colors.dart';
+import 'design/tokens/spacing.dart';
 import 'features/login_registration/state/auth_flow_state.dart';
 import 'shared/supabase_config.dart';
 
@@ -88,11 +90,72 @@ class ManaLineApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A build with no --dart-define points at REPLACE-ME.supabase.co, which
+    // HANGS rather than failing — the app looked alive but every screen
+    // showed raw translation keys and login claimed "no internet" on a
+    // perfectly good network. Say so immediately instead.
+    if (SupabaseConfig.isPlaceholder) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ManaTheme.light(),
+        home: const _MisconfiguredBuildScreen(),
+      );
+    }
+
     return MaterialApp.router(
       title: 'MANA LINE',
       debugShowCheckedModeBanner: false,
       theme: ManaTheme.light(),
       routerConfig: manaRouter,
+    );
+  }
+}
+
+/// Shown when the app was built without --dart-define, so it has no real
+/// Supabase URL or key. Deliberately blunt and developer-facing: this can
+/// only ever be seen by someone running a mis-built binary, and the whole
+/// point is that it names the cause instead of presenting as a network
+/// fault.
+class _MisconfiguredBuildScreen extends StatelessWidget {
+  const _MisconfiguredBuildScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: ManaColors.ink,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(ManaSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.build_circle_outlined,
+                    size: 48, color: ManaColors.accent),
+                SizedBox(height: ManaSpacing.md),
+                Text(
+                  'Build not configured',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: ManaColors.textOnDark,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: ManaSpacing.sm),
+                Text(
+                  'This build has no Supabase URL or key, so every request '
+                  'goes to a host that does not exist and simply hangs — it '
+                  'is not a network problem.\n\n'
+                  'Rebuild with the --dart-define arguments (see run.ps1.txt '
+                  'in the project root).',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: ManaColors.textOnDark, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Every screen in this app talks to Supabase. This was ONLY declared in
+         the debug and profile manifests, which Flutter adds for hot reload —
+         so debug builds had network and a RELEASE build would have had none
+         at all: no login, no data, nothing. Debug hid it completely. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Lets the app tell "no network" apart from "server unreachable", so
+         the offline messaging is about the real state and not a guess. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Required for LiveFaceCaptureScreen (LR-004 F1 / BR-036, loan issuance BR-081) -->
     <uses-permission android:name="android.permission.CAMERA" />
     <application

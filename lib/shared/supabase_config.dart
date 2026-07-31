@@ -17,4 +17,18 @@ class SupabaseConfig {
     'SUPABASE_ANON_KEY',
     defaultValue: 'REPLACE-ME-ANON-KEY',
   );
+
+  /// True when the app was built WITHOUT --dart-define, so it is pointing at
+  /// a host that does not exist.
+  ///
+  /// This failure mode is vicious: requests to REPLACE-ME.supabase.co do not
+  /// fail fast, they hang. The translation cache sat forever on its first
+  /// fetch, so every screen rendered raw keys ("app_name",
+  /// "choose_workspace"), and login reported "No internet connection" on a
+  /// device whose network was completely fine. Nothing anywhere said the
+  /// build was misconfigured.
+  ///
+  /// See run.ps1.txt for the correct command.
+  static bool get isPlaceholder =>
+      url.contains('REPLACE-ME') || anonKey.contains('REPLACE-ME');
 }

@@ -2,6 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/document_viewer.dart' show DocumentSummary;
+// ProfitShareDeclaration is shared with the Investor side — BR-232 uses one
+// Distribution Ledger for both recipient types, so it gets one model too.
+// investor_state does not import this file, so there is no cycle.
+import 'investor_state.dart' show ProfitShareDeclaration;
 import '../../login_registration/state/auth_flow_state.dart';
 
 /// Real Supabase wiring over the Owner Workspace endpoints touched by
@@ -531,6 +535,99 @@ class OwnerApiService {
     });
   }
 
+  // --- CALC BR-232 — Agent Profit Share distribution -----------------------
+  //
+  // BR-232 requires a "Distribute Profit Share" action on BOTH the Agent
+  // Profile and the Investor Profile. Only the Investor side had one, so
+  // an Agent's profit_share_percent was a number the Owner could set and
+  // then never act on. The % is never auto-multiplied against anything —
+  // the Owner enters the actual rupee amount each time (BR-056), and it
+  // lands in the Distribution Ledger (BR-060).
+  Future<List<ProfitShareDeclaration>> fetchAgentProfitShareDeclarations({
+    required String agentId,
+  }) async {
+    final rows = await _db
+        .from('distribution_declarations')
+        .select('declaration_id, total_profit_amount, declared_amount, business_date, status, remarks')
+        .eq('agent_id', agentId)
+        .order('business_date', ascending: false);
+    return (rows as List)
+        .map((r) => ProfitShareDeclaration(
+              declarationId: r['declaration_id'] as String,
+              totalProfitAmount: (r['total_profit_amount'] as num).toDouble(),
+              declaredAmount: (r['declared_amount'] as num).toDouble(),
+              businessDate: DateTime.parse(r['business_date'] as String),
+              status: r['status'] as String,
+              remarks: r['remarks'] as String?,
+            ))
+        .toList();
+  }
+
+  Future<void> declareAgentProfitShare({
+    required String businessId,
+    required String agentId,
+    required double amount,
+    required double profitSharePercent,
+    String? remarks,
+  }) async {
+    await _db.from('distribution_declarations').insert({
+      'business_id': businessId,
+      'recipient_type': 'Agent',
+      'agent_id': agentId,
+      'profit_share_percent': profitSharePercent,
+      // total_profit_amount and declared_amount are the same figure here:
+      // BR-232 is explicit that no base is computed and the % is never
+      // applied to anything, so the Owner's entered amount IS the total.
+      'total_profit_amount': amount,
+      'declared_amount': amount,
+      'business_date': DateTime.now().toIso8601String().split('T').first,
+      'status': 'Declared',
+      'remarks': remarks,
+    });
+  }
+
+  /// Declaration and payment are separate events (BR-058).
+  Future<void> payAgentProfitShare({required String declarationId}) async {
+    await _db
+        .from('distribution_declarations')
+        .update({'status': 'Paid'})
+        .eq('declaration_id', declarationId);
+  }
+
+  // --- CALC BR-068 — Payable Salary ----------------------------------------
+  //
+  // Server-side, because the formula has to agree everywhere. Daily
+  // Allowance is deliberately NOT part of it and Excess is never credited;
+  // see the function's own comment.
+  Future<AgentSalaryBreakdown> fetchPayableSalary({
+    required String agentId,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+    bool deductShorts = false,
+    double otherApprovedExpenses = 0,
+  }) async {
+    final rows = await _db.rpc('agent_payable_salary', params: {
+      'p_agent_id': agentId,
+      'p_period_start': periodStart.toIso8601String().split('T').first,
+      'p_period_end': periodEnd.toIso8601String().split('T').first,
+      'p_deduct_shorts': deductShorts,
+      'p_other_approved_expenses': otherApprovedExpenses,
+    });
+    final r = ((rows as List).first) as Map<String, dynamic>;
+    return AgentSalaryBreakdown(
+      salaryMode: r['salary_mode'] as String,
+      fixedSalaryAmount: (r['fixed_salary_amount'] as num?)?.toDouble() ?? 0,
+      dailyRate: (r['daily_rate'] as num?)?.toDouble(),
+      workingDays: (r['working_days'] as num?)?.toInt() ?? 0,
+      baseAmount: (r['base_amount'] as num?)?.toDouble() ?? 0,
+      otherApprovedExpenses: (r['other_approved_expenses'] as num?)?.toDouble() ?? 0,
+      advances: (r['advances'] as num?)?.toDouble() ?? 0,
+      shortsOutstanding: (r['shorts_outstanding'] as num?)?.toDouble() ?? 0,
+      shortsDeducted: (r['shorts_deducted'] as num?)?.toDouble() ?? 0,
+      payableSalary: (r['payable_salary'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
   Future<List<CompensationRecord>> fetchCompensationHistory({required String agentId}) async {
     final rows = await _db
         .from('agent_compensation_history')
@@ -855,6 +952,39 @@ class AgentSummary {
     required this.todaysLoans,
     required this.joinedDate,
     this.lastLogin,
+  });
+}
+
+/// CALC BR-068 payable-salary breakdown. Carries the working, not just the
+/// total — an Owner handing over cash needs to see why the number is what
+/// it is, and an agent disputing it needs the same.
+class AgentSalaryBreakdown {
+  final String salaryMode; // Fixed | Daily Rate
+  final double fixedSalaryAmount;
+  final double? dailyRate;
+  final int workingDays;
+  final double baseAmount;
+  final double otherApprovedExpenses;
+  final double advances;
+  /// Everything the agent still owes from shorts, whether or not it is
+  /// being taken this cycle. Always recorded, always owed (BR-066).
+  final double shortsOutstanding;
+  /// The portion actually coming off THIS cycle — zero unless the Owner
+  /// chose to deduct (CALC BR-068 correction 2).
+  final double shortsDeducted;
+  final double payableSalary;
+
+  AgentSalaryBreakdown({
+    required this.salaryMode,
+    required this.fixedSalaryAmount,
+    required this.dailyRate,
+    required this.workingDays,
+    required this.baseAmount,
+    required this.otherApprovedExpenses,
+    required this.advances,
+    required this.shortsOutstanding,
+    required this.shortsDeducted,
+    required this.payableSalary,
   });
 }
 

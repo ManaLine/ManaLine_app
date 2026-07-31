@@ -23,31 +23,66 @@ class InvestorApiService {
             // Addendum item 2). my_investments_state.dart already used the
             // correct column; this file (and fetchInvestorProfile below)
             // did not, and threw PostgrestException 42703 on every load.
-            'investments(principal_amount, roi_rate, last_interest_payment_date)')
+            'investments(investment_id, principal_amount, roi_rate, last_interest_payment_date)')
         .eq('business_members.business_id', businessId);
     final rows = await q;
 
-    return (rows as List)
+    final investors = (rows as List)
         .cast<Map<String, dynamic>>()
-        .map((r) {
-          final person = r['persons'] as Map<String, dynamic>;
-          final investments = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
-          final balance = investments.fold<double>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toDouble() ?? 0));
-          final roi = investments.isEmpty ? 0.0 : (investments.first['roi_rate'] as num).toDouble();
-          return InvestorSummary(
-            investorId: r['investor_id'] as String,
-            fullName: titleCaseName(person['full_name'] as String? ?? ''),
-            mlid: person['mlid'] as String? ?? '',
-            phoneNumber: person['mobile_number'] as String? ?? '',
-            investmentBalance: balance,
-            roi: roi,
-            interestDue: 0, // requires investment_interest_ledger aggregation — see KNOWN SIMPLIFICATION pattern established elsewhere this session
-            membershipStatus: (r['business_members'] as Map<String, dynamic>)['membership_status'] as String,
-            lastTransaction: null,
-          );
-        })
-        .where((i) => status == null || i.membershipStatus == status)
+        .where((r) =>
+            status == null ||
+            (r['business_members'] as Map<String, dynamic>)['membership_status'] == status)
         .toList();
+
+    // Interest Due is live per CALC BR-234, so it needs one snapshot RPC
+    // per investment. Every investment across every investor in one
+    // Future.wait — a list screen must not fan out into serial round
+    // trips, and a PostgrestBuilder is lazy so assign-then-await would do
+    // exactly that.
+    final ids = <String>[
+      for (final r in investors)
+        for (final i in ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>())
+          i['investment_id'] as String,
+    ];
+    final accruedById = await _accruedFor(ids);
+
+    return investors.map((r) {
+      final person = r['persons'] as Map<String, dynamic>;
+      final investments = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
+      final balance =
+          investments.fold<double>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toDouble() ?? 0));
+      final roi = investments.isEmpty ? 0.0 : (investments.first['roi_rate'] as num).toDouble();
+      return InvestorSummary(
+        investorId: r['investor_id'] as String,
+        fullName: titleCaseName(person['full_name'] as String? ?? ''),
+        mlid: person['mlid'] as String? ?? '',
+        phoneNumber: person['mobile_number'] as String? ?? '',
+        investmentBalance: balance,
+        roi: roi,
+        interestDue: investments.fold<double>(
+            0, (sum, i) => sum + (accruedById[i['investment_id'] as String] ?? 0)),
+        membershipStatus: (r['business_members'] as Map<String, dynamic>)['membership_status'] as String,
+        lastTransaction: null,
+      );
+    }).toList();
+  }
+
+  /// accrued_interest per investment id, via the calculation engine.
+  /// Failures degrade that row to 0 rather than failing the list.
+  Future<Map<String, double>> _accruedFor(List<String> investmentIds) async {
+    if (investmentIds.isEmpty) return {};
+    final results = await Future.wait(investmentIds.map((id) async {
+      try {
+        final rows = await _db.rpc('investment_interest_snapshot', params: {'p_investment_id': id});
+        final list = (rows as List?) ?? const [];
+        if (list.isEmpty) return MapEntry(id, 0.0);
+        return MapEntry(
+            id, ((list.first as Map<String, dynamic>)['accrued_interest'] as num?)?.toDouble() ?? 0);
+      } catch (_) {
+        return MapEntry(id, 0.0);
+      }
+    }));
+    return Map.fromEntries(results);
   }
 
   /// Approve/reject `membership_requests` rows where requested_role='Investor'.
@@ -158,23 +193,83 @@ class InvestorApiService {
         phoneNumber: person['mobile_number'] as String? ?? '',
         investmentBalance: balance,
         roi: investments.isEmpty ? 0.0 : (investments.first['roi_rate'] as num).toDouble(),
-        interestDue: 0,
+        interestDue: 0, // filled from the per-investment snapshots below
         membershipStatus: (row['business_members'] as Map<String, dynamic>)['membership_status'] as String,
       ),
-      investments: investments
-          .map((i) => InvestmentRecord(
-                investmentId: i['investment_id'] as String,
-                principalAmount: (i['principal_amount'] as num).toDouble(),
-                roiRate: (i['roi_rate'] as num).toDouble(),
-                interestMethod: i['interest_type'] as String,
-                effectiveDate: DateTime.parse(i['effective_date'] as String),
-                interestAccrued: 0, // requires investment_interest_ledger aggregation
-                interestPaid: 0,
-                status: i['status'] as String,
-                profitSharePercent: (i['profit_share_percent'] as num?)?.toDouble(),
-              ))
-          .toList(),
+      investments: await _withInterest(investments),
     );
+  }
+
+  /// Fills each investment's live interest figures from the calculation
+  /// engine (CALC BR-234) instead of the hardcoded zeros that stood here
+  /// since this screen was built.
+  ///
+  /// One RPC per investment, issued in parallel — `investment_interest_
+  /// snapshot` is per-investment by design because the compounding walk is
+  /// per-row. Future.wait rather than a loop of awaits: a PostgrestBuilder
+  /// is lazy, so awaiting in sequence would be N serial round trips.
+  ///
+  /// A snapshot failure degrades to zeros rather than taking the whole
+  /// profile down — the principal and ROI on screen are still correct and
+  /// come from the row itself. This is the one place a swallowed error is
+  /// right: interest is derived and re-derivable, not a recorded movement
+  /// of money.
+  Future<List<InvestmentRecord>> _withInterest(List<Map<String, dynamic>> investments) async {
+    final snapshots = await Future.wait(
+      investments.map((i) async {
+        try {
+          final rows = await _db.rpc('investment_interest_snapshot',
+              params: {'p_investment_id': i['investment_id']});
+          final list = (rows as List?) ?? const [];
+          return list.isEmpty ? null : list.first as Map<String, dynamic>;
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
+
+    return [
+      for (final (index, i) in investments.indexed)
+        InvestmentRecord(
+          investmentId: i['investment_id'] as String,
+          // The snapshot's principal is authoritative: it includes any
+          // compounding that is due but not yet materialised, which the
+          // stored column does not.
+          principalAmount: (snapshots[index]?['principal'] as num?)?.toDouble() ??
+              (i['principal_amount'] as num).toDouble(),
+          roiRate: (i['roi_rate'] as num).toDouble(),
+          interestMethod: i['interest_type'] as String,
+          effectiveDate: DateTime.parse(i['effective_date'] as String),
+          interestAccrued: (snapshots[index]?['accrued_interest'] as num?)?.toDouble() ?? 0,
+          interestPaid: (snapshots[index]?['interest_paid_to_date'] as num?)?.toDouble() ?? 0,
+          status: i['status'] as String,
+          profitSharePercent: (i['profit_share_percent'] as num?)?.toDouble(),
+        ),
+    ];
+  }
+
+  /// Materialises any due compounding anniversaries (CALC BR-053). Owner
+  /// only, server-side. Returns how many events were written.
+  Future<int> applyCompounding({required String investmentId}) async {
+    final result = await _db.rpc('apply_investment_compounding',
+        params: {'p_investment_id': investmentId});
+    return (result as num?)?.toInt() ?? 0;
+  }
+
+  /// Records an Owner-verified interest payout (BR-051/BR-055). Moves
+  /// last_interest_payment_date so accrual restarts from the payment date
+  /// rather than paying the same interest twice.
+  Future<void> recordInterestPayment({
+    required String investmentId,
+    required double amount,
+    String? remarks,
+  }) async {
+    await _db.rpc('record_investment_interest_payment', params: {
+      'p_investment_id': investmentId,
+      'p_amount': amount,
+      'p_business_date': DateTime.now().toIso8601String().split('T').first,
+      'p_remarks': remarks,
+    });
   }
 
   /// original_principal_amount is a frozen Agreement Snapshot (BR-034) —

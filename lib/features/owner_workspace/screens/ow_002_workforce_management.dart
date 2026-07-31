@@ -9,6 +9,7 @@ import '../../../shared/network_error_handler.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/business_management_state.dart' show businessManagementApiServiceProvider, OperatingAreaSummary;
+import '../state/investor_state.dart' show ProfitShareDeclaration;
 import '../../../shared/document_viewer.dart';
 
 /// OW-002 — Workforce Management (Agents). List view is the default landing
@@ -552,7 +553,8 @@ class AgentProfileScreen extends ConsumerWidget {
             children: [
               _OverviewTab(agent: agent),
               _PermissionsTab(agentId: agent.agentId, profile: profile),
-              _CompensationTab(agentId: agent.agentId, profile: profile),
+              _CompensationTab(
+                  agentId: agent.agentId, businessId: businessId, profile: profile),
               _AreasTab(businessId: businessId, agent: agent, profile: profile),
               _DocumentsTab(agentId: agent.agentId),
               const _AuditTab(),
@@ -702,8 +704,13 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
 
 class _CompensationTab extends ConsumerStatefulWidget {
   final String agentId;
+  final String businessId;
   final AgentProfile profile;
-  const _CompensationTab({required this.agentId, required this.profile});
+  const _CompensationTab({
+    required this.agentId,
+    required this.businessId,
+    required this.profile,
+  });
 
   @override
   ConsumerState<_CompensationTab> createState() => _CompensationTabState();
@@ -771,8 +778,15 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
               const InputDecoration(labelText: 'Daily Allowance (optional)'),
         ),
         const SizedBox(height: ManaSpacing.xs),
+        // CORRECTED: this used to read "reduced from final salary (BR-046)",
+        // which CALC BR-068's rewrite explicitly supersedes. Daily Allowance
+        // is paid same-day in cash and has ZERO relationship to Payable
+        // Salary — it never appears in that formula in any form. Leaving the
+        // old wording would have told the Owner the opposite of what the
+        // salary engine now does.
         const ManaText.raw(
-            'Not an expense — reduced from final salary (BR-046).',
+            'Paid same-day in cash. Does NOT reduce payable salary — tracked '
+            'for your visibility only (CALC BR-068, supersedes BR-046).',
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.md),
         TextField(
@@ -781,10 +795,23 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
           decoration: const InputDecoration(
               labelText: 'Profit Share % (optional, tentative)'),
         ),
+        const SizedBox(height: ManaSpacing.xs),
+        const ManaText.raw(
+            'Reference only — the system never multiplies this against any '
+            'figure. Distribute the actual amount below (BR-232).',
+            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
             onPressed: _save,
             child: const ManaText('save — creates new history entry')),
+        const Divider(height: ManaSpacing.xxl),
+        // BR-232 requires this action on the Agent Profile as well as the
+        // Investor Profile. Only the Investor side had it, so an Agent's
+        // profit share could be agreed and never actually paid out.
+        _AgentProfitShareSection(
+            agentId: widget.agentId,
+            businessId: widget.businessId,
+            profile: widget.profile),
         const Divider(height: ManaSpacing.xxl),
         const ManaText('compensation history',
             style: TextStyle(fontWeight: FontWeight.bold)),
@@ -799,6 +826,167 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
                     '₹${c.fixedSalary.toStringAsFixed(0)} · ${c.salaryCycle}'),
                 subtitle: ManaText.raw(
                     'Effective ${DateFormat('d MMM yyyy').format(c.effectiveDate)}'),
+              )),
+      ],
+    );
+  }
+}
+
+/// CALC BR-232 — "Distribute Profit Share" on the Agent Profile.
+///
+/// Manual entry only. The Owner types the actual rupee amount; the % on the
+/// compensation structure above is never multiplied against anything, and
+/// there is no system-calculated base (not Net Profit, not Gross
+/// Collections). Declaration and payment are separate events (BR-058), so a
+/// declared row shows a "mark paid" action once and cannot be declared
+/// twice by accident.
+class _AgentProfitShareSection extends ConsumerStatefulWidget {
+  final String agentId;
+  final String businessId;
+  final AgentProfile profile;
+  const _AgentProfitShareSection({
+    required this.agentId,
+    required this.businessId,
+    required this.profile,
+  });
+
+  @override
+  ConsumerState<_AgentProfitShareSection> createState() => _AgentProfitShareSectionState();
+}
+
+class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSection> {
+  List<ProfitShareDeclaration> _declarations = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await ref
+          .read(ownerApiServiceProvider)
+          .fetchAgentProfitShareDeclarations(agentId: widget.agentId);
+      if (!mounted) return;
+      setState(() {
+        _declarations = rows;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _declare() async {
+    final amount = TextEditingController();
+    final remarks = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setLocal) => AlertDialog(
+          title: const ManaText('distribute profit share'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ManaText.raw(
+                'Enter the actual amount being distributed. Nothing is '
+                'calculated from the Profit Share % — that figure is your '
+                'own reference (BR-232).',
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              TextField(
+                controller: amount,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Amount *'),
+                onChanged: (_) => setLocal(() {}),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              TextField(
+                controller: remarks,
+                decoration: const InputDecoration(labelText: 'Remarks'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const ManaText('cancel')),
+            FilledButton(
+              onPressed: double.tryParse(amount.text.trim()) != null
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: const ManaText('declare'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(ownerApiServiceProvider).declareAgentProfitShare(
+            businessId: widget.businessId,
+            agentId: widget.agentId,
+            amount: double.parse(amount.text.trim()),
+            profitSharePercent: widget.profile.currentCompensation?.profitSharePercent ?? 0,
+            remarks: remarks.text.trim().isEmpty ? null : remarks.text.trim(),
+          );
+      return true;
+    });
+    if (ok == true) await _load();
+  }
+
+  Future<void> _markPaid(ProfitShareDeclaration d) async {
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(ownerApiServiceProvider).payAgentProfitShare(declarationId: d.declarationId);
+      return true;
+    });
+    if (ok == true) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ManaText('profit share distribution',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: ManaSpacing.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.tonalIcon(
+            onPressed: _declare,
+            icon: const Icon(Icons.add, size: 18),
+            label: const ManaText('distribute profit share'),
+          ),
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        if (_loading)
+          const Center(child: Padding(
+            padding: EdgeInsets.all(ManaSpacing.md),
+            child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+          ))
+        else if (_declarations.isEmpty)
+          const ManaText.raw('Nothing distributed yet.',
+              style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
+        else
+          ..._declarations.map((d) => Card(
+                child: ListTile(
+                  title: ManaText.raw('₹${d.declaredAmount.toStringAsFixed(0)}'),
+                  subtitle: ManaText.raw(
+                      '${DateFormat('d MMM yyyy').format(d.businessDate)}'
+                      '${d.remarks == null ? '' : ' · ${d.remarks}'}',
+                      style: const TextStyle(fontSize: 13)),
+                  trailing: d.status == 'Declared'
+                      ? FilledButton(
+                          onPressed: () => _markPaid(d),
+                          child: const ManaText('mark paid'),
+                        )
+                      : const ManaStatusPill(label: 'Paid', status: ManaStatus.good),
+                ),
               )),
       ],
     );

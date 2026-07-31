@@ -28,6 +28,11 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
               ClipOval(
                 child: Image.asset(
                   'assets/images/logo.png',
+                  // 1254x1254 source rendered at ~96px. cacheWidth decodes at
+                  // display size rather than holding a 2.4MB full-res bitmap
+                  // in memory — this is a cheap-Android target and the splash
+                  // is the first thing that runs.
+                  cacheWidth: 288,
                   height: 72,
                   width: 72,
                   fit: BoxFit.cover,

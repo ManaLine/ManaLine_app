@@ -76,6 +76,11 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
               ClipOval(
                 child: Image.asset(
                   'assets/images/logo.png',
+                  // 1254x1254 source rendered at ~96px. cacheWidth decodes at
+                  // display size rather than holding a 2.4MB full-res bitmap
+                  // in memory — this is a cheap-Android target and the splash
+                  // is the first thing that runs.
+                  cacheWidth: 288,
                   height: 96,
                   width: 96,
                   fit: BoxFit.cover,
@@ -88,10 +93,42 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
                       color: ManaColors.textOnDark,
                     ),
               ),
-              const SizedBox(height: 4),
-              const ManaText.raw(
-                'FINANCE · GROWTH · TRUST',
-                style: TextStyle(color: ManaColors.accent, letterSpacing: 2, fontSize: 13),
+              const SizedBox(height: ManaSpacing.sm),
+              // Tagline: EVERY ₹ COUNTS, with the rupee as the hero.
+              //
+              // The ₹ is `accent` gold and oversized. The WORDS are
+              // textOnDark, not black: this screen's background is
+              // ManaColors.ink (dark navy), so black-on-dark would be
+              // invisible. See the note in the build method below if the
+              // splash is ever moved to a light surface — `accent` is
+              // 1.76:1 on white and must never become ink there.
+              Semantics(
+                label: 'Every rupee counts',
+                excludeSemantics: true,
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: const TextSpan(
+                    style: TextStyle(
+                      color: ManaColors.textOnDark,
+                      letterSpacing: 3,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: [
+                      TextSpan(text: 'EVERY '),
+                      TextSpan(
+                        text: '₹',
+                        style: TextStyle(
+                          color: ManaColors.accent,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      TextSpan(text: ' COUNTS'),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: ManaSpacing.xxl),
               if (_state == _StartupState.slowLoad) ...[

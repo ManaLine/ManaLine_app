@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
+import '../../../shared/mana_time.dart';
 
 /// CW-002 Find A Business / Request To Join — real Supabase wiring. Same
 /// shared discovery/membership-request endpoints already confirmed at
@@ -86,7 +87,7 @@ class CustomerDiscoveryApiService {
     if (existing != null &&
         existing['status'] == 'Rejected' &&
         existing['cooldown_until'] != null &&
-        DateTime.parse(existing['cooldown_until'] as String).isAfter(DateTime.now())) {
+        DateTime.parse(existing['cooldown_until'] as String).isAfter(manaNowIst())) {
       throw StateError(
         'You may reapply to this business after ${DateTime.parse(existing['cooldown_until'] as String).toLocal()}.',
       );

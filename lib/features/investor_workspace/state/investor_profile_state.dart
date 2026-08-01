@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/mana_time.dart';
 
 /// IW-005 My Profile / Business Memberships — real Supabase wiring over
 /// Module 0 (persons/person_addresses) and Module 1 (business_members).
@@ -119,7 +120,7 @@ class InvestorProfileApiService {
   /// not client code here — unchanged from the prior flag.
   Future<void> updatePhone({required String personId, required String phoneNumber}) async {
     final pid = int.parse(personId);
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = manaBusinessDate();
 
     await _db
         .from('person_phone_history')
@@ -180,7 +181,7 @@ class InvestorProfileApiService {
     String? areaLocality,
     required String pinCode,
   }) async {
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = manaBusinessDate();
     final pid = int.parse(personId);
 
     final location = await _db.from('locations').select('mandal, district, state').eq('location_id', villageId).eq('status', 'Active').single();

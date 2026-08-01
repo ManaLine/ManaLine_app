@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
+import '../../../shared/mana_time.dart';
 
 /// OW-006 Collection Mode — real Supabase wiring over Module 7
 /// (04_API_Specification_v1 Part 3 §8). Shared verbatim with AG-002 (Agent
@@ -167,7 +168,7 @@ class CollectionApiService {
       'customer_id': loan['customer_id'],
       'visited_by_membership_id': membershipId,
       'reason': reason,
-      'business_date': DateTime.now().toIso8601String().split('T').first,
+      'business_date': manaBusinessDate(),
     });
   }
 
@@ -196,7 +197,7 @@ class CollectionApiService {
           'loan_id': loanId,
           'requested_by': requestedBy,
           'status': 'Pending',
-          'business_date': DateTime.now().toIso8601String().split('T').first,
+          'business_date': manaBusinessDate(),
         })
         .select('extension_id')
         .single();

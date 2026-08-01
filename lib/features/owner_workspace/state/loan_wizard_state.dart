@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'customer_state.dart' show CustomerSummary, customerApiServiceProvider;
 import '../../../shared/live_photo_upload.dart';
 import '../../login_registration/state/auth_flow_state.dart';
+import '../../../shared/mana_time.dart';
 
 /// OW-005 New Loan Workflow — real Supabase wiring. No dedicated
 /// eligibility-check endpoint; validation is inline inside the create call,
@@ -207,8 +208,8 @@ class LoanApiService {
       'status': 'Rejected',
       'rejection_reason': reason,
       'reviewed_by_person_id': personId == null ? null : int.parse(personId),
-      'resolved_at': DateTime.now().toIso8601String(),
-      'cooldown_until': DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+      'resolved_at': manaTimestamp(),
+      'cooldown_until': manaTimestampPlus(const Duration(hours: 24)),
     }).eq('request_id', requestId);
   }
 
@@ -218,7 +219,7 @@ class LoanApiService {
       'status': 'Approved',
       'resulting_loan_id': resultingLoanId,
       'reviewed_by_person_id': personId == null ? null : int.parse(personId),
-      'resolved_at': DateTime.now().toIso8601String(),
+      'resolved_at': manaTimestamp(),
     }).eq('request_id', requestId);
   }
 }

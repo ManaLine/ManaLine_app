@@ -8,6 +8,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../login_registration/state/auth_flow_state.dart';
+import '../../../shared/mana_time.dart';
 
 /// OW-016 — Owner Profile. NEW screen (extends beyond the original locked
 /// 15-screen OW inventory) — the Owner workspace previously had no
@@ -159,7 +160,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
         'district': result.district,
         'state': result.state,
         'is_current': true,
-        'from_date': DateTime.now().toIso8601String().split('T').first,
+        'from_date': manaBusinessDate(),
       });
       return true;
     });

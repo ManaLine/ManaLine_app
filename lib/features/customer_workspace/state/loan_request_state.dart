@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
+import '../../../shared/mana_time.dart';
 
 /// CW-003 Request New Loan — real Supabase wiring over Module 2
 /// (loan_templates) and Module 6 (loan_requests). Same shared,
@@ -346,7 +347,7 @@ class LoanRequestNotifier extends Notifier<LoanRequestState> {
     if (mostRecent != null &&
         mostRecent.status == 'Rejected' &&
         mostRecent.cooldownUntil != null &&
-        mostRecent.cooldownUntil!.isAfter(DateTime.now())) {
+        mostRecent.cooldownUntil!.isAfter(manaNowIst())) {
       state = state.copyWith(phase: LoanRequestPhase.cooldown, lastResult: mostRecent);
     }
   }

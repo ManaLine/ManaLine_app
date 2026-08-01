@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/mana_time.dart';
 
 /// OW-013 Account Review — real Supabase wiring.
 ///
@@ -146,7 +147,7 @@ class AccountReviewApiService {
   Future<void> approveSettlement({required String settlementId}) async {
     await _db.from('account_settlements').update({
       'status': 'Approved',
-      'reviewed_at': DateTime.now().toIso8601String(),
+      'reviewed_at': manaTimestamp(),
     }).eq('settlement_id', settlementId);
     // NOTE: does not itself move agent_bf_assignments.agent_bf_current back
     // into businesses.owner_bf_balance — per Merged Addendum item 4 that
@@ -160,7 +161,7 @@ class AccountReviewApiService {
     await _db.from('account_settlements').update({
       'status': 'Returned',
       'return_reason': reason,
-      'reviewed_at': DateTime.now().toIso8601String(),
+      'reviewed_at': manaTimestamp(),
     }).eq('settlement_id', settlementId);
   }
 

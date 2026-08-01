@@ -11,6 +11,7 @@ import '../state/loan_distribution_state.dart';
 import '../../owner_workspace/state/customer_state.dart';
 import '../../owner_workspace/state/loan_wizard_state.dart';
 import '../../../shared/live_face_capture_screen.dart';
+import '../../../shared/mana_time.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -192,7 +193,7 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
             toAgentId: _toAgentId.text.trim(),
             toAgentName: _toAgentName.text.trim(),
             amount: double.parse(_amount.text),
-            businessDate: DateTime.now().toIso8601String().split('T').first,
+            businessDate: manaBusinessDate(),
           );
       if (!sent) {
         throw Exception(ref.read(loanDistributionProvider).error ?? 'Transfer could not be sent.');

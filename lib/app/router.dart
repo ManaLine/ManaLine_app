@@ -61,6 +61,7 @@ import '../features/investor_workspace/screens/iw_002_find_a_business.dart';
 import '../features/investor_workspace/screens/iw_003_my_investments.dart';
 import '../features/investor_workspace/screens/iw_004_request_withdrawal.dart';
 import '../features/investor_workspace/screens/iw_005_my_profile_memberships.dart';
+import '../shared/mana_time.dart';
 
 /// Route map mirrors the locked screen inventory 1:1 — file/screen
 /// numbers double as route names, so anyone cross-referencing this
@@ -202,7 +203,7 @@ final manaRouter = GoRouter(
       path: '/ow-011',
       builder: (c, s) => DayClosureScreen(
         businessId: _resolveBusinessId(s),
-        businessDate: DateTime.now().toIso8601String().split('T').first,
+        businessDate: manaBusinessDate(),
       ),
     ),
     GoRoute(

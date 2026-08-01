@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/text_utils.dart';
 import '../../login_registration/state/auth_flow_state.dart';
+import '../../../shared/mana_time.dart';
 
 /// OW-003 Investor Domain — real Supabase wiring over Module 5.
 class InvestorApiService {
@@ -91,7 +92,7 @@ class InvestorApiService {
     await _db.from('membership_requests').update({
       'status': 'Approved',
       'reviewed_by_person_id': personId != null ? int.parse(personId) : null,
-      'reviewed_at': DateTime.now().toIso8601String(),
+      'reviewed_at': manaTimestamp(),
     }).eq('request_id', requestId);
 
     final memberRow = await _db
@@ -103,7 +104,7 @@ class InvestorApiService {
           'membership_status': 'Active',
           'verification_status': 'Not Required', // Investor OTP verification (BR-190/191) happens IW-side before this
           'onboarding_method': 'Direct Registration',
-          'joined_at': DateTime.now().toIso8601String(),
+          'joined_at': manaTimestamp(),
         })
         .select('membership_id')
         .single();
@@ -118,8 +119,8 @@ class InvestorApiService {
     await _db.from('membership_requests').update({
       'status': 'Rejected',
       'reviewed_by_person_id': personId != null ? int.parse(personId) : null,
-      'reviewed_at': DateTime.now().toIso8601String(),
-      'cooldown_until': DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+      'reviewed_at': manaTimestamp(),
+      'cooldown_until': manaTimestampPlus(const Duration(hours: 24)),
     }).eq('request_id', requestId);
   }
 
@@ -151,7 +152,7 @@ class InvestorApiService {
           'membership_status': 'Active',
           'verification_status': 'Not Required',
           'onboarding_method': 'Direct Registration',
-          'joined_at': DateTime.now().toIso8601String(),
+          'joined_at': manaTimestamp(),
         })
         .select('membership_id')
         .single();
@@ -273,7 +274,7 @@ class InvestorApiService {
     await _db.schema('app').rpc('record_investment_interest_payment', params: {
       'p_investment_id': investmentId,
       'p_amount': amount,
-      'p_business_date': DateTime.now().toIso8601String().split('T').first,
+      'p_business_date': manaBusinessDate(),
       'p_remarks': remarks,
     });
   }
@@ -401,7 +402,7 @@ class InvestorApiService {
       'profit_share_percent': pct,
       'total_profit_amount': totalProfitAmount,
       'declared_amount': totalProfitAmount * pct / 100,
-      'business_date': DateTime.now().toIso8601String().split('T').first,
+      'business_date': manaBusinessDate(),
       'status': 'Declared',
       'remarks': remarks,
     });
@@ -420,7 +421,7 @@ class InvestorApiService {
     await _db.from('distribution_payments').insert({
       'declaration_id': declarationId,
       'paid_amount': decl['declared_amount'],
-      'business_date': DateTime.now().toIso8601String().split('T').first,
+      'business_date': manaBusinessDate(),
       'approved_by_person_id': int.parse(personId),
     });
     await _db.from('distribution_declarations').update({'status': 'Paid'}).eq('declaration_id', declarationId);
@@ -461,7 +462,7 @@ class InvestorApiService {
     await _db.from('investment_withdrawal_requests').update({
       'status': 'Rejected',
       'rejection_reason': reason,
-      'resolved_at': DateTime.now().toIso8601String(),
+      'resolved_at': manaTimestamp(),
     }).eq('request_id', requestId);
   }
 
@@ -482,7 +483,7 @@ class InvestorApiService {
   }) async {
     final personId = ref.read(authFlowProvider).personId;
     if (personId == null) throw StateError('No logged-in person_id available.');
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = manaBusinessDate();
 
     final withdrawal = await _db
         .from('investment_withdrawals')
@@ -508,7 +509,7 @@ class InvestorApiService {
     await _db.from('investment_withdrawal_requests').update({
       'status': 'Approved-Paid',
       'resulting_withdrawal_id': withdrawal['withdrawal_id'],
-      'resolved_at': DateTime.now().toIso8601String(),
+      'resolved_at': manaTimestamp(),
     }).eq('request_id', requestId);
   }
 }

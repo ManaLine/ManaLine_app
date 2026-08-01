@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../owner_workspace/state/collection_mode_state.dart' show PaymentSplit;
+import '../../../shared/mana_time.dart';
 
 /// AG-003 Today's Route — stub API. Per the spec's own API BINDING, no
 /// dedicated route endpoint exists: the route is composed client-side from
@@ -37,7 +38,7 @@ class TodaysRouteApiService {
     required String businessId,
     required String agentMembershipId,
   }) async {
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = manaBusinessDate();
 
     final loanRows = await _db
         .from('loans')

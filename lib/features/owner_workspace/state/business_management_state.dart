@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../login_registration/state/auth_api_service.dart';
 import '../../../shared/text_utils.dart';
+import '../../../shared/mana_time.dart';
 
 /// OW-012 — Business Management. Real Supabase wiring.
 class BusinessManagementApiService {
@@ -211,7 +212,7 @@ class BusinessManagementApiService {
   Future<void> removeVillageFromArea({required String operatingAreaLocationId}) async {
     await _db
         .from('operating_area_locations')
-        .update({'removed_at': DateTime.now().toIso8601String()})
+        .update({'removed_at': manaTimestamp()})
         .eq('operating_area_location_id', operatingAreaLocationId);
   }
 
@@ -379,7 +380,7 @@ class BusinessManagementApiService {
   }) async {
     await _db
         .from('agent_area_assignments')
-        .update({'removed_at': DateTime.now().toIso8601String()})
+        .update({'removed_at': manaTimestamp()})
         .eq('operating_area_id', operatingAreaId)
         .eq('agent_id', agentId)
         .isFilter('removed_at', null);
@@ -407,7 +408,7 @@ class BusinessManagementApiService {
       businessId: businessId,
       operatingAreaId: operatingAreaId,
       agentMembershipId: agentMembershipId,
-      businessStartDate: DateTime.now().toIso8601String(),
+      businessStartDate: manaTimestamp(),
     );
   }
 
@@ -499,8 +500,8 @@ class BusinessManagementApiService {
 
   Future<void> updateMembershipStatus({required String membershipId, required String membershipStatus}) async {
     final patch = <String, dynamic>{'membership_status': membershipStatus};
-    if (membershipStatus == 'Active') patch['joined_at'] = DateTime.now().toIso8601String();
-    if (membershipStatus == 'Removed') patch['removed_at'] = DateTime.now().toIso8601String();
+    if (membershipStatus == 'Active') patch['joined_at'] = manaTimestamp();
+    if (membershipStatus == 'Removed') patch['removed_at'] = manaTimestamp();
     await _db.from('business_members').update(patch).eq('membership_id', membershipId);
   }
 
@@ -530,9 +531,9 @@ class BusinessManagementApiService {
     await _db.from('membership_requests').update({
       'status': status,
       'reviewed_by_person_id': _personId,
-      'reviewed_at': DateTime.now().toIso8601String(),
+      'reviewed_at': manaTimestamp(),
       'rejection_reason': rejectionReason,
-      if (status == 'Rejected') 'cooldown_until': DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+      if (status == 'Rejected') 'cooldown_until': manaTimestampPlus(const Duration(hours: 24)),
     }).eq('request_id', requestId);
 
     if (status == 'Approved') {
@@ -674,7 +675,7 @@ class BusinessManagementApiService {
     await _db.from('account_periods').update({
       'status': 'Approved',
       'approved_by_person_id': _personId,
-      'approved_at': DateTime.now().toIso8601String(),
+      'approved_at': manaTimestamp(),
       if (actualEndDate != null) 'actual_end_date': actualEndDate,
       if (earlyClosureReason != null) 'early_closure_reason': earlyClosureReason,
     }).eq('account_period_id', accountPeriodId);

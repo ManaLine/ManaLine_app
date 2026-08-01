@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/document_viewer.dart' show DocumentSummary;
+import '../../../shared/mana_time.dart';
 
 /// OW-004 Customer Domain — real Supabase wiring over Module 3
 /// (persons/person_addresses/business_members/customers/customer_remarks).
@@ -167,7 +168,7 @@ class CustomerApiService {
             'occupation': 'Other-Custom',
             'occupation_other_text': 'Not specified at creation',
             'customer_status': 'Active',
-            'customer_since': DateTime.now().toIso8601String().split('T').first,
+            'customer_since': manaBusinessDate(),
           })
           .select('customer_id')
           .single();

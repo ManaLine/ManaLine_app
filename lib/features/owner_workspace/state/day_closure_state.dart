@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/mana_time.dart';
 
 /// OW-011 — Day Closure. Real Supabase wiring.
 ///
@@ -226,7 +227,7 @@ class DayClosureApiService {
     required String reason,
   }) async {
     await _db.from('day_closures').update({
-      'reopened_at': DateTime.now().toIso8601String(),
+      'reopened_at': manaTimestamp(),
       'reopen_reason': reason,
     }).eq('closure_id', closureId);
   }

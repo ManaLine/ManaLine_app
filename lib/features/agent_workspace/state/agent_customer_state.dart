@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../owner_workspace/state/customer_state.dart'
     show CustomerSummary, CustomerLoanSummary, CustomerRemark, CustomerProfile;
+import '../../../shared/mana_time.dart';
 
 /// AG-004 Customer Management — real Supabase wiring, Agent-side
 /// counterpart to OW-004 (owner_workspace/state/customer_state.dart).
@@ -170,7 +171,7 @@ class AgentCustomerApiService {
     if (personId == null) {
       throw StateError('No logged-in person_id available — cannot set entered_by_person_id.');
     }
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = manaBusinessDate();
     await _db.from('customer_remarks').insert({
       'customer_id': customerId,
       'entered_by_person_id': int.parse(personId),

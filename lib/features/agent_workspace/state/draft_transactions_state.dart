@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/mana_time.dart';
 
 /// AG-005 Draft Transactions — real Supabase wiring over
 /// `collection_drafts`. Note: this table has NO business_id column of its
@@ -103,7 +104,7 @@ class DraftTransactionsApiService {
   Future<void> discardDraft({required String draftId}) async {
     await _db.from('collection_drafts').update({
       'status': 'Discarded',
-      'updated_at': DateTime.now().toIso8601String(),
+      'updated_at': manaTimestamp(),
     }).eq('draft_id', draftId);
   }
 }

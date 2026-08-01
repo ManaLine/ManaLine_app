@@ -7,6 +7,7 @@ import '../../../shared/document_viewer.dart' show DocumentSummary;
 // investor_state does not import this file, so there is no cycle.
 import 'investor_state.dart' show ProfitShareDeclaration;
 import '../../login_registration/state/auth_flow_state.dart';
+import '../../../shared/mana_time.dart';
 
 /// Real Supabase wiring over the Owner Workspace endpoints touched by
 /// OW-000/OW-001/OW-002.
@@ -181,7 +182,7 @@ class OwnerApiService {
       'source_type': 'Uploaded PDF',
       'content_url_or_text': documentUrl,
       'version': 1,
-      'effective_date': DateTime.now().toIso8601String().split('T').first,
+      'effective_date': manaBusinessDate(),
     });
   }
 
@@ -201,7 +202,7 @@ class OwnerApiService {
   }) async {
     await _db
         .from('agent_area_assignments')
-        .update({'removed_at': DateTime.now().toIso8601String()})
+        .update({'removed_at': manaTimestamp()})
         .eq('operating_area_id', operatingAreaId)
         .isFilter('removed_at', null);
     await _db.from('agent_area_assignments').insert({
@@ -226,7 +227,9 @@ class OwnerApiService {
         .select('account_cycle_duration, account_cycle_unit')
         .eq('operating_area_id', operatingAreaId)
         .single();
-    final start = DateTime.now();
+    // IST, not the handset clock: this is an accounting-period boundary and
+    // it is written straight into business_start_date below.
+    final start = manaNowIst();
     final duration = area['account_cycle_duration'] as int;
     final end = switch (area['account_cycle_unit'] as String) {
       'Weeks' => start.add(Duration(days: duration * 7)),
@@ -247,7 +250,7 @@ class OwnerApiService {
   Future<void> startBusiness({required String businessId}) async {
     await _db.from('businesses').update({
       'migration_locked': true,
-      'business_started_at': DateTime.now().toIso8601String(),
+      'business_started_at': manaTimestamp(),
       'business_status': 'Active',
     }).eq('business_id', businessId);
   }
@@ -310,7 +313,7 @@ class OwnerApiService {
     // day" before their own figures appear. Non-fatal: a failure here must
     // not take the whole dashboard down, so it falls back to the standing
     // cash pool.
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = manaBusinessDate();
     double? ledgerOpening;
     try {
       await _db.schema('app').rpc('open_business_day', params: {
@@ -556,7 +559,7 @@ class OwnerApiService {
     final membershipId = membership['membership_id'] as String;
     final agent = await _db
         .from('agents')
-        .insert({'membership_id': membershipId, 'person_id': int.parse(personId), 'joined_date': DateTime.now().toIso8601String().split('T').first})
+        .insert({'membership_id': membershipId, 'person_id': int.parse(personId), 'joined_date': manaBusinessDate()})
         .select('agent_id')
         .single();
     final permProfile = await _db.from('agent_permissions').insert({'agent_id': agent['agent_id']}).select('permission_profile_id').single();
@@ -603,7 +606,7 @@ class OwnerApiService {
     }
     await _db
         .from('agent_permissions')
-        .update({...permissions, 'updated_at': DateTime.now().toIso8601String()})
+        .update({...permissions, 'updated_at': manaTimestamp()})
         .eq('agent_id', agentId);
   }
 
@@ -618,10 +621,10 @@ class OwnerApiService {
     // Effective-dated history table (schema §4.2) — supersede the previous
     // row rather than delete it, per the "no UPDATE that erases the prior
     // value invisibly" convention used throughout the schema.
-    final today = DateTime.now().toIso8601String().split('T').first;
+    final today = manaBusinessDate();
     await _db
         .from('agent_compensation_history')
-        .update({'superseded_at': DateTime.now().toIso8601String()})
+        .update({'superseded_at': manaTimestamp()})
         .eq('agent_id', agentId)
         .isFilter('superseded_at', null);
     await _db.from('agent_compensation_history').insert({
@@ -679,7 +682,7 @@ class OwnerApiService {
       // applied to anything, so the Owner's entered amount IS the total.
       'total_profit_amount': amount,
       'declared_amount': amount,
-      'business_date': DateTime.now().toIso8601String().split('T').first,
+      'business_date': manaBusinessDate(),
       'status': 'Declared',
       'remarks': remarks,
     });

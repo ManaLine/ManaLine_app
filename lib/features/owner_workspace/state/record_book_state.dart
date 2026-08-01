@@ -61,6 +61,10 @@ class RecordBookApiService {
         investorDeposits: (r['investor_deposits'] as num).toDouble(),
         investorWithdrawals: (r['investor_withdrawals'] as num).toDouble(),
         totalExpenses: (r['total_expenses'] as num).toDouble(),
+        // Default to 0 rather than a hard cast: these two columns were added
+        // in migration 20260801192125, after the 4 existing ledger rows.
+        chetiPaid: (r['cheti_paid'] as num?)?.toDouble() ?? 0,
+        chetiReceived: (r['cheti_received'] as num?)?.toDouble() ?? 0,
         shortAmount: (r['short_amount'] as num).toDouble(),
         excessAmount: (r['excess_amount'] as num).toDouble(),
         closingBalance: (r['closing_balance'] as num).toDouble(),
@@ -176,6 +180,23 @@ class DayLedgerRow {
   final double investorDeposits;
   final double investorWithdrawals;
   final double totalExpenses;
+
+  /// Cheti instalments handed over on this business day — a BF outflow that is
+  /// not a loan, an expense or an investor withdrawal, so none of the columns
+  /// above can hold it. Without this, closing balance drifts by the instalment
+  /// every period a cheti runs.
+  ///
+  /// This is CASH MOVED, not the cheti's worth. A cheti is an asset (the money
+  /// comes back as a lumpsum), and its standing value is `netPosition` on the
+  /// Cheti model, shown separately beside LB. Booking it as an expense — as
+  /// BR-061 originally said — would sink line profit every period and then
+  /// show one phantom gain at availing.
+  final double chetiPaid;
+
+  /// The lumpsum availed on this business day. A BF inflow that is neither a
+  /// collection nor an investor deposit.
+  final double chetiReceived;
+
   final double shortAmount;
   final double excessAmount;
   final double closingBalance;
@@ -209,6 +230,8 @@ class DayLedgerRow {
     required this.excessAmount,
     required this.closingBalance,
     required this.status,
+    this.chetiPaid = 0,
+    this.chetiReceived = 0,
     this.remarks,
     this.penaltyCollected = 0,
   });

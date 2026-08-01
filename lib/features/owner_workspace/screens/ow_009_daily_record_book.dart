@@ -155,6 +155,13 @@ class _LedgerRowCard extends StatelessWidget {
                   _figure('Investor Dep.', row.investorDeposits),
                   _figure('Investor W/D', row.investorWithdrawals),
                   _figure('Expenses', row.totalExpenses),
+                  // Cash moved into and out of chetis. Kept separate from
+                  // Expenses on purpose: a cheti instalment is recoverable
+                  // (it comes back as the availed lumpsum), so it is an asset
+                  // movement, not a cost. Folding it into Expenses would sink
+                  // line profit every period and then show one phantom gain.
+                  _figure('Cheti Paid', row.chetiPaid),
+                  _figure('Cheti Received', row.chetiReceived),
                   _figure('Short', row.shortAmount, warn: row.shortAmount > 0),
                   _figure('Excess', row.excessAmount, warn: row.excessAmount > 0),
                   _figure('Difference', row.difference),

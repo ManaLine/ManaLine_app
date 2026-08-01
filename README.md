@@ -1,82 +1,232 @@
-# MANA LINE — Flutter Scaffold & Design System (Week 1)
+# MANA LINE
 
-## Design plan (stated up front, per design-review discipline)
+A field lending app for rural Andhra Pradesh. Owners run a lending line,
+agents collect on foot, customers and investors see their own position.
 
-**Grounding:** this is a field utility app for rural lending agents —
-used outdoors, one-handed, under time pressure, by people managing cash
-against a paper ledger. Not a marketing surface. Every choice below
-optimizes for that, not for looking impressive in a portfolio.
+Flutter + Supabase (Postgres, RLS, Edge Functions). Five languages:
+English, Telugu, Hindi, Tamil, Kannada.
 
-- **Palette** — deep ledger-ink (`#1B2B4B`) primary, brass (`#C68A2E`)
-  accent reserved for primary actions only. Deliberately avoids the
-  generic AI-default warm-cream+terracotta combination. Status colors
-  (`good`/`bad`/`warn`) are desaturated for direct-sunlight legibility
-  and map 1:1 to the spec's own status vocabulary (Balanced/Short/
-  Excess, Active/Penalty/Grace) — no invented statuses.
-- **Type** — Manrope (headers, restrained use) + Inter (body/data, with
-  tabular figures for money). No display serif — wrong register for a
-  transactional tool.
-- **Signature element** — the Green/Red Verification Ring (already
-  locked at BR-191/GC-002) is elevated from "avatar decoration" to the
-  app's one consistent shape language: `ManaRadius.ring` and the
-  `ManaVerificationRing` component are meant to be the thing this app
-  is visually remembered by, used with restraint elsewhere (cards use a
-  quieter `ManaRadius.md`, not the ring radius, to keep the signature
-  from being diluted).
-- **Structural rule, not a convention:** `11_UI_Guidelines.md`'s locked
-  Title Case standard is enforced in code via `ManaText`, not left to
-  screen-by-screen developer memory. `ManaText.raw()` exists explicitly
-  for the guideline's own carve-outs (free text, system IDs).
+**Money correctness is a safety property here.** A confidently wrong number
+on a collection screen is worse than a crash, because nobody notices it.
+Most of the conventions below exist because of a specific bug, and the
+comments in the code say which one.
 
-## What's built (Week 1 scope)
+---
+
+## Status
+
+Real screens across all workspaces, wired to a live Supabase project.
+
+| | |
+|---|---|
+| Screens | 57 |
+| State / API files | 38 |
+| Migrations applied | 79 |
+| Edge Functions | 10 (auth: login, OTP, PIN, password reset) |
+| Tests | 164 passing |
+| `flutter analyze` | 0 issues |
+
+Workspaces: `login_registration`, `owner_workspace`, `agent_workspace`,
+`customer_workspace`, `investor_workspace`, `admin`, `support_admin`.
+
+### Not yet true
+
+- **No loan has ever been created on a real device.** The lending flow is
+  built but unproven end to end. Until a loan exists, Collection Mode,
+  penalties, Line Score and settlement are all unreachable — this is the
+  single biggest gap.
+- **Offline sync is not wired.** The `mana_line_offline_sync` path
+  dependency is still commented out in `pubspec.yaml`.
+- **Fonts are runtime-fetched.** `allowRuntimeFetching = true` in
+  `main.dart`. For an app whose whole point is poor connectivity, first
+  paint should not depend on a font CDN — bundle the files before shipping.
+- **No dark theme.** `ManaTheme.light()` only; not specified anywhere.
+
+---
+
+## Build and run
+
+The app reads Supabase credentials from `--dart-define`. **Without them it
+does not fail — it hangs**, because the fallback URL is a host that does
+not exist. Symptoms are raw translation keys on every screen and a login
+that reports "No internet connection". A "Build not configured" screen now
+catches this case, but build it properly:
+
+```bash
+flutter build apk --debug --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
+```
+
+Credentials live in `run.ps1.txt` (git-ignored). Never commit them.
+
+---
+
+## Money conventions
+
+These are not style preferences. Each one is load-bearing.
+
+**Every timestamp is IST.** All 87 timestamp columns are
+`timestamp without time zone` — there are no `timestamptz` columns in
+`public` — so a naive column is only coherent if every writer agrees which
+wall clock it means. The database TimeZone is
+`Asia/Kolkata`; the client writes through `manaTimestamp()` in
+`lib/shared/mana_time.dart`, which derives the offset from UTC rather than
+reading the handset. Before this, an audit row was observed stamped five
+and a half hours in the future and a 24h lending cooldown ran ~29.5h.
+
+**`business_date` is the Indian calendar day, deliberately.** A collection
+taken at 00:30 IST belongs to that Indian business day, not the previous
+UTC one. Deriving it from UTC would file money against the wrong day.
+
+**ROI is ₹ per ₹100 per month**, not an annual percentage. Daily interest
+is `principal × (roi/100) / 30`, on a 30-day month. Rounding is CEILING to
+whole rupees — every money column is `numeric(_,0)`, so paise cannot be
+stored.
+
+**One `remaining_balance` per loan.** No payment waterfall; payments
+subtract. There is no interest accrual engine yet.
+
+**`loans.amount_given` is a GENERATED column** (`repayment − interest −
+fee`). Never write it.
+
+**BF is cash.** Only money that actually moved counts. Interest and fee
+withheld from a disbursement never left the till, so they never return to
+it as fresh cash — they arrive through the instalments. Adding them back
+on top double counts. See `test/migration_loan_math_test.dart`, which pins
+both the right answer and the wrong one by name.
+
+**A cheti is an asset, not an expense.** Instalments paid in come back as
+an availed lumpsum, so booking them as expenses would sink line profit
+every period and then show one phantom gain. This reverses BR-061. See
+`supabase/migrations/20260801192125_add_chetis.sql`.
+
+**`day_ledger` is recomputed, never incremented.** Triggers on all eight
+source tables call `app.recompute_day_ledger()`, which rebuilds the day
+from scratch. Incrementing drifts — a failed retry double-counts, a
+deleted row never un-counts. Backdated entries cascade forward, because
+one day's closing is the next day's opening.
+
+---
+
+## Working on this repo
+
+**The migration ledger and local filenames drift.** `supabase_migrations.
+schema_migrations` is the source of truth. After applying a migration
+through the MCP tool, write the local file using the *exact* stamped
+version, or a later `db push` re-runs it. Diff `pg_proc` before trusting
+that an RPC exists.
+
+**plpgsql bodies are not type-checked at CREATE time.** A broken function
+applies cleanly and fails on first call. Always invoke it — inside a
+transaction you roll back — before believing it works.
+
+**PostgREST returns 200 for an UPDATE matching zero rows.** A silent no-op
+is indistinguishable from success. Only a re-read, or checking the
+returned row count, proves a write landed.
+
+**RPCs in the `app` schema need `.schema('app').rpc(...)`.** A bare
+`.rpc()` targets `public` and 404s. Tables are in `public`.
+
+**PostgREST embeds must name the FK** when two exist between the same
+tables (`customers`→`business_members`, `agent_access_days`→
+`business_members`, `business_members`→`persons`), or PGRST201 kills the
+whole query.
+
+**Never swallow an error into a plausible value.** `catch (_) => 0` on a
+money screen produces a confident wrong number, which is worse than an
+exception.
+
+**All 67 public tables have RLS.** New tables match the existing pattern:
+`app.is_owner(business_id)` for owner-scoped, plus
+`app.is_active_agent(...)` and `app.agent_permission(...)` where agents
+need reach.
+
+---
+
+## Testing
+
+```bash
+flutter test
+flutter analyze
+```
+
+`test/support/mana_harness.dart` pumps a whole screen with everything it
+expects — Riverpod scope, translation cache, secure storage, GoRouter —
+using the real `ManaTheme.light()`, because against Flutter's default
+theme the type scale differs and the test measures a layout that does not
+exist.
+
+**Layout tests carry vendored translations on purpose.** Translated width
+is *data*. The fake cache falls back to the raw key, and raw keys are
+short ASCII, so without the fixture a "five languages" test quietly
+measures narrower text than production.
+
+Overflow is invisible to `flutter analyze` and to looking at one phone at
+one font size. It has shipped four times (LR-007, LR-003, LR-013, and
+OW-019 — caught pre-merge, overflowing 213px at 1.0x). The recurring cause
+is always the same: **a bare unflexible child beside a flexible one.**
+
+When testing a screen that loads in `initState`, seed the provider rather
+than letting it reach the network — otherwise the test lays out an empty
+state and proves nothing. That mistake nearly hid the OW-019 overflow.
+
+### Device testing
+
+`adb` is not on PATH:
+`$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe`.
+
+```bash
+adb -s <device> logcat -c && adb -s <device> logcat -d | grep overflowed
+```
+
+That grep is the only reliable overflow check. Screenshots are 1080x2400
+and display scaled — multiply by 1.2 for real tap coordinates.
+
+---
+
+## Layout
 
 ```
 lib/
-  design/
-    tokens/        colors.dart, typography.dart, spacing.dart
-    components/     mana_text.dart (ManaText, ManaStatusPill, ManaVerificationRing)
-    theme.dart      assembled ThemeData
-  shared/
-    widgets/
-      language_selector.dart   GC-001, 5-language V1 list
-  app/
-    router.dart              go_router skeleton, one route per locked screen ID
-    design_showcase_screen.dart   temporary — visual proof of the token system
-  main.dart
+  app/            router.dart — one route per locked screen ID
+  design/         tokens (colors, typography, spacing), components, theme
+  features/       login_registration, owner_workspace, agent_workspace,
+                  customer_workspace, investor_workspace, admin, support_admin
+  shared/         mana_time.dart, translation_service.dart, local_auth_store.dart,
+                  network_error_handler.dart, settings_screen.dart
+supabase/
+  migrations/     79 applied
+  functions/      10 Edge Functions (auth)
+test/
+  support/        mana_harness.dart, translation fixtures
 ```
 
-Every screen in the locked inventory (LR-001–013, OW-000–015,
-AG-001–009, CW-001–006, IW-001–005) has a route stub in `router.dart`
-so the navigation graph can be sanity-checked against each screen
-file's own NAVIGATION section before real implementation starts —
-catches a wrong `context.go('/...')` target at build time, not by
-manual cross-reference later.
+`ManaText` enforces the locked Title Case standard in code rather than
+leaving it to screen-by-screen memory. `ManaText.raw()` is the carve-out
+for free text and system IDs.
 
-## What's intentionally NOT done yet
+---
 
-- **No real screens.** Every route renders `_Placeholder`. Week 2 per
-  the Development Timeline is Auth/Onboarding (LR-001–013) — that's
-  where real screen builds start.
-- **No state management wiring to the offline-sync package** delivered
-  earlier (`mana_line_offline_sync`) — the `pubspec.yaml` path
-  dependency is commented out until that package sits alongside this
-  one in a real repo.
-- **Fonts are runtime-fetched** (`google_fonts`), not bundled. Flagged
-  explicitly in `typography.dart` and `main.dart` — flip
-  `GoogleFonts.config.allowRuntimeFetching = false` and add the actual
-  font files under `assets/fonts/` before shipping, given the whole
-  point of this app is working in poor connectivity; first paint
-  shouldn't depend on a font CDN.
-- **No dark theme** — not spec'd anywhere, not built. `ManaTheme.light()`
-  only.
-- **`design_showcase_screen.dart` is temporary** — it's the initial
-  route right now so the design system is actually reviewable. Once
-  you're happy with it, swap `initialLocation` back to `/lr-001` in
-  `router.dart` and either delete the showcase or keep it behind a
-  debug-only route.
+## Design
 
-## Next step
+Built for outdoors, one-handed, under time pressure, by people managing
+cash against a paper ledger.
 
-Week 2: build LR-001 → LR-013 for real against these tokens, wire
-`persons.preferred_language` persistence into `ManaLanguageSelector`'s
-`onChanged` callback (currently stateless/local-only in the showcase).
+- **Palette** — ledger-ink `#1B2B4B` primary, brass `#C68A2E` reserved for
+  primary actions. Status colours are desaturated for direct-sunlight
+  legibility and map 1:1 to the spec's own vocabulary (Balanced/Short/
+  Excess, Active/Penalty/Grace). No invented statuses.
+- **Type** — Manrope for headers, Inter for body and data, tabular figures
+  for money.
+- **Signature** — the Green/Red Verification Ring (BR-191/GC-002) is the
+  app's shape language. Cards use a quieter `ManaRadius.md` so the
+  signature is not diluted.
+
+---
+
+## Specs
+
+`docs/` holds the business rules and schema. Per project convention the
+final BR and calculation-engine documents are authored at the *end* of the
+project — decisions are recorded in code comments and commit messages as
+they are made, not by editing the specs mid-flight. Commit messages here
+explain *why*, and are worth reading before changing money code.

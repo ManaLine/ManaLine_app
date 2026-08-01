@@ -12,6 +12,7 @@ import '../state/business_management_state.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
 import 'ow_018_business_migration.dart';
+import 'ow_019_cheti_management.dart';
 
 // A failed load previously left every one of this screen's tabs looking
 // like a legitimate empty state ("No Operating Areas yet.", "No active
@@ -443,6 +444,17 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => BusinessMigrationScreen(businessId: widget.businessId),
+                ),
+              ),
+            ),
+            // OW-019 — the Owner's own chetis. Sits beside migration for the
+            // same reason: it is the business's financing, not daily work.
+            IconButton(
+              tooltip: 'Cheti',
+              icon: const Icon(Icons.savings_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChetiManagementScreen(businessId: widget.businessId),
                 ),
               ),
             ),

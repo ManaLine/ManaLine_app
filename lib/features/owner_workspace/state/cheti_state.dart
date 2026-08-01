@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/mana_time.dart';
+import '../../login_registration/state/auth_flow_state.dart' show ManaSession;
 
 /// Cheti — the Owner's own chit fund, held as an ASSET.
 ///
@@ -210,11 +211,34 @@ class ChetiApiService {
     return row['cheti_id'] as String;
   }
 
+  /// The signed-in Owner's membership in this business.
+  ///
+  /// Resolved here rather than passed in by every screen: cheti_payments
+  /// requires it NOT NULL, and a caller guessing at it is how a row ends up
+  /// attributed to the wrong member.
+  Future<String> _ownerMembershipId(String businessId) async {
+    final personId = ManaSession.instance.currentPersonId;
+    if (personId == null) {
+      throw StateError('No signed-in person — cannot attribute this payment.');
+    }
+    final row = await _db
+        .from('business_members')
+        .select('membership_id')
+        .eq('business_id', businessId)
+        .eq('person_id', int.parse(personId))
+        .eq('role', 'Owner')
+        .limit(1)
+        .maybeSingle();
+    if (row == null) {
+      throw StateError('You are not an Owner of this business.');
+    }
+    return row['membership_id'] as String;
+  }
+
   /// Records one instalment. This DOES move BF, unlike the opening figures.
   Future<void> recordPayment({
     required String chetiId,
     required String businessId,
-    required String recordedByMembershipId,
     required double grossInstalment,
     double dividend = 0,
     String? remarks,
@@ -225,7 +249,7 @@ class ChetiApiService {
       'business_date': manaBusinessDate(),
       'gross_instalment': grossInstalment,
       'dividend': dividend,
-      'recorded_by_membership_id': recordedByMembershipId,
+      'recorded_by_membership_id': await _ownerMembershipId(businessId),
       if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
     });
   }

@@ -1,0 +1,689 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_text.dart';
+import '../../../shared/network_error_handler.dart';
+import '../state/cheti_state.dart';
+
+final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+final _dateFmt = DateFormat('d MMM yyyy');
+
+/// OW-019 — Cheti Management.
+///
+/// A cheti is the Owner's own chit fund, held as an ASSET rather than an
+/// expense: instalments paid in come back as an availed lumpsum. See
+/// migration 20260801192125_add_chetis.sql for why that reverses BR-061.
+class ChetiManagementScreen extends ConsumerStatefulWidget {
+  final String businessId;
+  const ChetiManagementScreen({super.key, required this.businessId});
+
+  @override
+  ConsumerState<ChetiManagementScreen> createState() => _ChetiManagementScreenState();
+}
+
+class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reload());
+  }
+
+  Future<void> _reload() =>
+      ref.read(chetiListProvider.notifier).load(widget.businessId);
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(chetiListProvider);
+    return Scaffold(
+      appBar: AppBar(title: const ManaText('cheti')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openEditor(),
+        icon: const Icon(Icons.add),
+        label: const ManaText('add cheti'),
+      ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _reload,
+          child: state.loading && state.chetis.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.all(ManaSpacing.lg),
+                  children: [
+                    _summary(state),
+                    const SizedBox(height: ManaSpacing.lg),
+                    if (state.chetis.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                        child: ManaText.raw(
+                          'No chetis yet. Add one you are already paying, or a '
+                          'new one you have just joined.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: ManaColors.textSecondary),
+                        ),
+                      ),
+                    ...state.chetis.map(_card),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _summary(ChetiListState state) {
+    final net = state.totalNetPosition;
+    return Card(
+      color: ManaColors.inkFaint,
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.md),
+        child: Row(
+          children: [
+            const Expanded(
+              child: ManaText.raw('Cheti — net position',
+                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            ),
+            ManaText.raw(
+              _currency.format(net),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                // Negative means more has been availed than paid in, so the
+                // remaining instalments are a liability rather than an asset.
+                color: net < 0 ? ManaColors.statusBad : ManaColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _card(Cheti c) {
+    final net = c.netPosition;
+    return Card(
+      margin: const EdgeInsets.only(bottom: ManaSpacing.md),
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Both sides flexible: a long cheti name and the type/frequency
+            // label are each free-form width, and a bare Text beside an
+            // Expanded is the exact shape that overflowed LR-013.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ManaText.raw(c.name,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                ),
+                const SizedBox(width: ManaSpacing.sm),
+                Flexible(
+                  child: ManaText.raw(
+                    '${c.type.dbValue} · ${c.frequency.dbValue}',
+                    textAlign: TextAlign.end,
+                    style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: ManaSpacing.sm),
+            Wrap(
+              spacing: ManaSpacing.lg,
+              runSpacing: ManaSpacing.xs,
+              children: [
+                _figure('Face value', _currency.format(c.faceValue)),
+                _figure('Instalments', '${c.instalmentsPaid} of ${c.totalInstalments}'),
+                _figure('Paid in', _currency.format(c.totalPaid)),
+                if (c.isAvailed)
+                  _figure('Availed', _currency.format(c.totalReceived)),
+                _figure('Net position', _currency.format(net),
+                    warn: net < 0),
+                if (c.finalProfit != null)
+                  _figure('Final profit', _currency.format(c.finalProfit!),
+                      warn: c.finalProfit! < 0),
+              ],
+            ),
+            if (c.isAvailed)
+              Padding(
+                padding: const EdgeInsets.only(top: ManaSpacing.xs),
+                child: ManaText.raw(
+                  'Availed ${_dateFmt.format(c.availedDate!)}'
+                  '${c.availedPreMigration ? ' (before migration)' : ''}'
+                  '${c.instalmentsRemaining > 0 ? ' — ${c.instalmentsRemaining} instalments still to pay' : ''}',
+                  style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                ),
+              ),
+            const SizedBox(height: ManaSpacing.sm),
+            // Wrap, not Row: the two labels come from ui_translations and
+            // together overflowed a 360dp phone by 213px even at 1.0x, before
+            // any translation or font scaling. Caught by the layout test.
+            Wrap(
+              spacing: ManaSpacing.sm,
+              children: [
+                if (c.instalmentsRemaining > 0)
+                  TextButton.icon(
+                    onPressed: () => _openPayment(c),
+                    icon: const Icon(Icons.south_west, size: 18),
+                    label: const ManaText('record payment'),
+                  ),
+                if (!c.isAvailed)
+                  TextButton.icon(
+                    onPressed: () => _openAvailing(c),
+                    icon: const Icon(Icons.north_east, size: 18),
+                    label: const ManaText('record availing'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _figure(String label, String value, {bool warn = false}) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ManaText.raw(label,
+              style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+          ManaText.raw(value,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: warn ? ManaColors.statusBad : ManaColors.textPrimary)),
+        ],
+      );
+
+  Future<void> _openEditor() async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ChetiEditorSheet(businessId: widget.businessId),
+    );
+    if (saved == true) await _reload();
+  }
+
+  Future<void> _openPayment(Cheti c) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _PaymentSheet(cheti: c, businessId: widget.businessId),
+    );
+    if (saved == true) await _reload();
+  }
+
+  Future<void> _openAvailing(Cheti c) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _AvailingSheet(cheti: c),
+    );
+    if (saved == true) await _reload();
+  }
+}
+
+// ============================================================================
+// Add a cheti — new, or already part-way through
+// ============================================================================
+
+class _ChetiEditorSheet extends ConsumerStatefulWidget {
+  final String businessId;
+  const _ChetiEditorSheet({required this.businessId});
+  @override
+  ConsumerState<_ChetiEditorSheet> createState() => _ChetiEditorSheetState();
+}
+
+class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
+  final _name = TextEditingController();
+  final _faceValue = TextEditingController();
+  final _total = TextEditingController();
+  final _instalment = TextEditingController();
+  final _openingCount = TextEditingController(text: '0');
+  final _openingPaid = TextEditingController(text: '0');
+  final _availedAmount = TextEditingController();
+
+  ChetiType _type = ChetiType.auction;
+  ChetiFrequency _frequency = ChetiFrequency.monthly;
+  DateTime _startDate = DateTime.now();
+  bool _alreadyAvailed = false;
+  DateTime _availedDate = DateTime.now();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    for (final c in [
+      _name, _faceValue, _total, _instalment,
+      _openingCount, _openingPaid, _availedAmount,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  double? get _faceV => double.tryParse(_faceValue.text.trim());
+  int? get _totalV => int.tryParse(_total.text.trim());
+  double? get _instV => double.tryParse(_instalment.text.trim());
+  int get _openCountV => int.tryParse(_openingCount.text.trim()) ?? 0;
+  double get _openPaidV => double.tryParse(_openingPaid.text.trim()) ?? 0;
+  double? get _availedV => double.tryParse(_availedAmount.text.trim());
+
+  /// What count x instalment WOULD be, shown only to make the gap visible.
+  /// On an Auction cheti the real figure is lower because of dividends
+  /// already earned, and that difference is exactly why opening paid is its
+  /// own input rather than something derived.
+  double? get _openingImplied =>
+      _instV == null ? null : _openCountV * _instV!;
+
+  String? get _error {
+    if (_name.text.trim().isEmpty) return 'Give the cheti a name.';
+    if (_faceV == null || _totalV == null || _instV == null) return null;
+    if (_faceV! <= 0 || _instV! <= 0 || _totalV! <= 0) {
+      return 'Face value, instalments and instalment amount must be above zero.';
+    }
+    if (_openCountV > _totalV!) {
+      return 'Instalments paid cannot exceed the total of $_totalV.';
+    }
+    if (_alreadyAvailed && (_availedV == null || _availedV! <= 0)) {
+      return 'Enter the lumpsum you availed.';
+    }
+    return null;
+  }
+
+  bool get _canSave =>
+      _name.text.trim().isNotEmpty &&
+      _faceV != null &&
+      _totalV != null &&
+      _instV != null &&
+      _error == null &&
+      !_saving;
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(chetiApiServiceProvider).createCheti(
+            businessId: widget.businessId,
+            name: _name.text.trim(),
+            type: _type,
+            frequency: _frequency,
+            faceValue: _faceV!,
+            totalInstalments: _totalV!,
+            instalmentAmount: _instV!,
+            startDate: _startDate,
+            openingInstalmentsPaid: _openCountV,
+            openingAmountPaid: _openPaidV,
+            availedDate: _alreadyAvailed ? _availedDate : null,
+            availedAmount: _alreadyAvailed ? _availedV : null,
+            // Availing entered here happened before this app tracked the
+            // cheti, so that cash is already inside the declared opening
+            // balance and must not move BF again.
+            availedPreMigration: _alreadyAvailed,
+          );
+      return true;
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok == true) Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: ManaSpacing.lg,
+        right: ManaSpacing.lg,
+        top: ManaSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + ManaSpacing.lg,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ManaText('add cheti',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: ManaSpacing.md),
+            _field(_name, 'Cheti Name *', number: false),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<ChetiType>(
+                    initialValue: _type,
+                    decoration: const InputDecoration(labelText: 'Type'),
+                    items: ChetiType.values
+                        .map((t) => DropdownMenuItem(
+                            value: t, child: ManaText.raw(t.dbValue)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _type = v ?? ChetiType.auction),
+                  ),
+                ),
+                const SizedBox(width: ManaSpacing.md),
+                Expanded(
+                  child: DropdownButtonFormField<ChetiFrequency>(
+                    initialValue: _frequency,
+                    decoration: const InputDecoration(labelText: 'Frequency'),
+                    items: ChetiFrequency.values
+                        .map((f) => DropdownMenuItem(
+                            value: f, child: ManaText.raw(f.dbValue)))
+                        .toList(),
+                    onChanged: (v) =>
+                        setState(() => _frequency = v ?? ChetiFrequency.monthly),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: ManaSpacing.md),
+            _field(_faceValue, 'Face Value *'),
+            _field(_total, 'Total Instalments *'),
+            _field(_instalment, 'Instalment Amount *'),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const ManaText('start date'),
+              subtitle: ManaText.raw(_dateFmt.format(_startDate)),
+              trailing: const Icon(Icons.calendar_today, size: 18),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _startDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) setState(() => _startDate = picked);
+              },
+            ),
+            const Divider(height: ManaSpacing.xl),
+            const ManaText.raw(
+              'Already part-way through? Enter the position as it stands '
+              'today. Past instalments are not recreated and do not move BF — '
+              'that cash left the till before this app existed.',
+              style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+            ),
+            const SizedBox(height: ManaSpacing.md),
+            _field(_openingCount, 'Instalments Already Paid'),
+            _field(_openingPaid, 'Total Already Paid (₹)'),
+            if (_openingImplied != null && _openCountV > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: ManaSpacing.md),
+                child: ManaText.raw(
+                  _openPaidV == _openingImplied
+                      ? 'Matches $_openCountV × ${_currency.format(_instV!)}.'
+                      : '$_openCountV × ${_currency.format(_instV!)} would be '
+                          '${_currency.format(_openingImplied!)}. The gap is the '
+                          'dividend you have already earned — enter what you '
+                          'actually paid.',
+                  style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                ),
+              ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _alreadyAvailed,
+              onChanged: (v) => setState(() => _alreadyAvailed = v),
+              title: const ManaText('already availed the lumpsum'),
+            ),
+            if (_alreadyAvailed) ...[
+              _field(_availedAmount, 'Amount Availed *'),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const ManaText('availed on'),
+                subtitle: ManaText.raw(_dateFmt.format(_availedDate)),
+                trailing: const Icon(Icons.calendar_today, size: 18),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _availedDate,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) setState(() => _availedDate = picked);
+                },
+              ),
+            ],
+            if (_error != null) ...[
+              const SizedBox(height: ManaSpacing.sm),
+              ManaText.raw(_error!,
+                  style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+            ],
+            const SizedBox(height: ManaSpacing.lg),
+            FilledButton(
+              onPressed: _canSave ? _save : null,
+              child: _saving
+                  ? const SizedBox(
+                      width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const ManaText('save cheti'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _field(TextEditingController c, String label, {bool number = true}) => Padding(
+        padding: const EdgeInsets.only(bottom: ManaSpacing.md),
+        child: TextField(
+          controller: c,
+          keyboardType: number
+              ? const TextInputType.numberWithOptions(decimal: true)
+              : TextInputType.text,
+          decoration: InputDecoration(labelText: label),
+          onChanged: (_) => setState(() {}),
+        ),
+      );
+}
+
+// ============================================================================
+// Record one instalment
+// ============================================================================
+
+class _PaymentSheet extends ConsumerStatefulWidget {
+  final Cheti cheti;
+  final String businessId;
+  const _PaymentSheet({required this.cheti, required this.businessId});
+  @override
+  ConsumerState<_PaymentSheet> createState() => _PaymentSheetState();
+}
+
+class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
+  late final TextEditingController _gross =
+      TextEditingController(text: widget.cheti.instalmentAmount.toStringAsFixed(0));
+  final _dividend = TextEditingController(text: '0');
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _gross.dispose();
+    _dividend.dispose();
+    super.dispose();
+  }
+
+  double? get _grossV => double.tryParse(_gross.text.trim());
+  double get _dividendV => double.tryParse(_dividend.text.trim()) ?? 0;
+  double? get _netV => _grossV == null ? null : _grossV! - _dividendV;
+
+  String? get _error {
+    if (_grossV == null) return null;
+    if (_grossV! <= 0) return 'Instalment must be above zero.';
+    if (_dividendV < 0) return 'Dividend cannot be negative.';
+    if (_dividendV > _grossV!) {
+      return 'Dividend cannot exceed the instalment.';
+    }
+    return null;
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(chetiApiServiceProvider).recordPayment(
+            chetiId: widget.cheti.chetiId,
+            businessId: widget.businessId,
+            grossInstalment: _grossV!,
+            dividend: _dividendV,
+          );
+      return true;
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok == true) Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isFixed = widget.cheti.type == ChetiType.fixed;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: ManaSpacing.lg,
+        right: ManaSpacing.lg,
+        top: ManaSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + ManaSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ManaText.raw('Record payment — ${widget.cheti.name}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: ManaSpacing.md),
+          TextField(
+            controller: _gross,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Instalment *'),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: ManaSpacing.md),
+          // A Fixed cheti is a lucky draw: there is no auction and so no
+          // dividend. Offering the field would invite a number that cannot
+          // exist for this type.
+          if (!isFixed)
+            TextField(
+              controller: _dividend,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Dividend this period',
+                helperText: 'Reduces the cash you hand over, and counts as profit.',
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          const SizedBox(height: ManaSpacing.md),
+          Row(
+            children: [
+              const Expanded(
+                  child: ManaText.raw('Cash out of BF',
+                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))),
+              ManaText.raw(_netV == null ? '—' : _currency.format(_netV),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: ManaSpacing.sm),
+            ManaText.raw(_error!,
+                style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+          ],
+          const SizedBox(height: ManaSpacing.lg),
+          FilledButton(
+            onPressed: (_grossV != null && _error == null && !_saving) ? _save : null,
+            child: _saving
+                ? const SizedBox(
+                    width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const ManaText('save payment'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Record the availed lumpsum
+// ============================================================================
+
+class _AvailingSheet extends ConsumerStatefulWidget {
+  final Cheti cheti;
+  const _AvailingSheet({required this.cheti});
+  @override
+  ConsumerState<_AvailingSheet> createState() => _AvailingSheetState();
+}
+
+class _AvailingSheetState extends ConsumerState<_AvailingSheet> {
+  final _amount = TextEditingController();
+  DateTime _date = DateTime.now();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  double? get _amountV => double.tryParse(_amount.text.trim());
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(chetiApiServiceProvider).recordAvailing(
+            chetiId: widget.cheti.chetiId,
+            availedDate: _date,
+            amount: _amountV!,
+          );
+      return true;
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok == true) Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: ManaSpacing.lg,
+        right: ManaSpacing.lg,
+        top: ManaSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + ManaSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ManaText.raw('Record availing — ${widget.cheti.name}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: ManaSpacing.sm),
+          ManaText.raw(
+            'This adds to BF. You keep paying the remaining '
+            '${widget.cheti.instalmentsRemaining} instalments — availing does '
+            'not close the cheti.',
+            style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          ),
+          const SizedBox(height: ManaSpacing.md),
+          TextField(
+            controller: _amount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Amount Availed *'),
+            onChanged: (_) => setState(() {}),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const ManaText('availed on'),
+            subtitle: ManaText.raw(_dateFmt.format(_date)),
+            trailing: const Icon(Icons.calendar_today, size: 18),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _date,
+                firstDate: DateTime(2000),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) setState(() => _date = picked);
+            },
+          ),
+          const SizedBox(height: ManaSpacing.lg),
+          FilledButton(
+            onPressed: (_amountV != null && _amountV! > 0 && !_saving) ? _save : null,
+            child: _saving
+                ? const SizedBox(
+                    width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const ManaText('save availing'),
+          ),
+        ],
+      ),
+    );
+  }
+}

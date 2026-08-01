@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -720,12 +721,49 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
     },
   };
 
+  /// The working copy the switches render from. May hold unsaved edits.
   late Map<String, bool> _permissions;
+
+  /// The last server state we adopted. Kept so [didUpdateWidget] can tell a
+  /// genuine server change apart from an unrelated parent rebuild.
+  late Map<String, bool> _serverPermissions;
 
   @override
   void initState() {
     super.initState();
+    _serverPermissions = Map.of(widget.profile.permissions);
     _permissions = Map.of(widget.profile.permissions);
+  }
+
+  // BUG FIXED: _permissions was seeded in initState ONLY, with no
+  // didUpdateWidget. This State outlives the widget, so once the provider
+  // refetched after a save and rebuilt this tab with a fresh AgentProfile,
+  // the switches kept rendering the PRE-save map. Observed on device: a
+  // toggle showing OFF while the database already held true. On a screen that
+  // decides what an agent is allowed to do with money, showing a value the
+  // server does not hold is the same failure class as a confident wrong
+  // amount — the Owner cannot tell granted from not.
+  //
+  // Resyncing UNCONDITIONALLY here would be a worse bug: any unrelated parent
+  // rebuild would silently revert toggles the Owner had just flipped and not
+  // yet saved. So adopt the incoming map only when the SERVER value actually
+  // changed (our own save landing, or another device editing the same agent),
+  // which leaves in-progress edits alone.
+  @override
+  void didUpdateWidget(covariant _PermissionsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // A different agent entirely — never carry one agent's edits onto another.
+    if (oldWidget.agentId != widget.agentId) {
+      _serverPermissions = Map.of(widget.profile.permissions);
+      _permissions = Map.of(widget.profile.permissions);
+      return;
+    }
+
+    if (!mapEquals(widget.profile.permissions, _serverPermissions)) {
+      _serverPermissions = Map.of(widget.profile.permissions);
+      _permissions = Map.of(widget.profile.permissions);
+    }
   }
 
   Future<void> _save() async {

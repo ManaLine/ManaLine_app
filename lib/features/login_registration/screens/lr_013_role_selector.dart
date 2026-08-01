@@ -190,8 +190,16 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
                     child: Icon(Icons.storefront, size: 16, color: ManaColors.textSecondary),
                   ),
                   const SizedBox(width: ManaSpacing.sm),
-                  ManaText.raw(result.businessName,
-                      style: const TextStyle(color: ManaColors.textSecondary)),
+                  // Expanded, not bare: a business name is DATA and this Row
+                  // has no other flexible child, so the text took its full
+                  // intrinsic width and overflowed to the right. It fit in
+                  // English at 1.0x and broke at 1.3x in every language —
+                  // "sri satyanarayana business" alone is enough. The role
+                  // tiles below already constrain their label this way.
+                  Expanded(
+                    child: ManaText.raw(result.businessName,
+                        style: const TextStyle(color: ManaColors.textSecondary)),
+                  ),
                 ],
               ),
               const SizedBox(height: ManaSpacing.xl),

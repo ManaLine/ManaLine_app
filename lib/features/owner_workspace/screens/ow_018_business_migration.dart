@@ -325,11 +325,11 @@ class _MigrateLoanScreen extends ConsumerStatefulWidget {
 class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   CustomerSummary? _customer;
   final _given = TextEditingController();
-  final _repay = TextEditingController();
-  final _remaining = TextEditingController();
-  final _installment = TextEditingController();
+  final _interest = TextEditingController();
   final _fee = TextEditingController(text: '0');
-  final _grace = TextEditingController(text: '0');
+  final _pending = TextEditingController();
+  final _emi = TextEditingController();
+  final _penalty = TextEditingController(text: '0');
   String _frequency = 'Weekly';
   DateTime _effectiveDate = DateTime.now().subtract(const Duration(days: 30));
   bool _saving = false;
@@ -344,40 +344,61 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
 
   @override
   void dispose() {
-    for (final c in [_given, _repay, _remaining, _installment, _fee, _grace]) {
+    for (final c in [_given, _interest, _fee, _pending, _emi, _penalty]) {
       c.dispose();
     }
     super.dispose();
   }
 
   double? get _givenV => double.tryParse(_given.text.trim());
-  double? get _repayV => double.tryParse(_repay.text.trim());
-  double? get _remainingV => double.tryParse(_remaining.text.trim());
-  double? get _instV => double.tryParse(_installment.text.trim());
+  double? get _interestV => double.tryParse(_interest.text.trim());
   double get _feeV => double.tryParse(_fee.text.trim()) ?? 0;
+  int? get _pendingV => int.tryParse(_pending.text.trim());
+  double? get _emiV => double.tryParse(_emi.text.trim());
+  double get _penaltyV => double.tryParse(_penalty.text.trim()) ?? 0;
 
-  /// Same arithmetic the server does, shown live so the Owner can see the
-  /// consequence before saving rather than after.
+  /// The whole obligation, DERIVED: the cash actually handed over plus the
+  /// interest and fee that were withheld from it. Entering 19,600 given with
+  /// 4,000 interest and 400 fee makes this 24,000, which is what the customer
+  /// repays -- the 4,400 never left the till and so never returns to it as
+  /// fresh cash. It reaches the business through the instalments instead.
+  double? get _issuedV => (_givenV != null && _interestV != null)
+      ? _givenV! + _interestV! + _feeV
+      : null;
+
+  /// Remaining balance is DERIVED, never typed. Typing it independently is
+  /// what let the two halves of this form disagree -- a repayment of 10,000
+  /// with 14,000 still owed was accepted into the fields and only caught at
+  /// the very bottom of the screen.
+  double? get _remainingV => (_pendingV != null && _emiV != null)
+      ? _pendingV! * _emiV! + _penaltyV
+      : null;
+
+  /// What the customer has already handed over: the whole obligation minus
+  /// what is still owed today.
   double? get _collected =>
-      (_repayV != null && _remainingV != null) ? _repayV! - _remainingV! : null;
-  double? get _interest =>
-      (_repayV != null && _givenV != null) ? _repayV! - _givenV! - _feeV : null;
-  double? get _bfEffect =>
-      (_givenV != null && _collected != null) ? _collected! - _givenV! : null;
+      (_issuedV != null && _remainingV != null) ? _issuedV! - _remainingV! : null;
 
   String? get _validationError {
     if (_customer == null) return 'Choose the customer this loan belongs to.';
-    if (_givenV == null || _repayV == null || _remainingV == null || _instV == null) {
+    if (_givenV == null || _interestV == null || _pendingV == null || _emiV == null) {
       return null; // incomplete, not wrong
     }
-    if (_givenV! <= 0 || _repayV! <= 0 || _instV! <= 0) {
+    if (_givenV! <= 0 || _emiV! <= 0) {
       return 'Amounts must be greater than zero.';
     }
-    if (_remainingV! < 0 || _remainingV! > _repayV!) {
-      return 'Remaining balance must be between 0 and the repayment amount.';
+    if (_interestV! < 0 || _feeV < 0) {
+      return 'Interest and fee cannot be negative.';
     }
-    if (_givenV! + _feeV > _repayV!) {
-      return 'Amount given plus fee cannot exceed the repayment amount — that would make interest negative.';
+    if (_pendingV! <= 0) {
+      return 'There must be at least one pending instalment.';
+    }
+    if (_penaltyV < 0) {
+      return 'Penalty cannot be negative.';
+    }
+    if (_remainingV! > _issuedV!) {
+      return 'The pending instalments come to ${_currency.format(_remainingV!)}, '
+          'which is more than the ${_currency.format(_issuedV!)} issued.';
     }
     return null;
   }
@@ -385,9 +406,9 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   bool get _canSave =>
       _customer != null &&
       _givenV != null &&
-      _repayV != null &&
-      _remainingV != null &&
-      _instV != null &&
+      _interestV != null &&
+      _pendingV != null &&
+      _emiV != null &&
       _validationError == null &&
       !_saving;
 
@@ -398,12 +419,11 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             businessId: widget.businessId,
             customerId: _customer!.customerId,
             amountGiven: _givenV!,
-            repaymentAmount: _repayV!,
+            repaymentAmount: _issuedV!,
             remainingBalance: _remainingV!,
             effectiveDate: _effectiveDate,
             repaymentType: _frequency,
-            installmentAmount: _instV!,
-            gracePeriodDays: int.tryParse(_grace.text.trim()) ?? 0,
+            installmentAmount: _emiV!,
             processingFee: _feeV,
           );
       return true;
@@ -445,10 +465,10 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             ),
             const SizedBox(height: ManaSpacing.md),
             _amountField(_given, 'Amount Given * — cash you handed over'),
-            _amountField(_repay, 'Repayment Amount * — total repayable'),
-            _amountField(_remaining, 'Remaining Balance * — still owed today'),
-            _amountField(_installment, 'Instalment Amount *'),
+            _amountField(_interest, 'Interest *'),
             _amountField(_fee, 'Processing Fee'),
+            _computedRow('Total Issued', _issuedV,
+                'the whole obligation = given + interest + fee'),
             const SizedBox(height: ManaSpacing.md),
             DropdownButtonFormField<String>(
               initialValue: _frequency,
@@ -459,11 +479,13 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
               onChanged: (v) => setState(() => _frequency = v ?? 'Weekly'),
             ),
             const SizedBox(height: ManaSpacing.md),
-            TextField(
-              controller: _grace,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Grace Period (days)'),
-            ),
+            _amountField(_pending, 'Pending Instalments * — how many are left'),
+            _amountField(_emi, 'Instalment Amount (EMI) *'),
+            _amountField(_penalty, 'Penalty Outstanding'),
+            _computedRow('Remaining Balance', _remainingV,
+                'still owed today = pending x EMI + penalty'),
+            _computedRow('Already Paid', _collected,
+                'total issued - remaining balance'),
             const SizedBox(height: ManaSpacing.md),
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -512,6 +534,26 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         ),
       );
 
+  /// A value the Owner cannot type. Rendered like a disabled field so it reads
+  /// as part of the form, but there is no controller behind it -- the number
+  /// can only ever be what the inputs above imply.
+  Widget _computedRow(String label, double? value, String hint) => Padding(
+        padding: const EdgeInsets.only(bottom: ManaSpacing.md),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            helperText: hint,
+            helperMaxLines: 2,
+            filled: true,
+            fillColor: ManaColors.surfaceSunken,
+          ),
+          child: ManaText.raw(
+            value == null ? '—' : _currency.format(value),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+      );
+
   Widget _derivedCard() {
     return Card(
       color: ManaColors.inkFaint,
@@ -524,14 +566,13 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             _derived('Already collected', _collected),
-            _derived('Interest on this loan', _interest),
-            _derived('Effect on BF', _bfEffect, signed: true),
-            if (_remainingV != null && _instV != null && _instV! > 0)
+            _derived('Still owed', _remainingV),
+            if (_pendingV != null && _pendingV! > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: ManaText.raw(
-                  '${(_remainingV! / _instV!).ceil()} instalments will be created, '
-                  'starting today.',
+                  '$_pendingV instalments will be created. They begin only once '
+                  'the migration is finished, not today.',
                   style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
               ),

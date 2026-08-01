@@ -262,6 +262,9 @@ final manaRouter = GoRouter(
       path: '/ow-018',
       builder: (c, s) => BusinessMigrationScreen(businessId: _resolveBusinessId(s)),
     ),
+    // Reached from LR-012, before any workspace has been chosen — so it goes
+    // back to the business selector and shows no workspace-specific Profile.
+    GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen(homeRoute: '/lr-012')),
     GoRoute(path: '/ow-settings', builder: (c, s) => SettingsScreen(homeRoute: '/ow-001', businessId: s.extra as String?)),
     // Not part of the original locked screen inventory (no OW-0xx number)
     // — added to close a real gap: loan_requests had a real INSERT path

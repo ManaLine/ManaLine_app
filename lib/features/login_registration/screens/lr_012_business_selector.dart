@@ -252,6 +252,8 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
           icon: const Icon(Icons.more_vert),
           onSelected: (v) {
             switch (v) {
+              case 'settings':
+                context.push('/settings');
               case 'request_join':
                 _openRequestJoinFlow(context);
               case 'logout':
@@ -260,6 +262,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
             }
           },
           itemBuilder: (_) => const [
+            PopupMenuItem(value: 'settings', child: ManaText('settings')),
             PopupMenuItem(value: 'request_join', child: ManaText('request to join a business')),
             PopupMenuDivider(),
             PopupMenuItem(value: 'logout', child: ManaText('logout')),

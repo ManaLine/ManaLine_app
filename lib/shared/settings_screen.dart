@@ -49,6 +49,19 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool? _biometricEnabled;
   bool _togglingBiometric = false;
+  bool? _pinEnabled;
+  bool _togglingPin = false;
+
+  /// Each workspace's own profile screen. Settings is shared across all four,
+  /// so the destination is derived from whichever home route was passed in
+  /// rather than duplicating this screen per role.
+  String? get _profileRoute => switch (widget.homeRoute) {
+        '/ow-001' => '/ow-016',
+        '/ag-001' => '/ag-009',
+        '/cw-001' => '/cw-006',
+        '/iw-001' => '/iw-005',
+        _ => null, // reached from the business selector, before a role exists
+      };
   // Matches pubspec.yaml's `version: 0.1.0` — kept as a plain literal
   // rather than pulling in package_info_plus (not an existing
   // dependency) for one static line. Update this alongside pubspec.yaml
@@ -61,6 +74,80 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     LocalAuthStore.readBiometricEnabled().then((v) {
       if (mounted) setState(() => _biometricEnabled = v);
     });
+    LocalAuthStore.readPinLength().then((v) {
+      if (mounted) setState(() => _pinEnabled = v != null);
+    });
+  }
+
+  /// Enables PIN login on this device using the PIN the person ALREADY has.
+  /// This is not PIN creation -- it verifies the existing PIN against the
+  /// real login RPC and then stores it locally, so a re-installed or second
+  /// device can be armed without going through a reset.
+  Future<void> _onPinToggled(bool wantEnabled) async {
+    if (!wantEnabled) {
+      // Dropping the stored PIN also drops biometric, which is only a
+      // convenience wrapper around it -- leaving biometric on would point at
+      // a PIN that is no longer there.
+      await LocalAuthStore.clearPin();
+      await LocalAuthStore.setBiometricEnabled(false);
+      if (mounted) {
+        setState(() {
+          _pinEnabled = false;
+          _biometricEnabled = false;
+        });
+      }
+      return;
+    }
+
+    final mobile = await LocalAuthStore.readLastMobileNumber();
+    if (mobile == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Log in once on this device first.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final entered = await showDialog<String>(
+      context: context,
+      builder: (_) => const _PinVerifyDialog(
+        title: 'enter your pin',
+        label: 'Your existing PIN',
+      ),
+    );
+    if (entered == null || entered.length < 4) return;
+
+    setState(() => _togglingPin = true);
+    final fingerprint = await LocalAuthStore.deviceFingerprint();
+    if (!mounted) return;
+
+    final result = await NetworkErrorHandler.run(context, () async {
+      return ref.read(authApiServiceProvider).login(
+            identifier: mobile,
+            credential: entered,
+            credentialType: 'pin',
+            deviceFingerprint: fingerprint,
+          );
+    });
+    if (!mounted) return;
+    setState(() => _togglingPin = false);
+
+    if (result == null) return; // network failure — SnackBar already shown
+    if (!result.success) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Incorrect PIN.')));
+      return;
+    }
+
+    // Only stored after the server confirmed it — never on local guesswork.
+    await LocalAuthStore.savePin(
+        pin: entered, biometricEnabled: _biometricEnabled ?? false);
+    if (!mounted) return;
+    setState(() => _pinEnabled = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('PIN login enabled on this device.')),
+    );
   }
 
   Future<void> _onBiometricToggled(bool wantEnabled) async {
@@ -171,6 +258,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
             ),
+            if (_profileRoute != null) ...[
+              const SizedBox(height: ManaSpacing.lg),
+              const _SectionHeader('profile'),
+              _SettingsTile(
+                icon: Icons.person_outline,
+                title: 'Profile',
+                subtitle: 'Your details, documents and memberships.',
+                onTap: () =>
+                    context.push(_profileRoute!, extra: widget.businessId),
+              ),
+            ],
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('security'),
             _SettingsTile(
@@ -182,6 +280,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: Icons.pin_outlined,
               title: 'Forgot / Reset PIN',
               onTap: () => context.push('/lr-011'),
+            ),
+            _SettingsTile(
+              icon: Icons.password_outlined,
+              title: 'Enable PIN Login',
+              trailing: _pinEnabled == null
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Switch(
+                      value: _pinEnabled!,
+                      onChanged: _togglingPin ? null : _onPinToggled,
+                    ),
+              subtitle: _pinEnabled == true
+                  ? 'Enabled — you can sign in with your PIN on this device.'
+                  : 'Turn on to sign in with the PIN you already have.',
+              onTap: null,
             ),
             _SettingsTile(
               icon: Icons.fingerprint,
@@ -274,7 +389,12 @@ class _SettingsTile extends StatelessWidget {
 /// Simple PIN-entry dialog used to re-verify identity before enabling
 /// biometric login. Returns the entered PIN string, or null if cancelled.
 class _PinVerifyDialog extends StatefulWidget {
-  const _PinVerifyDialog();
+  final String title;
+  final String label;
+  const _PinVerifyDialog({
+    this.title = 'confirm your pin',
+    this.label = 'Enter PIN',
+  });
   @override
   State<_PinVerifyDialog> createState() => _PinVerifyDialogState();
 }
@@ -283,16 +403,22 @@ class _PinVerifyDialogState extends State<_PinVerifyDialog> {
   final _controller = TextEditingController();
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const ManaText('confirm your pin'),
+      title: ManaText(widget.title),
       content: TextField(
         controller: _controller,
         obscureText: true,
         keyboardType: TextInputType.number,
         maxLength: 6,
         autofocus: true,
-        decoration: const InputDecoration(labelText: 'Enter PIN'),
+        decoration: InputDecoration(labelText: widget.label),
         onSubmitted: (v) => Navigator.pop(context, v),
       ),
       actions: [

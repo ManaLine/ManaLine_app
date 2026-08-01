@@ -1,10 +1,10 @@
 # MANA LINE
 
-A field lending app for rural Andhra Pradesh. Owners run a lending line,
-agents collect on foot, customers and investors see their own position.
+A field lending app for rural India. Owners run a lending line,
+agents collects Door to Door, customers and investors see their own position.
 
 Flutter + Supabase (Postgres, RLS, Edge Functions). Five languages:
-English, Telugu, Hindi, Tamil, Kannada.
+English, Telugu, Hindi, Tamil, Kannada. Latter Multi Language.
 
 **Money correctness is a safety property here.** A confidently wrong number
 on a collection screen is worse than a crash, because nobody notices it.

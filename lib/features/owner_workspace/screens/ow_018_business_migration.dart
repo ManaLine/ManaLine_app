@@ -249,16 +249,74 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     );
   }
 
+  /// Declaring BF is a one-way act — the server refuses it once migration is
+  /// locked — so the sheet says so before the Owner commits.
+  Future<void> _declareBf(MigrationSummary s) async {
+    final controller = TextEditingController(
+        text: s.openingBfDeclaredAmount?.toStringAsFixed(0) ?? '');
+    final entered = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const ManaText('declare opening bf'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ManaText.raw(
+              'Count the cash box today and enter that figure. Everything '
+              'before today is out of scope — the count already reflects it.\n\n'
+              'This locks when you finish migration and cannot be changed '
+              'afterwards.',
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+            ),
+            const SizedBox(height: ManaSpacing.md),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Cash in hand *'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const ManaText('cancel')),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(ctx, double.tryParse(controller.text.trim())),
+            child: const ManaText('declare'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (entered == null || entered < 0) return;
+    if (!mounted) return;
+
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(businessManagementApiServiceProvider).setOpeningBf(
+            businessId: widget.businessId,
+            amount: entered,
+          );
+      return true;
+    });
+    if (ok == true) await _load();
+  }
+
   Widget _bfCard(MigrationSummary s) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Column(
           children: [
-            _row('Investment principal', s.investmentPrincipal),
-            _row('Given out on old loans', -s.totalGiven),
-            _row('Already collected back', s.totalCollected),
-            const Divider(),
+            // The old card listed Investment principal / Given out /
+            // Collected above a divider, as if those summed to BF. They never
+            // did — BF is read independently — and for a business funded by
+            // its own retained profit, investment principal is 0, so the
+            // breakdown visibly contradicted the total.
+            //
+            // BF is now what the Owner declared after counting the cash box,
+            // so the card states that figure and when it was stated.
             Row(
               children: [
                 const Expanded(
@@ -268,6 +326,29 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                 ManaAmount(s.bf, semanticLabel: 'Brought forward, cash in hand'),
               ],
             ),
+            const SizedBox(height: ManaSpacing.xs),
+            ManaText.raw(
+              s.hasDeclaredBf
+                  ? 'Declared on ${DateFormat('d MMM yyyy').format(s.openingBfDeclaredOn!)}'
+                    '${s.migrationLocked ? ' — locked' : ''}'
+                  : 'Not declared yet. Count the cash box and enter it below.',
+              style: TextStyle(
+                fontSize: 13,
+                color: s.hasDeclaredBf
+                    ? ManaColors.textSecondary
+                    : ManaColors.statusBad,
+              ),
+            ),
+            if (!s.migrationLocked) ...[
+              const SizedBox(height: ManaSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: () => _declareBf(s),
+                icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
+                label: ManaText(
+                    s.hasDeclaredBf ? 'change opening bf' : 'declare opening bf'),
+              ),
+            ],
+            const Divider(),
             const SizedBox(height: ManaSpacing.sm),
             Container(
               padding: const EdgeInsets.symmetric(
@@ -298,16 +379,6 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     );
   }
 
-  Widget _row(String label, double amount) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Expanded(child: ManaText.raw(label, style: const TextStyle(fontSize: 13))),
-            ManaText.raw(_currency.format(amount),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ],
-        ),
-      );
 }
 
 // ============================================================================

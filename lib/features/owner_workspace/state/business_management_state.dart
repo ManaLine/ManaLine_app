@@ -581,7 +581,31 @@ class BusinessManagementApiService {
       totalCollected: (r['total_collected'] as num?)?.toDouble() ?? 0,
       lineBalance: (r['line_balance'] as num?)?.toDouble() ?? 0,
       bf: (r['bf'] as num?)?.toDouble() ?? 0,
+      openingBfDeclaredAmount:
+          (r['opening_bf_declared_amount'] as num?)?.toDouble(),
+      openingBfDeclaredOn: r['opening_bf_declared_on'] == null
+          ? null
+          : DateTime.parse(r['opening_bf_declared_on'] as String),
     );
+  }
+
+  /// Declares the cash in hand on migration day.
+  ///
+  /// The app assumed capital arrives through investors, so BF could only ever
+  /// be MOVED, never set. A business running on its own retained profit had no
+  /// way in — BF started at 0 and every migrated loan drove it negative.
+  ///
+  /// Rejected server-side once migration is locked. That is not tidiness:
+  /// day_ledger takes its opening balance from this figure and cascades any
+  /// change forward, so re-declaring later would rewrite months of closings.
+  Future<void> setOpeningBf({
+    required String businessId,
+    required double amount,
+  }) async {
+    await _db.schema('app').rpc('set_opening_bf', params: {
+      'p_business_id': businessId,
+      'p_amount': amount,
+    });
   }
 
   Future<void> reopenMigration({required String businessId, required String reason}) async {
@@ -771,10 +795,14 @@ class LocationOption {
 
 /// Migration position for a pre-existing business.
 ///
-/// [bf] is cash in hand — investment principal, less what went out on the
-/// old book, plus what has already come back. [lineBalance] is the money
-/// still with customers and is deliberately NOT inside BF: BF everywhere
-/// else in this app means a figure you can physically count.
+/// [bf] is cash in hand. It is now DECLARED by the Owner counting the cash box
+/// on migration day, not reconstructed from investment principal and the old
+/// book — a business running ten years on its own retained profit has no
+/// investment principal to reconstruct from.
+///
+/// [lineBalance] is the money still with customers and is deliberately NOT
+/// inside BF: BF everywhere else in this app means a figure you can physically
+/// count.
 class MigrationSummary {
   final bool migrationLocked;
   final DateTime? businessStartedAt;
@@ -785,6 +813,12 @@ class MigrationSummary {
   final double lineBalance;
   final double bf;
 
+  /// What the Owner declared, and when. Null means never declared — which is
+  /// the state that must block finishing migration, since BF would otherwise
+  /// go live at whatever happened to be in the column.
+  final double? openingBfDeclaredAmount;
+  final DateTime? openingBfDeclaredOn;
+
   MigrationSummary({
     required this.migrationLocked,
     required this.businessStartedAt,
@@ -794,7 +828,11 @@ class MigrationSummary {
     required this.totalCollected,
     required this.lineBalance,
     required this.bf,
+    this.openingBfDeclaredAmount,
+    this.openingBfDeclaredOn,
   });
+
+  bool get hasDeclaredBf => openingBfDeclaredAmount != null;
 }
 
 /// One agent working an operating area. A round may have several

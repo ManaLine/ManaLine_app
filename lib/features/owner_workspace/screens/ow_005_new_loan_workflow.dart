@@ -353,25 +353,26 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
   String? _agentId;
   String? _agentName;
 
-  double get _amountGiven =>
-      (double.tryParse(_repaymentAmount.text) ?? 0) -
-      (double.tryParse(_interest.text) ?? 0) -
-      (double.tryParse(_processingFee.text) ?? 0);
+  // Whole rupees (M8) — the server stores money as DECIMAL(14,0).
+  int get _amountGiven =>
+      (int.tryParse(_repaymentAmount.text) ?? 0) -
+      (int.tryParse(_interest.text) ?? 0) -
+      (int.tryParse(_processingFee.text) ?? 0);
 
   bool get _canSubmit =>
-      (double.tryParse(_repaymentAmount.text) ?? 0) > 0 &&
+      (int.tryParse(_repaymentAmount.text) ?? 0) > 0 &&
       (int.tryParse(_duration.text) ?? 0) > 0 &&
-      (double.tryParse(_installment.text) ?? 0) > 0 &&
+      (int.tryParse(_installment.text) ?? 0) > 0 &&
       _agentId != null;
 
   void _submit() {
     ref.read(loanWizardProvider.notifier).setLoanDetails(
-          repaymentAmount: double.parse(_repaymentAmount.text),
-          interest: double.tryParse(_interest.text) ?? 0,
-          processingFee: double.tryParse(_processingFee.text) ?? 0,
+          repaymentAmount: int.parse(_repaymentAmount.text),
+          interest: int.tryParse(_interest.text) ?? 0,
+          processingFee: int.tryParse(_processingFee.text) ?? 0,
           repaymentType: _repaymentType,
           durationValue: int.parse(_duration.text),
-          installmentAmount: double.parse(_installment.text),
+          installmentAmount: int.parse(_installment.text),
           effectiveDate: _effectiveDate.toIso8601String(),
           collectionAgentId: _agentId!,
           collectionAgentName: _agentName!,
@@ -465,7 +466,7 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
               const Expanded(
                 child: ManaText('amount given (system-derived, read-only)', style: TextStyle(fontSize: 13)),
               ),
-              ManaText.raw('₹${_amountGiven.toStringAsFixed(0)}',
+              ManaText.raw('₹$_amountGiven',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
@@ -695,13 +696,13 @@ class _Step5Confirm extends ConsumerWidget {
             child: Column(
               children: [
                 _row('Customer', state.customer?.fullName ?? ''),
-                _row('Repayment Amount', '₹${state.repaymentAmount?.toStringAsFixed(0) ?? '0'}'),
-                _row('Interest', '₹${state.interest?.toStringAsFixed(0) ?? '0'}'),
-                _row('Processing Fee', '₹${state.processingFee?.toStringAsFixed(0) ?? '0'}'),
-                _row('Amount Given', '₹${state.amountGiven.toStringAsFixed(0)}'),
+                _row('Repayment Amount', '₹${state.repaymentAmount ?? 0}'),
+                _row('Interest', '₹${state.interest ?? 0}'),
+                _row('Processing Fee', '₹${state.processingFee ?? 0}'),
+                _row('Amount Given', '₹${state.amountGiven}'),
                 _row('Repayment Type', state.repaymentType),
                 _row('Duration', '${state.durationValue ?? 0} installments'),
-                _row('Installment', '₹${state.installmentAmount?.toStringAsFixed(0) ?? '0'}'),
+                _row('Installment', '₹${state.installmentAmount ?? 0}'),
                 _row('Collection Agent', state.collectionAgentName ?? ''),
                 _row('Guarantor', state.needsGuarantor ? (state.guarantorName ?? '') : 'None'),
               ],

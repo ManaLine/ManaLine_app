@@ -200,49 +200,17 @@ class OwnerApiService {
     required String agentId,
     required String agentMembershipId,
   }) async {
-    await _db
-        .from('agent_area_assignments')
-        .update({'removed_at': manaTimestamp()})
-        .eq('operating_area_id', operatingAreaId)
-        .isFilter('removed_at', null);
-    await _db.from('agent_area_assignments').insert({
-      'agent_id': agentId,
-      'operating_area_id': operatingAreaId,
-    });
-    // Seeds the area's first Running Account Period, exactly as OW-012's
-    // assignOperatingAreaToAgent does. Without this, an area assigned in
-    // the setup wizard would never open a period and OW-012's Account
-    // Periods tab would sit empty for it — the two assignment paths have
-    // to agree, or where you assigned from silently changes the outcome.
-    final existing = await _db
-        .from('account_periods')
-        .select('account_period_id')
-        .eq('operating_area_id', operatingAreaId)
-        .eq('status', 'Running')
-        .limit(1)
-        .maybeSingle();
-    if (existing != null) return;
-    final area = await _db
-        .from('operating_areas')
-        .select('account_cycle_duration, account_cycle_unit')
-        .eq('operating_area_id', operatingAreaId)
-        .single();
-    // IST, not the handset clock: this is an accounting-period boundary and
-    // it is written straight into business_start_date below.
-    final start = manaNowIst();
-    final duration = area['account_cycle_duration'] as int;
-    final end = switch (area['account_cycle_unit'] as String) {
-      'Weeks' => start.add(Duration(days: duration * 7)),
-      'Months' => DateTime(start.year, start.month + duration, start.day),
-      _ => start.add(Duration(days: duration)),
-    };
-    await _db.from('account_periods').insert({
-      'business_id': businessId,
-      'operating_area_id': operatingAreaId,
-      'agent_membership_id': agentMembershipId,
-      'business_start_date': start.toIso8601String(),
-      'planned_business_end_date': end.toIso8601String(),
-      'status': 'Running',
+    // M4: the time-bounded assignment AND its account-period seed are one
+    // atomic, Owner-gated RPC now (app.assign_agent_area). It derives the
+    // business and the agent's membership from the agent id, so
+    // businessId/agentMembershipId remain here only for call-site
+    // compatibility. Seeding the first Running Account Period is preserved
+    // inside the RPC, so an area assigned from either path opens a period.
+    await _db.schema('app').rpc('assign_agent_area', params: {
+      'p_agent_id': agentId,
+      'p_operating_area_id': operatingAreaId,
+      'p_frequency': 'Once',
+      'p_valid_from': manaBusinessDate(),
     });
   }
 
@@ -314,7 +282,7 @@ class OwnerApiService {
     // not take the whole dashboard down, so it falls back to the standing
     // cash pool.
     final today = manaBusinessDate();
-    double? ledgerOpening;
+    int? ledgerOpening;
     try {
       await _db.schema('app').rpc('open_business_day', params: {
         'p_business_id': businessId,
@@ -330,12 +298,12 @@ class OwnerApiService {
           .eq('business_id', businessId)
           .eq('business_date', today)
           .maybeSingle();
-      ledgerOpening = (ledgerRow?['opening_balance'] as num?)?.toDouble();
+      ledgerOpening = (ledgerRow?['opening_balance'] as num?)?.toInt();
     } catch (_) {
       ledgerOpening = null;
     }
     final openingBf =
-        ledgerOpening ?? (business['owner_bf_balance'] as num?)?.toDouble() ?? 0;
+        ledgerOpening ?? (business['owner_bf_balance'] as num?)?.toInt() ?? 0;
 
     int countWhere(String role, String status) =>
         members.where((m) => m['role'] == role && m['membership_status'] == status).length;
@@ -345,11 +313,11 @@ class OwnerApiService {
     final activeLoansList = loans.where((l) => activeLoanStatuses.contains(l['loan_status']));
     final penaltyCount = (loans).where((l) => l['loan_status'] == 'Penalty').length;
     final graceCount = (loans).where((l) => l['loan_status'] == 'Grace Period').length;
-    final outstandingSum = activeLoansList.fold<double>(0, (sum, l) => sum + (l['remaining_balance'] as num).toDouble());
+    final outstandingSum = activeLoansList.fold<int>(0, (sum, l) => sum + (l['remaining_balance'] as num).toInt());
 
     final activeInvestmentSum = investments
         .where((i) => i['status'] == 'Active')
-        .fold<double>(0, (sum, i) => sum + (i['principal_amount'] as num).toDouble());
+        .fold<int>(0, (sum, i) => sum + (i['principal_amount'] as num).toInt());
 
     // customers has no direct business_id column (reached via
     // membership_id -> business_members.business_id) — computed from the
@@ -612,9 +580,9 @@ class OwnerApiService {
 
   Future<void> setCompensation({
     required String agentId,
-    required double fixedSalary,
+    required int fixedSalary, // whole rupees (M8)
     required String salaryCycle,
-    double? dailyAllowance,
+    int? dailyAllowance,
     double? profitSharePercent,
     String? profitShareEffectiveDate,
   }) async {
@@ -656,8 +624,8 @@ class OwnerApiService {
     return (rows as List)
         .map((r) => ProfitShareDeclaration(
               declarationId: r['declaration_id'] as String,
-              totalProfitAmount: (r['total_profit_amount'] as num).toDouble(),
-              declaredAmount: (r['declared_amount'] as num).toDouble(),
+              totalProfitAmount: (r['total_profit_amount'] as num).toInt(),
+              declaredAmount: (r['declared_amount'] as num).toInt(),
               businessDate: DateTime.parse(r['business_date'] as String),
               status: r['status'] as String,
               remarks: r['remarks'] as String?,
@@ -668,7 +636,7 @@ class OwnerApiService {
   Future<void> declareAgentProfitShare({
     required String businessId,
     required String agentId,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required double profitSharePercent,
     String? remarks,
   }) async {
@@ -706,7 +674,7 @@ class OwnerApiService {
     required DateTime periodStart,
     required DateTime periodEnd,
     bool deductShorts = false,
-    double otherApprovedExpenses = 0,
+    int otherApprovedExpenses = 0, // whole rupees (M8)
   }) async {
     // .schema('app') — these live in the app schema, not public.
     final rows = await _db.schema('app').rpc('agent_payable_salary', params: {
@@ -719,15 +687,15 @@ class OwnerApiService {
     final r = ((rows as List).first) as Map<String, dynamic>;
     return AgentSalaryBreakdown(
       salaryMode: r['salary_mode'] as String,
-      fixedSalaryAmount: (r['fixed_salary_amount'] as num?)?.toDouble() ?? 0,
-      dailyRate: (r['daily_rate'] as num?)?.toDouble(),
+      fixedSalaryAmount: (r['fixed_salary_amount'] as num?)?.toInt() ?? 0,
+      dailyRate: (r['daily_rate'] as num?)?.toInt(),
       workingDays: (r['working_days'] as num?)?.toInt() ?? 0,
-      baseAmount: (r['base_amount'] as num?)?.toDouble() ?? 0,
-      otherApprovedExpenses: (r['other_approved_expenses'] as num?)?.toDouble() ?? 0,
-      advances: (r['advances'] as num?)?.toDouble() ?? 0,
-      shortsOutstanding: (r['shorts_outstanding'] as num?)?.toDouble() ?? 0,
-      shortsDeducted: (r['shorts_deducted'] as num?)?.toDouble() ?? 0,
-      payableSalary: (r['payable_salary'] as num?)?.toDouble() ?? 0,
+      baseAmount: (r['base_amount'] as num?)?.toInt() ?? 0,
+      otherApprovedExpenses: (r['other_approved_expenses'] as num?)?.toInt() ?? 0,
+      advances: (r['advances'] as num?)?.toInt() ?? 0,
+      shortsOutstanding: (r['shorts_outstanding'] as num?)?.toInt() ?? 0,
+      shortsDeducted: (r['shorts_deducted'] as num?)?.toInt() ?? 0,
+      payableSalary: (r['payable_salary'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -739,9 +707,9 @@ class OwnerApiService {
         .order('effective_date', ascending: false);
     return (rows as List)
         .map((r) => CompensationRecord(
-              fixedSalary: (r['fixed_salary_amount'] as num).toDouble(),
+              fixedSalary: (r['fixed_salary_amount'] as num).toInt(),
               salaryCycle: r['salary_cycle'] as String,
-              dailyAllowance: (r['daily_allowance'] as num?)?.toDouble(),
+              dailyAllowance: (r['daily_allowance'] as num?)?.toInt(),
               profitSharePercent: (r['profit_share_percent'] as num?)?.toDouble(),
               effectiveDate: DateTime.parse(r['effective_date'] as String),
             ))
@@ -859,29 +827,29 @@ class OwnerDashboardData {
   final int pendingAcceptances;
   final bool pendingDayClosure;
 
-  final double openingBalance;
-  final double todaysCollections;
-  final double todaysLoanDistribution;
-  final double todaysInvestments;
-  final double todaysWithdrawals;
-  final double todaysExpenses;
-  final double todaysOutstanding;
-  final double todaysDifference;
-  final double liveClosingBalance;
+  final int openingBalance;
+  final int todaysCollections;
+  final int todaysLoanDistribution;
+  final int todaysInvestments;
+  final int todaysWithdrawals;
+  final int todaysExpenses;
+  final int todaysOutstanding;
+  final int todaysDifference;
+  final int liveClosingBalance;
 
   final int totalCustomers;
   final int activeCustomers;
   final int activeLoans;
   final int todaysDueCustomers;
-  final double collectedToday;
-  final double pendingCollections;
+  final int collectedToday;
+  final int pendingCollections;
   final int penaltyCustomers;
   final int gracePeriodCustomers;
   final int activeAgents;
   final int activeInvestors;
   final int businessMemberships;
-  final double totalInvestment;
-  final double interestPayable;
+  final int totalInvestment;
+  final int interestPayable;
 
   final int workforceTotalAgents;
   final int workforceActiveToday;
@@ -894,7 +862,7 @@ class OwnerDashboardData {
   final int investorActive;
   final int investorPendingInvitations;
   final int investorPendingAcceptance;
-  final double investorBalance;
+  final int investorBalance;
 
   final List<ActivityItem> liveActivity;
   final List<AttentionCard> attentionRequired;
@@ -1036,8 +1004,8 @@ class AgentSummary {
   final String status; // Pending Invitation | Pending Acceptance | Active | Temporarily Disabled | Suspended | Removed
   final String businessAccess; // summary label, e.g. "Full Access" / "Restricted"
   final String? currentRoute;
-  final double todaysCollections;
-  final double todaysLoans;
+  final int todaysCollections;
+  final int todaysLoans;
   final DateTime joinedDate;
   final DateTime? lastLogin;
   /// `devices` is self-only under RLS, so an Owner can only ever see their
@@ -1068,19 +1036,19 @@ class AgentSummary {
 /// it is, and an agent disputing it needs the same.
 class AgentSalaryBreakdown {
   final String salaryMode; // Fixed | Daily Rate
-  final double fixedSalaryAmount;
-  final double? dailyRate;
+  final int fixedSalaryAmount;
+  final int? dailyRate;
   final int workingDays;
-  final double baseAmount;
-  final double otherApprovedExpenses;
-  final double advances;
+  final int baseAmount;
+  final int otherApprovedExpenses;
+  final int advances;
   /// Everything the agent still owes from shorts, whether or not it is
   /// being taken this cycle. Always recorded, always owed (BR-066).
-  final double shortsOutstanding;
+  final int shortsOutstanding;
   /// The portion actually coming off THIS cycle — zero unless the Owner
   /// chose to deduct (CALC BR-068 correction 2).
-  final double shortsDeducted;
-  final double payableSalary;
+  final int shortsDeducted;
+  final int payableSalary;
 
   AgentSalaryBreakdown({
     required this.salaryMode,
@@ -1097,10 +1065,10 @@ class AgentSalaryBreakdown {
 }
 
 class CompensationRecord {
-  final double fixedSalary;
+  final int fixedSalary;
   final String salaryCycle;
-  final double? dailyAllowance;
-  final double? profitSharePercent;
+  final int? dailyAllowance;
+  final double? profitSharePercent; // percentage — not money
   final DateTime effectiveDate;
   CompensationRecord({
     required this.fixedSalary,

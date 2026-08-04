@@ -106,10 +106,10 @@ class DayClosureApiService {
     });
     final e = (expectedRows as List).first as Map<String, dynamic>;
     final expected = ExpectedFigures(
-      expectedCash: (e['expected_cash'] as num).toDouble(),
-      expectedUpi: (e['expected_upi'] as num).toDouble(),
-      expectedBank: (e['expected_bank'] as num).toDouble(),
-      expectedCheque: (e['expected_cheque'] as num).toDouble(),
+      expectedCash: (e['expected_cash'] as num).toInt(),
+      expectedUpi: (e['expected_upi'] as num).toInt(),
+      expectedBank: (e['expected_bank'] as num).toInt(),
+      expectedCheque: (e['expected_cheque'] as num).toInt(),
     );
 
     return DayClosurePrecheckResult(
@@ -130,10 +130,10 @@ class DayClosureApiService {
   Future<DayClosureResult> closeDay({
     required String businessId,
     required String businessDate,
-    required double physicalCash,
-    required double upiBalance,
-    required double bankBalance,
-    required double chequeBalance,
+    required int physicalCash, // whole rupees (M8)
+    required int upiBalance,
+    required int bankBalance,
+    required int chequeBalance,
     String? remarks,
   }) async {
     final result = await _db.schema('app').rpc('close_business_day', params: {
@@ -148,8 +148,8 @@ class DayClosureApiService {
     return DayClosureResult(
       closureId: result['closure_id'] as String,
       businessDate: result['business_date'] as String,
-      difference: (result['difference'] as num).toDouble(),
-      closingBalance: (result['closing_balance'] as num).toDouble(),
+      difference: (result['difference'] as num).toInt(),
+      closingBalance: (result['closing_balance'] as num).toInt(),
       status: result['status'] as String,
     );
   }
@@ -194,23 +194,23 @@ class DayClosureApiService {
     return DayClosureDetail(
       closureId: row['closure_id'] as String,
       businessDate: row['business_date'] as String,
-      openingBalance: ((ledgerRow?['opening_balance'] as num?) ?? 0).toDouble(),
-      collections: ((ledgerRow?['total_collections'] as num?) ?? 0).toDouble(),
-      loansIssued: ((ledgerRow?['total_loan_distribution'] as num?) ?? 0).toDouble(),
-      expenses: ((ledgerRow?['total_expenses'] as num?) ?? 0).toDouble(),
-      depositsInvestor: ((ledgerRow?['investor_deposits'] as num?) ?? 0).toDouble(),
-      withdrawalsInvestor: ((ledgerRow?['investor_withdrawals'] as num?) ?? 0).toDouble(),
+      openingBalance: ((ledgerRow?['opening_balance'] as num?) ?? 0).toInt(),
+      collections: ((ledgerRow?['total_collections'] as num?) ?? 0).toInt(),
+      loansIssued: ((ledgerRow?['total_loan_distribution'] as num?) ?? 0).toInt(),
+      expenses: ((ledgerRow?['total_expenses'] as num?) ?? 0).toInt(),
+      depositsInvestor: ((ledgerRow?['investor_deposits'] as num?) ?? 0).toInt(),
+      withdrawalsInvestor: ((ledgerRow?['investor_withdrawals'] as num?) ?? 0).toInt(),
       // settlement_adjustments total for this business_date is NOT included
       // here — see the class-level GAP note: adjustments created here are
       // currently unscopable/unreadable via RLS, so there is nothing valid
       // to sum yet. Hardcoded to 0 until that gap is resolved. FLAGGED, not
       // silently guessed.
       adjustments: 0,
-      closingBalance: (row['physical_cash'] as num).toDouble() +
-          (row['upi_balance'] as num).toDouble() +
-          (row['bank_balance'] as num).toDouble() +
-          (row['cheque_balance'] as num).toDouble(),
-      difference: (row['difference'] as num).toDouble(),
+      closingBalance: (row['physical_cash'] as num).toInt() +
+          (row['upi_balance'] as num).toInt() +
+          (row['bank_balance'] as num).toInt() +
+          (row['cheque_balance'] as num).toInt(),
+      difference: (row['difference'] as num).toInt(),
       remarks: null, // day_closures has no `remarks` column in the real schema — FLAGGED below
       closedByName: person?['full_name'] as String? ?? '',
       closedAt: DateTime.parse(row['closed_at'] as String),
@@ -242,7 +242,7 @@ class DayClosureApiService {
     required String businessId,
     required String businessDate,
     required String adjustmentType,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required String appliedTo,
     String? targetCustomerId,
   }) async {
@@ -288,10 +288,10 @@ class DayClosurePrecheckResult {
 
 /// Per-method Expected figures, computed server-side from `day_ledger`.
 class ExpectedFigures {
-  final double expectedCash;
-  final double expectedUpi;
-  final double expectedBank;
-  final double expectedCheque;
+  final int expectedCash;
+  final int expectedUpi;
+  final int expectedBank;
+  final int expectedCheque;
   ExpectedFigures({
     required this.expectedCash,
     required this.expectedUpi,
@@ -299,14 +299,14 @@ class ExpectedFigures {
     required this.expectedCheque,
   });
 
-  double get total => expectedCash + expectedUpi + expectedBank + expectedCheque;
+  int get total => expectedCash + expectedUpi + expectedBank + expectedCheque;
 }
 
 class DayClosureResult {
   final String closureId;
   final String businessDate;
-  final double difference; // always 0.00 on a successful response
-  final double closingBalance;
+  final int difference; // always 0 on a successful response
+  final int closingBalance;
   final String status; // 'Closed'
   DayClosureResult({
     required this.closureId,
@@ -321,15 +321,15 @@ class DayClosureResult {
 class DayClosureDetail {
   final String closureId;
   final String businessDate;
-  final double openingBalance;
-  final double collections;
-  final double loansIssued;
-  final double expenses;
-  final double depositsInvestor;
-  final double withdrawalsInvestor;
-  final double adjustments;
-  final double closingBalance;
-  final double difference;
+  final int openingBalance;
+  final int collections;
+  final int loansIssued;
+  final int expenses;
+  final int depositsInvestor;
+  final int withdrawalsInvestor;
+  final int adjustments;
+  final int closingBalance;
+  final int difference;
   final String? remarks;
   final String closedByName;
   final DateTime closedAt;
@@ -364,10 +364,10 @@ class DayClosureDetail {
 /// diverge").
 class DifferenceLine {
   final String method; // 'Cash' | 'UPI' | 'Bank' | 'Cheque'
-  final double expected;
-  final double actual;
+  final int expected;
+  final int actual;
   DifferenceLine({required this.method, required this.expected, required this.actual});
-  double get delta => expected - actual;
+  int get delta => expected - actual;
 }
 
 /// One Short/Excess entry recorded during the Difference Analyzer loop
@@ -375,7 +375,7 @@ class DifferenceLine {
 /// `settlement_adjustments`, BR-045/066/069/070).
 class RecordedAdjustment {
   final String adjustmentType; // 'Short' | 'Excess'
-  final double amount;
+  final int amount;
   final String appliedTo;
   final String? targetCustomerId;
   final String? note;
@@ -412,10 +412,10 @@ class DayClosureState {
 
   // S2 — Owner-entered Actual figures
   final ExpectedFigures? expected;
-  final double physicalCash;
-  final double upiBalance;
-  final double bankBalance;
-  final double chequeBalance;
+  final int physicalCash;
+  final int upiBalance;
+  final int bankBalance;
+  final int chequeBalance;
 
   // S3 — Difference Analyzer loop
   final List<DifferenceLine> differenceLines;
@@ -444,10 +444,10 @@ class DayClosureState {
     this.error,
   });
 
-  double get actualTotal => physicalCash + upiBalance + bankBalance + chequeBalance;
-  double get expectedTotal => expected?.total ?? 0;
-  double get difference => expectedTotal - actualTotal;
-  bool get isZeroDifference => difference.abs() < 0.005; // ₹0.00 tolerance for double rounding only
+  int get actualTotal => physicalCash + upiBalance + bankBalance + chequeBalance;
+  int get expectedTotal => expected?.total ?? 0;
+  int get difference => expectedTotal - actualTotal;
+  bool get isZeroDifference => difference == 0;
 
   DayClosureState copyWith({
     DayClosurePhase? phase,
@@ -455,10 +455,10 @@ class DayClosureState {
     List<DayClosureBlockingIssue>? blockingIssues,
     List<DayClosureBlockingIssue>? warnings,
     ExpectedFigures? expected,
-    double? physicalCash,
-    double? upiBalance,
-    double? bankBalance,
-    double? chequeBalance,
+    int? physicalCash,
+    int? upiBalance,
+    int? bankBalance,
+    int? chequeBalance,
     List<DifferenceLine>? differenceLines,
     List<RecordedAdjustment>? recordedAdjustments,
     DayClosureDetail? closureDetail,
@@ -537,10 +537,10 @@ class DayClosureNotifier extends Notifier<DayClosureState> {
 
   /// S2 — Owner enters Actual figures.
   void setActualFigures({
-    double? physicalCash,
-    double? upiBalance,
-    double? bankBalance,
-    double? chequeBalance,
+    int? physicalCash,
+    int? upiBalance,
+    int? bankBalance,
+    int? chequeBalance,
   }) {
     state = state.copyWith(
       physicalCash: physicalCash ?? state.physicalCash,
@@ -576,7 +576,7 @@ class DayClosureNotifier extends Notifier<DayClosureState> {
   Future<bool> recordAdjustment({
     required String businessId,
     required String adjustmentType,
-    required double amount,
+    required int amount,
     required String appliedTo,
     String? targetCustomerId,
     String? note,

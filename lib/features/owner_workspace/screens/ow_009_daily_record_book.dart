@@ -180,7 +180,7 @@ class _LedgerRowCard extends StatelessWidget {
     );
   }
 
-  Widget _figure(String label, double amount, {bool warn = false}) {
+  Widget _figure(String label, int amount, {bool warn = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

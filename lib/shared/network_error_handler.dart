@@ -69,6 +69,11 @@ class NetworkErrorHandler {
       if (e.status == 404) {
         return 'This action isn\'t available yet (server function not found). Please try again later.';
       }
+      if (e.status == 429) {
+        // Edge functions return 429 + RATE_LIMITED when the auth rate
+        // limiter (auth_rate_limits, batch D) refuses the call.
+        return 'Too many attempts. Please wait a few minutes and try again.';
+      }
       return 'Server error (${e.status}). Please try again later.';
     }
     if (e is PostgrestException) {

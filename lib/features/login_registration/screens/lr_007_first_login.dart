@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../shared/widgets/language_selector.dart';
 import '../../../shared/local_auth_store.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
@@ -216,6 +217,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(translationLoaderProvider);
+    final lang = ref.watch(authFlowProvider).language;
     final canSubmit = _mobile.text.length == 10 && _password.text.isNotEmpty;
 
     return Scaffold(
@@ -310,6 +312,14 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                     ? const SizedBox(
                         width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : ManaText.raw(ref.t('login_button')),
+              ),
+              const SizedBox(height: ManaSpacing.xl),
+              Align(
+                alignment: Alignment.center,
+                child: ManaLanguageSelector(
+                  current: lang,
+                  onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
+                ),
               ),
             ],
           ),

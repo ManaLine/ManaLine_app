@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../shared/auto_refresh.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -20,7 +21,8 @@ import 'ag_008_notifications.dart';
 import 'ag_009_profile.dart';
 import 'ag_010_transaction_history.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+final _currency =
+    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _time = DateFormat('h:mm a');
 final _date = DateFormat('d MMM yyyy');
 
@@ -52,22 +54,28 @@ class AgentHomeDashboardScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AgentHomeDashboardScreen> createState() => _AgentHomeDashboardScreenState();
+  ConsumerState<AgentHomeDashboardScreen> createState() =>
+      _AgentHomeDashboardScreenState();
 }
 
-class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScreen> {
+class _AgentHomeDashboardScreenState
+    extends ConsumerState<AgentHomeDashboardScreen> {
   final _compensationKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(agentDashboardProvider.notifier).enter(agentId: widget.agentId, businessId: widget.businessId);
+      await ref
+          .read(agentDashboardProvider.notifier)
+          .enter(agentId: widget.agentId, businessId: widget.businessId);
       if (widget.initialAnchor == 'compensation' && mounted) {
         // Give the dashboard a frame to lay out before scrolling to it.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final ctx = _compensationKey.currentContext;
-          if (ctx != null) Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300));
+          if (ctx != null)
+            Scrollable.ensureVisible(ctx,
+                duration: const Duration(milliseconds: 300));
         });
       }
     });
@@ -87,7 +95,8 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
             tooltip: 'Notifications',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => Ag008NotificationsScreen(agentId: widget.agentId, businessId: widget.businessId),
+                builder: (_) => Ag008NotificationsScreen(
+                    agentId: widget.agentId, businessId: widget.businessId),
               ),
             ),
           ),
@@ -126,7 +135,10 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
-                    builder: (_) => _ChangeAreaSheet(state: state, agentId: widget.agentId, businessId: widget.businessId),
+                    builder: (_) => _ChangeAreaSheet(
+                        state: state,
+                        agentId: widget.agentId,
+                        businessId: widget.businessId),
                   );
                 case 'settings':
                   context.push('/ag-settings', extra: widget.businessId);
@@ -136,12 +148,19 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
-              const PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
-              const PopupMenuItem(value: 'create_business', child: ManaText('create new business')),
+              const PopupMenuItem(
+                  value: 'switch_business',
+                  child: ManaText('switch workspace')),
+              const PopupMenuItem(
+                  value: 'switch_role', child: ManaText('switch role')),
+              const PopupMenuItem(
+                  value: 'create_business',
+                  child: ManaText('create new business')),
               if (state.stage == AgentSessionStage.running)
-                const PopupMenuItem(value: 'change_area', child: ManaText('change area')),
-              const PopupMenuItem(value: 'settings', child: ManaText('settings')),
+                const PopupMenuItem(
+                    value: 'change_area', child: ManaText('change area')),
+              const PopupMenuItem(
+                  value: 'settings', child: ManaText('settings')),
               const PopupMenuDivider(),
               const PopupMenuItem(value: 'logout', child: ManaText('logout')),
             ],
@@ -152,11 +171,19 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
         child: switch (state.stage) {
           // Structure-shaped placeholder instead of a spinner while the
           // Opening-BF gate resolves.
-          AgentSessionStage.loadingGate => const ManaSkeletonList(itemCount: 4, itemHeight: 112),
+          AgentSessionStage.loadingGate =>
+            const ManaSkeletonList(itemCount: 4, itemHeight: 112),
           AgentSessionStage.bfBlockedNoAssignment => const _BfNotGrantedBlock(),
-          AgentSessionStage.bfConfirmPending => _BfGate(state: state, agentId: widget.agentId, businessId: widget.businessId),
-          AgentSessionStage.bfUpdateRequested => const _BfUpdateRequestedBlock(),
-          AgentSessionStage.areaSelection => _AreaSelection(state: state, agentId: widget.agentId, businessId: widget.businessId),
+          AgentSessionStage.bfConfirmPending => _BfGate(
+              state: state,
+              agentId: widget.agentId,
+              businessId: widget.businessId),
+          AgentSessionStage.bfUpdateRequested =>
+            const _BfUpdateRequestedBlock(),
+          AgentSessionStage.areaSelection => _AreaSelection(
+              state: state,
+              agentId: widget.agentId,
+              businessId: widget.businessId),
           AgentSessionStage.running => _RunningDashboard(
               state: state,
               agentId: widget.agentId,
@@ -165,7 +192,8 @@ class _AgentHomeDashboardScreenState extends ConsumerState<AgentHomeDashboardScr
             ),
         },
       ),
-      bottomNavigationBar: _AgentFooterNav(businessId: widget.businessId, agentId: widget.agentId),
+      bottomNavigationBar: _AgentFooterNav(
+          businessId: widget.businessId, agentId: widget.agentId),
     );
   }
 }
@@ -186,27 +214,38 @@ class _AgentFooterNav extends ConsumerWidget {
     return NavigationBar(
       selectedIndex: 0,
       destinations: [
-        NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: ref.t('home')),
-        NavigationDestination(icon: const Icon(Icons.people_outline), label: ref.t('customers')),
-        NavigationDestination(icon: const Icon(Icons.point_of_sale_outlined), label: ref.t('collections')),
-        NavigationDestination(icon: const Icon(Icons.history), label: ref.t('history')),
+        NavigationDestination(
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: ref.t('home')),
+        NavigationDestination(
+            icon: const Icon(Icons.people_outline), label: ref.t('customers')),
+        NavigationDestination(
+            icon: const Icon(Icons.point_of_sale_outlined),
+            label: ref.t('collections')),
+        NavigationDestination(
+            icon: const Icon(Icons.history), label: ref.t('history')),
       ],
       onDestinationSelected: (i) {
         switch (i) {
           case 1:
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => AgentCustomerManagementScreen(businessId: businessId, agentMembershipId: agentId),
+                builder: (_) => AgentCustomerManagementScreen(
+                    businessId: businessId, agentMembershipId: agentId),
               ),
             );
           case 2:
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => AgentCollectionModeScreen(businessId: businessId)),
+              MaterialPageRoute(
+                  builder: (_) =>
+                      AgentCollectionModeScreen(businessId: businessId)),
             );
           case 3:
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => Ag010TransactionHistoryScreen(businessId: businessId, agentMembershipId: agentId),
+                builder: (_) => Ag010TransactionHistoryScreen(
+                    businessId: businessId, agentMembershipId: agentId),
               ),
             );
         }
@@ -221,7 +260,8 @@ class _BfGate extends ConsumerStatefulWidget {
   final AgentDashboardState state;
   final String agentId;
   final String businessId;
-  const _BfGate({required this.state, required this.agentId, required this.businessId});
+  const _BfGate(
+      {required this.state, required this.agentId, required this.businessId});
 
   @override
   ConsumerState<_BfGate> createState() => _BfGateState();
@@ -233,7 +273,9 @@ class _BfGateState extends ConsumerState<_BfGate> {
   Future<void> _confirm() async {
     setState(() => _submitting = true);
     await NetworkErrorHandler.run(context, () {
-      return ref.read(agentDashboardProvider.notifier).confirmBf(agentId: widget.agentId, businessId: widget.businessId);
+      return ref
+          .read(agentDashboardProvider.notifier)
+          .confirmBf(agentId: widget.agentId, businessId: widget.businessId);
     });
     if (mounted) setState(() => _submitting = false);
   }
@@ -241,7 +283,9 @@ class _BfGateState extends ConsumerState<_BfGate> {
   Future<void> _update() async {
     setState(() => _submitting = true);
     await NetworkErrorHandler.run(context, () {
-      return ref.read(agentDashboardProvider.notifier).disputeBf(agentId: widget.agentId);
+      return ref
+          .read(agentDashboardProvider.notifier)
+          .disputeBf(agentId: widget.agentId);
     });
     if (mounted) setState(() => _submitting = false);
   }
@@ -258,18 +302,21 @@ class _BfGateState extends ConsumerState<_BfGate> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.account_balance_wallet_outlined, size: 40, color: ManaColors.brand),
+                const Icon(Icons.account_balance_wallet_outlined,
+                    size: 40, color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.md),
                 const ManaText('opening bf for this session'),
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw(_currency.format(bf.openingBf),
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(
+                        fontSize: 28, fontWeight: FontWeight.bold)),
                 const SizedBox(height: ManaSpacing.sm),
                 const ManaText.raw(
                   'Confirm this figure to proceed, or Update if it looks wrong — '
                   'you will be blocked from the workspace until the Owner corrects it.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                  style:
+                      TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
                 const SizedBox(height: ManaSpacing.lg),
                 Row(
@@ -286,7 +333,11 @@ class _BfGateState extends ConsumerState<_BfGate> {
                       child: ElevatedButton(
                         onPressed: _submitting ? null : _confirm,
                         child: _submitting
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
                             : const ManaText('confirm'),
                       ),
                     ),
@@ -311,7 +362,8 @@ class _BfNotGrantedBlock extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lock_clock_outlined, size: 40, color: ManaColors.textSecondary),
+            Icon(Icons.lock_clock_outlined,
+                size: 40, color: ManaColors.textSecondary),
             SizedBox(height: ManaSpacing.md),
             ManaText('access not yet granted'),
             SizedBox(height: ManaSpacing.sm),
@@ -338,7 +390,8 @@ class _BfUpdateRequestedBlock extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.hourglass_top_outlined, size: 40, color: ManaColors.statusWarn),
+            Icon(Icons.hourglass_top_outlined,
+                size: 40, color: ManaColors.statusWarn),
             SizedBox(height: ManaSpacing.md),
             ManaText('waiting on owner'),
             SizedBox(height: ManaSpacing.sm),
@@ -361,7 +414,8 @@ class _AreaSelection extends ConsumerStatefulWidget {
   final AgentDashboardState state;
   final String agentId;
   final String businessId;
-  const _AreaSelection({required this.state, required this.agentId, required this.businessId});
+  const _AreaSelection(
+      {required this.state, required this.agentId, required this.businessId});
 
   @override
   ConsumerState<_AreaSelection> createState() => _AreaSelectionState();
@@ -381,7 +435,8 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
     if (mounted) setState(() => _starting = false);
     if (ok != true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one enabled area to start.')),
+        const SnackBar(
+            content: Text('Select at least one enabled area to start.')),
       );
     }
   }
@@ -403,7 +458,8 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
             child: Center(
-              child: ManaText.raw('No areas enabled for you yet. Contact your Owner.',
+              child: ManaText.raw(
+                  'No areas enabled for you yet. Contact your Owner.',
                   style: TextStyle(color: ManaColors.textSecondary)),
             ),
           )
@@ -420,9 +476,13 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
               )),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
-          onPressed: (widget.state.canStartSession && !_starting) ? _start : null,
+          onPressed:
+              (widget.state.canStartSession && !_starting) ? _start : null,
           child: _starting
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : const ManaText('start business session'),
         ),
       ],
@@ -434,7 +494,8 @@ class _ChangeAreaSheet extends ConsumerStatefulWidget {
   final AgentDashboardState state;
   final String agentId;
   final String businessId;
-  const _ChangeAreaSheet({required this.state, required this.agentId, required this.businessId});
+  const _ChangeAreaSheet(
+      {required this.state, required this.agentId, required this.businessId});
 
   @override
   ConsumerState<_ChangeAreaSheet> createState() => _ChangeAreaSheetState();
@@ -447,13 +508,21 @@ class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
     setState(() => _pendingAreaId = area.operatingAreaId);
     final notifier = ref.read(agentDashboardProvider.notifier);
     final ok = selected
-        ? await notifier.addArea(agentId: widget.agentId, businessId: widget.businessId, operatingAreaId: area.operatingAreaId)
-        : await notifier.removeArea(agentId: widget.agentId, businessId: widget.businessId, operatingAreaId: area.operatingAreaId);
+        ? await notifier.addArea(
+            agentId: widget.agentId,
+            businessId: widget.businessId,
+            operatingAreaId: area.operatingAreaId)
+        : await notifier.removeArea(
+            agentId: widget.agentId,
+            businessId: widget.businessId,
+            operatingAreaId: area.operatingAreaId);
     if (!mounted) return;
     setState(() => _pendingAreaId = null);
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not change area — save or clear pending unsaved transactions first.')),
+        const SnackBar(
+            content: Text(
+                'Could not change area — save or clear pending unsaved transactions first.')),
       );
     }
   }
@@ -468,7 +537,8 @@ class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('change area', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const ManaText('change area',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.xs),
             const ManaText.raw(
               'Adding an area starts working it immediately; removing one stops new collections there for today (its Account Period keeps running to its own end date).',
@@ -478,9 +548,14 @@ class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
             ...areas.map((area) => CheckboxListTile(
                   title: ManaText.raw(area.areaName),
                   value: area.selectedInSession,
-                  onChanged: _pendingAreaId == area.operatingAreaId ? null : (v) => _toggle(area, v ?? false),
+                  onChanged: _pendingAreaId == area.operatingAreaId
+                      ? null
+                      : (v) => _toggle(area, v ?? false),
                   secondary: _pendingAreaId == area.operatingAreaId
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : null,
                 )),
           ],
@@ -509,74 +584,94 @@ class _RunningDashboard extends ConsumerWidget {
     final d = state.dashboard;
     if (d == null) return const Center(child: CircularProgressIndicator());
 
-    return RefreshIndicator(
-      onRefresh: () => ref.read(agentDashboardProvider.notifier).refreshDashboard(agentId: agentId, businessId: businessId),
-      child: ListView(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
-        children: [
-          _SectionCard(
-            title: 'business status',
-            rows: [
-              ('Business Date', _date.format(d.businessDate)),
-              ('Assigned Route', d.assignedRoute),
-              ('Pending Drafts', '${d.pendingDraftsCount}'),
-              ('Pending Settlement', d.pendingSettlement ? 'Yes' : 'No'),
-              ("Today's Target", _currency.format(d.todaysTarget)),
-            ],
-          ),
-          const SizedBox(height: ManaSpacing.md),
-          _SectionCard(
-            title: 'today summary',
-            rows: [
-              ('Customers Assigned', '${d.customersAssigned}'),
-              ('Customers Visited', '${d.customersVisited}'),
-              ('Customers Remaining', '${d.customersRemaining}'),
-              ('Cash', _currency.format(d.collectionsCash)),
-              ('UPI', _currency.format(d.collectionsUpi)),
-              ('Bank', _currency.format(d.collectionsBank)),
-              ('Cheque', _currency.format(d.collectionsCheque)),
-              ('Mixed', _currency.format(d.collectionsMixed)),
-              ("Today's Collections Total", _currency.format(d.todaysCollectionsTotal)),
-              ('Loans Issued', '${d.loansIssued}'),
-              ('Pending Collections', '${d.pendingCollections}'),
-              ('Skipped Customers', '${d.skippedCustomers}'),
-              ('Short', _currency.format(d.shortAmount)),
-              ('Excess', _currency.format(d.excessAmount)),
-            ],
-          ),
-          const SizedBox(height: ManaSpacing.md),
-          _QuickActions(visible: d.visibleQuickActions, businessId: businessId, agentId: agentId),
-          const SizedBox(height: ManaSpacing.md),
-          if (state.hasPendingUnsavedTransactions ||
-              d.pendingCustomerRequests + d.pendingExtensionRequests + d.pendingRouteChanges + d.pendingMessages > 0)
+    return AutoRefresh(
+      onRefresh: () => ref
+          .read(agentDashboardProvider.notifier)
+          .refreshDashboard(agentId: agentId, businessId: businessId),
+      child: RefreshIndicator(
+        onRefresh: () => ref
+            .read(agentDashboardProvider.notifier)
+            .refreshDashboard(agentId: agentId, businessId: businessId),
+        child: ListView(
+          padding: const EdgeInsets.all(ManaSpacing.lg),
+          children: [
             _SectionCard(
-              title: 'attention required',
+              title: 'business status',
               rows: [
+                ('Business Date', _date.format(d.businessDate)),
+                ('Assigned Route', d.assignedRoute),
                 ('Pending Drafts', '${d.pendingDraftsCount}'),
                 ('Pending Settlement', d.pendingSettlement ? 'Yes' : 'No'),
-                ('Pending Customer Requests', '${d.pendingCustomerRequests}'),
-                ('Pending Extension Requests', '${d.pendingExtensionRequests}'),
-                ('Pending Route Changes', '${d.pendingRouteChanges}'),
-                ('Pending Messages', '${d.pendingMessages}'),
+                ("Today's Target", _currency.format(d.todaysTarget)),
               ],
-              accent: ManaColors.statusWarn,
             ),
-          const SizedBox(height: ManaSpacing.md),
-          _LiveActivity(entries: d.liveActivity),
-          const SizedBox(height: ManaSpacing.md),
-          _CompensationSection(key: compensationKey, d: d),
-          const SizedBox(height: ManaSpacing.md),
-          _SectionCard(
-            title: 'workspace information',
-            rows: [
-              ('Business Name', d.businessName),
-              ('Owner', d.ownerName),
-              ('Membership Status', d.membershipStatus),
-              ('Permission Profile', d.permissionProfile),
-              ('Last Sync', _time.format(d.lastSync)),
-            ],
-          ),
-        ],
+            const SizedBox(height: ManaSpacing.md),
+            _SectionCard(
+              title: 'today summary',
+              rows: [
+                ('Customers Assigned', '${d.customersAssigned}'),
+                ('Customers Visited', '${d.customersVisited}'),
+                ('Customers Remaining', '${d.customersRemaining}'),
+                ('Cash', _currency.format(d.collectionsCash)),
+                ('UPI', _currency.format(d.collectionsUpi)),
+                ('Bank', _currency.format(d.collectionsBank)),
+                ('Cheque', _currency.format(d.collectionsCheque)),
+                ('Mixed', _currency.format(d.collectionsMixed)),
+                (
+                  "Today's Collections Total",
+                  _currency.format(d.todaysCollectionsTotal)
+                ),
+                ('Loans Issued', '${d.loansIssued}'),
+                ('Pending Collections', '${d.pendingCollections}'),
+                ('Skipped Customers', '${d.skippedCustomers}'),
+                ('Short', _currency.format(d.shortAmount)),
+                ('Excess', _currency.format(d.excessAmount)),
+              ],
+            ),
+            const SizedBox(height: ManaSpacing.md),
+            _QuickActions(
+                visible: d.visibleQuickActions,
+                businessId: businessId,
+                agentId: agentId),
+            const SizedBox(height: ManaSpacing.md),
+            if (state.hasPendingUnsavedTransactions ||
+                d.pendingCustomerRequests +
+                        d.pendingExtensionRequests +
+                        d.pendingRouteChanges +
+                        d.pendingMessages >
+                    0)
+              _SectionCard(
+                title: 'attention required',
+                rows: [
+                  ('Pending Drafts', '${d.pendingDraftsCount}'),
+                  ('Pending Settlement', d.pendingSettlement ? 'Yes' : 'No'),
+                  ('Pending Customer Requests', '${d.pendingCustomerRequests}'),
+                  (
+                    'Pending Extension Requests',
+                    '${d.pendingExtensionRequests}'
+                  ),
+                  ('Pending Route Changes', '${d.pendingRouteChanges}'),
+                  ('Pending Messages', '${d.pendingMessages}'),
+                ],
+                accent: ManaColors.statusWarn,
+              ),
+            const SizedBox(height: ManaSpacing.md),
+            _LiveActivity(entries: d.liveActivity),
+            const SizedBox(height: ManaSpacing.md),
+            _CompensationSection(key: compensationKey, d: d),
+            const SizedBox(height: ManaSpacing.md),
+            _SectionCard(
+              title: 'workspace information',
+              rows: [
+                ('Business Name', d.businessName),
+                ('Owner', d.ownerName),
+                ('Membership Status', d.membershipStatus),
+                ('Permission Profile', d.permissionProfile),
+                ('Last Sync', _time.format(d.lastSync)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -597,15 +692,21 @@ class _SectionCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText(title,
-                style: TextStyle(fontWeight: FontWeight.bold, color: accent ?? ManaColors.textPrimary)),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: accent ?? ManaColors.textPrimary)),
             const SizedBox(height: ManaSpacing.sm),
             ...rows.map((r) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ManaText.raw(r.$1, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                      ManaText.raw(r.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      ManaText.raw(r.$1,
+                          style: const TextStyle(
+                              fontSize: 13, color: ManaColors.textSecondary)),
+                      ManaText.raw(r.$2,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 )),
@@ -633,16 +734,22 @@ class _CompensationSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('my compensation', style: TextStyle(fontWeight: FontWeight.bold)),
+            const ManaText('my compensation',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.xs),
             const ManaText.raw('Read-only, set by Owner.',
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style:
+                    TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             ...[
               ('Fixed Salary', _currency.format(d.fixedSalary)),
-              ('Salary Cycle', d.salaryCycleStatus.isEmpty ? '—' : d.salaryCycleStatus),
+              (
+                'Salary Cycle',
+                d.salaryCycleStatus.isEmpty ? '—' : d.salaryCycleStatus
+              ),
               ('Daily Allowance', _currency.format(d.dailyAllowance)),
-              if (d.profitSharePercent != null) ('Profit Share', '${d.profitSharePercent}%'),
+              if (d.profitSharePercent != null)
+                ('Profit Share', '${d.profitSharePercent}%'),
               ('Advances Deducted', _currency.format(d.advancesDeducted)),
               ('Shorts Deducted', _currency.format(d.shortsDeducted)),
               ('Pending Salary', _currency.format(d.pendingSalary)),
@@ -651,14 +758,19 @@ class _CompensationSection extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ManaText.raw(r.$1, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                      ManaText.raw(r.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      ManaText.raw(r.$1,
+                          style: const TextStyle(
+                              fontSize: 13, color: ManaColors.textSecondary)),
+                      ManaText.raw(r.$2,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 )),
             if (d.salaryHistory.isNotEmpty) ...[
               const SizedBox(height: ManaSpacing.sm),
-              const ManaText.raw('Salary History', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              const ManaText.raw('Salary History',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.xs),
               ...d.salaryHistory.take(6).map((h) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -666,8 +778,10 @@ class _CompensationSection extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ManaText.raw(h.cycleLabel,
-                            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                        ManaText.raw(_currency.format(h.amount), style: const TextStyle(fontSize: 16)),
+                            style: const TextStyle(
+                                fontSize: 13, color: ManaColors.textSecondary)),
+                        ManaText.raw(_currency.format(h.amount),
+                            style: const TextStyle(fontSize: 16)),
                       ],
                     ),
                   )),
@@ -683,7 +797,8 @@ class _QuickActions extends StatelessWidget {
   final Set<String> visible;
   final String businessId;
   final String agentId;
-  const _QuickActions({required this.visible, required this.businessId, required this.agentId});
+  const _QuickActions(
+      {required this.visible, required this.businessId, required this.agentId});
 
   // Hidden modules remain fully absent — not shown greyed-out — per
   // OW-001's Quick Actions pattern that this screen mirrors.
@@ -708,7 +823,8 @@ class _QuickActions extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('quick actions', style: TextStyle(fontWeight: FontWeight.bold)),
+            const ManaText('quick actions',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             GridView.count(
               crossAxisCount: 3,
@@ -725,7 +841,9 @@ class _QuickActions extends StatelessWidget {
                           switch (a.$1) {
                             case 'Collection Mode':
                               Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => AgentCollectionModeScreen(businessId: businessId)),
+                                MaterialPageRoute(
+                                    builder: (_) => AgentCollectionModeScreen(
+                                        businessId: businessId)),
                               );
                               break;
                             case 'Area Work Session':
@@ -776,8 +894,10 @@ class _QuickActions extends StatelessWidget {
                                     return OwnerSettlementScreen(
                                       businessId: businessId,
                                       agentId: agentId,
-                                      periodStart: DateTime(now.year, now.month, now.day),
-                                      periodEnd: DateTime(now.year, now.month, now.day, 23, 59, 59),
+                                      periodStart: DateTime(
+                                          now.year, now.month, now.day),
+                                      periodEnd: DateTime(now.year, now.month,
+                                          now.day, 23, 59, 59),
                                     );
                                   },
                                 ),
@@ -786,7 +906,8 @@ class _QuickActions extends StatelessWidget {
                             case 'Notifications':
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => Ag008NotificationsScreen(agentId: agentId, businessId: businessId),
+                                  builder: (_) => Ag008NotificationsScreen(
+                                      agentId: agentId, businessId: businessId),
                                 ),
                               );
                               break;
@@ -826,7 +947,8 @@ class _QuickActionTile extends StatelessWidget {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
-  const _QuickActionTile({required this.label, required this.icon, required this.onTap});
+  const _QuickActionTile(
+      {required this.label, required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -844,7 +966,9 @@ class _QuickActionTile extends StatelessWidget {
           children: [
             Icon(icon, color: ManaColors.ink),
             const SizedBox(height: ManaSpacing.xs),
-            ManaText(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13)),
+            ManaText(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13)),
           ],
         ),
       ),
@@ -864,19 +988,25 @@ class _LiveActivity extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('live activity', style: TextStyle(fontWeight: FontWeight.bold)),
+            const ManaText('live activity',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
-              const ManaText.raw('Nothing yet today.', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))
+              const ManaText.raw('Nothing yet today.',
+                  style:
+                      TextStyle(fontSize: 13, color: ManaColors.textSecondary))
             else
               ...entries.take(10).map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
                     child: Row(
                       children: [
                         ManaText.raw(_time.format(e.at),
-                            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                            style: const TextStyle(
+                                fontSize: 13, color: ManaColors.textSecondary)),
                         const SizedBox(width: ManaSpacing.sm),
-                        Expanded(child: ManaText.raw(e.description, style: const TextStyle(fontSize: 13))),
+                        Expanded(
+                            child: ManaText.raw(e.description,
+                                style: const TextStyle(fontSize: 13))),
                       ],
                     ),
                   )),

@@ -111,8 +111,8 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
     super.dispose();
   }
 
-  double? get _requestedAmount =>
-      double.tryParse(_amountController.text.trim());
+  int? get _requestedAmount =>
+      int.tryParse(_amountController.text.trim());
 
   bool get _canSubmit {
     if (widget.disabled) return false;

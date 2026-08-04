@@ -175,7 +175,7 @@ class _CashVerificationState extends ConsumerState<_CashVerification> {
   final _bank = TextEditingController(text: '0');
   final _cheque = TextEditingController(text: '0');
 
-  double _parse(String s) => double.tryParse(s.trim()) ?? 0;
+  int _parse(String s) => int.tryParse(s.trim()) ?? 0;
 
   void _onChanged() {
     ref.read(dayClosureProvider.notifier).setActualFigures(
@@ -256,7 +256,7 @@ class _AmountField extends StatelessWidget {
 
 class _ExpectedRow extends StatelessWidget {
   final String label;
-  final double value;
+  final int value;
   const _ExpectedRow({required this.label, required this.value});
 
   @override
@@ -397,7 +397,7 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
 
 class _AdjustmentInput {
   final String type;
-  final double amount;
+  final int amount;
   final String appliedTo;
   final String? targetCustomerId;
   final String? note;
@@ -433,7 +433,7 @@ class _RecordAdjustmentDialogState extends State<_RecordAdjustmentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final amount = double.tryParse(_amount.text.trim()) ?? 0;
+    final amount = int.tryParse(_amount.text.trim()) ?? 0;
     final needsCustomer = _appliedTo == 'Customer Pending Settlement';
     final valid = amount > 0 &&
         (!needsCustomer || _targetCustomerId.text.trim().isNotEmpty);
@@ -580,7 +580,7 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
           _SummaryRow(label: 'Collections', value: expected.expectedCash),
         _SummaryRow(
             label: 'Adjustments',
-            value: state.recordedAdjustments.fold(0.0, (a, b) => a + b.amount)),
+            value: state.recordedAdjustments.fold(0, (a, b) => a + b.amount)),
         const Divider(),
         _SummaryRow(
             label: 'Closing Balance', value: state.actualTotal, bold: true),
@@ -615,7 +615,7 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
 
 class _SummaryRow extends StatelessWidget {
   final String label;
-  final double value;
+  final int value;
   final bool bold;
   const _SummaryRow(
       {required this.label, required this.value, this.bold = false});

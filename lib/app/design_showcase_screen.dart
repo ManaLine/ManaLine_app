@@ -32,7 +32,6 @@ class _DesignShowcaseScreenState extends State<DesignShowcaseScreen> {
             padding: const EdgeInsets.only(right: ManaSpacing.md),
             child: ManaLanguageSelector(
               current: _lang,
-              compact: true,
               onChanged: (l) => setState(() => _lang = l),
             ),
           ),

@@ -593,9 +593,9 @@ class AgentProfileNotifier extends FamilyAsyncNotifier<AgentProfile, String> {
   }
 
   Future<bool> setCompensation({
-    required double fixedSalary,
+    required int fixedSalary, // whole rupees (M8)
     required String salaryCycle,
-    double? dailyAllowance,
+    int? dailyAllowance,
     double? profitSharePercent,
     String? profitShareEffectiveDate,
   }) async {

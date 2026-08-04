@@ -6,6 +6,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/mana_time.dart';
 import '../state/collection_mode_state.dart';
 import 'package:go_router/go_router.dart';
 
@@ -67,7 +68,7 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                       ...state.sorted.map((row) => _DueRow(
                             row: row,
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: row)),
+                              MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: row, businessId: widget.businessId)),
                             ),
                           )),
                   ],
@@ -159,7 +160,8 @@ enum _EntryAction { none, collect, noCollection, extension }
 
 class CollectionEntryScreen extends ConsumerStatefulWidget {
   final CollectionDueRow row;
-  const CollectionEntryScreen({super.key, required this.row});
+  final String businessId; // needed to resolve the collector's membership
+  const CollectionEntryScreen({super.key, required this.row, required this.businessId});
 
   @override
   ConsumerState<CollectionEntryScreen> createState() => _CollectionEntryScreenState();
@@ -209,7 +211,8 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
                 child: const ManaText('request extension'),
               ),
             ],
-            if (_action == _EntryAction.collect) _EnterCollectionForm(row: row, onCancel: () => setState(() => _action = _EntryAction.none)),
+            if (_action == _EntryAction.collect)
+              _EnterCollectionForm(row: row, businessId: widget.businessId, onCancel: () => setState(() => _action = _EntryAction.none)),
             if (_action == _EntryAction.noCollection)
               _NoCollectionForm(row: row, onCancel: () => setState(() => _action = _EntryAction.none)),
             if (_action == _EntryAction.extension)
@@ -235,8 +238,9 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
 
 class _EnterCollectionForm extends ConsumerStatefulWidget {
   final CollectionDueRow row;
+  final String businessId;
   final VoidCallback onCancel;
-  const _EnterCollectionForm({required this.row, required this.onCancel});
+  const _EnterCollectionForm({required this.row, required this.businessId, required this.onCancel});
 
   @override
   ConsumerState<_EnterCollectionForm> createState() => _EnterCollectionFormState();
@@ -250,9 +254,13 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
   final _upiAmount = TextEditingController();
   String? _excessDisposition;
   bool _submitting = false;
+  // Becomes true after the user taps "Continue" on the duplicate warning,
+  // so the retry tells the server to record the payment anyway.
+  bool _confirmDuplicate = false;
 
-  double get _collected => double.tryParse(_amount.text) ?? 0;
-  double get _splitSum => (double.tryParse(_cashAmount.text) ?? 0) + (double.tryParse(_upiAmount.text) ?? 0);
+  // Whole rupees (M8) — money is never a double in this app.
+  int get _collected => int.tryParse(_amount.text) ?? 0;
+  int get _splitSum => (int.tryParse(_cashAmount.text) ?? 0) + (int.tryParse(_upiAmount.text) ?? 0);
 
   String get _resultType {
     if (_collected == widget.row.installmentDue) return 'Full';
@@ -262,7 +270,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
 
   bool get _canSubmit {
     if (_collected <= 0) return false;
-    if (_mixed && (_splitSum - _collected).abs() > 0.01) return false;
+    if (_mixed && (_splitSum - _collected) != 0) return false;
     if (_resultType == 'Excess' && _excessDisposition == null) return false;
     return true;
   }
@@ -271,27 +279,66 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
     setState(() => _submitting = true);
     final splits = _mixed
         ? [
-            PaymentSplit(paymentMode: 'Cash', amount: double.tryParse(_cashAmount.text) ?? 0),
-            PaymentSplit(paymentMode: 'UPI', amount: double.tryParse(_upiAmount.text) ?? 0),
+            PaymentSplit(paymentMode: 'Cash', amount: int.tryParse(_cashAmount.text) ?? 0),
+            PaymentSplit(paymentMode: 'UPI', amount: int.tryParse(_upiAmount.text) ?? 0),
           ]
         : [PaymentSplit(paymentMode: 'Cash', amount: _collected)];
 
-    final result = await NetworkErrorHandler.run(context, () async {
-      final r = await ref.read(collectionModeProvider.notifier).recordCollection(
+    final outcome = await NetworkErrorHandler.run(context, () async {
+      final o = await ref.read(collectionModeProvider.notifier).recordCollection(
             loanId: widget.row.loanId,
+            customerId: widget.row.customerId,
             collectedAmount: _collected,
             payerType: _payerType,
             paymentSplits: splits,
+            businessDate: manaBusinessDate(),
+            businessId: widget.businessId,
             excessDisposition: _excessDisposition,
+            confirmDuplicate: _confirmDuplicate,
           );
-      if (r == null) throw Exception('Collection could not be saved.');
-      return r;
+      if (o == null) throw Exception('Collection could not be saved.');
+      return o;
     });
     if (!mounted) return;
     setState(() => _submitting = false);
-    if (result == null) return;
+    if (outcome == null) return;
+
+    // Another member already collected this loan today — warn and ask.
+    if (outcome.duplicateWarning) {
+      await _showDuplicateDialog(outcome.existing);
+      return;
+    }
     if (!mounted) return;
-    _showReceiptAndNavigate(result);
+    _showReceiptAndNavigate(outcome.saved!);
+  }
+
+  /// Warns that this loan already has a payment recorded today by someone
+  /// else. "Close" aborts; "Continue" re-saves with the confirmation flag.
+  Future<void> _showDuplicateDialog(List<Map<String, dynamic>> existing) async {
+    final first = existing.isNotEmpty ? existing.first : const <String, dynamic>{};
+    final amount = (first['collected_amount'] as num?)?.toDouble() ?? 0;
+    final by = first['recorded_by'] as String? ?? 'another agent';
+    final action = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const ManaText('already collected today'),
+        content: ManaText.raw(
+          'This loan already has a payment recorded today by $by '
+          '(${_currency.format(amount)}). Record this payment anyway?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('close')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const ManaText('continue')),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (action == true) {
+      setState(() => _confirmDuplicate = true);
+      await _submit(); // retry — this time the server records it
+    } else {
+      setState(() => _confirmDuplicate = false); // close — nothing recorded
+    }
   }
 
   void _showReceiptAndNavigate(CollectionResult result) {
@@ -367,7 +414,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           ManaText.raw('Split sum: ${_currency.format(_splitSum)} (must equal collected amount)',
               style: TextStyle(
                 fontSize: 16,
-                color: (_splitSum - _collected).abs() > 0.01 ? ManaColors.statusBad : ManaColors.statusGood,
+                color: (_splitSum - _collected) != 0 ? ManaColors.statusBad : ManaColors.statusGood,
               )),
         ],
         if (_collected > 0)

@@ -41,7 +41,7 @@ class LoanRequestApiService {
       return LoanTemplateSummary(
         templateId: r['template_id'] as String,
         templateName: r['template_name'] as String,
-        defaultAmount: (r['default_amount'] as num).toDouble(),
+        defaultAmount: (r['default_amount'] as num).toInt(),
         durationValue: r['duration_value'] as int,
         repaymentFrequency: r['repayment_frequency'] as String,
       );
@@ -76,7 +76,7 @@ class LoanRequestApiService {
   Future<LoanRequestResult> submitRequest({
     required String businessId,
     String? templateId,
-    required double requestedAmount,
+    required int requestedAmount, // whole rupees (M8)
     String? purposeRemark,
     String? preferredFrequency,
   }) async {
@@ -132,7 +132,7 @@ class LoanRequestApiService {
     return LoanRequestResult(
       requestId: row['request_id'] as String,
       status: row['status'] as String,
-      requestedAmount: (row['requested_amount'] as num).toDouble(),
+      requestedAmount: (row['requested_amount'] as num).toInt(),
       purposeRemark: row['purpose_remark'] as String?,
       preferredFrequency: row['preferred_frequency'] as String?,
       resultingLoanId: row['resulting_loan_id'] as String?,
@@ -157,7 +157,7 @@ final loanRequestApiServiceProvider = Provider<LoanRequestApiService>((ref) {
 class LoanTemplateSummary {
   final String templateId;
   final String templateName;
-  final double defaultAmount;
+  final int defaultAmount;
   final int durationValue;
   final String repaymentFrequency; // Daily | Weekly | Monthly
 
@@ -176,7 +176,7 @@ class LoanTemplateSummary {
 class LoanRequestResult {
   final String requestId;
   final String status; // Pending | Approved | Rejected
-  final double requestedAmount;
+  final int requestedAmount;
   final String? purposeRemark;
   final String? preferredFrequency;
   final String? resultingLoanId;
@@ -250,7 +250,7 @@ class LoanRequestState {
   });
 
   bool get canSubmit {
-    final amount = double.tryParse(requestedAmountText);
+    final amount = int.tryParse(requestedAmountText);
     return amount != null && amount > 0;
   }
 
@@ -356,7 +356,7 @@ class LoanRequestNotifier extends Notifier<LoanRequestState> {
     state = state.copyWith(
       selectedTemplate: template,
       requestingCustomAmount: false,
-      requestedAmountText: template.defaultAmount.toStringAsFixed(0),
+      requestedAmountText: '${template.defaultAmount}',
       preferredFrequency: template.repaymentFrequency,
       phase: LoanRequestPhase.requestDetails,
     );
@@ -388,7 +388,7 @@ class LoanRequestNotifier extends Notifier<LoanRequestState> {
       final result = await api.submitRequest(
         businessId: businessId,
         templateId: state.selectedTemplate?.templateId,
-        requestedAmount: double.parse(state.requestedAmountText),
+        requestedAmount: int.parse(state.requestedAmountText),
         purposeRemark: state.purposeRemark.trim().isEmpty ? null : state.purposeRemark.trim(),
         preferredFrequency: state.requestingCustomAmount ? state.preferredFrequency : null,
       );

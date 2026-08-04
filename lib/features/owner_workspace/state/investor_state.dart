@@ -51,7 +51,7 @@ class InvestorApiService {
       final person = r['persons'] as Map<String, dynamic>;
       final investments = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
       final balance =
-          investments.fold<double>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toDouble() ?? 0));
+          investments.fold<int>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toInt() ?? 0));
       final roi = investments.isEmpty ? 0.0 : (investments.first['roi_rate'] as num).toDouble();
       return InvestorSummary(
         investorId: r['investor_id'] as String,
@@ -60,7 +60,7 @@ class InvestorApiService {
         phoneNumber: person['mobile_number'] as String? ?? '',
         investmentBalance: balance,
         roi: roi,
-        interestDue: investments.fold<double>(
+        interestDue: investments.fold<int>(
             0, (sum, i) => sum + (accruedById[i['investment_id'] as String] ?? 0)),
         membershipStatus: (r['business_members'] as Map<String, dynamic>)['membership_status'] as String,
         lastTransaction: null,
@@ -69,15 +69,15 @@ class InvestorApiService {
   }
 
   /// accrued_interest per investment id, via the calculation engine.
-  Future<Map<String, double>> _accruedFor(List<String> investmentIds) async {
+  Future<Map<String, int>> _accruedFor(List<String> investmentIds) async {
     if (investmentIds.isEmpty) return {};
     final results = await Future.wait(investmentIds.map((id) async {
       final rows =
           await _db.schema('app').rpc('investment_interest_snapshot', params: {'p_investment_id': id});
       final list = (rows as List?) ?? const [];
-      if (list.isEmpty) return MapEntry(id, 0.0);
+      if (list.isEmpty) return MapEntry(id, 0);
       return MapEntry(
-          id, ((list.first as Map<String, dynamic>)['accrued_interest'] as num?)?.toDouble() ?? 0);
+          id, ((list.first as Map<String, dynamic>)['accrued_interest'] as num?)?.toInt() ?? 0);
     }));
     return Map.fromEntries(results);
   }
@@ -180,7 +180,7 @@ class InvestorApiService {
 
     final person = row['persons'] as Map<String, dynamic>;
     final investments = ((row['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
-    final balance = investments.fold<double>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toDouble() ?? 0));
+    final balance = investments.fold<int>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toInt() ?? 0));
 
     return InvestorProfile(
       summary: InvestorSummary(
@@ -237,18 +237,18 @@ class InvestorApiService {
           // The snapshot's principal is authoritative: it includes any
           // compounding that is due but not yet materialised, which the
           // stored column does not.
-          principalAmount: (snapshots[index]?['principal'] as num?)?.toDouble() ??
-              (i['principal_amount'] as num).toDouble(),
+          principalAmount: (snapshots[index]?['principal'] as num?)?.toInt() ??
+              (i['principal_amount'] as num).toInt(),
           roiRate: (i['roi_rate'] as num).toDouble(),
           interestMethod: i['interest_type'] as String,
           effectiveDate: DateTime.parse(i['effective_date'] as String),
-          interestAccrued: (snapshots[index]?['accrued_interest'] as num?)?.toDouble() ?? 0,
-          interestPaid: (snapshots[index]?['interest_paid_to_date'] as num?)?.toDouble() ?? 0,
-          originalPrincipal: (snapshots[index]?['original_principal'] as num?)?.toDouble() ??
-              (i['original_principal_amount'] as num?)?.toDouble() ??
-              (i['principal_amount'] as num).toDouble(),
+          interestAccrued: (snapshots[index]?['accrued_interest'] as num?)?.toInt() ?? 0,
+          interestPaid: (snapshots[index]?['interest_paid_to_date'] as num?)?.toInt() ?? 0,
+          originalPrincipal: (snapshots[index]?['original_principal'] as num?)?.toInt() ??
+              (i['original_principal_amount'] as num?)?.toInt() ??
+              (i['principal_amount'] as num).toInt(),
           totalInterestEarned:
-              (snapshots[index]?['total_interest_earned'] as num?)?.toDouble() ?? 0,
+              (snapshots[index]?['total_interest_earned'] as num?)?.toInt() ?? 0,
           status: i['status'] as String,
           profitSharePercent: (i['profit_share_percent'] as num?)?.toDouble(),
         ),
@@ -268,7 +268,7 @@ class InvestorApiService {
   /// rather than paying the same interest twice.
   Future<void> recordInterestPayment({
     required String investmentId,
-    required double amount,
+    required int amount, // whole rupees (M8)
     String? remarks,
   }) async {
     await _db.schema('app').rpc('record_investment_interest_payment', params: {
@@ -284,7 +284,7 @@ class InvestorApiService {
   /// this method.
   Future<void> recordInvestment({
     required String investorId,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required double roiRate,
     required String interestMethod,
     required String effectiveDate,
@@ -318,7 +318,7 @@ class InvestorApiService {
   /// mistake, not a change of terms.
   Future<void> editInvestment({
     required String investmentId,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required double roiRate,
     required String interestMethod,
     required String effectiveDate,
@@ -351,7 +351,7 @@ class InvestorApiService {
 
   Future<void> requestWithdrawal({
     required String investmentId,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required String withdrawalType,
   }) async {
     final personId = ref.read(authFlowProvider).personId;
@@ -379,8 +379,8 @@ class InvestorApiService {
     return (rows as List)
         .map((r) => ProfitShareDeclaration(
               declarationId: r['declaration_id'] as String,
-              totalProfitAmount: (r['total_profit_amount'] as num).toDouble(),
-              declaredAmount: (r['declared_amount'] as num).toDouble(),
+              totalProfitAmount: (r['total_profit_amount'] as num).toInt(),
+              declaredAmount: (r['declared_amount'] as num).toInt(),
               businessDate: DateTime.parse(r['business_date'] as String),
               status: r['status'] as String,
               remarks: r['remarks'] as String?,
@@ -390,7 +390,7 @@ class InvestorApiService {
 
   Future<void> declareProfitShare({
     required String investmentId,
-    required double totalProfitAmount,
+    required int totalProfitAmount, // whole rupees (M8)
     String? remarks,
   }) async {
     final investment = await _db.from('investments').select('business_id, profit_share_percent').eq('investment_id', investmentId).single();
@@ -451,7 +451,7 @@ class InvestorApiService {
         investorName: titleCaseName(person['full_name'] as String? ?? ''),
         investorMlid: person['mlid'] as String? ?? '',
         withdrawalType: r['withdrawal_type'] as String,
-        requestedAmount: (r['requested_amount'] as num).toDouble(),
+        requestedAmount: (r['requested_amount'] as num).toInt(),
         remarks: r['remarks'] as String?,
         createdAt: DateTime.parse(r['created_at'] as String),
       );
@@ -477,9 +477,9 @@ class InvestorApiService {
     required String requestId,
     required String investmentId,
     required String withdrawalType,
-    required double amount,
-    required double principalPortion,
-    required double interestPortion,
+    required int amount, // whole rupees (M8)
+    required int principalPortion,
+    required int interestPortion,
   }) async {
     final personId = ref.read(authFlowProvider).personId;
     if (personId == null) throw StateError('No logged-in person_id available.');
@@ -516,8 +516,8 @@ class InvestorApiService {
 
 class ProfitShareDeclaration {
   final String declarationId;
-  final double totalProfitAmount;
-  final double declaredAmount;
+  final int totalProfitAmount;
+  final int declaredAmount;
   final DateTime businessDate;
   final String status; // Declared | Paid
   final String? remarks;
@@ -537,7 +537,7 @@ class WithdrawalRequestSummary {
   final String investorName;
   final String investorMlid;
   final String withdrawalType;
-  final double requestedAmount;
+  final int requestedAmount;
   final String? remarks;
   final DateTime createdAt;
   WithdrawalRequestSummary({
@@ -558,9 +558,9 @@ class InvestorSummary {
   final String fullName;
   final String mlid;
   final String phoneNumber;
-  final double investmentBalance;
-  final double roi;
-  final double interestDue;
+  final int investmentBalance;
+  final double roi; // rate — not money
+  final int interestDue;
   final String membershipStatus; // Pending Invitation | Pending Acceptance | Active | Temporarily Disabled | Suspended | Removed
   final DateTime? lastTransaction;
 
@@ -580,7 +580,7 @@ class InvestorSummary {
 
 class InvestmentRecord {
   final String investmentId;
-  final double principalAmount;
+  final int principalAmount;
   final double roiRate;
   final String interestMethod;
   final DateTime effectiveDate;
@@ -589,16 +589,16 @@ class InvestmentRecord {
   /// principal (Appendix A Case B / BR-052). For Simple it is cumulative
   /// since the last payment. This is the figure an "Interest Only"
   /// withdrawal is capped at.
-  final double interestAccrued;
-  final double interestPaid;
+  final int interestAccrued;
+  final int interestPaid;
   /// The Agreement Snapshot amount (BR-034) — what was originally put in,
   /// before any compounding grew `principalAmount`.
-  final double originalPrincipal;
+  final int originalPrincipal;
   /// Everything this investment has earned since inception: compounded
   /// into principal, plus accrued now, plus already paid out. REPORTING
   /// ONLY — never a withdrawal cap, since the compounded part is
   /// withdrawable as principal rather than as interest.
-  final double totalInterestEarned;
+  final int totalInterestEarned;
   final String status; // Active | Closed
   final double? profitSharePercent;
 
@@ -784,7 +784,7 @@ class InvestorProfileNotifier extends FamilyAsyncNotifier<InvestorProfile, Strin
 
   Future<bool> editInvestment({
     required String investmentId,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required double roiRate,
     required String interestMethod,
     required String effectiveDate,
@@ -807,7 +807,7 @@ class InvestorProfileNotifier extends FamilyAsyncNotifier<InvestorProfile, Strin
   }
 
   Future<bool> recordInvestment({
-    required double amount,
+    required int amount, // whole rupees (M8)
     required double roiRate,
     required String interestMethod,
     required String effectiveDate,
@@ -834,7 +834,7 @@ class InvestorProfileNotifier extends FamilyAsyncNotifier<InvestorProfile, Strin
 
   Future<bool> requestWithdrawal({
     required String investmentId,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required String withdrawalType,
   }) async {
     try {

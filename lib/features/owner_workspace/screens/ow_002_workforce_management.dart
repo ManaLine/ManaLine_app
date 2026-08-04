@@ -701,6 +701,7 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
     },
     'money & records': {
       'can_record_expenses': 'Can Record Expenses',
+      'can_record_cheti': 'Can Record Cheti Instalments',
       'can_transfer_collections': 'Can Transfer Cash to Another Agent',
       'can_create_drafts': 'Can Create Drafts',
       'can_edit_own_drafts': 'Can Edit Own Drafts',
@@ -835,15 +836,15 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
   String _cycle = 'Monthly';
 
   Future<void> _save() async {
-    final salary = double.tryParse(_salary.text.trim());
+    final salary = int.tryParse(_salary.text.trim());
     if (salary == null) return;
     await NetworkErrorHandler.run(context, () async {
       return ref
           .read(agentProfileProvider(widget.agentId).notifier)
           .setCompensation(
-            fixedSalary: salary,
+            fixedSalary: salary, // whole rupees (M8)
             salaryCycle: _cycle,
-            dailyAllowance: double.tryParse(_allowance.text.trim()),
+            dailyAllowance: int.tryParse(_allowance.text.trim()),
             profitSharePercent: double.tryParse(_profitShare.text.trim()),
           );
     });
@@ -1033,7 +1034,7 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
       await ref.read(ownerApiServiceProvider).declareAgentProfitShare(
             businessId: widget.businessId,
             agentId: widget.agentId,
-            amount: double.parse(amount.text.trim()),
+            amount: int.parse(amount.text.trim()), // whole rupees (M8)
             profitSharePercent: widget.profile.currentCompensation?.profitSharePercent ?? 0,
             remarks: remarks.text.trim().isEmpty ? null : remarks.text.trim(),
           );

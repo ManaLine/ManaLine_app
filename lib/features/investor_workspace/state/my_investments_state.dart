@@ -73,16 +73,16 @@ class MyInvestmentsApiService {
           investmentId: r['investment_id'] as String,
           // Snapshot principal includes compounding that is due but not
           // yet materialised; the stored column does not.
-          principalAmount: (snapshots[index]?['principal'] as num?)?.toDouble() ??
-              (r['principal_amount'] as num).toDouble(),
+          principalAmount: (snapshots[index]?['principal'] as num?)?.toInt() ??
+              (r['principal_amount'] as num).toInt(),
           roiRate: (r['roi_rate'] as num).toDouble(),
           interestMethod: r['interest_type'] as String,
           effectiveDate: DateTime.parse(r['effective_date'] as String),
-          interestAccrued: (snapshots[index]?['accrued_interest'] as num?)?.toDouble() ?? 0,
-          interestPaid: (snapshots[index]?['interest_paid_to_date'] as num?)?.toDouble() ?? 0,
-          originalPrincipal: (r['original_principal_amount'] as num).toDouble(),
+          interestAccrued: (snapshots[index]?['accrued_interest'] as num?)?.toInt() ?? 0,
+          interestPaid: (snapshots[index]?['interest_paid_to_date'] as num?)?.toInt() ?? 0,
+          originalPrincipal: (r['original_principal_amount'] as num).toInt(),
           totalInterestEarned:
-              (snapshots[index]?['total_interest_earned'] as num?)?.toDouble() ?? 0,
+              (snapshots[index]?['total_interest_earned'] as num?)?.toInt() ?? 0,
           status: r['status'] as String,
         ),
     ];
@@ -97,7 +97,7 @@ class MyInvestmentsApiService {
         .single();
 
     final agreementSnapshot = AgreementSnapshot(
-      originalPrincipalAmount: (row['original_principal_amount'] as num).toDouble(),
+      originalPrincipalAmount: (row['original_principal_amount'] as num).toInt(),
       roiRate: (row['roi_rate'] as num).toDouble(),
       interestType: row['interest_type'] as String,
       effectiveDate: DateTime.parse(row['effective_date'] as String),
@@ -113,7 +113,7 @@ class MyInvestmentsApiService {
     final interestLedger = (ledgerRows as List).cast<Map<String, dynamic>>().map((r) {
       return InterestLedgerEntry(
         entryType: r['entry_type'] as String,
-        amount: (r['amount'] as num).toDouble(),
+        amount: (r['amount'] as num).toInt(),
         businessDate: DateTime.parse(r['business_date'] as String),
         ownerVerified: r['owner_verified'] as bool? ?? false,
         remarks: r['remarks'] as String?,
@@ -143,7 +143,7 @@ class MyInvestmentsApiService {
       }
       withdrawalHistory.add(InvestmentWithdrawalHistoryEntry(
         withdrawalType: r['withdrawal_type'] as String,
-        amount: (r['amount'] as num).toDouble(),
+        amount: (r['amount'] as num).toInt(),
         businessDate: DateTime.parse(r['business_date'] as String),
         approvedBy: approvedBy,
         remarks: r['remarks'] as String?,
@@ -165,15 +165,15 @@ class MyInvestmentsApiService {
       final payments = ((r['distribution_payments'] as List?) ?? const []).cast<Map<String, dynamic>>();
       final payment = payments.isNotEmpty ? payments.first : null;
       return DistributionHistoryEntry(
-        declaredAmount: (r['declared_amount'] as num).toDouble(),
+        declaredAmount: (r['declared_amount'] as num).toInt(),
         declaredStatus: r['status'] as String,
         declaredDate: DateTime.parse(r['business_date'] as String),
-        paidAmount: payment != null ? (payment['paid_amount'] as num).toDouble() : null,
+        paidAmount: payment != null ? (payment['paid_amount'] as num).toInt() : null,
         paidDate: payment != null ? DateTime.parse(payment['business_date'] as String) : null,
         // interest_amount on distribution_payments is manually Owner-
         // entered (Rule #059), never system-computed — surfaced as-is,
         // defaults to 0 per that column's own DB DEFAULT.
-        paidInterestAmount: payment != null ? (payment['interest_amount'] as num).toDouble() : null,
+        paidInterestAmount: payment != null ? (payment['interest_amount'] as num).toInt() : null,
       );
     }).toList();
 
@@ -214,19 +214,19 @@ final myInvestmentsApiServiceProvider = Provider<MyInvestmentsApiService>((ref) 
 
 class InvestorInvestmentSummary {
   final String investmentId;
-  final double principalAmount;
+  final int principalAmount;
   final double roiRate;
   final String interestMethod; // Simple | Yearly Compound
   final DateTime effectiveDate;
   /// CURRENT PERIOD only for Yearly Compound — resets at each anniversary
   /// because the prior year became principal (BR-052). Cumulative since
   /// the last payment for Simple.
-  final double interestAccrued; // system-calculated daily, BR-032/BR-055
-  final double interestPaid;
-  final double originalPrincipal;
+  final int interestAccrued; // system-calculated daily, BR-032/BR-055
+  final int interestPaid;
+  final int originalPrincipal;
   /// Everything earned since inception — compounded + accrued + paid.
   /// Reporting only; never a withdrawal cap.
-  final double totalInterestEarned;
+  final int totalInterestEarned;
   final String status; // Active | Closed
 
   InvestorInvestmentSummary({
@@ -249,7 +249,7 @@ class InvestorInvestmentSummary {
 // never live-recalculated even if the underlying investment record
 // changes later.
 class AgreementSnapshot {
-  final double originalPrincipalAmount;
+  final int originalPrincipalAmount;
   final double roiRate;
   final String interestType;
   final DateTime effectiveDate;
@@ -264,7 +264,7 @@ class AgreementSnapshot {
 
 class InterestLedgerEntry {
   final String entryType; // Accrual Snapshot | Payment | Compounding Event
-  final double amount;
+  final int amount;
   final DateTime businessDate;
   final bool ownerVerified; // BR-055
   final String? remarks;
@@ -280,7 +280,7 @@ class InterestLedgerEntry {
 
 class InvestmentWithdrawalHistoryEntry {
   final String withdrawalType; // Interest Only | Principal Partial | Principal Full | Principal + Interest
-  final double amount;
+  final int amount;
   final DateTime businessDate;
   final String approvedBy;
   final String? remarks;
@@ -298,12 +298,12 @@ class InvestmentWithdrawalHistoryEntry {
 /// distinct, separately timestamped records (Rule #058: Profit
 /// Declaration ≠ Profit Payment). A row may exist Declared-only.
 class DistributionHistoryEntry {
-  final double declaredAmount;
+  final int declaredAmount;
   final String declaredStatus;
   final DateTime declaredDate;
-  final double? paidAmount;
+  final int? paidAmount;
   final DateTime? paidDate;
-  final double? paidInterestAmount; // interest on the unpaid gap, Rule #059, defaults ₹0, never system-calculated
+  final int? paidInterestAmount; // interest on the unpaid gap, Rule #059, defaults ₹0, never system-calculated
 
   DistributionHistoryEntry({
     required this.declaredAmount,

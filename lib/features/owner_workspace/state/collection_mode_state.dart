@@ -59,59 +59,39 @@ class CollectionApiService {
   /// sees the whole business; no extra role branching needed here, per the
   /// briefing's "RLS is a feature, not a bug to work around."
   ///
-  /// KNOWN SIMPLIFICATION (flagged, not silently cut): the locked sort
-  /// (Penalty → Grace Period → Today's Due → Village → Name) is applied
-  /// client-side in `_applyLockedSort` using `penaltyEligible`/`gracePeriod`
-  /// booleans derived below from `loan_status` alone. A precise "is an
-  /// installment due TODAY" computation requires joining `loan_schedule`
-  /// on `due_date = business's current business_date` (from
-  /// `account_periods`), which this single query does not attempt — every
-  /// loan in Active/Grace Period/Penalty status for the business is
-  /// returned instead, and `installmentDue` is the loan's flat
-  /// `installment_amount` rather than a specific schedule row's amount.
-  /// Recommend a Postgres VIEW (e.g. `v_collection_due_today`) as a
-  /// follow-up so this logic has one server-side source of truth instead of
-  /// being approximated per-client — this is exactly the kind of
-  /// multi-table derived query the briefing warns against reimplementing
-  /// ad hoc in Dart.
+  /// #18: reads the server's due list from `app.v_collection_due` — real
+  /// `total_due` (sum of Pending installments due up to today), real
+  /// `next_installment_no` (lowest Pending installment), `is_overdue`, and
+  /// `penalty_eligible` computed over `loan_schedule`, replacing the old
+  /// client-side approximations (`installmentDue` was the flat
+  /// installment_amount, `lineRepaymentIndex` was always 0). The view is
+  /// `security_invoker`, so an Agent sees exactly their areas' loans (M4)
+  /// and the Owner sees the whole business. BR-112 is preserved server-side:
+  /// a partially-paid installment still counts at full amount.
   Future<List<CollectionDueRow>> fetchDueList({required String businessId}) async {
     final rows = await _db
-        .from('loans')
-        .select('''
-          loan_id, loan_number, installment_amount, remaining_balance, loan_status,
-          customers!inner(
-            customer_id,
-            persons!inner(full_name)
-          ),
-          collection_agent_membership_id,
-          business_members!loans_collection_agent_membership_id_fkey(
-            persons!business_members_person_id_fkey(full_name)
-          )
-        ''')
-        .eq('business_id', businessId)
-        .inFilter('loan_status', ['Active', 'Grace Period', 'Penalty']);
+        .schema('app')
+        .from('v_collection_due')
+        .select('loan_id, customer_id, customer_name, village, loan_number, '
+            'total_due, remaining_balance, next_installment_no, is_overdue, '
+            'penalty_eligible, loan_status, collection_agent_name')
+        .eq('business_id', businessId);
 
     return (rows as List).map((r) {
-      final customer = r['customers'] as Map<String, dynamic>;
-      final customerPerson = customer['persons'] as Map<String, dynamic>;
-      final agentMember = r['business_members'] as Map<String, dynamic>?;
-      final agentPerson = agentMember?['persons'] as Map<String, dynamic>?;
-      final status = r['loan_status'] as String;
       return CollectionDueRow(
         loanId: r['loan_id'] as String,
-        customerName: (customerPerson['full_name'] as String?) ?? '',
-        // Village is intentionally omitted here (see KNOWN SIMPLIFICATION
-        // above) rather than guessed — no person_addresses join is
-        // attempted so this never silently shows a stale/wrong village.
-        village: '',
+        customerId: r['customer_id'] as String,
+        customerName: r['customer_name'] as String? ?? '',
+        village: r['village'] as String? ?? '',
         loanNumber: r['loan_number'] as String,
-        installmentDue: (r['installment_amount'] as num).toDouble(),
-        outstandingBalance: (r['remaining_balance'] as num).toDouble(),
-        lineRepaymentIndex: 0, // requires loan_schedule join — see KNOWN SIMPLIFICATION
-        collectionStatus: 'Pending', // per-installment status also requires loan_schedule; approximated
-        collectionAgent: (agentPerson?['full_name'] as String?) ?? '',
-        penaltyEligible: status == 'Penalty',
-        gracePeriod: status == 'Grace Period',
+        installmentDue: (r['total_due'] as num).toInt(),
+        outstandingBalance: (r['remaining_balance'] as num).toInt(),
+        lineRepaymentIndex: (r['next_installment_no'] as num?)?.toInt() ?? 1,
+        collectionStatus: 'Pending', // today's recorded outcome; the view has no collections join by design
+        collectionAgent: r['collection_agent_name'] as String? ?? '',
+        penaltyEligible: r['penalty_eligible'] as bool? ?? false,
+        gracePeriod: r['loan_status'] == 'Grace Period',
+        isOverdue: r['is_overdue'] as bool? ?? false,
       );
     }).toList();
   }
@@ -121,41 +101,53 @@ class CollectionApiService {
   /// atomically (a collection recorded without its splits, or without the
   /// balance actually moving, is a data-integrity bug a plain multi-step
   /// Postgrest call cannot safely guarantee under a dropped connection
-  /// between steps). Implemented as a single RPC call rather than 3
-  /// sequential `.insert()`s for that reason.
+  /// between steps). The `record_collection` RPC does all of it in one
+  /// database transaction, and also decides Full / Partial / Excess
+  /// server-side so the phone never recomputes that classification.
   ///
-  /// BLOCKED ON EDGE FUNCTION / RPC: `record_collection` does not exist yet
-  /// in the schema (grep of 0001-0018 confirms no CREATE FUNCTION besides
-  /// the `app.*` RLS helpers). Expected signature:
-  ///   supabase.rpc('record_collection', params: {
-  ///     'p_loan_id': loanId,
-  ///     'p_collected_amount': collectedAmount,
-  ///     'p_payer_type': payerType,
-  ///     'p_guarantor_id': guarantorId,
-  ///     'p_collected_by_membership_id': <resolved via _currentMembershipId>,
-  ///     'p_payment_splits': paymentSplits.map((s) => {'payment_mode': s.paymentMode, 'amount': s.amount}).toList(),
-  ///     'p_excess_disposition': excessDisposition,
-  ///     'p_remarks': remarks,
-  ///   })
-  /// Expected to return a row shaped like `collections` plus the computed
-  /// `result_type`/`difference_amount` (Full/Partial/Excess, per
-  /// installment_amount vs collectedAmount — BR-023/025 split-payment
-  /// logic) so this client never recomputes that classification itself.
-  Future<CollectionResult> recordCollection({
+  /// DUPLICATE GUARD: if another member already recorded a payment on this
+  /// loan TODAY, the RPC returns a `duplicate_warning` instead of saving.
+  /// The caller should show "Close / Continue" and, on Continue, call again
+  /// with confirmDuplicate: true.
+  Future<RecordCollectionOutcome> recordCollection({
     required String loanId,
-    required double collectedAmount,
+    required String customerId,
+    required int collectedAmount, // whole rupees (M8)
     required String payerType, // Customer | Guarantor
     String? guarantorId,
     required List<PaymentSplit> paymentSplits,
+    required String businessDate, // the business day this counts towards
+    required String businessId, // used to resolve the caller's own membership
     String? excessDisposition, // Advance | Refund | Next Installment
     String? remarks,
+    bool confirmDuplicate = false, // true = "Continue" after the warning
   }) async {
-    throw UnimplementedError(
-      'BLOCKED on RPC "record_collection" (not yet built — see class-level doc comment for expected '
-      'params/return shape). Needs to be a Postgres function/Edge Function for atomic '
-      'collections + collection_payment_splits + loans.remaining_balance update, per the '
-      'briefing\'s "do not reimplement multi-table financial writes as client-side Dart" instruction.',
-    );
+    final response = await _db.schema('app').rpc('record_collection', params: {
+      'p_loan_id': loanId,
+      'p_customer_id': customerId,
+      'p_collected_amount': collectedAmount,
+      'p_payer_type': payerType,
+      'p_business_date': businessDate,
+      'p_collected_by_membership_id': await _currentMembershipId(businessId),
+      'p_guarantor_id': guarantorId,
+      'p_excess_disposition': excessDisposition,
+      'p_remarks': remarks,
+      'p_splits': paymentSplits.map((s) => {'payment_mode': s.paymentMode, 'amount': s.amount}).toList(),
+      'p_confirm_duplicate': confirmDuplicate,
+    });
+
+    final map = response as Map<String, dynamic>;
+    if (map['status'] == 'duplicate_warning') {
+      final existing = (map['existing'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+      return RecordCollectionOutcome.duplicate(existing);
+    }
+    return RecordCollectionOutcome.saved(CollectionResult(
+      receiptNumber: map['receipt_number'] as String? ?? '',
+      resultType: (map['result_type'] as String?) ?? 'Full',
+      collectedAmount: (map['collected_amount'] as num?)?.toInt() ?? collectedAmount,
+      newOutstandingBalance: (map['remaining_balance'] as num?)?.toInt() ?? 0,
+      businessDate: DateTime.parse(businessDate),
+    ));
   }
 
   /// POST /no_collection_visits — a single-table insert with no derived
@@ -225,25 +217,28 @@ class CollectionApiService {
 
 class PaymentSplit {
   final String paymentMode; // Cash | UPI | Bank Transfer | Cheque
-  final double amount;
+  final int amount; // whole rupees (M8)
   PaymentSplit({required this.paymentMode, required this.amount});
 }
 
 class CollectionDueRow {
   final String loanId;
+  final String customerId;
   final String customerName;
   final String village;
   final String loanNumber;
-  final double installmentDue;
-  final double outstandingBalance;
+  final int installmentDue;
+  final int outstandingBalance;
   final int lineRepaymentIndex;
   final String collectionStatus; // Pending | Collected | Partial | Skipped | Closed
   final String collectionAgent;
   final bool penaltyEligible;
   final bool gracePeriod;
+  final bool isOverdue;
 
   CollectionDueRow({
     required this.loanId,
+    required this.customerId,
     required this.customerName,
     required this.village,
     required this.loanNumber,
@@ -254,16 +249,16 @@ class CollectionDueRow {
     required this.collectionAgent,
     this.penaltyEligible = false,
     this.gracePeriod = false,
+    this.isOverdue = false,
   });
 }
 
 class CollectionResult {
   final String receiptNumber;
   final String resultType; // Full | Partial | Excess
-  final double collectedAmount;
-  final double newOutstandingBalance;
+  final int collectedAmount;
+  final int newOutstandingBalance;
   final DateTime businessDate;
-  final DateTime entryTimestamp;
 
   CollectionResult({
     required this.receiptNumber,
@@ -271,8 +266,26 @@ class CollectionResult {
     required this.collectedAmount,
     required this.newOutstandingBalance,
     required this.businessDate,
-    required this.entryTimestamp,
   });
+}
+
+/// Result of trying to save a collection. Either it was saved, or the
+/// server refused with a duplicate warning because another member already
+/// recorded a payment on this loan today (details in [existing]).
+class RecordCollectionOutcome {
+  final CollectionResult? saved;
+  final bool duplicateWarning;
+  final List<Map<String, dynamic>> existing;
+
+  RecordCollectionOutcome.saved(CollectionResult result)
+      : saved = result,
+        duplicateWarning = false,
+        existing = const [];
+
+  RecordCollectionOutcome.duplicate(List<Map<String, dynamic>> existingEntries)
+      : saved = null,
+        duplicateWarning = true,
+        existing = existingEntries;
 }
 
 final collectionApiServiceProvider = Provider<CollectionApiService>((ref) {
@@ -299,7 +312,7 @@ class CollectionModeState {
   final List<CollectionDueRow> dueList;
   final bool loading;
   final String? error;
-  final double liveCollectionAmount;
+  final int liveCollectionAmount; // whole rupees (M8)
 
   const CollectionModeState({
     this.dueList = const [],
@@ -321,7 +334,7 @@ class CollectionModeState {
     bool? loading,
     String? error,
     bool clearError = false,
-    double? liveCollectionAmount,
+    int? liveCollectionAmount,
   }) {
     return CollectionModeState(
       dueList: dueList ?? this.dueList,
@@ -347,28 +360,40 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
     }
   }
 
-  Future<CollectionResult?> recordCollection({
+  Future<RecordCollectionOutcome?> recordCollection({
     required String loanId,
-    required double collectedAmount,
+    required String customerId,
+    required int collectedAmount, // whole rupees (M8)
     required String payerType,
     String? guarantorId,
     required List<PaymentSplit> paymentSplits,
+    required String businessDate,
+    required String businessId,
     String? excessDisposition,
     String? remarks,
+    bool confirmDuplicate = false,
   }) async {
     try {
       final api = ref.read(collectionApiServiceProvider);
-      final result = await api.recordCollection(
+      final outcome = await api.recordCollection(
         loanId: loanId,
+        customerId: customerId,
         collectedAmount: collectedAmount,
         payerType: payerType,
         guarantorId: guarantorId,
         paymentSplits: paymentSplits,
+        businessDate: businessDate,
+        businessId: businessId,
         excessDisposition: excessDisposition,
         remarks: remarks,
+        confirmDuplicate: confirmDuplicate,
       );
-      state = state.copyWith(liveCollectionAmount: state.liveCollectionAmount + collectedAmount);
-      return result;
+      // Count the money only when it was actually saved (a duplicate
+      // warning means nothing was recorded).
+      if (outcome.saved != null) {
+        state = state.copyWith(liveCollectionAmount: state.liveCollectionAmount + collectedAmount);
+      }
+      return outcome;
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return null;

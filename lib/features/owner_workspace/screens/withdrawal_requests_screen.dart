@@ -105,15 +105,15 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
       ),
     );
     if (result != true || !mounted) return;
-    final principal = double.tryParse(principalController.text.trim());
-    final interest = double.tryParse(interestController.text.trim());
+    final principal = int.tryParse(principalController.text.trim());
+    final interest = int.tryParse(interestController.text.trim());
     if (principal == null || interest == null) return;
     final ok = await NetworkErrorHandler.run(context, () async {
       await ref.read(investorApiServiceProvider).approveWithdrawalRequest(
             requestId: r.requestId,
             investmentId: r.investmentId,
             withdrawalType: r.withdrawalType,
-            amount: principal + interest,
+            amount: principal + interest, // whole rupees (M8)
             principalPortion: principal,
             interestPortion: interest,
           );

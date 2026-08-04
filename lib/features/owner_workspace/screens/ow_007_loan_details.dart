@@ -411,7 +411,7 @@ class _ActionsSection extends ConsumerWidget {
       ),
     );
     if (result != true) return;
-    final amt = double.tryParse(amount.text.trim());
+    final amt = int.tryParse(amount.text.trim());
     if (amt == null || amt <= 0 || !context.mounted) return;
     // Gate the confirmation on the call actually succeeding — the RPC can
     // legitimately reject (Closed loan, missing can_apply_penalty), and
@@ -548,12 +548,12 @@ class _PenaltySection extends ConsumerWidget {
       return ref.read(loanDetailsProvider(loanId).notifier).waiveOrReducePenalty(
             penaltyEntryId: entry.penaltyEntryId,
             waive: waiveFully,
-            reducedAmount: waiveFully ? null : double.tryParse(reduced.text.trim()),
+            reducedAmount: waiveFully ? null : int.tryParse(reduced.text.trim()),
           );
     });
     if (reversed != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('₹${reversed.toStringAsFixed(0)} reversed off the outstanding balance.')),
+        SnackBar(content: Text('₹$reversed reversed off the outstanding balance.')),
       );
     }
   }

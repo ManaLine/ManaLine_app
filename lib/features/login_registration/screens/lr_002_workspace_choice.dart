@@ -4,9 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
-import '../../../shared/widgets/language_selector.dart';
 import '../../../shared/translation_service.dart';
-import '../state/auth_flow_state.dart';
+
 
 /// LR-002 — root product picker. V1 ships MLF (Mana Finance) only;
 /// MLC (Mana Chits) is visible-but-disabled to establish brand presence.
@@ -15,7 +14,6 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final lang = ref.watch(authFlowProvider).language;
     ref.watch(translationLoaderProvider); // triggers cache load, rebuilds when ready
 
     return Scaffold(
@@ -64,11 +62,6 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 onTap: () => _showComingSoon(context),
               ),
               const Spacer(),
-              ManaLanguageSelector(
-                current: lang,
-                onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
-              ),
-              const SizedBox(height: ManaSpacing.md),
             ],
           ),
         ),

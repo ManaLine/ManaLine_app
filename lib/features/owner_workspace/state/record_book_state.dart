@@ -30,14 +30,14 @@ class RecordBookApiService {
       _penaltyByDay(businessId: businessId, from: dateFrom, to: dateTo),
     ]);
     final rows = results[0] as List;
-    final penalties = results[1] as Map<String, double>;
+    final penalties = results[1] as Map<String, int>;
     return rows.map((r) => _rowFromMap(r as Map<String, dynamic>, penalties)).toList();
   }
 
   /// Recognised penalty totals keyed by ISO business date. One call for the
   /// whole range rather than per row — the RPC returns only days that
   /// actually have penalties, so absent days read as zero.
-  Future<Map<String, double>> _penaltyByDay({
+  Future<Map<String, int>> _penaltyByDay({
     required String businessId,
     DateTime? from,
     DateTime? to,
@@ -49,25 +49,25 @@ class RecordBookApiService {
     });
     return {
       for (final r in (rows as List).cast<Map<String, dynamic>>())
-        r['business_date'] as String: (r['penalty_collected'] as num).toDouble(),
+        r['business_date'] as String: (r['penalty_collected'] as num).toInt(),
     };
   }
 
-  DayLedgerRow _rowFromMap(Map<String, dynamic> r, [Map<String, double> penalties = const {}]) => DayLedgerRow(
+  DayLedgerRow _rowFromMap(Map<String, dynamic> r, [Map<String, int> penalties = const {}]) => DayLedgerRow(
         businessDate: DateTime.parse(r['business_date'] as String),
-        openingBalance: (r['opening_balance'] as num).toDouble(),
-        totalCollections: (r['total_collections'] as num).toDouble(),
-        totalLoanDistribution: (r['total_loan_distribution'] as num).toDouble(),
-        investorDeposits: (r['investor_deposits'] as num).toDouble(),
-        investorWithdrawals: (r['investor_withdrawals'] as num).toDouble(),
-        totalExpenses: (r['total_expenses'] as num).toDouble(),
+        openingBalance: (r['opening_balance'] as num).toInt(),
+        totalCollections: (r['total_collections'] as num).toInt(),
+        totalLoanDistribution: (r['total_loan_distribution'] as num).toInt(),
+        investorDeposits: (r['investor_deposits'] as num).toInt(),
+        investorWithdrawals: (r['investor_withdrawals'] as num).toInt(),
+        totalExpenses: (r['total_expenses'] as num).toInt(),
         // Default to 0 rather than a hard cast: these two columns were added
         // in migration 20260801192125, after the 4 existing ledger rows.
-        chetiPaid: (r['cheti_paid'] as num?)?.toDouble() ?? 0,
-        chetiReceived: (r['cheti_received'] as num?)?.toDouble() ?? 0,
-        shortAmount: (r['short_amount'] as num).toDouble(),
-        excessAmount: (r['excess_amount'] as num).toDouble(),
-        closingBalance: (r['closing_balance'] as num).toDouble(),
+        chetiPaid: (r['cheti_paid'] as num?)?.toInt() ?? 0,
+        chetiReceived: (r['cheti_received'] as num?)?.toInt() ?? 0,
+        shortAmount: (r['short_amount'] as num).toInt(),
+        excessAmount: (r['excess_amount'] as num).toInt(),
+        closingBalance: (r['closing_balance'] as num).toInt(),
         status: r['status'] as String,
         remarks: r['remarks'] as String?,
         penaltyCollected: penalties[r['business_date'] as String] ?? 0,
@@ -116,28 +116,28 @@ class RecordBookApiService {
     final loanRows = results[2] as List;
     final expenseRows = results[3] as List;
     final adjustmentRows = results[4] as List;
-    final penalties = results[5] as Map<String, double>;
+    final penalties = results[5] as Map<String, int>;
 
     return DayDetail(
       ledger: _rowFromMap(ledgerRow, penalties),
       collections: collectionRows.cast<Map<String, dynamic>>().map((c) => DayDetailEntry(
             id: c['collection_id'] as String,
             label: 'Collection',
-            amount: (c['collected_amount'] as num).toDouble(),
+            amount: (c['collected_amount'] as num).toInt(),
             timestamp: DateTime.parse(c['entry_timestamp'] as String),
             sourceLoanId: c['loan_id'] as String?,
           )).toList(),
       loans: loanRows.cast<Map<String, dynamic>>().map((l) => DayDetailEntry(
             id: l['loan_id'] as String,
             label: 'Loan Distribution',
-            amount: (l['repayment_amount'] as num).toDouble(),
+            amount: (l['repayment_amount'] as num).toInt(),
             timestamp: DateTime.parse(l['entry_timestamp'] as String),
             sourceLoanId: l['loan_id'] as String,
           )).toList(),
       expenses: expenseRows.cast<Map<String, dynamic>>().map((e) => DayDetailEntry(
             id: e['expense_id'] as String,
             label: e['category'] as String? ?? 'Expense',
-            amount: (e['amount'] as num).toDouble(),
+            amount: (e['amount'] as num).toInt(),
             timestamp: DateTime.parse(e['entry_timestamp'] as String),
           )).toList(),
       deposits: const [], // requires an investments query scoped to business_date — not fetched by this summary view
@@ -145,7 +145,7 @@ class RecordBookApiService {
       adjustments: adjustmentRows.cast<Map<String, dynamic>>().map((a) => DayDetailEntry(
             id: a['adjustment_id'] as String,
             label: a['adjustment_type'] as String? ?? 'Adjustment',
-            amount: (a['amount'] as num).toDouble(),
+            amount: (a['amount'] as num).toInt(),
             timestamp: DateTime.parse(a['business_date'] as String),
             isCorrection: true,
           )).toList(),
@@ -174,12 +174,12 @@ String _isoDate(DateTime d) =>
 /// 03_Database_Schema.md §8.2.
 class DayLedgerRow {
   final DateTime businessDate;
-  final double openingBalance; // BF Cash
-  final double totalCollections;
-  final double totalLoanDistribution;
-  final double investorDeposits;
-  final double investorWithdrawals;
-  final double totalExpenses;
+  final int openingBalance; // BF Cash
+  final int totalCollections;
+  final int totalLoanDistribution;
+  final int investorDeposits;
+  final int investorWithdrawals;
+  final int totalExpenses;
 
   /// Cheti instalments handed over on this business day — a BF outflow that is
   /// not a loan, an expense or an investor withdrawal, so none of the columns
@@ -191,15 +191,15 @@ class DayLedgerRow {
   /// Cheti model, shown separately beside LB. Booking it as an expense — as
   /// BR-061 originally said — would sink line profit every period and then
   /// show one phantom gain at availing.
-  final double chetiPaid;
+  final int chetiPaid;
 
   /// The lumpsum availed on this business day. A BF inflow that is neither a
   /// collection nor an investor deposit.
-  final double chetiReceived;
+  final int chetiReceived;
 
-  final double shortAmount;
-  final double excessAmount;
-  final double closingBalance;
+  final int shortAmount;
+  final int excessAmount;
+  final int closingBalance;
   final String status; // Open | Closed
   final String? remarks;
   /// Penalty income recognised on this business day — penalties on loans
@@ -216,7 +216,7 @@ class DayLedgerRow {
   /// day_ledger column: nothing in this codebase inserts day_ledger rows, so
   /// a penalty recognised on a day with no ledger row would have had nowhere
   /// to live. See migration 0055's header.
-  final double penaltyCollected;
+  final int penaltyCollected;
 
   DayLedgerRow({
     required this.businessDate,
@@ -236,7 +236,7 @@ class DayLedgerRow {
     this.penaltyCollected = 0,
   });
 
-  double get difference => excessAmount - shortAmount;
+  int get difference => excessAmount - shortAmount;
 
   bool get isClosed => status == 'Closed';
 }
@@ -279,7 +279,7 @@ class DayDetail {
 class DayDetailEntry {
   final String id;
   final String label;
-  final double amount;
+  final int amount;
   final DateTime timestamp;
   final bool isCorrection;
   final String? sourceLoanId;

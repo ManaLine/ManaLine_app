@@ -6,7 +6,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
-import '../../../shared/widgets/language_selector.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 
@@ -151,7 +150,6 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
   @override
   Widget build(BuildContext context) {
     final groups = _activeBusinessGroups();
-    final lang = ref.watch(authFlowProvider).language;
 
     if (groups.isEmpty) return _noBusinessLinked(context);
     if (groups.length == 1) {
@@ -179,10 +177,6 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                 ),
               ),
               const SizedBox(height: ManaSpacing.md),
-              ManaLanguageSelector(
-                current: lang,
-                onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
-              ),
             ],
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design/tokens/colors.dart';
+import '../../design/components/mana_text.dart';
 
 /// GC-001 Runtime Language Selector (per LR-002 spec).
 /// Fixed V1 list of five — no admin-configurable language table this
@@ -16,55 +17,42 @@ enum ManaLanguage {
   const ManaLanguage(this.enumValue, this.nativeLabel);
 }
 
-/// Stateless selector — the caller owns current-language state (via
-/// Riverpod provider, see app/providers.dart) and persistence to
-/// `persons.preferred_language` at auth time (LR-006/007/009) per the
-/// spec's own confirmed persistence rule. This widget only renders and
-/// emits the choice.
+/// Compact dropdown language selector — used on registration, login, and
+/// settings screens. Compact by default since it is a footer-level
+/// control, not the main content.
 class ManaLanguageSelector extends StatelessWidget {
   final ManaLanguage current;
   final ValueChanged<ManaLanguage> onChanged;
-  final bool compact;
 
   const ManaLanguageSelector({
     super.key,
     required this.current,
     required this.onChanged,
-    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (compact) {
-      return DropdownButtonHideUnderline(
-        child: DropdownButton<ManaLanguage>(
-          value: current,
-          icon: const Icon(Icons.language, size: 18, color: ManaColors.textSecondary),
-          items: ManaLanguage.values
-              .map((l) => DropdownMenuItem(value: l, child: Text(l.nativeLabel)))
-              .toList(),
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 8,
-      children: ManaLanguage.values.map((l) {
-        final selected = l == current;
-        return ChoiceChip(
-          label: Text(l.nativeLabel),
-          selected: selected,
-          onSelected: (_) => onChanged(l),
-          selectedColor: ManaColors.brandFaint,
-          labelStyle: TextStyle(
-            color: selected ? ManaColors.brand : ManaColors.textSecondary,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.language, size: 18, color: ManaColors.textSecondary),
+        const SizedBox(width: 8),
+        DropdownButtonHideUnderline(
+          child: DropdownButton<ManaLanguage>(
+            value: current,
+            isDense: true,
+            items: ManaLanguage.values
+                .map((l) => DropdownMenuItem<ManaLanguage>(
+                      value: l,
+                      child: ManaText.raw(l.nativeLabel),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
           ),
-        );
-      }).toList(),
+        ),
+      ],
     );
   }
 }

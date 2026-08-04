@@ -40,14 +40,16 @@ class TodaysRouteApiService {
   }) async {
     final today = manaBusinessDate();
 
+    // M4: loans RLS calls app.agent_covers_customer() on the loan's customer,
+    // so the area-based scoping happens server-side; the explicit
+    // customers.assigned_agent_membership_id filter (and column) are gone.
     final loanRows = await _db
         .from('loans')
         .select('loan_id, customer_id, loan_number, remaining_balance, installment_amount, '
             'loan_status, '
-            'customers!inner(customer_id, person_id, assigned_agent_membership_id, '
+            'customers!inner(customer_id, person_id, '
             'persons!inner(full_name, person_addresses(village_id, is_current, locations(village_town_name))))')
         .eq('business_id', businessId)
-        .eq('customers.assigned_agent_membership_id', agentMembershipId)
         .eq('loan_status', 'Active');
 
     final loanList = (loanRows as List).cast<Map<String, dynamic>>();
@@ -96,8 +98,8 @@ class TodaysRouteApiService {
         village: village ?? 'Unknown',
         visitOrder: 0, // see SCHEMA GAP note above
         loanNumber: r['loan_number'] as String,
-        todaysDue: (r['installment_amount'] as num).toDouble(),
-        outstandingBalance: (r['remaining_balance'] as num).toDouble(),
+        todaysDue: (r['installment_amount'] as num).toInt(),
+        outstandingBalance: (r['remaining_balance'] as num).toInt(),
         lineRepaymentIndex: 0, // no line_repayment_index column exists anywhere in the real schema — see fix note above; matches the same KNOWN SIMPLIFICATION already used in customer_state.dart/agent_customer_state.dart
         loanStatus: r['loan_status'] as String,
         collectionOutcome: outcome,
@@ -125,8 +127,8 @@ class RouteStop {
   final String village;
   final int visitOrder;
   final String loanNumber;
-  final double todaysDue;
-  final double outstandingBalance;
+  final int todaysDue; // whole rupees (M8)
+  final int outstandingBalance;
   final int lineRepaymentIndex;
   final String loanStatus; // Active | Closed | ...
 
@@ -301,10 +303,10 @@ class TodaysRouteState {
   int get customersAssigned => stops.length;
   int get customersCompleted => stops.where((s) => s.isVisited).length;
   int get customersPending => customersAssigned - customersCompleted;
-  double get estimatedCollection => stops.fold(0.0, (sum, s) => sum + s.todaysDue);
-  double get collectedAmount => stops
+  int get estimatedCollection => stops.fold(0, (sum, s) => sum + s.todaysDue);
+  int get collectedAmount => stops
       .where((s) => s.collectionOutcome != null)
-      .fold(0.0, (sum, s) => sum + s.todaysDue); // display estimate; exact amount lives in `collections`
+      .fold(0, (sum, s) => sum + s.todaysDue); // display estimate; exact amount lives in `collections`
 
   // ROUTE PROGRESS — all computed client-side from Route Summary counts.
   double get completedPercent => customersAssigned == 0 ? 0 : customersCompleted / customersAssigned;

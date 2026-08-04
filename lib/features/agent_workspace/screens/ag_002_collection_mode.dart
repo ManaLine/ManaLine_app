@@ -71,7 +71,7 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                       ...state.sorted.map((row) => _CustomerDueRow(
                             row: row,
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: row)),
+                              MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: row, businessId: widget.businessId)),
                             ),
                           )),
                   ],

@@ -4,6 +4,7 @@
 import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { compareSecret, hashSecret } from "../_shared/hashing.ts";
+import { istNow } from "../_shared/time.ts";
 
 interface Body {
   otp_id: string;
@@ -78,7 +79,7 @@ Deno.serve(async (req: Request) => {
 
   await admin
     .from("otp_verifications")
-    .update({ status: "Verified", verified_at: new Date().toISOString() })
+    .update({ status: "Verified", verified_at: istNow() })
     .eq("otp_id", otpRow.otp_id);
 
   return jsonResponse({ data: { success: true }, meta: {}, errors: [] });

@@ -11,6 +11,7 @@
 import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { generateOtpCode, hashSecret } from "../_shared/hashing.ts";
+import { rateLimit } from "../_shared/rate_limit.ts";
 
 interface OtpSendBody {
   person_id: string | number;
@@ -65,6 +66,12 @@ Deno.serve(async (req: Request) => {
       "VALIDATION_ERROR",
       "membership_id is required when purpose is 'Role Escalation'.",
     );
+  }
+
+  // 3 OTP sends per person per10 minutes. Prevents SMS-cost abuse
+  // and keeps the OTP window tight even when the gateway is stubbed.
+  if (!(await rateLimit(`otp:${body.person_id}`, 3, 10 * 60 * 1000))) {
+    return errorResponse(429, "RATE_LIMITED", "Too many OTP requests. Please wait before trying again.");
   }
 
   const admin = supabaseAdmin();

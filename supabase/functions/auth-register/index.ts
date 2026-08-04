@@ -33,6 +33,7 @@ import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { buildMlpi, buildMltiCandidate, genderDigitOf } from "../_shared/mlid.ts";
 import { hashSecret } from "../_shared/hashing.ts";
+import { istDate } from "../_shared/time.ts";
 
 interface RegisterBody {
   full_name: string;
@@ -286,7 +287,7 @@ Deno.serve(async (req: Request) => {
     mandal: village.mandal,
     district: village.district,
     state: village.state,
-    from_date: body.address.from_date ?? new Date().toISOString().slice(0, 10),
+    from_date: body.address.from_date ?? istDate(),
     reason: body.address.reason ?? null,
     is_current: true,
   });

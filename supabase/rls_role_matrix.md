@@ -96,11 +96,12 @@ row below for a table, that role has zero access (deny-all default).
 - Self: SELECT own membership rows across *any* business (BR-208
   role-switcher needs this).
 - A(`can_view_customers`): SELECT **only** Customer-role rows where
-  `customers.assigned_agent_membership_id` = the Agent's own membership.
+  `app.agent_covers_customer(c.customer_id)` is true (M4 — coverage is
+  area-based; `customers.assigned_agent_membership_id` is dropped).
   **Prevents:** an Agent seeing Owner/other-Agent/Investor membership rows,
-  or Customer rows not assigned to them — this is the single most important
-  negative case in the whole schema (BR-202/203 multi-tenancy + AG-004
-  scoping combined).
+  or Customer rows outside their assigned areas — this is the single most
+  important negative case in the whole schema (BR-202/203 multi-tenancy +
+  AG-004 scoping combined).
 
 ### membership_requests
 - Self: SELECT + INSERT own requests. O: full for requests targeting their
@@ -126,11 +127,12 @@ row below for a table, that role has zero access (deny-all default).
 ## MODULE 3 — CUSTOMER DOMAIN
 
 ### customers
-- O: full. A: SELECT/UPDATE(contact only) scoped to
-  `assigned_agent_membership_id` = own, gated `can_view_customers` /
+- O: full. A: SELECT/UPDATE(contact only) scoped by
+  `app.agent_covers_customer(customer_id)` (M4 — area-based, was
+  `assigned_agent_membership_id` = own), gated `can_view_customers` /
   `can_edit_customer_contact` respectively. Self: SELECT own row.
-  **Prevents:** Agent A2 (not assigned) reading Customer X's row even
-  though X is in the same business as A2. Customer creation is **not** a
+  **Prevents:** Agent A2 (not covering the area) reading Customer X's row
+  even though X is in the same business as A2. Customer creation is **not** a
   raw INSERT grant — must go through a `can_create_customer`-gated RPC
   (flagged below).
 
@@ -404,9 +406,10 @@ SECURITY DEFINER function/RPC layer on top of RLS, not a raw UPDATE grant:
   schema-migration chat's actual `0001`–`0011` output**, per the briefing
   ("build against the doc... master chat needs to confirm"). Specifically
   flag: `businesses.owner_person_id`, `business_members.membership_status`
-  enum values (esp. 'Active' exact spelling), `customers
-  .assigned_agent_membership_id`, `agents.membership_id`,
-  `investors.membership_id`, all `agent_permissions.*` boolean column names
+  enum values (esp. 'Active' exact spelling), `agents.membership_id`,
+  `investors.membership_id`, all `agent_permissions.*` boolean column names.
+  (`customers.assigned_agent_membership_id` no longer exists — dropped by
+  M4/`20260803070000_batch_b_route_model.sql`.)
   (used via dynamic lookup in `app.agent_permission()` — a renamed column
   there will silently return FALSE, not error, so this needs a smoke test
   per flag).

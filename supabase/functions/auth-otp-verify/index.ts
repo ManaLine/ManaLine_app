@@ -14,6 +14,10 @@
 import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { compareSecret } from "../_shared/hashing.ts";
+import { istNow, parseIst } from "../_shared/time.ts";
+import { rateLimit } from "../_shared/rate_limit.ts";
+
+const OTP_VERIFY_RATE_LIMIT = 5; // max wrong guesses per otp_id per10 min
 
 interface OtpVerifyBody {
   otp_id: string;
@@ -60,11 +64,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ data: { verified: true }, meta: {}, errors: [] });
   }
 
-  const ageMinutes = (Date.now() - new Date(otpRow.sent_at).getTime()) / 60000;
+  const ageMinutes = (Date.now() - parseIst(otpRow.sent_at).getTime()) / 60000;
   if (otpRow.status === "Expired" || ageMinutes > OTP_EXPIRY_MINUTES) {
     if (otpRow.status !== "Expired") {
       await admin.from("otp_verifications").update({ status: "Expired" }).eq("otp_id", otpRow.otp_id);
     }
+    return jsonResponse({ data: { verified: false }, meta: {}, errors: [] });
+  }
+
+  // Max 5 wrong guesses per otp_id per 10 minutes. After that the OTP is
+  // effectively dead — the attacker has consumed the row's retry budget.
+  if (!(await rateLimit(`otpverify:${otpRow.otp_id}`, OTP_VERIFY_RATE_LIMIT, 10 * 60 * 1000))) {
+    await admin.from("otp_verifications").update({ status: "Expired" }).eq("otp_id", otpRow.otp_id);
     return jsonResponse({ data: { verified: false }, meta: {}, errors: [] });
   }
 
@@ -85,7 +96,7 @@ Deno.serve(async (req: Request) => {
 
   await admin
     .from("otp_verifications")
-    .update({ status: "Verified", verified_at: new Date().toISOString() })
+    .update({ status: "Verified", verified_at: istNow() })
     .eq("otp_id", otpRow.otp_id);
 
   if (otpRow.purpose === "Registration") {
@@ -111,6 +122,17 @@ Deno.serve(async (req: Request) => {
         console.error("auth-otp-verify: failed to update business_members", membershipUpdateError);
       }
     }
+  } else if (otpRow.purpose === "Account Unlock") {
+    // The victim proved ownership — lift the BR-201 lockout cooldown and
+    // reset both failure counters so the account starts clean.
+    await admin
+      .from("auth_rate_limits")
+      .delete()
+      .eq("bucket_key", `lockout:${otpRow.person_id}`);
+    await admin
+      .from("persons")
+      .update({ failed_pin_attempts: 0, failed_password_attempts: 0 })
+      .eq("person_id", otpRow.person_id);
   }
 
   return jsonResponse({ data: { verified: true }, meta: {}, errors: [] });

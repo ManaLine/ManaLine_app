@@ -802,7 +802,7 @@ class _InvestmentsTab extends ConsumerWidget {
       ),
     );
     if (result != true) return;
-    final amt = double.tryParse(amount.text.trim());
+    final amt = int.tryParse(amount.text.trim());
     final r = double.tryParse(roi.text.trim());
     if (amt == null || r == null) return;
     if (!context.mounted) return;
@@ -810,14 +810,14 @@ class _InvestmentsTab extends ConsumerWidget {
       final notifier = ref.read(investorProfileProvider(investorId).notifier);
       return existing == null
           ? notifier.recordInvestment(
-              amount: amt,
+              amount: amt, // whole rupees (M8)
               roiRate: r,
               interestMethod: method,
               effectiveDate: effectiveDate.toIso8601String(),
             )
           : notifier.editInvestment(
               investmentId: existing.investmentId,
-              amount: amt,
+              amount: amt, // whole rupees (M8)
               roiRate: r,
               interestMethod: method,
               effectiveDate: effectiveDate.toIso8601String(),
@@ -862,13 +862,13 @@ class _InvestmentsTab extends ConsumerWidget {
       ),
     );
     if (result != true) return;
-    final amt = double.tryParse(amount.text.trim());
+    final amt = int.tryParse(amount.text.trim());
     if (amt == null || amt > inv.principalAmount) return; // BR-252: withdrawals cannot exceed available balance
     if (!context.mounted) return;
     await NetworkErrorHandler.run(context, () async {
       return ref
           .read(investorProfileProvider(investorId).notifier)
-          .requestWithdrawal(investmentId: inv.investmentId, amount: amt, withdrawalType: type);
+          .requestWithdrawal(investmentId: inv.investmentId, amount: amt, withdrawalType: type); // whole rupees (M8)
     });
   }
 }
@@ -925,12 +925,12 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
       ),
     );
     if (result != true || !mounted) return;
-    final amt = double.tryParse(amountController.text.trim());
+    final amt = int.tryParse(amountController.text.trim());
     if (amt == null) return;
     final ok = await NetworkErrorHandler.run(context, () async {
       await ref.read(investorApiServiceProvider).declareProfitShare(
             investmentId: widget.investment.investmentId,
-            totalProfitAmount: amt,
+            totalProfitAmount: amt, // whole rupees (M8)
             remarks: remarksController.text.trim().isEmpty ? null : remarksController.text.trim(),
           );
       return true;

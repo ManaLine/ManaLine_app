@@ -47,7 +47,7 @@ class OnlinePaymentApiService {
   /// error rather than silently succeeding against the wrong row).
   Future<OnlinePaymentRecord> submitPayment({
     required String loanId,
-    required double amount,
+    required int amount, // whole rupees (M8)
   }) async {
     final loan = await _db.from('loans').select('customer_id').eq('loan_id', loanId).single();
     final customerId = loan['customer_id'] as String;
@@ -112,7 +112,7 @@ class OnlinePaymentApiService {
       // note (14-digit whole numbers are exact in double). Flagging
       // again here since this is the one file in this batch that
       // actually writes a money value, not just reads one.
-      amount: (row['amount'] as num).toDouble(),
+      amount: (row['amount'] as num).toInt(),
       status: row['status'] as String,
       confirmedByPersonId: row['confirmed_by_person_id']?.toString(),
       resultingCollectionId: row['resulting_collection_id'] as String?,
@@ -134,7 +134,7 @@ final onlinePaymentApiServiceProvider = Provider<OnlinePaymentApiService>((ref) 
 class OnlinePaymentRecord {
   final String onlinePaymentId;
   final String loanId;
-  final double amount;
+  final int amount;
   final String status; // Submitted | Confirmed | Not Received-Disputed
   final String? confirmedByPersonId;
   final String? resultingCollectionId; // set on Confirmed
@@ -205,7 +205,7 @@ class OnlinePaymentNotifier extends Notifier<OnlinePaymentState> {
 
   void returnFromUpiApp() => state = state.copyWith(phase: PaymentFlowPhase.entry);
 
-  Future<bool> submit({required String loanId, required double amount}) async {
+  Future<bool> submit({required String loanId, required int amount}) async {
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final api = ref.read(onlinePaymentApiServiceProvider);

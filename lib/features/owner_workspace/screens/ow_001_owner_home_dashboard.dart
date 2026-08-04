@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/auto_refresh.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
@@ -17,7 +18,8 @@ import '../state/customer_state.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/network_error_handler.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+final _currency =
+    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// OW-001 — Owner Home Dashboard. Read-only aggregation screen; every write
 /// happens on the destination screens its Quick Actions/cards link to (per
@@ -40,10 +42,12 @@ class OwnerHomeDashboardScreen extends ConsumerStatefulWidget {
   const OwnerHomeDashboardScreen({super.key, required this.businessId});
 
   @override
-  ConsumerState<OwnerHomeDashboardScreen> createState() => _OwnerHomeDashboardScreenState();
+  ConsumerState<OwnerHomeDashboardScreen> createState() =>
+      _OwnerHomeDashboardScreenState();
 }
 
-class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScreen> {
+class _OwnerHomeDashboardScreenState
+    extends ConsumerState<OwnerHomeDashboardScreen> {
   @override
   void initState() {
     super.initState();
@@ -52,7 +56,8 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
     });
   }
 
-  Future<void> _refresh() => ref.read(ownerDashboardProvider.notifier).load(widget.businessId);
+  Future<void> _refresh() =>
+      ref.read(ownerDashboardProvider.notifier).load(widget.businessId);
 
   @override
   Widget build(BuildContext context) {
@@ -75,51 +80,56 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
           // revalidate behind it (see OwnerDashboardNotifier.load).
           loading: () => const _DashboardSkeleton(),
           error: (e, _) => _errorState(e),
-          data: (data) => RefreshIndicator(
+          data: (data) => AutoRefresh(
             onRefresh: _refresh,
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: ManaSpacing.xxl),
-              children: [
-                // The header is deliberately NOT wrapped in ManaAppear: fading
-                // in the thing that identifies the screen reads as hesitation.
-                // Identity lands immediately; the content below it arrives.
-                _Header(
-                  businessId: widget.businessId,
-                  businessName: data.businessName,
-                  logoUrl: data.logoUrl,
-                  businessOpen: data.businessOpen,
-                  notifications: data.notifications,
-                  pendingInvitations: data.pendingInvitations,
-                  pendingAcceptances: data.pendingAcceptances,
-                ),
-                const SizedBox(height: ManaSpacing.md),
-                // Staggered entrance so sections resolve in reading order
-                // rather than the whole page popping in at once. 30ms apart and
-                // capped at 8, so the last card is in place ~240ms after the
-                // first — fast enough that it reads as the page settling, not
-                // as an animation being performed at you. Skipped entirely
-                // under reduce-motion.
-                for (final (i, section) in <Widget>[
-                  _SectionCard(
-                    title: "today's business summary",
-                    child: _BfRow(data: data),
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: ManaSpacing.xxl),
+                children: [
+                  // The header is deliberately NOT wrapped in ManaAppear: fading
+                  // in the thing that identifies the screen reads as hesitation.
+                  // Identity lands immediately; the content below it arrives.
+                  _Header(
+                    businessId: widget.businessId,
+                    businessName: data.businessName,
+                    logoUrl: data.logoUrl,
+                    businessOpen: data.businessOpen,
+                    notifications: data.notifications,
+                    pendingInvitations: data.pendingInvitations,
+                    pendingAcceptances: data.pendingAcceptances,
                   ),
-                  _SectionCard(
-                    title: 'quick actions',
-                    child: _QuickActions(businessId: widget.businessId),
-                  ),
-                  _SectionCard(
-                    title: 'live business activity',
-                    onSeeAll: data.liveActivity.isEmpty ? null : () {},
-                    child: _LiveActivity(items: data.liveActivity),
-                  ),
-                  _SectionCard(
-                    title: 'attention required',
-                    child: _AttentionRequired(businessId: widget.businessId, cards: data.attentionRequired),
-                  ),
-                ].indexed)
-                  ManaAppear(index: i, child: section),
-              ],
+                  const SizedBox(height: ManaSpacing.md),
+                  // Staggered entrance so sections resolve in reading order
+                  // rather than the whole page popping in at once. 30ms apart and
+                  // capped at 8, so the last card is in place ~240ms after the
+                  // first — fast enough that it reads as the page settling, not
+                  // as an animation being performed at you. Skipped entirely
+                  // under reduce-motion.
+                  for (final (i, section) in <Widget>[
+                    _SectionCard(
+                      title: "today's business summary",
+                      child: _BfRow(data: data),
+                    ),
+                    _SectionCard(
+                      title: 'quick actions',
+                      child: _QuickActions(businessId: widget.businessId),
+                    ),
+                    _SectionCard(
+                      title: 'live business activity',
+                      onSeeAll: data.liveActivity.isEmpty ? null : () {},
+                      child: _LiveActivity(items: data.liveActivity),
+                    ),
+                    _SectionCard(
+                      title: 'attention required',
+                      child: _AttentionRequired(
+                          businessId: widget.businessId,
+                          cards: data.attentionRequired),
+                    ),
+                  ].indexed)
+                    ManaAppear(index: i, child: section),
+                ],
+              ),
             ),
           ),
         ),
@@ -143,16 +153,20 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
             Icon(expired ? Icons.lock_clock : Icons.cloud_off,
                 size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            ManaText(expired ? 'session timed out' : 'could not load dashboard'),
+            ManaText(
+                expired ? 'session timed out' : 'could not load dashboard'),
             const SizedBox(height: ManaSpacing.sm),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
               child: ManaText.raw(
-                expired ? NetworkErrorHandler.sessionExpiredMessage : e.toString(),
+                expired
+                    ? NetworkErrorHandler.sessionExpiredMessage
+                    : e.toString(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
-                  color: expired ? ManaColors.textSecondary : ManaColors.statusBad,
+                  color:
+                      expired ? ManaColors.textSecondary : ManaColors.statusBad,
                 ),
               ),
             ),
@@ -162,7 +176,8 @@ class _OwnerHomeDashboardScreenState extends ConsumerState<OwnerHomeDashboardScr
                     onPressed: () => context.go('/lr-009'),
                     child: const ManaText('enter pin'),
                   )
-                : ElevatedButton(onPressed: _refresh, child: const ManaText('retry')),
+                : ElevatedButton(
+                    onPressed: _refresh, child: const ManaText('retry')),
           ],
         ),
       ),
@@ -219,7 +234,8 @@ class _SkeletonSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+          ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
       child: Container(
         padding: const EdgeInsets.all(ManaSpacing.md),
         decoration: BoxDecoration(
@@ -234,12 +250,15 @@ class _SkeletonSection extends StatelessWidget {
             const SizedBox(height: ManaSpacing.md),
             for (var i = 0; i < rows; i++)
               Padding(
-                padding: EdgeInsets.only(bottom: i == rows - 1 ? 0 : ManaSpacing.sm),
+                padding:
+                    EdgeInsets.only(bottom: i == rows - 1 ? 0 : ManaSpacing.sm),
                 child: const Row(
                   children: [
-                    Expanded(child: ManaSkeleton(height: 32, radius: ManaRadius.sm)),
+                    Expanded(
+                        child: ManaSkeleton(height: 32, radius: ManaRadius.sm)),
                     SizedBox(width: ManaSpacing.sm),
-                    Expanded(child: ManaSkeleton(height: 32, radius: ManaRadius.sm)),
+                    Expanded(
+                        child: ManaSkeleton(height: 32, radius: ManaRadius.sm)),
                   ],
                 ),
               ),
@@ -253,6 +272,7 @@ class _SkeletonSection extends StatelessWidget {
 class _Header extends ConsumerWidget {
   final String businessId;
   final String businessName;
+
   /// The business logo. It was fetched into OwnerDashboardData all along
   /// and never rendered — the header hardcoded a storefront icon, so a
   /// business that had uploaded a logo still showed the placeholder.
@@ -280,8 +300,9 @@ class _Header extends ConsumerWidget {
     final now = DateTime.now();
     // The badge counts the pending memberships too, otherwise removing the
     // strip would hide them behind an unbadged icon.
-    final unread =
-        notifications.where((n) => !n.read).length + pendingInvitations + pendingAcceptances;
+    final unread = notifications.where((n) => !n.read).length +
+        pendingInvitations +
+        pendingAcceptances;
 
     // Was a white Container with a hand-rolled Row. Now the shared coloured
     // header block: identity on brandDeep, actions forced to the 48dp floor
@@ -338,42 +359,50 @@ class _Header extends ConsumerWidget {
         constraints: const BoxConstraints(minWidth: kManaMinTapTarget),
         icon: const Icon(Icons.more_vert, color: ManaColors.textOnDark),
         onSelected: (v) {
-              switch (v) {
-                case 'switch_business':
-                  context.go('/lr-012');
-                case 'switch_role':
-                  context.go('/lr-013');
-                case 'profile':
-                  context.push('/ow-016');
-                case 'business_management':
-                  context.push('/ow-012', extra: businessId);
-                case 'report_hub':
-                  context.push('/ow-010', extra: businessId);
-                case 'settings':
-                  context.push('/ow-settings', extra: businessId);
-                case 'admin_panel':
-                  context.push('/admin-panel');
-                case 'logout':
-                  ref.read(authFlowProvider.notifier).reset();
-                  context.go('/lr-003');
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'profile', child: ManaText('profile')),
-              const PopupMenuItem(value: 'business_management', child: ManaText('business management')),
-              const PopupMenuItem(value: 'report_hub', child: ManaText('report hub')),
-              const PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
-              const PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
-              const PopupMenuItem(value: 'settings', child: ManaText('settings')),
-              if (ref.watch(authFlowProvider).isPlatformAdmin) ...[
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                  value: 'admin_panel',
-                  child: ManaText.raw('admin panel', style: TextStyle(color: ManaColors.statusBad, fontWeight: FontWeight.bold)),
-                ),
-              ],
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: 'logout', child: ManaText('logout')),
+          switch (v) {
+            case 'switch_business':
+              context.go('/lr-012');
+            case 'switch_role':
+              context.go('/lr-013');
+            case 'profile':
+              context.push('/ow-016');
+            case 'business_management':
+              context.push('/ow-012', extra: businessId);
+            case 'report_hub':
+              context.push('/ow-010', extra: businessId);
+            case 'settings':
+              context.push('/ow-settings', extra: businessId);
+            case 'admin_panel':
+              context.push('/admin-panel');
+            case 'logout':
+              ref.read(authFlowProvider.notifier).reset();
+              context.go('/lr-003');
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(value: 'profile', child: ManaText('profile')),
+          const PopupMenuItem(
+              value: 'business_management',
+              child: ManaText('business management')),
+          const PopupMenuItem(
+              value: 'report_hub', child: ManaText('report hub')),
+          const PopupMenuItem(
+              value: 'switch_business', child: ManaText('switch workspace')),
+          const PopupMenuItem(
+              value: 'switch_role', child: ManaText('switch role')),
+          const PopupMenuItem(value: 'settings', child: ManaText('settings')),
+          if (ref.watch(authFlowProvider).isPlatformAdmin) ...[
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'admin_panel',
+              child: ManaText.raw('admin panel',
+                  style: TextStyle(
+                      color: ManaColors.statusBad,
+                      fontWeight: FontWeight.bold)),
+            ),
+          ],
+          const PopupMenuDivider(),
+          const PopupMenuItem(value: 'logout', child: ManaText('logout')),
         ],
       ),
     );
@@ -432,7 +461,8 @@ class _NotificationsSheet extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const ManaText('notifications',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.md),
             if (pendingInvitations > 0)
               _MembershipRow(
@@ -446,7 +476,8 @@ class _NotificationsSheet extends StatelessWidget {
                 subtitle: 'Waiting for you to accept',
                 onTap: () => _openInvitations(context),
               ),
-            if (pendingInvitations > 0 || pendingAcceptances > 0) const Divider(),
+            if (pendingInvitations > 0 || pendingAcceptances > 0)
+              const Divider(),
             Expanded(
               child: notifications.isEmpty
                   ? Center(
@@ -466,13 +497,24 @@ class _NotificationsSheet extends StatelessWidget {
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(
-                            n.read ? Icons.notifications_none : Icons.notifications_active,
-                            color: n.read ? ManaColors.textSecondary : ManaColors.brand,
+                            n.read
+                                ? Icons.notifications_none
+                                : Icons.notifications_active,
+                            color: n.read
+                                ? ManaColors.textSecondary
+                                : ManaColors.brand,
                           ),
-                          title: ManaText.raw(n.label, style: const TextStyle(fontSize: 13)),
-                          subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                          trailing: ManaText.raw(DateFormat('d MMM, hh:mm a').format(n.timestamp),
-                              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                          title: ManaText.raw(n.label,
+                              style: const TextStyle(fontSize: 13)),
+                          subtitle: ManaText.raw(n.type,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  color: ManaColors.textSecondary)),
+                          trailing: ManaText.raw(
+                              DateFormat('d MMM, hh:mm a').format(n.timestamp),
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  color: ManaColors.textSecondary)),
                         );
                       },
                     ),
@@ -495,7 +537,8 @@ class _UniversalSearchSheet extends ConsumerStatefulWidget {
   const _UniversalSearchSheet({required this.businessId});
 
   @override
-  ConsumerState<_UniversalSearchSheet> createState() => _UniversalSearchSheetState();
+  ConsumerState<_UniversalSearchSheet> createState() =>
+      _UniversalSearchSheetState();
 }
 
 class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
@@ -517,7 +560,9 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
     final isMlid = RegExp(r'^ML[A-Za-z]{2}\d+$').hasMatch(query);
     final digitsOnly = RegExp(r'^\d+$').hasMatch(query);
     try {
-      final result = await ref.read(customerListProvider.notifier).searchIdentity(
+      final result = await ref
+          .read(customerListProvider.notifier)
+          .searchIdentity(
             mlid: isMlid ? query : null,
             aadhaar: !isMlid && digitsOnly && query.length == 12 ? query : null,
             phone: !isMlid && digitsOnly && query.length == 10 ? query : null,
@@ -575,10 +620,13 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('search', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const ManaText('search',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw('Search by Phone, MANA LINE ID, Aadhaar, or Name.',
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            const ManaText.raw(
+                'Search by Phone, MANA LINE ID, Aadhaar, or Name.',
+                style:
+                    TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
             Row(
               children: [
@@ -593,14 +641,19 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                 FilledButton(
                   onPressed: _searching ? null : _search,
                   child: _searching
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const ManaText('search'),
                 ),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
             if (_error != null)
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+              ManaText.raw(_error!,
+                  style: const TextStyle(
+                      color: ManaColors.statusBad, fontSize: 13)),
             if (_found != null)
               Card(
                 child: Column(
@@ -612,9 +665,11 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                     ),
                     if (_foundRoles.isEmpty)
                       const Padding(
-                        padding: EdgeInsets.fromLTRB(ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
+                        padding: EdgeInsets.fromLTRB(
+                            ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
                         child: ManaText.raw('Not a member of this business.',
-                            style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                            style: TextStyle(
+                                color: ManaColors.textSecondary, fontSize: 13)),
                       )
                     else
                       // A person can hold more than one role in the same
@@ -649,7 +704,8 @@ class _MembershipRow extends StatelessWidget {
   final String label;
   final String subtitle;
   final VoidCallback onTap;
-  const _MembershipRow({required this.label, required this.subtitle, required this.onTap});
+  const _MembershipRow(
+      {required this.label, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -663,16 +719,19 @@ class _MembershipRow extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: kManaMinTapTarget),
           child: Row(
             children: [
-              const Icon(Icons.mark_email_unread_outlined, color: ManaColors.brand),
+              const Icon(Icons.mark_email_unread_outlined,
+                  color: ManaColors.brand),
               const SizedBox(width: ManaSpacing.md),
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ManaText.raw(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ManaText.raw(label,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                     ManaText.raw(subtitle,
-                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        style: const TextStyle(
+                            fontSize: 13, color: ManaColors.textSecondary)),
                   ],
                 ),
               ),
@@ -696,15 +755,19 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, 0),
+      padding: const EdgeInsets.fromLTRB(
+          ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: ManaText(title, style: Theme.of(context).textTheme.titleMedium)),
+              Expanded(
+                  child: ManaText(title,
+                      style: Theme.of(context).textTheme.titleMedium)),
               if (onSeeAll != null)
-                TextButton(onPressed: onSeeAll, child: const ManaText('see all')),
+                TextButton(
+                    onPressed: onSeeAll, child: const ManaText('see all')),
             ],
           ),
           const SizedBox(height: ManaSpacing.sm),
@@ -772,14 +835,17 @@ class _BfRow extends StatelessWidget {
                   horizontal: ManaSpacing.md, vertical: ManaSpacing.sm),
               child: Row(
                 children: [
-                  const ManaText.raw('BF', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const ManaText.raw('BF',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: ManaSpacing.sm),
-                  const ManaText.raw('=', style: TextStyle(color: ManaColors.textSecondary)),
+                  const ManaText.raw('=',
+                      style: TextStyle(color: ManaColors.textSecondary)),
                   const SizedBox(width: ManaSpacing.sm),
                   Expanded(
                     child: ManaAmount(data.openingBalance),
                   ),
-                  const Icon(Icons.chevron_right, color: ManaColors.textSecondary),
+                  const Icon(Icons.chevron_right,
+                      color: ManaColors.textSecondary),
                 ],
               ),
             ),
@@ -796,7 +862,7 @@ class _TodaysSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = <(String, double, bool)>[
+    final rows = <(String, int, bool)>[
       ('Opening Balance', data.openingBalance, false),
       ("Today's Collections", data.todaysCollections, false),
       ("Today's Loan Distribution", data.todaysLoanDistribution, false),
@@ -815,7 +881,9 @@ class _TodaysSummary extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      Expanded(child: ManaText.raw(r.$1, style: const TextStyle(fontSize: 13))),
+                      Expanded(
+                          child: ManaText.raw(r.$1,
+                              style: const TextStyle(fontSize: 13))),
                       // ManaAmount rather than a raw formatted string: tabular
                       // figures so this column of rupee values actually aligns
                       // digit-for-digit, and a spoken form ("Today's
@@ -824,7 +892,9 @@ class _TodaysSummary extends StatelessWidget {
                       ManaAmount(
                         r.$2,
                         size: ManaAmountSize.compact,
-                        tone: r.$3 && r.$2 < 0 ? ManaAmountTone.negative : ManaAmountTone.neutral,
+                        tone: r.$3 && r.$2 < 0
+                            ? ManaAmountTone.negative
+                            : ManaAmountTone.neutral,
                         // Only the Difference row shows a sign — direction is
                         // the information there, whereas a signed balance just
                         // adds noise.
@@ -838,7 +908,8 @@ class _TodaysSummary extends StatelessWidget {
             Row(
               children: [
                 const Expanded(
-                  child: ManaText('live closing balance', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: ManaText('live closing balance',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 // The figure this card exists to deliver, so it gets the
                 // larger size rather than matching the rows above it.
@@ -921,13 +992,28 @@ class _QuickActions extends StatelessWidget {
           title: 'investor',
           businessId: businessId,
           actions: const [
-            (Icons.person_add_alt_1_outlined, 'Add Existing Investor', '/ow-003', 'open=existing'),
-            (Icons.inbox_outlined, 'Investor Requests', '/ow-003', 'filter=Pending%20Acceptance'),
+            (
+              Icons.person_add_alt_1_outlined,
+              'Add Existing Investor',
+              '/ow-003',
+              'open=existing'
+            ),
+            (
+              Icons.inbox_outlined,
+              'Investor Requests',
+              '/ow-003',
+              'filter=Pending%20Acceptance'
+            ),
             (Icons.savings_outlined, 'Investor Management', '/ow-003', null),
             // BUG FIXED this pass: investment_withdrawal_requests had a
             // real INSERT path with no reachable Owner review screen at
             // all — requests sat Pending forever.
-            (Icons.payments_outlined, 'Withdrawal Requests', '/ow-withdrawal-requests', null),
+            (
+              Icons.payments_outlined,
+              'Withdrawal Requests',
+              '/ow-withdrawal-requests',
+              null
+            ),
           ],
         ),
       ],
@@ -939,14 +1025,19 @@ class _QuickActionGroup extends StatelessWidget {
   final String title;
   final String businessId;
   final List<(IconData, String, String, String?)> actions;
-  const _QuickActionGroup({required this.title, required this.businessId, required this.actions});
+  const _QuickActionGroup(
+      {required this.title, required this.businessId, required this.actions});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
+        ManaText(title,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.xs),
         // Was a GridView with crossAxisCount: 3 and childAspectRatio: 0.95 —
         // a fixed aspect ratio wrapping up-to-2-line labels, i.e. the same
@@ -985,7 +1076,8 @@ class _LiveActivity extends StatelessWidget {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(ManaSpacing.lg),
-          child: ManaText.raw('No activity yet today.', style: TextStyle(color: ManaColors.textSecondary)),
+          child: ManaText.raw('No activity yet today.',
+              style: TextStyle(color: ManaColors.textSecondary)),
         ),
       );
     }
@@ -994,10 +1086,14 @@ class _LiveActivity extends StatelessWidget {
         children: items
             .take(5)
             .map((a) => ListTile(
-                  leading: const Icon(Icons.circle, size: 8, color: ManaColors.brand),
-                  title: ManaText.raw(a.label, style: const TextStyle(fontSize: 13)),
-                  trailing: ManaText.raw(DateFormat('hh:mm a').format(a.timestamp),
-                      style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  leading: const Icon(Icons.circle,
+                      size: 8, color: ManaColors.brand),
+                  title: ManaText.raw(a.label,
+                      style: const TextStyle(fontSize: 13)),
+                  trailing: ManaText.raw(
+                      DateFormat('hh:mm a').format(a.timestamp),
+                      style: const TextStyle(
+                          fontSize: 13, color: ManaColors.textSecondary)),
                 ))
             .toList(),
       ),
@@ -1034,7 +1130,8 @@ class _AttentionRequired extends StatelessWidget {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(ManaSpacing.lg),
-          child: ManaText.raw('Nothing needs attention right now.', style: TextStyle(color: ManaColors.textSecondary)),
+          child: ManaText.raw('Nothing needs attention right now.',
+              style: TextStyle(color: ManaColors.textSecondary)),
         ),
       );
     }
@@ -1043,13 +1140,18 @@ class _AttentionRequired extends StatelessWidget {
           .map((c) => Card(
                 child: ListTile(
                   leading: Icon(Icons.priority_high,
-                      color: c.priority == 'High' ? ManaColors.statusBad : ManaColors.statusWarn),
-                  title: ManaText.raw(c.type, style: const TextStyle(fontSize: 13)),
-                  subtitle: ManaText.raw('Updated ${DateFormat('d MMM, hh:mm a').format(c.lastUpdated)}',
+                      color: c.priority == 'High'
+                          ? ManaColors.statusBad
+                          : ManaColors.statusWarn),
+                  title: ManaText.raw(c.type,
+                      style: const TextStyle(fontSize: 13)),
+                  subtitle: ManaText.raw(
+                      'Updated ${DateFormat('d MMM, hh:mm a').format(c.lastUpdated)}',
                       style: const TextStyle(fontSize: 13)),
                   trailing: ManaStatusPill(
                     label: '${c.count}',
-                    status: c.priority == 'High' ? ManaStatus.bad : ManaStatus.warn,
+                    status:
+                        c.priority == 'High' ? ManaStatus.bad : ManaStatus.warn,
                   ),
                   onTap: () => _open(context, c),
                 ),

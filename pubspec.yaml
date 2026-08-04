@@ -25,6 +25,10 @@ dependencies:
   # `flutter pub add supabase_flutter` locally to resolve the exact latest
   # version rather than trusting this pin verbatim.
   supabase_flutter: ^2.8.0
+  local_auth: ^2.1.8
+  share_plus: ^7.2.2
+  url_launcher: ^6.2.7
+  shared_preferences: ^2.2.3
 
   # Offline sync layer (see mana_line_offline_sync package delivered earlier)
   # mana_line_offline_sync:

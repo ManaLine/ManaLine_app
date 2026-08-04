@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/title_case_formatter.dart';
 import '../../../shared/translation_service.dart';
+import '../../../shared/widgets/language_selector.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
@@ -333,6 +334,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   @override
   Widget build(BuildContext context) {
     ref.watch(translationLoaderProvider);
+    final lang = ref.watch(authFlowProvider).language;
     return Scaffold(
       appBar: AppBar(title: ManaText.raw(ref.t('create_your_account'))),
       body: SafeArea(
@@ -670,6 +672,14 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                   ),
                 ),
               ],
+              const SizedBox(height: ManaSpacing.lg),
+              Align(
+                alignment: Alignment.center,
+                child: ManaLanguageSelector(
+                  current: lang,
+                  onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
+                ),
+              ),
             ],
           ),
         ),

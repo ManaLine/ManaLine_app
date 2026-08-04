@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
-import '../../../shared/widgets/language_selector.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
@@ -164,7 +163,6 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
   Widget build(BuildContext context) {
     ref.watch(translationLoaderProvider);
     final result = _eligibleRoles();
-    final lang = ref.watch(authFlowProvider).language;
 
     if (result == null || result.roles.length <= 1) {
       // Transient frame before the postFrameCallback's navigation fires
@@ -211,10 +209,6 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
                 ),
               ),
               const SizedBox(height: ManaSpacing.md),
-              ManaLanguageSelector(
-                current: lang,
-                onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
-              ),
             ],
           ),
         ),

@@ -4,14 +4,14 @@ import 'package:mana_line/features/owner_workspace/state/cheti_state.dart';
 Cheti _cheti({
   ChetiType type = ChetiType.auction,
   int totalInstalments = 20,
-  double instalmentAmount = 5000,
+  int instalmentAmount = 5000,
   int openingInstalmentsPaid = 0,
-  double openingAmountPaid = 0,
+  int openingAmountPaid = 0,
   int recordedInstalments = 0,
-  double recordedAmountPaid = 0,
-  double recordedDividend = 0,
+  int recordedAmountPaid = 0,
+  int recordedDividend = 0,
   DateTime? availedDate,
-  double? availedAmount,
+  int? availedAmount,
   bool availedPreMigration = false,
 }) =>
     Cheti(

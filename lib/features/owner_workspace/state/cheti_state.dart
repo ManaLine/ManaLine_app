@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/mana_time.dart';
-import '../../login_registration/state/auth_flow_state.dart' show ManaSession;
 
 /// Cheti — the Owner's own chit fund, held as an ASSET.
 ///
@@ -42,29 +41,29 @@ class Cheti {
   final String name;
   final ChetiType type;
   final ChetiFrequency frequency;
-  final double faceValue;
+  final int faceValue;
   final int totalInstalments;
-  final double instalmentAmount;
+  final int instalmentAmount;
   final DateTime startDate;
 
   /// Position carried in from before this app existed. Never replayed through
   /// BF -- that cash left the till already and is inside the declared opening
   /// balance.
   final int openingInstalmentsPaid;
-  final double openingAmountPaid;
+  final int openingAmountPaid;
 
   final DateTime? availedDate;
-  final double? availedAmount;
+  final int? availedAmount;
   final bool availedPreMigration;
   final String status;
 
   /// Instalments recorded since migration.
   final int recordedInstalments;
-  final double recordedAmountPaid;
+  final int recordedAmountPaid;
 
   /// Dividends earned since migration. Pre-migration dividends are last
   /// period's profit and are deliberately not counted here.
-  final double recordedDividend;
+  final int recordedDividend;
 
   const Cheti({
     required this.chetiId,
@@ -92,20 +91,20 @@ class Cheti {
   int get instalmentsRemaining => totalInstalments - instalmentsPaid;
 
   /// Every rupee that has gone into this cheti, before and after migration.
-  double get totalPaid => openingAmountPaid + recordedAmountPaid;
+  int get totalPaid => openingAmountPaid + recordedAmountPaid;
 
-  double get totalReceived => availedAmount ?? 0;
+  int get totalReceived => availedAmount ?? 0;
 
   /// What the cheti is worth to the business right now.
   ///
   /// Positive: money in that has not come back yet -- an asset, and what the
   /// daily account shows alongside LB. Negative: more has been availed than
   /// paid in, so the remaining instalments are a liability.
-  double get netPosition => totalPaid - totalReceived;
+  int get netPosition => totalPaid - totalReceived;
 
   /// Only meaningful once the term is finished, since instalments continue
   /// after availing.
-  double? get finalProfit =>
+  int? get finalProfit =>
       instalmentsRemaining <= 0 ? totalReceived - totalPaid : null;
 }
 
@@ -115,8 +114,8 @@ class ChetiListState {
   const ChetiListState({this.chetis = const [], this.loading = false});
 
   /// The single figure the daily account puts next to LB.
-  double get totalNetPosition =>
-      chetis.fold(0.0, (sum, c) => sum + c.netPosition);
+  int get totalNetPosition =>
+      chetis.fold(0, (sum, c) => sum + c.netPosition);
 }
 
 class ChetiApiService {
@@ -139,8 +138,8 @@ class ChetiApiService {
       // needed for the detail screen anyway, so a second round trip to have
       // Postgres sum them would buy nothing.
       final payments = (r['cheti_payments'] as List? ?? const []);
-      var paidSum = 0.0;
-      var dividendSum = 0.0;
+      var paidSum = 0;
+      var dividendSum = 0;
       for (final p in payments) {
         paidSum += _num(p['net_paid']);
         dividendSum += _num(p['dividend']);
@@ -177,14 +176,14 @@ class ChetiApiService {
     required String name,
     required ChetiType type,
     required ChetiFrequency frequency,
-    required double faceValue,
+    required int faceValue, // whole rupees (M8)
     required int totalInstalments,
-    required double instalmentAmount,
+    required int instalmentAmount,
     required DateTime startDate,
     int openingInstalmentsPaid = 0,
-    double openingAmountPaid = 0,
+    int openingAmountPaid = 0,
     DateTime? availedDate,
-    double? availedAmount,
+    int? availedAmount,
     bool availedPreMigration = false,
     String? remarks,
   }) async {
@@ -216,72 +215,38 @@ class ChetiApiService {
   /// Resolved here rather than passed in by every screen: cheti_payments
   /// requires it NOT NULL, and a caller guessing at it is how a row ends up
   /// attributed to the wrong member.
-  Future<String> _ownerMembershipId(String businessId) async {
-    final personId = ManaSession.instance.currentPersonId;
-    if (personId == null) {
-      throw StateError('No signed-in person — cannot attribute this payment.');
-    }
-    final row = await _db
-        .from('business_members')
-        .select('membership_id')
-        .eq('business_id', businessId)
-        .eq('person_id', int.parse(personId))
-        .eq('role', 'Owner')
-        .limit(1)
-        .maybeSingle();
-    if (row == null) {
-      throw StateError('You are not an Owner of this business.');
-    }
-    return row['membership_id'] as String;
-  }
-
-  /// Records one instalment. This DOES move BF, unlike the opening figures.
+  /// Records one instalment. The RPC deducts it from the payer's own cash
+  /// (Owner BF, or an Owner-permitted agent's float) and fills in the
+  /// business date / recorded-by itself — the phone never picks the bucket.
   Future<void> recordPayment({
     required String chetiId,
-    required String businessId,
-    required double grossInstalment,
-    double dividend = 0,
+    required int grossInstalment, // whole rupees (M8)
+    int dividend = 0,
     String? remarks,
   }) async {
-    await _db.from('cheti_payments').insert({
-      'cheti_id': chetiId,
-      'business_id': businessId,
-      'business_date': manaBusinessDate(),
-      'gross_instalment': grossInstalment,
-      'dividend': dividend,
-      'recorded_by_membership_id': await _ownerMembershipId(businessId),
-      if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+    await _db.schema('app').rpc('record_cheti_payment', params: {
+      'p_cheti_id': chetiId,
+      'p_gross_instalment': grossInstalment,
+      'p_dividend': dividend,
+      if (remarks != null && remarks.isNotEmpty) 'p_remarks': remarks,
     });
   }
 
-  /// Records the lumpsum. Instalments continue afterwards until the term ends,
-  /// so this does NOT close the cheti.
+  /// Records the lumpsum. The RPC adds it to the Owner's balance and refuses
+  /// to avail the same cheti twice. Instalments continue afterwards until the
+  /// term ends, so this does NOT close the cheti.
   Future<void> recordAvailing({
     required String chetiId,
-    required DateTime availedDate,
-    required double amount,
+    required int amount, // whole rupees (M8)
   }) async {
-    final updated = await _db
-        .from('chetis')
-        .update({
-          'availed_date': manaDateOf(availedDate),
-          'availed_amount': amount,
-        })
-        .eq('cheti_id', chetiId)
-        // Availing once is the whole point; without this an accidental second
-        // save would overwrite the first and silently change the net position.
-        .isFilter('availed_date', null)
-        .select('cheti_id');
-
-    // PostgREST answers 200 for an UPDATE that matched zero rows, so a silent
-    // no-op is indistinguishable from success unless the result is checked.
-    if ((updated as List).isEmpty) {
-      throw StateError('This cheti has already been availed.');
-    }
+    await _db.schema('app').rpc('avail_cheti', params: {
+      'p_cheti_id': chetiId,
+      'p_amount': amount,
+    });
   }
 
-  static double _num(dynamic v) =>
-      v == null ? 0 : (v is num ? v.toDouble() : double.tryParse('$v') ?? 0);
+  static int _num(dynamic v) =>
+      v == null ? 0 : (v is num ? v.toInt() : int.tryParse('$v') ?? 0);
 }
 
 final chetiApiServiceProvider = Provider<ChetiApiService>(

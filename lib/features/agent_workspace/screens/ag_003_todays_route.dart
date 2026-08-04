@@ -56,6 +56,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
       // (reuse it directly; no second collection-entry form built here).
       final dueRow = CollectionDueRow(
         loanId: stop.loanId,
+        customerId: stop.customerId,
         customerName: stop.customerName,
         village: stop.village,
         loanNumber: stop.loanNumber,
@@ -66,7 +67,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
         collectionAgent: widget.agentMembershipId,
       );
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: dueRow)),
+        MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: dueRow, businessId: widget.businessId)),
       );
       if (!mounted) return;
       await _reload();

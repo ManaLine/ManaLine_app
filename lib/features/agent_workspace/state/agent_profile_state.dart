@@ -82,7 +82,7 @@ class AgentProfileApiService {
         .maybeSingle();
     if (row == null) return AgentCompensationSummary(fixedSalary: 0, salaryCycleStatus: 'Not set');
     return AgentCompensationSummary(
-      fixedSalary: (row['fixed_salary_amount'] as num).toDouble(),
+      fixedSalary: (row['fixed_salary_amount'] as num).toInt(),
       salaryCycleStatus: row['salary_cycle'] as String? ?? '',
     );
   }
@@ -138,7 +138,7 @@ class AgentBusinessMembership {
 }
 
 class AgentCompensationSummary {
-  final double fixedSalary;
+  final int fixedSalary;
   final String salaryCycleStatus;
 
   AgentCompensationSummary({

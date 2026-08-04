@@ -17,6 +17,11 @@ import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { compareSecret } from "../_shared/hashing.ts";
 import { mintPersonJwt } from "../_shared/jwt.ts";
+import { istNow } from "../_shared/time.ts";
+import { rateLimit } from "../_shared/rate_limit.ts";
+
+const LOCKOUT_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes after last lockout
+const LOGIN_RATE_LIMIT = 10; // per (identifier, IP) per 5 min
 
 interface LoginBody {
   identifier: string; // mlid or mobile_number
@@ -71,7 +76,7 @@ Deno.serve(async (req: Request) => {
   const { data: person, error: lookupError } = await admin
     .from("persons")
     .select(
-      "person_id, mlid, password_hash, pin_hash, verification_ring, " +
+      "person_id, mlid, password_hash, pin_hash, pin_length, verification_ring, " +
         "failed_pin_attempts, failed_password_attempts, is_deceased",
     )
     .eq(isMobile ? "mobile_number" : "mlid", body.identifier.trim())
@@ -106,6 +111,26 @@ Deno.serve(async (req: Request) => {
 
   if (!person) return genericFailure();
 
+  // --- Rate-limit + cooldown -----------------------------------------------
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  // Per-(identifier, IP): too many calls in5 minutes → reject.
+  if (!(await rateLimit(`login:${body.identifier}:${clientIp}`, LOGIN_RATE_LIMIT, 5 * 60 * 1000))) {
+    return errorResponse(429, "RATE_LIMITED", "Too many login attempts. Please try again later.");
+  }
+
+  // Cooldown: after a recent lockout, reject even with a correct password
+  // for a short period so the attacker cannot immediately re-lock.  The
+  // unlock OTP clears this entry (see auth-otp-verify).
+  const COOLDOWN_WINDOW_MS = LOCKOUT_COOLDOWN_MS;
+  const { count: cooldownCount } = await admin
+    .from("auth_rate_limits")
+    .select("bucket_key", { count: "exact", head: true })
+    .eq("bucket_key", `lockout:${person.person_id}`)
+    .gt("bucket_ts", new Date(Date.now() - COOLDOWN_WINDOW_MS).toISOString());
+  if ((cooldownCount ?? 0) > 0) {
+    return errorResponse(403, "ACCOUNT_LOCKED", "Account is temporarily locked. Please try again in a few minutes.", { person_id: person.person_id });
+  }
+
   const isPin = body.credential_type === "pin";
   const maxAttempts = isPin ? MAX_PIN_ATTEMPTS : MAX_PASSWORD_ATTEMPTS;
   const currentAttempts = isPin ? person.failed_pin_attempts : person.failed_password_attempts;
@@ -123,6 +148,9 @@ Deno.serve(async (req: Request) => {
   // mobile/MLID identifier the client already has, so it's included here
   // rather than adding a second identifier-lookup round trip.
   if (currentAttempts >= maxAttempts) {
+    // Record the lockout so the cooldown block above stops the attacker
+    // from immediately re-trying with the correct password.
+    await rateLimit(`lockout:${person.person_id}`, 1, 15 * 60 * 1000);
     return errorResponse(
       403,
       "ACCOUNT_LOCKED",
@@ -186,20 +214,20 @@ Deno.serve(async (req: Request) => {
     if (existingDeviceRow) {
       await admin
         .from("devices")
-        .update({ is_active: true, last_login_at: new Date().toISOString() })
+        .update({ is_active: true, last_login_at: istNow() })
         .eq("device_id", existingDeviceRow.device_id);
     } else {
       await admin.from("devices").insert({
         person_id: person.person_id,
         device_fingerprint: body.device_fingerprint,
         is_active: true,
-        last_login_at: new Date().toISOString(),
+        last_login_at: istNow(),
       });
     }
   } else {
     await admin
       .from("devices")
-      .update({ last_login_at: new Date().toISOString() })
+      .update({ last_login_at: istNow() })
       .eq("person_id", person.person_id)
       .eq("device_fingerprint", body.device_fingerprint);
   }
@@ -213,6 +241,12 @@ Deno.serve(async (req: Request) => {
       person_id: person.person_id,
       verification_ring: person.verification_ring,
       pin_exists: Boolean(person.pin_hash),
+      // True when the user's PIN is still at the old 4-digit length (or has
+      // no length recorded). The Dart client (auth_api_service.dart:226)
+      // reads this and passes it through to LR-007 / LR-009 so the upgrade
+      // prompt appears automatically. 0027 pins this to column 6; anything
+      // older or NULL means it still needs the forced upgrade.
+      needs_pin_upgrade: person.pin_length === null || person.pin_length === 4,
       // memberships: spec §1.3 documents this field but it's out of scope
       // for this identity-only batch (business_members is Module 1) —
       // returning an empty array rather than omitting the key, so the

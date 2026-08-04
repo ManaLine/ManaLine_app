@@ -11,8 +11,9 @@ import '../../../shared/mana_time.dart';
 /// the original stub's own design note — the query logic here mirrors
 /// customer_state.dart's fetchCustomers/fetchCustomerProfile (same schema
 /// joins, same village/todaysDue/outstanding derivation and the same
-/// KNOWN SIMPLIFICATION on lineRepaymentIndex), scoped by
-/// assigned_agent_membership_id instead of just business_id.
+/// KNOWN SIMPLIFICATION on lineRepaymentIndex). Scoping is left to the
+/// customers RLS policy (app.agent_covers_customer) since M4 — an agent
+/// sees the customers of their assigned operating areas, nothing more.
 ///
 /// CONSTRUCTOR CHANGE (this session): now takes a `Ref` — same
 /// established pattern as `owner_workspace/state/investor_state.dart`'s
@@ -37,6 +38,10 @@ class AgentCustomerApiService {
     required String businessId,
     required String agentMembershipId,
   }) async {
+    // M4: agent coverage is area-based now — the customers table no longer
+    // carries assigned_agent_membership_id. The customers RLS policy calls
+    // app.agent_covers_customer(), so simply omitting the filter scopes this
+    // query to exactly the customers of the agent's assigned areas.
     final rows = await _db
         .from('customers')
         .select('''
@@ -46,8 +51,7 @@ class AgentCustomerApiService {
             person_addresses(village_id, is_current, locations(village_town_name))),
           loans(loan_id, loan_status, installment_amount, remaining_balance)
         ''')
-        .eq('business_members.business_id', businessId)
-        .eq('assigned_agent_membership_id', agentMembershipId);
+        .eq('business_members.business_id', businessId);
 
     return (rows as List).map((r) {
       final m = r as Map<String, dynamic>;
@@ -60,8 +64,8 @@ class AgentCustomerApiService {
       final village = (currentAddress?['locations'] as Map<String, dynamic>?)?['village_town_name'] as String? ?? '';
       final loans = ((m['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
       final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
-      final todaysDue = activeLoans.fold<double>(0, (sum, l) => sum + (l['installment_amount'] as num).toDouble());
-      final outstanding = activeLoans.fold<double>(0, (sum, l) => sum + (l['remaining_balance'] as num).toDouble());
+      final todaysDue = activeLoans.fold<int>(0, (sum, l) => sum + (l['installment_amount'] as num).toInt());
+      final outstanding = activeLoans.fold<int>(0, (sum, l) => sum + (l['remaining_balance'] as num).toInt());
 
       return CustomerSummary(
         customerId: m['customer_id'] as String,
@@ -104,8 +108,8 @@ class AgentCustomerApiService {
     final village = (currentAddress?['locations'] as Map<String, dynamic>?)?['village_town_name'] as String? ?? '';
     final loans = ((row['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
-    final todaysDue = activeLoans.fold<double>(0, (sum, l) => sum + (l['installment_amount'] as num).toDouble());
-    final outstanding = activeLoans.fold<double>(0, (sum, l) => sum + (l['remaining_balance'] as num).toDouble());
+    final todaysDue = activeLoans.fold<int>(0, (sum, l) => sum + (l['installment_amount'] as num).toInt());
+    final outstanding = activeLoans.fold<int>(0, (sum, l) => sum + (l['remaining_balance'] as num).toInt());
 
     return CustomerProfile(
       summary: CustomerSummary(
@@ -130,13 +134,13 @@ class AgentCustomerApiService {
                 loanId: l['loan_id'] as String,
                 loanNumber: l['loan_number'] as String,
                 issueDate: DateTime.parse(l['effective_date'] as String),
-                loanAmount: (l['repayment_amount'] as num).toDouble(),
-                outstanding: (l['remaining_balance'] as num).toDouble(),
-                todaysDue: (l['installment_amount'] as num).toDouble(),
-                progressPercent: (l['repayment_amount'] as num) == 0
+                loanAmount: (l['repayment_amount'] as num).toInt(),
+                outstanding: (l['remaining_balance'] as num).toInt(),
+                todaysDue: (l['installment_amount'] as num).toInt(),
+                progressPercent: (l['repayment_amount'] as num).toInt() == 0
                     ? 0
                     : 100 -
-                        (((l['remaining_balance'] as num).toDouble() / (l['repayment_amount'] as num).toDouble()) *
+                        (((l['remaining_balance'] as num).toInt() / (l['repayment_amount'] as num).toInt()) *
                             100),
                 status: l['loan_status'] as String,
               ))

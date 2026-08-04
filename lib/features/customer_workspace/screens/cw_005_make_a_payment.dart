@@ -104,7 +104,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
     super.dispose();
   }
 
-  double? get _amount => double.tryParse(_amountController.text.trim());
+  int? get _amount => int.tryParse(_amountController.text.trim());
 
   bool get _canProceed {
     final a = _amount;

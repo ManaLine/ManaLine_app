@@ -174,8 +174,8 @@ class _ReturnedView extends ConsumerWidget {
 
 class _SummaryCard extends StatelessWidget {
   final SettlementPreview preview;
-  final double physicalCashDeclared;
-  final double difference;
+  final int physicalCashDeclared;
+  final int difference;
   const _SummaryCard({required this.preview, required this.physicalCashDeclared, required this.difference});
 
   @override
@@ -200,14 +200,14 @@ class _SummaryCard extends StatelessWidget {
             _row('Physical Cash Declared', physicalCashDeclared, emphasize: true),
             const Divider(),
             _row('Difference', difference,
-                emphasize: true, color: difference.abs() < 0.005 ? ManaColors.statusGood : ManaColors.statusBad),
+                emphasize: true, color: difference == 0 ? ManaColors.statusGood : ManaColors.statusBad),
           ],
         ),
       ),
     );
   }
 
-  Widget _row(String label, double amount, {bool emphasize = false, Color? color}) {
+  Widget _row(String label, int amount, {bool emphasize = false, Color? color}) {
     final style = TextStyle(
       fontWeight: emphasize ? FontWeight.bold : FontWeight.normal,
       fontSize: emphasize ? 15 : 13,
@@ -253,7 +253,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
   void initState() {
     super.initState();
     _cashController = TextEditingController(
-        text: widget.state.physicalCashDeclared > 0 ? widget.state.physicalCashDeclared.toStringAsFixed(0) : '');
+        text: widget.state.physicalCashDeclared > 0 ? '${widget.state.physicalCashDeclared}' : '');
     _chequeCountController =
         TextEditingController(text: widget.state.chequeCountTally > 0 ? '${widget.state.chequeCountTally}' : '');
     _remarksController = TextEditingController(text: widget.state.remarks);
@@ -306,7 +306,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
           controller: _cashController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(labelText: 'Physical Cash (₹)'),
-          onChanged: (v) => ref.read(agentSettlementProvider.notifier).setPhysicalCash(double.tryParse(v) ?? 0),
+          onChanged: (v) => ref.read(agentSettlementProvider.notifier).setPhysicalCash(int.tryParse(v) ?? 0),
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
@@ -349,10 +349,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
   Future<void> _submit(BuildContext context) async {
     final result = await NetworkErrorHandler.run(context, () async {
       return ref.read(agentSettlementProvider.notifier).submit(
-            businessId: widget.businessId,
             agentId: widget.agentId,
-            periodStart: widget.periodStart,
-            periodEnd: widget.periodEnd,
           );
     });
     if (result == null || !context.mounted) return;

@@ -261,18 +261,18 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
     super.dispose();
   }
 
-  double? get _faceV => double.tryParse(_faceValue.text.trim());
+  int? get _faceV => int.tryParse(_faceValue.text.trim());
   int? get _totalV => int.tryParse(_total.text.trim());
-  double? get _instV => double.tryParse(_instalment.text.trim());
+  int? get _instV => int.tryParse(_instalment.text.trim());
   int get _openCountV => int.tryParse(_openingCount.text.trim()) ?? 0;
-  double get _openPaidV => double.tryParse(_openingPaid.text.trim()) ?? 0;
-  double? get _availedV => double.tryParse(_availedAmount.text.trim());
+  int get _openPaidV => int.tryParse(_openingPaid.text.trim()) ?? 0;
+  int? get _availedV => int.tryParse(_availedAmount.text.trim());
 
   /// What count x instalment WOULD be, shown only to make the gap visible.
   /// On an Auction cheti the real figure is lower because of dividends
   /// already earned, and that difference is exactly why opening paid is its
   /// own input rather than something derived.
-  double? get _openingImplied =>
+  int? get _openingImplied =>
       _instV == null ? null : _openCountV * _instV!;
 
   String? get _error {
@@ -484,7 +484,7 @@ class _PaymentSheet extends ConsumerStatefulWidget {
 
 class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
   late final TextEditingController _gross =
-      TextEditingController(text: widget.cheti.instalmentAmount.toStringAsFixed(0));
+      TextEditingController(text: '${widget.cheti.instalmentAmount}');
   final _dividend = TextEditingController(text: '0');
   bool _saving = false;
 
@@ -495,9 +495,9 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
     super.dispose();
   }
 
-  double? get _grossV => double.tryParse(_gross.text.trim());
-  double get _dividendV => double.tryParse(_dividend.text.trim()) ?? 0;
-  double? get _netV => _grossV == null ? null : _grossV! - _dividendV;
+  int? get _grossV => int.tryParse(_gross.text.trim());
+  int get _dividendV => int.tryParse(_dividend.text.trim()) ?? 0;
+  int? get _netV => _grossV == null ? null : _grossV! - _dividendV;
 
   String? get _error {
     if (_grossV == null) return null;
@@ -514,7 +514,6 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
     final ok = await NetworkErrorHandler.run(context, () async {
       await ref.read(chetiApiServiceProvider).recordPayment(
             chetiId: widget.cheti.chetiId,
-            businessId: widget.businessId,
             grossInstalment: _grossV!,
             dividend: _dividendV,
           );
@@ -613,14 +612,13 @@ class _AvailingSheetState extends ConsumerState<_AvailingSheet> {
     super.dispose();
   }
 
-  double? get _amountV => double.tryParse(_amount.text.trim());
+  int? get _amountV => int.tryParse(_amount.text.trim());
 
   Future<void> _save() async {
     setState(() => _saving = true);
     final ok = await NetworkErrorHandler.run(context, () async {
       await ref.read(chetiApiServiceProvider).recordAvailing(
             chetiId: widget.cheti.chetiId,
-            availedDate: _date,
             amount: _amountV!,
           );
       return true;

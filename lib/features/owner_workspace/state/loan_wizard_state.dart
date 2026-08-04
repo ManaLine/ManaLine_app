@@ -74,23 +74,24 @@ class LoanApiService {
   Future<EligibilityResult> checkEligibilityAndCreate({
     required String businessId,
     required String customerId,
-    required double repaymentAmount,
-    required double interest,
-    required double processingFee,
+    // Money is whole rupees (server DECIMAL(14,0)) — int, not double, so
+    // no float artifacts can creep into a disbursement (M8).
+    required int repaymentAmount,
+    required int interest,
+    required int processingFee,
     required String repaymentType,
     required int durationValue,
-    required double installmentAmount,
+    required int installmentAmount,
     required String effectiveDate,
     required String collectionAgentMembershipId,
-    String? guarantorName,
-    String? guarantorRelationship,
-    String? guarantorPhone,
-    String? guarantorAddress,
-    String? guarantorRemarks,
     String? livePhotoUrl,
     int? gracePeriodDays,
   }) async {
     try {
+      // NOTE: only the RPC's real inputs go here. The guarantor details are
+      // NOT part of create_loan_with_bf_check (it returns a loan_id first,
+      // then insertGuarantor writes them) — sending them used to make the
+      // RPC call fail before it ever ran.
       final response = await _db.schema('app').rpc('create_loan_with_bf_check', params: {
         'p_business_id': businessId,
         'p_customer_id': customerId,
@@ -104,15 +105,21 @@ class LoanApiService {
         'p_collection_agent_membership_id': collectionAgentMembershipId,
         'p_live_photo_url': livePhotoUrl,
         'p_grace_period_days': gracePeriodDays,
-        'p_guarantor_name': guarantorName,
-        'p_guarantor_relationship': guarantorRelationship,
-        'p_guarantor_phone': guarantorPhone,
-        'p_guarantor_address': guarantorAddress,
-        'p_guarantor_remarks': guarantorRemarks,
       });
 
       final map = response as Map<String, dynamic>;
       if (map['passed'] == false) {
+        // The server says the agent does not have enough cash in hand to
+        // hand out this loan. Turn that into a plain instruction so the
+        // user knows exactly what to do next.
+        if (map['failure_reason'] == 'INSUFFICIENT_FLOAT') {
+          return EligibilityResult(
+            passed: false,
+            failureReason: 'Agent BF is insufficient to issue this loan '
+                '(available ${map['float_current']}, needed ${map['required']}). '
+                'Ask the Owner to add BF, then retry.',
+          );
+        }
         return EligibilityResult(passed: false, failureReason: map['failure_reason'] as String?);
       }
       return EligibilityResult(
@@ -164,14 +171,12 @@ class LoanApiService {
   // RLS, 0015_rls_module6_loan_domain.sql — Owner already has full
   // access, nothing here needed a schema/RLS change).
   Future<List<LoanRequestSummary>> fetchLoanRequests({required String businessId}) async {
-    // The FK must be named explicitly. `customers` has TWO foreign keys into
-    // business_members — `membership_id` (the customer's own membership) and
-    // `assigned_agent_membership_id` (their collecting agent) — so a bare
-    // `business_members!inner(...)` embed is ambiguous and PostgREST refuses it
-    // with PGRST201 rather than picking one. We want the customer's own
-    // membership: "customers of THIS business", not "customers whose agent
-    // belongs to this business", which is a different set entirely and would
-    // silently return the wrong rows if the other FK were chosen.
+    // The FK is named explicitly. `customers` used to have a second FK into
+    // business_members (`assigned_agent_membership_id`) which made a bare
+    // `business_members!inner(...)` embed ambiguous (PGRST201); the column is
+    // gone since M4 (coverage is area-based), but keeping the explicit name
+    // stays correct and costs nothing. We want the customer's own membership:
+    // "customers of THIS business".
     final customerRows = await _db
         .from('customers')
         .select('customer_id, business_members!customers_membership_id_fkey!inner(business_id)')
@@ -194,7 +199,7 @@ class LoanApiService {
         customerId: r['customer_id'] as String,
         customerName: person['full_name'] as String? ?? '',
         customerMlid: person['mlid'] as String? ?? '',
-        requestedAmount: (r['requested_amount'] as num).toDouble(),
+        requestedAmount: (r['requested_amount'] as num).toInt(),
         purposeRemark: r['purpose_remark'] as String?,
         preferredFrequency: r['preferred_frequency'] as String?,
         createdAt: DateTime.parse(r['created_at'] as String),
@@ -229,7 +234,7 @@ class LoanRequestSummary {
   final String customerId;
   final String customerName;
   final String customerMlid;
-  final double requestedAmount;
+  final int requestedAmount;
   final String? purposeRemark;
   final String? preferredFrequency;
   final DateTime createdAt;
@@ -266,13 +271,14 @@ class LoanWizardState {
   final bool eligibilityPassed;
   final String? eligibilityFailureReason;
 
-  // Step 3 — Loan Details
-  final double? repaymentAmount;
-  final double? interest;
-  final double? processingFee;
+  // Step 3 — Loan Details. Money is whole rupees (server DECIMAL(14,0)) —
+  // int, not double (M8).
+  final int? repaymentAmount;
+  final int? interest;
+  final int? processingFee;
   final String repaymentType; // e.g. Weekly | Monthly
   final int? durationValue;
-  final double? installmentAmount;
+  final int? installmentAmount;
   final String effectiveDate;
   final String? collectionAgentId;
   final String? collectionAgentName;
@@ -291,6 +297,11 @@ class LoanWizardState {
   final Uint8List? livePhotoBytes;
   final int gracePeriodDays;
 
+  // M6: GPS consent — the loan wizard needs location-capture consent
+  // before it can use the device GPS for address verification. When
+  // consentGiven is false the confirm step shows a clear error; the
+  // screen should surface a consent dialog on first attempt.
+  final bool consentGiven;
   final bool submitting;
   final String? error;
   final String? createdLoanNumber;
@@ -315,6 +326,7 @@ class LoanWizardState {
     this.collectionAgentId,
     this.collectionAgentName,
     this.needsGuarantor = false,
+    this.consentGiven = false,
     this.guarantorName,
     this.guarantorRelationship,
     this.guarantorPhone,
@@ -329,8 +341,8 @@ class LoanWizardState {
   });
 
   // Amount Given = Repayment Amount − Interest − Processing Fee — system
-  // derived, never editable (BR-004 locked formula).
-  double get amountGiven => (repaymentAmount ?? 0) - (interest ?? 0) - (processingFee ?? 0);
+  // derived, never editable (BR-004 locked formula). Whole rupees (M8).
+  int get amountGiven => (repaymentAmount ?? 0) - (interest ?? 0) - (processingFee ?? 0);
 
   bool get step3Complete =>
       repaymentAmount != null &&
@@ -352,16 +364,17 @@ class LoanWizardState {
     bool? eligibilityPassed,
     String? eligibilityFailureReason,
     bool clearEligibilityFailure = false,
-    double? repaymentAmount,
-    double? interest,
-    double? processingFee,
+    int? repaymentAmount,
+    int? interest,
+    int? processingFee,
     String? repaymentType,
     int? durationValue,
-    double? installmentAmount,
+    int? installmentAmount,
     String? effectiveDate,
     String? collectionAgentId,
     String? collectionAgentName,
     bool? needsGuarantor,
+    bool? consentGiven,
     String? guarantorName,
     String? guarantorRelationship,
     String? guarantorPhone,
@@ -391,6 +404,7 @@ class LoanWizardState {
       collectionAgentId: collectionAgentId ?? this.collectionAgentId,
       collectionAgentName: collectionAgentName ?? this.collectionAgentName,
       needsGuarantor: needsGuarantor ?? this.needsGuarantor,
+      consentGiven: consentGiven ?? this.consentGiven,
       guarantorName: guarantorName ?? this.guarantorName,
       guarantorRelationship: guarantorRelationship ?? this.guarantorRelationship,
       guarantorPhone: guarantorPhone ?? this.guarantorPhone,
@@ -453,12 +467,12 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
   }
 
   void setLoanDetails({
-    required double repaymentAmount,
-    required double interest,
-    required double processingFee,
+    required int repaymentAmount,
+    required int interest,
+    required int processingFee,
     required String repaymentType,
     required int durationValue,
-    required double installmentAmount,
+    required int installmentAmount,
     required String effectiveDate,
     required String collectionAgentId,
     required String collectionAgentName,
@@ -522,6 +536,13 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
       state = state.copyWith(error: 'Live photo is required before a loan can be created (BR-036/081).');
       return null;
     }
+    // M6: GPS consent is mandatory before the address-verification GPS
+    // capture. When consentGiven is false the screen should show a one-time
+    // consent prompt; after the user agrees, set consentGiven and retry.
+    if (!state.consentGiven) {
+      state = state.copyWith(error: 'Location consent is required before issuing a loan. Tap the consent prompt to continue.');
+      return null;
+    }
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final photoUrl = await LivePhotoUpload.upload(
@@ -542,11 +563,8 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
         installmentAmount: state.installmentAmount!,
         effectiveDate: state.effectiveDate,
         collectionAgentMembershipId: state.collectionAgentId!,
-        guarantorName: state.guarantorName,
-        guarantorRelationship: state.guarantorRelationship,
-        guarantorPhone: state.guarantorPhone,
-        guarantorAddress: state.guarantorAddress,
-        guarantorRemarks: state.guarantorRemarks,
+        // Guarantor details are written separately via insertGuarantor()
+        // below — the loan RPC does not take them.
         livePhotoUrl: photoUrl,
         gracePeriodDays: state.gracePeriodDays,
       );

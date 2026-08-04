@@ -13,16 +13,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// added anywhere, matching agent_notifications_state.dart's established
 /// reasoning.
 ///
-/// MONEY PRECISION NOTE: every amount column touched here
+/// MONEY PRECISION NOTE (M8): every amount column touched here
 /// (`repayment_amount`, `remaining_balance`, `installment_amount`,
 /// `penalty_amount_applied`, `collected_amount`) is `DECIMAL(14,0)` —
 /// whole rupees, no fractional part, per Merged Addendum item 1. Postgrest
-/// serializes NUMERIC as a bare JSON number (not a string) at this scale,
-/// and a 14-digit whole number is well within double's 53-bit exact-integer
-/// range, so `(x as num).toDouble()` is safe here. Flagging this
-/// explicitly rather than assuming — if any of these columns is ever
-/// widened to carry paise/fractional rupees, this assumption needs
-/// revisiting.
+/// serializes NUMERIC as a bare JSON number (not a string) at this scale.
+/// Money is therefore modelled as `int` (whole rupees), never `double`, so
+/// no float artifact can ever surface in a displayed balance or a payment
+/// amount. Reads use `.toInt()` (whole values — no truncation risk).
 class CustomerLoansApiService {
   SupabaseClient get _db => Supabase.instance.client;
 
@@ -94,7 +92,7 @@ class CustomerLoansApiService {
         .map((s) => LoanScheduleEntry(
               installmentNumber: s['installment_number'] as int,
               dueDate: DateTime.parse(s['due_date'] as String),
-              installmentAmount: (s['installment_amount'] as num).toDouble(),
+              installmentAmount: (s['installment_amount'] as num).toInt(),
               status: s['status'] as String,
             ))
         .toList()
@@ -105,7 +103,7 @@ class CustomerLoansApiService {
         .where((p) => p['status'] == 'Submitted')
         .map((p) => PendingOnlinePayment(
               onlinePaymentId: p['online_payment_id'] as String,
-              amount: (p['amount'] as num).toDouble(),
+              amount: (p['amount'] as num).toInt(),
               submittedAt: DateTime.parse(p['submitted_at'] as String),
             ))
         .toList();
@@ -124,13 +122,13 @@ class CustomerLoansApiService {
     // full-amount in V1.
     final penaltyEntries = ((row['penalty_entries'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final unwaived = penaltyEntries.where((p) => p['is_waived_or_reduced'] != true);
-    final penaltyTotal = unwaived.fold<double>(0, (sum, p) => sum + (p['penalty_amount_applied'] as num).toDouble());
+    final penaltyTotal = unwaived.fold<int>(0, (sum, p) => sum + (p['penalty_amount_applied'] as num).toInt());
 
     return CustomerLoanDetail(
       summary: summary,
       repaymentType: row['repayment_type'] as String,
       durationValue: row['duration_value'] as int,
-      installmentAmount: (row['installment_amount'] as num).toDouble(),
+      installmentAmount: (row['installment_amount'] as num).toInt(),
       effectiveDate: DateTime.parse(row['effective_date'] as String),
       schedule: schedule,
       pendingOnlinePayments: pendingOnline,
@@ -166,7 +164,7 @@ class CustomerLoansApiService {
       return LoanPaymentHistoryEntry(
         collectionId: r['collection_id'] as String,
         businessDate: DateTime.parse(r['business_date'] as String),
-        collectedAmount: (r['collected_amount'] as num).toDouble(),
+        collectedAmount: (r['collected_amount'] as num).toInt(),
         paymentMode: mode,
         receiptNumber: r['receipt_number'] as String,
       );
@@ -184,10 +182,10 @@ class CustomerLoansApiService {
       loanId: row['loan_id'] as String,
       loanNumber: row['loan_number'] as String,
       templateName: template?['template_name'] as String?,
-      principalAmount: (row['repayment_amount'] as num).toDouble(),
-      outstandingBalance: (row['remaining_balance'] as num).toDouble(),
+      principalAmount: (row['repayment_amount'] as num).toInt(),
+      outstandingBalance: (row['remaining_balance'] as num).toInt(),
       nextDueDate: nextPending != null ? DateTime.parse(nextPending['due_date'] as String) : null,
-      nextDueAmount: nextPending != null ? (nextPending['installment_amount'] as num).toDouble() : null,
+      nextDueAmount: nextPending != null ? (nextPending['installment_amount'] as num).toInt() : null,
       loanStatus: row['loan_status'] as String,
     );
   }
@@ -207,10 +205,10 @@ class CustomerLoanSummary {
   final String loanId;
   final String loanNumber;
   final String? templateName;
-  final double principalAmount; // repayment_amount, per §6.1
-  final double outstandingBalance; // remaining_balance
+  final int principalAmount; // repayment_amount, per §6.1
+  final int outstandingBalance; // remaining_balance
   final DateTime? nextDueDate;
-  final double? nextDueAmount;
+  final int? nextDueAmount;
   final String loanStatus; // Active | Grace Period | Overdue | Penalty | Closed | ...
 
   CustomerLoanSummary({
@@ -231,7 +229,7 @@ class CustomerLoanSummary {
 class LoanScheduleEntry {
   final int installmentNumber;
   final DateTime dueDate;
-  final double installmentAmount;
+  final int installmentAmount;
   final String status; // Pending | Completed | Partial
 
   LoanScheduleEntry({
@@ -252,7 +250,7 @@ class LoanScheduleEntry {
 class LoanPaymentHistoryEntry {
   final String collectionId;
   final DateTime businessDate;
-  final double collectedAmount;
+  final int collectedAmount;
   final String paymentMode; // Cash | Online, per §7.1/§7.5
   final String receiptNumber;
 
@@ -269,7 +267,7 @@ class LoanPaymentHistoryEntry {
 /// `customer_online_payments` §7.5.
 class PendingOnlinePayment {
   final String onlinePaymentId;
-  final double amount;
+  final int amount;
   final DateTime submittedAt;
 
   PendingOnlinePayment({required this.onlinePaymentId, required this.amount, required this.submittedAt});
@@ -279,11 +277,11 @@ class CustomerLoanDetail {
   final CustomerLoanSummary summary;
   final String repaymentType; // Daily | Weekly | Monthly
   final int durationValue;
-  final double installmentAmount;
+  final int installmentAmount;
   final DateTime effectiveDate;
   final List<LoanScheduleEntry> schedule;
   final List<PendingOnlinePayment> pendingOnlinePayments;
-  final double? penaltyAmount; // penalty_entries, if applicable
+  final int? penaltyAmount; // penalty_entries, if applicable
   final DateTime? gracePeriodEndDate; // if applicable
 
   CustomerLoanDetail({

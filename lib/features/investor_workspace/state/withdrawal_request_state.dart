@@ -55,18 +55,18 @@ class WithdrawalRequestApiService {
       // principal_amount is the current combined Principal+Interest
       // balance (schema comment, Merged Addendum item 2) — this IS
       // "Available Balance" for withdrawal purposes.
-      availableBalance: (row['principal_amount'] as num).toDouble(),
+      availableBalance: (row['principal_amount'] as num).toInt(),
       // original_principal_amount is the frozen Agreement Snapshot value
       // (BR-034) — used here for the separate "Principal" figure IW-004
       // displays alongside Available Balance.
-      principalAmount: (row['original_principal_amount'] as num).toDouble(),
+      principalAmount: (row['original_principal_amount'] as num).toInt(),
     );
   }
 
   Future<WithdrawalRequestRecord> submitRequest({
     required String investmentId,
     required WithdrawalType withdrawalType,
-    required double requestedAmount,
+    required int requestedAmount, // whole rupees (M8)
     String? remarks,
   }) async {
     final personId = ref.read(authFlowProvider).personId;
@@ -109,8 +109,8 @@ enum WithdrawalType {
 
 class InvestmentSummary {
   final String investmentId;
-  final double availableBalance; // Principal + Unpaid Interest
-  final double principalAmount;
+  final int availableBalance; // Principal + Unpaid Interest
+  final int principalAmount;
 
   InvestmentSummary({required this.investmentId, required this.availableBalance, required this.principalAmount});
 }
@@ -183,7 +183,7 @@ class WithdrawalRequestNotifier extends Notifier<WithdrawalRequestState> {
 
   Future<WithdrawalRequestRecord?> submit({
     required WithdrawalType withdrawalType,
-    required double requestedAmount,
+    required int requestedAmount,
     String? remarks,
   }) async {
     final investmentId = _investmentId;

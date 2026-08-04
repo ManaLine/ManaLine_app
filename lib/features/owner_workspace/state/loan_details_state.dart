@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/mana_time.dart';
 
 /// OW-007 Loan Details — real Supabase wiring over Module 6/7.
 ///
@@ -60,7 +61,7 @@ class LoanDetailsApiService {
         .map((p) => PenaltyEntry(
               penaltyEntryId: p['penalty_id'] as String,
               penaltyOption: p['penalty_option'] as String,
-              penaltyAmount: (p['penalty_amount_applied'] as num).toDouble(),
+              penaltyAmount: (p['penalty_amount_applied'] as num).toInt(),
               appliedDate: DateTime.parse(p['entry_timestamp'] as String),
               isWaivedOrReduced: p['is_waived_or_reduced'] as bool? ?? false,
             ))
@@ -73,11 +74,11 @@ class LoanDetailsApiService {
       customerId: customer['customer_id'] as String,
       status: status,
       repaymentType: row['repayment_type'] as String,
-      installmentAmount: (row['installment_amount'] as num).toDouble(),
-      loanAmount: (row['repayment_amount'] as num).toDouble(),
-      amountGiven: (row['amount_given'] as num).toDouble(),
-      outstandingBalance: (row['remaining_balance'] as num).toDouble(),
-      todaysDue: (row['installment_amount'] as num).toDouble(), // precise per-schedule due requires business_date join — see KNOWN SIMPLIFICATION pattern elsewhere this session
+      installmentAmount: (row['installment_amount'] as num).toInt(),
+      loanAmount: (row['repayment_amount'] as num).toInt(),
+      amountGiven: (row['amount_given'] as num).toInt(),
+      outstandingBalance: (row['remaining_balance'] as num).toInt(),
+      todaysDue: (row['installment_amount'] as num).toInt(), // precise per-schedule due requires business_date join — see KNOWN SIMPLIFICATION pattern elsewhere this session
       completedInstallments: completed,
       remainingInstallments: schedule.length - completed,
       inGracePeriod: status == LoanStatus.gracePeriod,
@@ -152,7 +153,7 @@ class LoanDetailsApiService {
   Future<String> applyPenalty({
     required String loanId,
     required String penaltyOption,
-    required double penaltyAmount,
+    required int penaltyAmount, // whole rupees (M8)
   }) async {
     final result = await _db.schema('app').rpc('apply_loan_penalty', params: {
       'p_loan_id': loanId,
@@ -173,7 +174,7 @@ class LoanDetailsApiService {
         .map((p) => PenaltyEntry(
               penaltyEntryId: p['penalty_id'] as String,
               penaltyOption: p['penalty_option'] as String,
-              penaltyAmount: (p['penalty_amount_applied'] as num).toDouble(),
+              penaltyAmount: (p['penalty_amount_applied'] as num).toInt(),
               appliedDate: DateTime.parse(p['entry_timestamp'] as String),
               isWaivedOrReduced: p['is_waived_or_reduced'] as bool? ?? false,
             ))
@@ -190,17 +191,17 @@ class LoanDetailsApiService {
   /// recoverable afterwards — there is no penalty history table in the
   /// schema to hold it. See the 0054 header for why consistency with
   /// remaining_balance was chosen over preserving the original.
-  Future<double> waiveOrReducePenalty({
+  Future<int> waiveOrReducePenalty({
     required String penaltyEntryId,
     required bool waive,
-    double? reducedAmount,
+    int? reducedAmount,
   }) async {
     final result = await _db.schema('app').rpc('waive_loan_penalty', params: {
       'p_penalty_id': penaltyEntryId,
       'p_waive': waive,
       'p_reduced_amount': reducedAmount,
     });
-    return (result as num).toDouble();
+    return (result as num).toInt();
   }
 
   /// Backed by `app.close_loan` (migration 0055) rather than a raw UPDATE,
@@ -217,7 +218,7 @@ class LoanDetailsApiService {
     }) as Map<String, dynamic>;
     return LoanCloseResult(
       writtenOff: result['written_off'] as bool? ?? false,
-      penaltyRecognised: ((result['penalty_recognised'] as num?) ?? 0).toDouble(),
+      penaltyRecognised: ((result['penalty_recognised'] as num?) ?? 0).toInt(),
       recognisedBusinessDate: result['recognised_business_date'] as String?,
     );
   }
@@ -249,7 +250,7 @@ class LoanDetailsApiService {
 /// before the write).
 class LoanCloseResult {
   final bool writtenOff;
-  final double penaltyRecognised;
+  final int penaltyRecognised;
   final String? recognisedBusinessDate;
 
   const LoanCloseResult({
@@ -283,10 +284,10 @@ class GuarantorDetail {
 class LoanPaymentHistoryRow {
   final DateTime businessDate;
   final String receiptNumber;
-  final double amount;
+  final int amount;
   final String paymentMode;
   final String collector;
-  final double difference;
+  final int difference;
   final String? remarks;
   LoanPaymentHistoryRow({
     required this.businessDate,
@@ -302,7 +303,7 @@ class LoanPaymentHistoryRow {
 class PenaltyEntry {
   final String penaltyEntryId;
   final String penaltyOption;
-  final double penaltyAmount;
+  final int penaltyAmount;
   final DateTime appliedDate;
   final bool isWaivedOrReduced;
   PenaltyEntry({
@@ -325,11 +326,11 @@ class LoanDetail {
   final String customerId;
   final LoanStatus status;
   final String repaymentType;
-  final double installmentAmount;
-  final double loanAmount;
-  final double amountGiven;
-  final double outstandingBalance;
-  final double todaysDue;
+  final int installmentAmount;
+  final int loanAmount;
+  final int amountGiven;
+  final int outstandingBalance;
+  final int todaysDue;
   final int completedInstallments;
   final int remainingInstallments;
   final bool inGracePeriod;
@@ -385,7 +386,7 @@ class LoanDetail {
   /// anything, which made the action permanently unreachable.
   bool get penaltyEligible {
     if (penaltyEligibleFrom == null) return false;
-    final today = DateTime.now();
+    final today = manaNowIst();
     final todayDate = DateTime(today.year, today.month, today.day);
     return outstandingBalance > 0 && !todayDate.isBefore(penaltyEligibleFrom!);
   }
@@ -438,17 +439,17 @@ class LoanDetailsNotifier extends FamilyAsyncNotifier<LoanDetail, String> {
   // `false` let the screen show "Penalty applied" on a rejected write.
   // Letting the PostgrestException through means NetworkErrorHandler
   // surfaces the server's own message instead.
-  Future<void> applyPenalty({required String penaltyOption, required double penaltyAmount}) async {
+  Future<void> applyPenalty({required String penaltyOption, required int penaltyAmount}) async {
     await ref
         .read(loanDetailsApiServiceProvider)
         .applyPenalty(loanId: arg, penaltyOption: penaltyOption, penaltyAmount: penaltyAmount);
     await refresh();
   }
 
-  Future<double> waiveOrReducePenalty({
+  Future<int> waiveOrReducePenalty({
     required String penaltyEntryId,
     required bool waive,
-    double? reducedAmount,
+    int? reducedAmount,
   }) async {
     final reversed = await ref
         .read(loanDetailsApiServiceProvider)

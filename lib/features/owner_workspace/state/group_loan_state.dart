@@ -68,8 +68,8 @@ class GroupLoanApiService {
                       as String? ??
                   '',
               loanNumber: r['loan_number'] as String,
-              remainingBalance: (r['remaining_balance'] as num).toDouble(),
-              installmentAmount: (r['installment_amount'] as num).toDouble(),
+              remainingBalance: (r['remaining_balance'] as num).toInt(),
+              installmentAmount: (r['installment_amount'] as num).toInt(),
               status: r['loan_status'] as String,
             ))
         .toList();
@@ -130,8 +130,8 @@ class GroupLoanApiService {
                 ((l['customers'] as Map<String, dynamic>)['persons'] as Map<String, dynamic>)['full_name'] as String? ??
                     '',
             loanNumber: l['loan_number'] as String,
-            remainingBalance: (l['remaining_balance'] as num).toDouble(),
-            installmentAmount: (l['installment_amount'] as num).toDouble(),
+            remainingBalance: (l['remaining_balance'] as num).toInt(),
+            installmentAmount: (l['installment_amount'] as num).toInt(),
             status: l['loan_status'] as String,
           );
         })
@@ -175,8 +175,8 @@ class GroupMemberLoan {
   final String loanId;
   final String customerName;
   final String loanNumber;
-  final double remainingBalance;
-  final double installmentAmount;
+  final int remainingBalance;
+  final int installmentAmount;
   final String status;
   GroupMemberLoan({
     required this.loanId,
@@ -197,8 +197,8 @@ class GroupLoanDetail {
   // Group Balance/EMI are always computed live from member loans, never
   // stored — no reconciliation risk between a stored total and the
   // member loans (spec's own BUSINESS RULES).
-  double get groupBalance => members.fold(0.0, (sum, m) => sum + m.remainingBalance);
-  double get groupEmi => members.fold(0.0, (sum, m) => sum + m.installmentAmount);
+  int get groupBalance => members.fold(0, (sum, m) => sum + m.remainingBalance);
+  int get groupEmi => members.fold(0, (sum, m) => sum + m.installmentAmount);
 
   // Deletion gated on Group Balance = ₹0 — every member loan fully
   // paid/Closed.

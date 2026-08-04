@@ -316,6 +316,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
         final loan = profile.loans.first;
         final dueRow = CollectionDueRow(
           loanId: loan.loanId,
+          customerId: customerId,
           customerName: customerName,
           village: profile.summary.village,
           loanNumber: loan.loanNumber,
@@ -326,7 +327,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
           collectionAgent: agentMembershipId,
         );
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: dueRow)),
+          MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: dueRow, businessId: businessId)),
         );
         ref.invalidate(agentCustomerProfileProvider(customerId));
       case 'view_loan':

@@ -75,7 +75,7 @@ class InvestorDashboardApiService {
         .eq('business_id', businessId);
     final investments = (investmentRows as List).cast<Map<String, dynamic>>();
     final activeInvestments = investments.where((i) => i['status'] == 'Active').toList();
-    final totalBalance = activeInvestments.fold<double>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toDouble() ?? 0));
+    final totalBalance = activeInvestments.fold<int>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toInt() ?? 0));
     final investmentIds = investments.map((i) => i['investment_id']).toList();
 
     // Both of these depend only on investmentIds, so they go out together
@@ -86,8 +86,8 @@ class InvestorDashboardApiService {
     // 0018 RLS, scopes them to the caller's own recipient_person_id — safe
     // for any logged-in role, unlike OW-001 which reads the same table
     // business_id-scoped since an Owner has one identity per business).
-    double totalAccrued = 0;
-    double totalPaid = 0;
+    int totalAccrued = 0;
+    int totalPaid = 0;
     int pendingWithdrawals = 0;
     int pendingInterestPayments = 0;
 
@@ -102,7 +102,7 @@ class InvestorDashboardApiService {
       ]);
 
       for (final row in (wave4[0] as List).cast<Map<String, dynamic>>()) {
-        final amount = (row['amount'] as num?)?.toDouble() ?? 0;
+        final amount = (row['amount'] as num?)?.toInt() ?? 0;
         if (row['entry_type'] == 'Payment') {
           totalPaid += amount;
         } else {
@@ -155,10 +155,10 @@ class InvestorDashboardData {
   final String businessName;
   final String investorName;
   final bool investorVerified;
-  final double totalInvestmentBalance;
+  final int totalInvestmentBalance;
   final int activeInvestmentCount;
-  final double totalInterestAccrued;
-  final double interestPaidToDate;
+  final int totalInterestAccrued;
+  final int interestPaidToDate;
   final int pendingWithdrawalRequests;
   final int pendingInterestPaymentRequests;
   final List<InvestorNotification> notifications;

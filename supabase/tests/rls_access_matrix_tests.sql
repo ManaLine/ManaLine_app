@@ -159,6 +159,8 @@ DECLARE
     v_agent_row_a UUID; v_investor_row_a UUID;
     v_loan_a UUID; v_loan_b UUID;
     v_perm_a UUID;
+    -- M4 route-model fixture: coverage is area-based now.
+    v_loc_a UUID; v_area_a UUID;
 BEGIN
     -- Persons
     INSERT INTO persons (mlid, mlid_type, gender_digit, full_name, father_husband_name, registration_source, customer_type)
@@ -219,10 +221,26 @@ BEGIN
     INSERT INTO investors (membership_id, person_id) VALUES (v_mem_investor_b, v_investor_b);
 
     -- Identical-looking customers in both businesses (same occupation profile)
-    INSERT INTO customers (membership_id, person_id, assigned_agent_membership_id, occupation, customer_since)
-    VALUES (v_mem_customer_a, v_customer_a, v_mem_agent_a, 'Farmer', CURRENT_DATE) RETURNING customer_id INTO v_cust_row_a;
+    INSERT INTO customers (membership_id, person_id, occupation, customer_since)
+    VALUES (v_mem_customer_a, v_customer_a, 'Farmer', CURRENT_DATE) RETURNING customer_id INTO v_cust_row_a;
     INSERT INTO customers (membership_id, person_id, occupation, customer_since)
     VALUES (v_mem_customer_b, v_customer_b, 'Farmer', CURRENT_DATE) RETURNING customer_id INTO v_cust_row_b;
+
+    -- M4: agent coverage is area-based. Customer A's village belongs to an
+    -- operating area that Agent A currently holds (open window), so the
+    -- "Agent (assigned)" positive assertions below still mean something.
+    INSERT INTO locations (pin_code, village_town_name, area_type, mandal, district, state)
+    VALUES ('517102', 'RAM Village A', 'Village', 'RAM Mandal', 'RAM District', 'Andhra Pradesh')
+    RETURNING location_id INTO v_loc_a;
+    INSERT INTO operating_areas (business_id, name, account_cycle_duration, account_cycle_unit, submission_time)
+    VALUES (v_biz_a, 'RAM Area A', 3, 'Days', '21:00:00')
+    RETURNING operating_area_id INTO v_area_a;
+    INSERT INTO operating_area_locations (operating_area_id, location_id, business_id)
+    VALUES (v_area_a, v_loc_a, v_biz_a);
+    INSERT INTO agent_area_assignments (agent_id, operating_area_id, frequency, valid_from)
+    VALUES (v_agent_row_a, v_area_a, 'Once', CURRENT_DATE);
+    INSERT INTO person_addresses (person_id, door_no, pin_code, village_id, mandal, district, state, from_date, is_current)
+    VALUES (v_customer_a, '1-2', '517102', v_loc_a, 'RAM Mandal', 'RAM District', 'Andhra Pradesh', CURRENT_DATE, TRUE);
 
     -- Loans with the same amount in both businesses
     INSERT INTO loans (loan_number, customer_id, business_id, collection_agent_membership_id, repayment_amount,

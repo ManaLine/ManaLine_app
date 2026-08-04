@@ -139,6 +139,8 @@ DECLARE
     v_loan_alpha UUID; v_loan_beta UUID;
     v_investment_alpha UUID; v_investment_beta UUID;
     v_perm_alpha UUID; v_perm_shared UUID;
+    -- M4 route-model fixture: coverage is area-based.
+    v_loc_alpha UUID; v_area_alpha UUID;
 BEGIN
     -- Both businesses use "Ramesh Kumar" for their Agent and "Lakshmi" for
     -- their Customer — identical full_name across tenants, deliberately, to
@@ -211,27 +213,42 @@ BEGIN
     INSERT INTO investors (membership_id, person_id) VALUES (v_mem_investor_beta, v_investor_beta);
 
     -- Customers, deliberately identical occupation
-    INSERT INTO customers (membership_id, person_id, assigned_agent_membership_id, occupation, customer_since)
-    VALUES (v_mem_cust_alpha, v_cust_alpha, v_mem_agent_alpha, 'Farmer', CURRENT_DATE) RETURNING customer_id INTO v_cust_row_alpha;
+    INSERT INTO customers (membership_id, person_id, occupation, customer_since)
+    VALUES (v_mem_cust_alpha, v_cust_alpha, 'Farmer', CURRENT_DATE) RETURNING customer_id INTO v_cust_row_alpha;
     INSERT INTO customers (membership_id, person_id, occupation, customer_since)
     VALUES (v_mem_cust_beta, v_cust_beta, 'Farmer', CURRENT_DATE) RETURNING customer_id INTO v_cust_row_beta;
     INSERT INTO customers (membership_id, person_id, occupation, customer_since)
     VALUES (v_mem_shared_cust_beta, v_shared_person, 'Farmer', CURRENT_DATE) RETURNING customer_id INTO v_shared_cust_row_beta;
 
-    -- A customer genuinely assigned to shared_person's OWN Agent membership
+    -- A customer genuinely covered by shared_person's OWN Agent membership
     -- in Alpha (not Agent Alpha's) — needed so the "Customer-role in Beta
     -- does not downgrade Agent-role in Alpha" test below actually exercises
     -- shared_person's real agent_covers_customer() coverage, rather than
     -- checking a customer assigned to a different Agent entirely.
+    -- M4: coverage is area-based, so the shared agent is assigned to an
+    -- operating area containing this customer's village.
     DECLARE v_extra_person BIGINT; v_extra_mem UUID;
     BEGIN
         INSERT INTO persons (mlid, mlid_type, gender_digit, full_name, father_husband_name, registration_source, customer_type)
         VALUES ('MLPI1TISHAREC', 'MLPI', '1', 'Shared Agent Customer', 'Father X', 'System', 'New') RETURNING person_id INTO v_extra_person;
         INSERT INTO business_members (person_id, business_id, role, membership_status, onboarding_method, verification_status)
         VALUES (v_extra_person, v_biz_alpha, 'Customer', 'Active', 'Direct Registration', 'Not Required') RETURNING membership_id INTO v_extra_mem;
-        INSERT INTO customers (membership_id, person_id, assigned_agent_membership_id, occupation, customer_since)
-        VALUES (v_extra_mem, v_extra_person, v_mem_shared_agent_alpha, 'Tailor', CURRENT_DATE)
+        INSERT INTO customers (membership_id, person_id, occupation, customer_since)
+        VALUES (v_extra_mem, v_extra_person, 'Tailor', CURRENT_DATE)
         RETURNING customer_id INTO v_cust_row_alpha_assigned_to_shared;
+
+        INSERT INTO locations (pin_code, village_town_name, area_type, mandal, district, state)
+        VALUES ('517101', 'MTI Shared Village', 'Village', 'MTI Mandal', 'MTI District', 'Andhra Pradesh')
+        RETURNING location_id INTO v_loc_alpha;
+        INSERT INTO operating_areas (business_id, name, account_cycle_duration, account_cycle_unit, submission_time)
+        VALUES (v_biz_alpha, 'MTI Shared Area', 3, 'Days', '21:00:00')
+        RETURNING operating_area_id INTO v_area_alpha;
+        INSERT INTO operating_area_locations (operating_area_id, location_id, business_id)
+        VALUES (v_area_alpha, v_loc_alpha, v_biz_alpha);
+        INSERT INTO agent_area_assignments (agent_id, operating_area_id, frequency, valid_from)
+        VALUES (v_shared_agent_row, v_area_alpha, 'Once', CURRENT_DATE);
+        INSERT INTO person_addresses (person_id, door_no, pin_code, village_id, mandal, district, state, from_date, is_current)
+        VALUES (v_extra_person, '1-2', '517101', v_loc_alpha, 'MTI Mandal', 'MTI District', 'Andhra Pradesh', CURRENT_DATE, TRUE);
     END;
 
     -- Loans: SAME repayment_amount in both businesses (₹22,000) — a policy

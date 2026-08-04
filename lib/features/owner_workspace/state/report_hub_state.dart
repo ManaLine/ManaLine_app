@@ -73,15 +73,15 @@ class ReportHubApiService {
       final m = r as Map<String, dynamic>;
       final dateStr = m['business_date'] as String;
       final ledger = ledgerByDate[dateStr];
-      final diff = (m['difference'] as num).toDouble();
+      final diff = (m['difference'] as num).toInt();
       return RecordBookRow(
         businessDayAccountId: m['closure_id'] as String, // see class-level SCHEMA/DOC MISMATCH note — closure_id, not account_group_id
         dateFrom: DateTime.parse(dateStr),
         dateTo: DateTime.parse(dateStr),
-        collectionsTotal: (ledger?['total_collections'] as num?)?.toDouble() ?? 0,
-        loansGivenTotal: (ledger?['total_loan_distribution'] as num?)?.toDouble() ?? 0,
-        expensesTotal: (ledger?['total_expenses'] as num?)?.toDouble() ?? 0,
-        closingCash: (ledger?['closing_balance'] as num?)?.toDouble() ?? 0,
+        collectionsTotal: (ledger?['total_collections'] as num?)?.toInt() ?? 0,
+        loansGivenTotal: (ledger?['total_loan_distribution'] as num?)?.toInt() ?? 0,
+        expensesTotal: (ledger?['total_expenses'] as num?)?.toInt() ?? 0,
+        closingCash: (ledger?['closing_balance'] as num?)?.toInt() ?? 0,
         agentBalanceStatus: diff == 0 ? 'Balanced' : (diff > 0 ? 'Excess' : 'Short'),
         // FLAGGED: no table tracks "pending customers" (customers with an
         // unpaid due as of that business date) as a stored/queryable
@@ -104,9 +104,9 @@ class ReportHubApiService {
     MonthlySummary? monthlySummary;
     MonthlyClosing? monthlyClosing;
     if (year != null && month != null) {
-      final totalCollections = rows.fold<double>(0, (s, r) => s + r.collectionsTotal);
-      final totalLoansGiven = rows.fold<double>(0, (s, r) => s + r.loansGivenTotal);
-      final totalExpenses = rows.fold<double>(0, (s, r) => s + r.expensesTotal);
+      final totalCollections = rows.fold<int>(0, (s, r) => s + r.collectionsTotal);
+      final totalLoansGiven = rows.fold<int>(0, (s, r) => s + r.loansGivenTotal);
+      final totalExpenses = rows.fold<int>(0, (s, r) => s + r.expensesTotal);
       monthlySummary = MonthlySummary(
         year: year,
         month: month,
@@ -176,15 +176,15 @@ class ReportHubApiService {
         .eq('business_id', businessId)
         .eq('business_date', dateStr) as List;
 
-    final diff = (closure['difference'] as num).toDouble();
+    final diff = (closure['difference'] as num).toInt();
     final row = RecordBookRow(
       businessDayAccountId: closure['closure_id'] as String,
       dateFrom: DateTime.parse(dateStr),
       dateTo: DateTime.parse(dateStr),
-      collectionsTotal: (ledger?['total_collections'] as num?)?.toDouble() ?? 0,
-      loansGivenTotal: (ledger?['total_loan_distribution'] as num?)?.toDouble() ?? 0,
-      expensesTotal: (ledger?['total_expenses'] as num?)?.toDouble() ?? 0,
-      closingCash: (ledger?['closing_balance'] as num?)?.toDouble() ?? 0,
+      collectionsTotal: (ledger?['total_collections'] as num?)?.toInt() ?? 0,
+      loansGivenTotal: (ledger?['total_loan_distribution'] as num?)?.toInt() ?? 0,
+      expensesTotal: (ledger?['total_expenses'] as num?)?.toInt() ?? 0,
+      closingCash: (ledger?['closing_balance'] as num?)?.toInt() ?? 0,
       agentBalanceStatus: diff == 0 ? 'Balanced' : (diff > 0 ? 'Excess' : 'Short'),
       pendingCustomersCount: 0,
       remarks: ledger?['remarks'] as String?,
@@ -196,19 +196,19 @@ class ReportHubApiService {
           .map((r) => ReportHubLineItem(
               id: (r as Map)['collection_id'] as String,
               label: 'Collection',
-              amount: (r['collected_amount'] as num).toDouble()))
+              amount: (r['collected_amount'] as num).toInt()))
           .toList(),
       loans: loanRows
           .map((r) => ReportHubLineItem(
               id: (r as Map)['loan_id'] as String,
               label: 'Loan Distribution',
-              amount: (r['amount_given'] as num).toDouble()))
+              amount: (r['amount_given'] as num).toInt()))
           .toList(),
       expenses: expenseRows
           .map((r) => ReportHubLineItem(
               id: (r as Map)['expense_id'] as String,
               label: r['category'] as String,
-              amount: (r['amount'] as num).toDouble()))
+              amount: (r['amount'] as num).toInt()))
           .toList(),
       agentSummary: '', // FLAGGED: no single "agent summary" text field/column exists; screen would need to compose this from agent_salary_ledger/settlement rows, not fetched here
       pendingCustomers: const [], // see pendingCustomersCount note above
@@ -244,10 +244,10 @@ class RecordBookRow {
   final String businessDayAccountId; // account_group_id, or ungrouped single-day id
   final DateTime dateFrom;
   final DateTime dateTo;
-  final double collectionsTotal;
-  final double loansGivenTotal;
-  final double expensesTotal;
-  final double closingCash;
+  final int collectionsTotal;
+  final int loansGivenTotal;
+  final int expensesTotal;
+  final int closingCash;
   final String agentBalanceStatus; // Balanced | Short | Excess — factual only
   final int pendingCustomersCount;
   final String? remarks;
@@ -277,11 +277,11 @@ class MonthlySummary {
   final int year;
   final int month;
   final int businessDayAccounts;
-  final double totalCollections;
-  final double totalLoansGiven;
-  final double totalExpenses;
+  final int totalCollections;
+  final int totalLoansGiven;
+  final int totalExpenses;
   final int pendingCustomers;
-  final double outstandingAmount;
+  final int outstandingAmount;
 
   MonthlySummary({
     required this.year,
@@ -301,10 +301,10 @@ class MonthlyClosing {
   final int year;
   final int month;
   final int businessDayAccounts;
-  final double collections;
-  final double loansGiven;
-  final double expenses;
-  final double netCashMovement;
+  final int collections;
+  final int loansGiven;
+  final int expenses;
+  final int netCashMovement;
 
   MonthlyClosing({
     required this.year,
@@ -369,7 +369,7 @@ class RecordBookRowDetail {
 class ReportHubLineItem {
   final String id;
   final String label;
-  final double amount;
+  final int amount;
 
   ReportHubLineItem({required this.id, required this.label, required this.amount});
 }

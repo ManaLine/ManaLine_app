@@ -334,38 +334,31 @@ class BusinessManagementApiService {
     return areas;
   }
 
-  /// Assigns an Operating Area to an Agent (mirrors OW-000 Step 6's
-  /// assignAreaToAgent, reused here for post-setup reassignment/first
-  /// assignment via OW-012). Supersedes any existing assignment for the
-  /// area — soft-removed, not deleted, matching this schema's
-  /// history-preserving convention everywhere else (agent_area_
-  /// assignments.removed_at, same pattern as business_members.removed_at).
-  /// Also seeds the area's first Account Period if it doesn't have a
-  /// Running one yet — createAccountPeriod() existed but nothing ever
-  /// called it, which is why Account Periods showed empty for every area
-  /// regardless of how many were actually being worked.
+  /// Assigns an Operating Area to an Agent (M4: one atomic, Owner-gated
+  /// RPC — app.assign_agent_area — reused by OW-000 Step 6 and OW-012).
+  /// The window is time-bounded (valid_from/valid_to); adding an agent
+  /// never disturbs other agents on the area (BR-065 shared route), and
+  /// re-assigning the same agent refreshes their window. The RPC seeds the
+  /// area's first Running Account Period, so Account Periods no longer sit
+  /// empty for assigned areas.
   Future<void> assignOperatingAreaToAgent({
     required String businessId,
     required String operatingAreaId,
     required String agentId,
     required String agentMembershipId,
   }) async {
-    // ADDS an agent. It used to soft-remove every existing assignment on
-    // the area first, so assigning a second agent silently unassigned the
-    // first and a round could only ever have one person on it. GLOBAL
-    // BR-065 explicitly allows a shared route. Removing a specific agent
-    // is now its own action (unassignAgentFromArea).
-    //
-    // uq_area_assignment_live stops the SAME agent being added twice.
-    await _db.from('agent_area_assignments').insert({
-      'agent_id': agentId,
-      'operating_area_id': operatingAreaId,
+    // M4: the time-bounded assignment and its account-period seed are one
+    // atomic, Owner-gated RPC (app.assign_agent_area). It ADDS an agent
+    // without touching anyone else on the area (BR-065 shared route); for
+    // the same (agent, area) pair it back-dates the prior open window and
+    // opens a fresh one (a repeat assign refreshes the window instead of
+    // erroring on uq_area_assignment_live).
+    await _db.schema('app').rpc('assign_agent_area', params: {
+      'p_agent_id': agentId,
+      'p_operating_area_id': operatingAreaId,
+      'p_frequency': 'Once',
+      'p_valid_from': manaBusinessDate(),
     });
-    await _seedFirstAccountPeriodIfNeeded(
-      businessId: businessId,
-      operatingAreaId: operatingAreaId,
-      agentMembershipId: agentMembershipId,
-    );
   }
 
   /// Takes ONE named agent off an area, leaving any others in place.
@@ -384,32 +377,6 @@ class BusinessManagementApiService {
         .eq('operating_area_id', operatingAreaId)
         .eq('agent_id', agentId)
         .isFilter('removed_at', null);
-  }
-
-  Future<void> _seedFirstAccountPeriodIfNeeded({
-    required String businessId,
-    required String operatingAreaId,
-    required String agentMembershipId,
-  }) async {
-    // .limit(1) before .maybeSingle(): this only asks "is there one
-    // already", but a bare .maybeSingle() throws "Results contain 2 rows"
-    // if an area ever ends up with two Running periods — turning a
-    // duplicate-data problem into a hard failure of the assignment itself.
-    // Same trap the universal search hit in OW-001.
-    final existing = await _db
-        .from('account_periods')
-        .select('account_period_id')
-        .eq('operating_area_id', operatingAreaId)
-        .eq('status', 'Running')
-        .limit(1)
-        .maybeSingle();
-    if (existing != null) return;
-    await createAccountPeriod(
-      businessId: businessId,
-      operatingAreaId: operatingAreaId,
-      agentMembershipId: agentMembershipId,
-      businessStartDate: manaTimestamp(),
-    );
   }
 
   Future<void> createAgreement({
@@ -520,7 +487,7 @@ class BusinessManagementApiService {
               personId: (r['person_id'] as int).toString(),
               fullName: titleCaseName((r['persons'] as Map<String, dynamic>)['full_name'] as String),
               requestedRole: r['requested_role'] as String,
-              proposedInvestmentAmount: (r['proposed_investment_amount'] as num?)?.toDouble(),
+              proposedInvestmentAmount: (r['proposed_investment_amount'] as num?)?.toInt(),
               remarks: r['remarks'] as String?,
             ))
         .toList();
@@ -575,14 +542,14 @@ class BusinessManagementApiService {
       businessStartedAt: r['business_started_at'] == null
           ? null
           : DateTime.parse(r['business_started_at'] as String),
-      investmentPrincipal: (r['investment_principal'] as num?)?.toDouble() ?? 0,
+      investmentPrincipal: (r['investment_principal'] as num?)?.toInt() ?? 0,
       migratedLoanCount: (r['migrated_loan_count'] as num?)?.toInt() ?? 0,
-      totalGiven: (r['total_given'] as num?)?.toDouble() ?? 0,
-      totalCollected: (r['total_collected'] as num?)?.toDouble() ?? 0,
-      lineBalance: (r['line_balance'] as num?)?.toDouble() ?? 0,
-      bf: (r['bf'] as num?)?.toDouble() ?? 0,
+      totalGiven: (r['total_given'] as num?)?.toInt() ?? 0,
+      totalCollected: (r['total_collected'] as num?)?.toInt() ?? 0,
+      lineBalance: (r['line_balance'] as num?)?.toInt() ?? 0,
+      bf: (r['bf'] as num?)?.toInt() ?? 0,
       openingBfDeclaredAmount:
-          (r['opening_bf_declared_amount'] as num?)?.toDouble(),
+          (r['opening_bf_declared_amount'] as num?)?.toInt(),
       openingBfDeclaredOn: r['opening_bf_declared_on'] == null
           ? null
           : DateTime.parse(r['opening_bf_declared_on'] as String),
@@ -600,7 +567,7 @@ class BusinessManagementApiService {
   /// change forward, so re-declaring later would rewrite months of closings.
   Future<void> setOpeningBf({
     required String businessId,
-    required double amount,
+    required int amount, // whole rupees (M8)
   }) async {
     await _db.schema('app').rpc('set_opening_bf', params: {
       'p_business_id': businessId,
@@ -622,14 +589,14 @@ class BusinessManagementApiService {
   Future<void> migrateLoan({
     required String businessId,
     required String customerId,
-    required double amountGiven,
-    required double repaymentAmount,
-    required double remainingBalance,
+    required int amountGiven, // whole rupees (M8)
+    required int repaymentAmount,
+    required int remainingBalance,
     required DateTime effectiveDate,
     required String repaymentType,
-    required double installmentAmount,
+    required int installmentAmount,
     int gracePeriodDays = 0,
-    double processingFee = 0,
+    int processingFee = 0,
   }) async {
     await _db.schema('app').rpc('migrate_loan', params: {
       'p_customer_id': customerId,
@@ -806,17 +773,17 @@ class LocationOption {
 class MigrationSummary {
   final bool migrationLocked;
   final DateTime? businessStartedAt;
-  final double investmentPrincipal;
+  final int investmentPrincipal;
   final int migratedLoanCount;
-  final double totalGiven;
-  final double totalCollected;
-  final double lineBalance;
-  final double bf;
+  final int totalGiven;
+  final int totalCollected;
+  final int lineBalance;
+  final int bf;
 
   /// What the Owner declared, and when. Null means never declared — which is
   /// the state that must block finishing migration, since BF would otherwise
   /// go live at whatever happened to be in the column.
-  final double? openingBfDeclaredAmount;
+  final int? openingBfDeclaredAmount;
   final DateTime? openingBfDeclaredOn;
 
   MigrationSummary({
@@ -940,7 +907,7 @@ class MembershipRequestSummary {
   final String personId;
   final String fullName;
   final String requestedRole; // 'Customer' | 'Investor'
-  final double? proposedInvestmentAmount;
+  final int? proposedInvestmentAmount;
   final String? remarks;
   MembershipRequestSummary({
     required this.requestId,

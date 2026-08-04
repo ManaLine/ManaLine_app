@@ -49,8 +49,8 @@ class CustomerApiService {
       final village = (currentAddress?['locations'] as Map<String, dynamic>?)?['village_town_name'] as String? ?? '';
       final loans = ((m['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
       final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
-      final todaysDue = activeLoans.fold<double>(0, (sum, l) => sum + (l['installment_amount'] as num).toDouble());
-      final outstanding = activeLoans.fold<double>(0, (sum, l) => sum + (l['remaining_balance'] as num).toDouble());
+      final todaysDue = activeLoans.fold<int>(0, (sum, l) => sum + (l['installment_amount'] as num).toInt());
+      final outstanding = activeLoans.fold<int>(0, (sum, l) => sum + (l['remaining_balance'] as num).toInt());
 
       return CustomerSummary(
         customerId: m['customer_id'] as String,
@@ -228,7 +228,6 @@ class CustomerApiService {
           business_members!customers_membership_id_fkey!inner(membership_status),
           persons!inner(full_name, father_husband_name, mobile_number, mlid,
             person_addresses(village_id, is_current, locations(village_town_name))),
-          assigned_agent_membership_id,
           loans(loan_id, loan_number, effective_date, repayment_amount, remaining_balance,
             installment_amount, loan_status),
           customer_remarks(remark_id, remark_text, priority, business_date, entered_by_person_id)
@@ -244,8 +243,12 @@ class CustomerApiService {
         );
     final village = (currentAddress?['locations'] as Map<String, dynamic>?)?['village_town_name'] as String? ?? '';
 
+    // M4: who covers a customer is decided by area now (no
+    // assigned_agent_membership_id column). Ask the server for the covering
+    // agent's membership, then resolve the name.
     String? agentName;
-    final agentMembershipId = row['assigned_agent_membership_id'] as String?;
+    final agentMembershipId =
+        await _db.schema('app').rpc('covering_agent_membership_id', params: {'p_customer_id': customerId});
     if (agentMembershipId != null) {
       final agentRow = await _db
           .from('business_members')
@@ -258,8 +261,8 @@ class CustomerApiService {
 
     final loans = ((row['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
-    final todaysDue = activeLoans.fold<double>(0, (sum, l) => sum + (l['installment_amount'] as num).toDouble());
-    final outstanding = activeLoans.fold<double>(0, (sum, l) => sum + (l['remaining_balance'] as num).toDouble());
+    final todaysDue = activeLoans.fold<int>(0, (sum, l) => sum + (l['installment_amount'] as num).toInt());
+    final outstanding = activeLoans.fold<int>(0, (sum, l) => sum + (l['remaining_balance'] as num).toInt());
 
     final summary = CustomerSummary(
       customerId: row['customer_id'] as String,
@@ -287,13 +290,15 @@ class CustomerApiService {
                 loanId: l['loan_id'] as String,
                 loanNumber: l['loan_number'] as String,
                 issueDate: DateTime.parse(l['effective_date'] as String),
-                loanAmount: (l['repayment_amount'] as num).toDouble(),
-                outstanding: (l['remaining_balance'] as num).toDouble(),
-                todaysDue: (l['installment_amount'] as num).toDouble(),
-                progressPercent: (l['repayment_amount'] as num) == 0
+                loanAmount: (l['repayment_amount'] as num).toInt(),
+                outstanding: (l['remaining_balance'] as num).toInt(),
+                todaysDue: (l['installment_amount'] as num).toInt(),
+                // Money stays int; only the percentage needs a double — `/`
+                // on two ints already yields a double in Dart.
+                progressPercent: (l['repayment_amount'] as num).toInt() == 0
                     ? 0
                     : 100 -
-                        (((l['remaining_balance'] as num).toDouble() / (l['repayment_amount'] as num).toDouble()) *
+                        (((l['remaining_balance'] as num).toInt() / (l['repayment_amount'] as num).toInt()) *
                             100),
                 status: l['loan_status'] as String,
               ))
@@ -344,8 +349,8 @@ class CustomerSummary {
   final String phoneNumber;
   final String mlid;
   final int activeLoanCount;
-  final double todaysDue;
-  final double outstandingBalance;
+  final int todaysDue;
+  final int outstandingBalance;
   final int lineRepaymentIndex;
   final String customerStatus; // Active | Inactive | Deceased (global)
   final String membershipStatus; // Active | Suspended | Removed (per-business)
@@ -371,10 +376,10 @@ class CustomerLoanSummary {
   final String loanId;
   final String loanNumber;
   final DateTime issueDate;
-  final double loanAmount;
-  final double outstanding;
-  final double todaysDue;
-  final double progressPercent;
+  final int loanAmount;
+  final int outstanding;
+  final int todaysDue;
+  final double progressPercent; // percentage — not money, stays double
   final String status;
 
   CustomerLoanSummary({
@@ -391,11 +396,11 @@ class CustomerLoanSummary {
 
 class CustomerCollectionRow {
   final DateTime businessDate;
-  final double amount;
+  final int amount;
   final String paymentMode;
   final String collector;
   final String receiptNumber;
-  final double difference;
+  final int difference;
 
   CustomerCollectionRow({
     required this.businessDate,

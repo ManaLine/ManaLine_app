@@ -253,8 +253,8 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
   /// locked — so the sheet says so before the Owner commits.
   Future<void> _declareBf(MigrationSummary s) async {
     final controller = TextEditingController(
-        text: s.openingBfDeclaredAmount?.toStringAsFixed(0) ?? '');
-    final entered = await showDialog<double>(
+        text: s.openingBfDeclaredAmount != null ? '${s.openingBfDeclaredAmount}' : '');
+    final entered = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const ManaText('declare opening bf'),
@@ -283,7 +283,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
               onPressed: () => Navigator.pop(ctx), child: const ManaText('cancel')),
           FilledButton(
             onPressed: () =>
-                Navigator.pop(ctx, double.tryParse(controller.text.trim())),
+                Navigator.pop(ctx, int.tryParse(controller.text.trim())),
             child: const ManaText('declare'),
           ),
         ],
@@ -421,19 +421,19 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     super.dispose();
   }
 
-  double? get _givenV => double.tryParse(_given.text.trim());
-  double? get _interestV => double.tryParse(_interest.text.trim());
-  double get _feeV => double.tryParse(_fee.text.trim()) ?? 0;
+  int? get _givenV => int.tryParse(_given.text.trim());
+  int? get _interestV => int.tryParse(_interest.text.trim());
+  int get _feeV => int.tryParse(_fee.text.trim()) ?? 0;
   int? get _pendingV => int.tryParse(_pending.text.trim());
-  double? get _emiV => double.tryParse(_emi.text.trim());
-  double get _penaltyV => double.tryParse(_penalty.text.trim()) ?? 0;
+  int? get _emiV => int.tryParse(_emi.text.trim());
+  int get _penaltyV => int.tryParse(_penalty.text.trim()) ?? 0;
 
   /// The whole obligation, DERIVED: the cash actually handed over plus the
   /// interest and fee that were withheld from it. Entering 19,600 given with
   /// 4,000 interest and 400 fee makes this 24,000, which is what the customer
   /// repays -- the 4,400 never left the till and so never returns to it as
   /// fresh cash. It reaches the business through the instalments instead.
-  double? get _issuedV => (_givenV != null && _interestV != null)
+  int? get _issuedV => (_givenV != null && _interestV != null)
       ? _givenV! + _interestV! + _feeV
       : null;
 
@@ -441,13 +441,13 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   /// what let the two halves of this form disagree -- a repayment of 10,000
   /// with 14,000 still owed was accepted into the fields and only caught at
   /// the very bottom of the screen.
-  double? get _remainingV => (_pendingV != null && _emiV != null)
+  int? get _remainingV => (_pendingV != null && _emiV != null)
       ? _pendingV! * _emiV! + _penaltyV
       : null;
 
   /// What the customer has already handed over: the whole obligation minus
   /// what is still owed today.
-  double? get _collected =>
+  int? get _collected =>
       (_issuedV != null && _remainingV != null) ? _issuedV! - _remainingV! : null;
 
   String? get _validationError {
@@ -608,7 +608,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   /// A value the Owner cannot type. Rendered like a disabled field so it reads
   /// as part of the form, but there is no controller behind it -- the number
   /// can only ever be what the inputs above imply.
-  Widget _computedRow(String label, double? value, String hint) => Padding(
+  Widget _computedRow(String label, int? value, String hint) => Padding(
         padding: const EdgeInsets.only(bottom: ManaSpacing.md),
         child: InputDecorator(
           decoration: InputDecoration(
@@ -653,7 +653,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     );
   }
 
-  Widget _derived(String label, double? value, {bool signed = false}) => Padding(
+  Widget _derived(String label, int? value, {bool signed = false}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [

@@ -71,7 +71,7 @@ class CashTransferApiService {
     required String fromAgentId,
     required String toAgentId,
     required String toAgentName,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required String businessDate,
   }) async {
     final transferId = await _db.schema('app').rpc('initiate_cash_transfer', params: {
@@ -129,7 +129,7 @@ class CashTransferApiService {
       fromAgentName: fromAgentNameOverride ?? '',
       toAgentId: r['to_agent_id'] as String,
       toAgentName: toAgentNameOverride ?? '',
-      amount: (r['amount'] as num).toDouble(),
+      amount: (r['amount'] as num).toInt(),
       businessDate: r['business_date'] as String,
       createdAt: DateTime.parse(r['entry_timestamp'] as String),
       fromAgentConfirmedAt:
@@ -183,7 +183,7 @@ class CashTransfer {
   final String fromAgentName;
   final String toAgentId;
   final String toAgentName;
-  final double amount;
+  final int amount;
   final String businessDate;
   final DateTime createdAt;
   final DateTime? fromAgentConfirmedAt;
@@ -275,7 +275,7 @@ class LoanDistributionNotifier extends Notifier<LoanDistributionState> {
     required String fromAgentId,
     required String toAgentId,
     required String toAgentName,
-    required double amount,
+    required int amount, // whole rupees (M8)
     required String businessDate,
   }) async {
     state = state.copyWith(sendingTransfer: true, clearError: true);

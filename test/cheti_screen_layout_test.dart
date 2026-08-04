@@ -31,9 +31,9 @@ class _SeededChetiNotifier extends ChetiListNotifier {
 Cheti _cheti({
   required String name,
   ChetiType type = ChetiType.auction,
-  double openingAmountPaid = 36000,
+  int openingAmountPaid = 36000,
   DateTime? availedDate,
-  double? availedAmount,
+  int? availedAmount,
   int recordedInstalments = 0,
 }) =>
     Cheti(

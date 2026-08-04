@@ -41,7 +41,7 @@ class AgentHistoryApiService {
         collectionId: r['collection_id'] as String,
         customerName: person?['full_name'] as String? ?? 'Unknown Customer',
         loanNumber: loan?['loan_number'] as String? ?? '—',
-        amount: (r['collected_amount'] as num).toDouble(),
+        amount: (r['collected_amount'] as num).toInt(),
         resultType: r['result_type'] as String? ?? 'Full',
         receiptNumber: r['receipt_number'] as String?,
         remarks: r['remarks'] as String?,
@@ -64,7 +64,7 @@ class AgentTransactionEntry {
   final String collectionId;
   final String customerName;
   final String loanNumber;
-  final double amount;
+  final int amount;
   final String resultType; // 'Full' | 'Partial' | 'Excess' | 'No Collection' etc.
   final String? receiptNumber;
   final String? remarks;
@@ -95,7 +95,7 @@ class AgentHistoryState {
 
   const AgentHistoryState({this.loading = false, this.entries = const [], this.error});
 
-  double get totalCollected => entries.fold<double>(0, (sum, e) => sum + e.amount);
+  int get totalCollected => entries.fold<int>(0, (sum, e) => sum + e.amount);
 
   AgentHistoryState copyWith({
     bool? loading,

@@ -184,7 +184,7 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
   bool get _canSend =>
       _toAgentName.text.trim().isNotEmpty &&
       _toAgentId.text.trim().isNotEmpty &&
-      (double.tryParse(_amount.text) ?? 0) > 0;
+      (int.tryParse(_amount.text) ?? 0) > 0;
 
   Future<void> _send() async {
     final ok = await NetworkErrorHandler.run(context, () async {
@@ -192,7 +192,7 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
             fromAgentId: widget.agentId,
             toAgentId: _toAgentId.text.trim(),
             toAgentName: _toAgentName.text.trim(),
-            amount: double.parse(_amount.text),
+            amount: int.parse(_amount.text), // whole rupees (M8)
             businessDate: manaBusinessDate(),
           );
       if (!sent) {
@@ -602,27 +602,28 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
   String _repaymentType = 'Weekly';
   DateTime _effectiveDate = DateTime.now();
 
-  double get _amountGiven =>
-      (double.tryParse(_repaymentAmount.text) ?? 0) -
-      (double.tryParse(_interest.text) ?? 0) -
-      (double.tryParse(_processingFee.text) ?? 0);
+  // Whole rupees (M8) — server stores money as DECIMAL(14,0).
+  int get _amountGiven =>
+      (int.tryParse(_repaymentAmount.text) ?? 0) -
+      (int.tryParse(_interest.text) ?? 0) -
+      (int.tryParse(_processingFee.text) ?? 0);
 
   bool get _canSubmit =>
-      (double.tryParse(_repaymentAmount.text) ?? 0) > 0 &&
+      (int.tryParse(_repaymentAmount.text) ?? 0) > 0 &&
       (int.tryParse(_duration.text) ?? 0) > 0 &&
-      (double.tryParse(_installment.text) ?? 0) > 0;
+      (int.tryParse(_installment.text) ?? 0) > 0;
 
   void _submit(String agentId) {
     // Collection Agent = this Agent (self) — an Agent issuing a loan
     // remotely is its own collection agent, unlike OW-005's Owner-side
     // picker which selects among the workforce.
     ref.read(loanWizardProvider.notifier).setLoanDetails(
-          repaymentAmount: double.parse(_repaymentAmount.text),
-          interest: double.tryParse(_interest.text) ?? 0,
-          processingFee: double.tryParse(_processingFee.text) ?? 0,
+          repaymentAmount: int.parse(_repaymentAmount.text),
+          interest: int.tryParse(_interest.text) ?? 0,
+          processingFee: int.tryParse(_processingFee.text) ?? 0,
           repaymentType: _repaymentType,
           durationValue: int.parse(_duration.text),
-          installmentAmount: double.parse(_installment.text),
+          installmentAmount: int.parse(_installment.text),
           effectiveDate: _effectiveDate.toIso8601String(),
           collectionAgentId: agentId,
           collectionAgentName: 'Self (This Agent)',
@@ -707,7 +708,7 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
               const Expanded(
                 child: ManaText('amount given (system-derived, read-only)', style: TextStyle(fontSize: 13)),
               ),
-              ManaText.raw('₹${_amountGiven.toStringAsFixed(0)}',
+              ManaText.raw('₹$_amountGiven',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
@@ -928,13 +929,13 @@ class _AgStep5Confirm extends ConsumerWidget {
             child: Column(
               children: [
                 _row('Customer', state.customer?.fullName ?? ''),
-                _row('Repayment Amount', '₹${state.repaymentAmount?.toStringAsFixed(0) ?? '0'}'),
-                _row('Interest', '₹${state.interest?.toStringAsFixed(0) ?? '0'}'),
-                _row('Processing Fee', '₹${state.processingFee?.toStringAsFixed(0) ?? '0'}'),
-                _row('Amount Given', '₹${state.amountGiven.toStringAsFixed(0)}'),
+                _row('Repayment Amount', '₹${state.repaymentAmount ?? 0}'),
+                _row('Interest', '₹${state.interest ?? 0}'),
+                _row('Processing Fee', '₹${state.processingFee ?? 0}'),
+                _row('Amount Given', '₹${state.amountGiven}'),
                 _row('Repayment Type', state.repaymentType),
                 _row('Duration', '${state.durationValue ?? 0} installments'),
-                _row('Installment', '₹${state.installmentAmount?.toStringAsFixed(0) ?? '0'}'),
+                _row('Installment', '₹${state.installmentAmount ?? 0}'),
                 _row('Guarantor', state.needsGuarantor ? (state.guarantorName ?? '') : 'None'),
               ],
             ),

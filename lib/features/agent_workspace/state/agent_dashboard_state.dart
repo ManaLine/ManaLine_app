@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/mana_time.dart';
 import '../../../shared/text_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -75,7 +76,7 @@ class AgentApiService {
     final r = rows.first;
     return AgentBfAssignment(
       bfAssignmentId: r['assignment_id'] as String,
-      openingBf: (r['opening_bf'] as num).toDouble(),
+      openingBf: (r['opening_bf'] as num).toInt(),
       confirmedByAgent: r['confirmed_by_agent'] as bool,
       updateRequested: r['update_requested'] as bool,
     );
@@ -282,7 +283,9 @@ class AgentApiService {
           .select('loan_status, remaining_balance')
           .eq('collection_agent_membership_id', membershipId)
           .inFilter('loan_status', ['Active', 'Grace Period', 'Penalty']),
-      _db.from('customers').select('customer_id').eq('assigned_agent_membership_id', membershipId),
+      // M4: customers RLS (app.agent_covers_customer) scopes this to the
+      // agent's assigned areas — no assigned_agent_membership_id filter.
+      _db.from('customers').select('customer_id'),
       _db
           .from('collection_drafts')
           .select('draft_id')
@@ -338,7 +341,7 @@ class AgentApiService {
       // below). Device clock is kept only as the last-resort fallback
       // for the edge case where fetchDashboard is somehow called before
       // any Running period exists.
-      businessDate: businessDate ?? DateTime.now(),
+      businessDate: businessDate ?? manaNowIst(),
       assignedRoute: (routeRow?['route_name'] as String?) ?? '',
       pendingDraftsCount: pendingDrafts.length,
       pendingSettlement: pendingSettlementRows.isNotEmpty,
@@ -375,10 +378,10 @@ class AgentApiService {
       pendingRouteChanges: 0,
       pendingMessages: 0,
       fixedSalary:
-          (compHistory?['fixed_salary_amount'] as num?)?.toDouble() ?? 0,
+          (compHistory?['fixed_salary_amount'] as num?)?.toInt() ?? 0,
       salaryCycleStatus: (compHistory?['salary_cycle'] as String?) ?? '',
       dailyAllowance:
-          (compHistory?['daily_allowance'] as num?)?.toDouble() ?? 0,
+          (compHistory?['daily_allowance'] as num?)?.toInt() ?? 0,
       profitSharePercent:
           (compHistory?['profit_share_percent'] as num?)?.toDouble(),
       advancesDeducted:
@@ -400,7 +403,7 @@ final agentApiServiceProvider = Provider<AgentApiService>((ref) {
 
 class AgentBfAssignment {
   final String bfAssignmentId;
-  final double openingBf;
+  final int openingBf;
   final bool confirmedByAgent;
   final bool updateRequested;
 
@@ -468,21 +471,21 @@ class AgentDashboardData {
   final String assignedRoute;
   final int pendingDraftsCount;
   final bool pendingSettlement;
-  final double todaysTarget;
+  final int todaysTarget;
 
   // Today Summary
   final int customersAssigned;
   final int customersVisited;
-  final double collectionsCash;
-  final double collectionsUpi;
-  final double collectionsBank;
-  final double collectionsCheque;
-  final double collectionsMixed;
+  final int collectionsCash;
+  final int collectionsUpi;
+  final int collectionsBank;
+  final int collectionsCheque;
+  final int collectionsMixed;
   final int loansIssued;
   final int pendingCollections;
   final int skippedCustomers;
-  final double shortAmount;
-  final double excessAmount;
+  final int shortAmount;
+  final int excessAmount;
 
   // Quick Actions visibility (agent_permissions)
   final Set<String> visibleQuickActions;
@@ -505,14 +508,14 @@ class AgentDashboardData {
   // My Compensation (Read-Only, Set By Owner) — per AG-001 spec section of
   // the same name; AG-009 Profile links out to this panel rather than
   // duplicating it. All Owner-set, no Agent edit affordance anywhere.
-  final double fixedSalary;
+  final int fixedSalary;
   final String
       salaryCycleStatus; // e.g. "Daily" / "Weekly" / "Monthly" + current-cycle status
-  final double dailyAllowance;
+  final int dailyAllowance;
   final double? profitSharePercent; // null when not enabled for this Agent
-  final double advancesDeducted;
-  final double shortsDeducted;
-  final double pendingSalary;
+  final int advancesDeducted;
+  final int shortsDeducted;
+  final int pendingSalary;
   final List<AgentSalaryHistoryEntry> salaryHistory;
 
   AgentDashboardData({
@@ -555,7 +558,7 @@ class AgentDashboardData {
   });
 
   int get customersRemaining => customersAssigned - customersVisited;
-  double get todaysCollectionsTotal =>
+  int get todaysCollectionsTotal =>
       collectionsCash +
       collectionsUpi +
       collectionsBank +
@@ -565,7 +568,7 @@ class AgentDashboardData {
 
 class AgentSalaryHistoryEntry {
   final DateTime paidOn;
-  final double amount;
+  final int amount;
   final String cycleLabel; // e.g. "Jul 2026" or "Week of 14 Jul"
   AgentSalaryHistoryEntry(
       {required this.paidOn, required this.amount, required this.cycleLabel});

@@ -62,6 +62,7 @@ Deno.serve(async (req: Request) => {
     .from("persons")
     .update({
       pin_hash: pinHash,
+      pin_length: body.pin.length,
       biometric_enabled: Boolean(body.biometric_enabled),
       failed_pin_attempts: 0,
     })

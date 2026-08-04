@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../shared/auto_refresh.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
@@ -10,7 +11,8 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/customer_dashboard_state.dart';
 import '../../../shared/translation_service.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+final _currency =
+    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
 
 /// CW-001 — Customer Home Dashboard. Primary entry point for a Customer,
@@ -27,10 +29,12 @@ class CustomerHomeDashboardScreen extends ConsumerStatefulWidget {
   const CustomerHomeDashboardScreen({super.key, required this.businessId});
 
   @override
-  ConsumerState<CustomerHomeDashboardScreen> createState() => _CustomerHomeDashboardScreenState();
+  ConsumerState<CustomerHomeDashboardScreen> createState() =>
+      _CustomerHomeDashboardScreenState();
 }
 
-class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashboardScreen> {
+class _CustomerHomeDashboardScreenState
+    extends ConsumerState<CustomerHomeDashboardScreen> {
   @override
   void initState() {
     super.initState();
@@ -39,7 +43,8 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
     });
   }
 
-  Future<void> _refresh() => ref.read(customerDashboardProvider.notifier).load(widget.businessId);
+  Future<void> _refresh() =>
+      ref.read(customerDashboardProvider.notifier).load(widget.businessId);
 
   @override
   Widget build(BuildContext context) {
@@ -66,8 +71,11 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
               }
             },
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
-              PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
+              PopupMenuItem(
+                  value: 'switch_business',
+                  child: ManaText('switch workspace')),
+              PopupMenuItem(
+                  value: 'switch_role', child: ManaText('switch role')),
               PopupMenuItem(value: 'settings', child: ManaText('settings')),
               PopupMenuDivider(),
               PopupMenuItem(value: 'logout', child: ManaText('logout')),
@@ -82,22 +90,25 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
           loading: () => const ManaSkeletonList(itemCount: 5, itemHeight: 120),
           error: (e, _) => _errorState(e),
           data: (data) => data.hasActiveMembership
-              ? RefreshIndicator(
+              ? AutoRefresh(
                   onRefresh: _refresh,
-                  child: ListView(
-                    padding: const EdgeInsets.all(ManaSpacing.lg),
-                    children: [
-                      _Header(
-                        businessName: data.businessName,
-                        customerName: data.customerName,
-                        verified: data.verified,
-                        photo: data.profilePhotoUrl,
-                      ),
-                      const SizedBox(height: ManaSpacing.lg),
-                      _MySummary(data: data),
-                      const SizedBox(height: ManaSpacing.lg),
-                      _QuickActions(businessId: widget.businessId),
-                    ],
+                  child: RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      padding: const EdgeInsets.all(ManaSpacing.lg),
+                      children: [
+                        _Header(
+                          businessName: data.businessName,
+                          customerName: data.customerName,
+                          verified: data.verified,
+                          photo: data.profilePhotoUrl,
+                        ),
+                        const SizedBox(height: ManaSpacing.lg),
+                        _MySummary(data: data),
+                        const SizedBox(height: ManaSpacing.lg),
+                        _QuickActions(businessId: widget.businessId),
+                      ],
+                    ),
                   ),
                 )
               // S3 — No Memberships: a brand-new Customer with zero
@@ -117,7 +128,8 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+            const Icon(Icons.cloud_off,
+                size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load dashboard'),
             const SizedBox(height: ManaSpacing.sm),
@@ -126,7 +138,8 @@ class _CustomerHomeDashboardScreenState extends ConsumerState<CustomerHomeDashbo
               child: ManaText.raw(
                 e.toString(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: ManaColors.statusBad),
+                style:
+                    const TextStyle(fontSize: 13, color: ManaColors.statusBad),
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -151,7 +164,11 @@ class _Header extends StatelessWidget {
   final String customerName;
   final bool verified;
   final String? photo;
-  const _Header({required this.businessName, required this.customerName, required this.verified, this.photo});
+  const _Header(
+      {required this.businessName,
+      required this.customerName,
+      required this.verified,
+      this.photo});
 
   @override
   Widget build(BuildContext context) {
@@ -167,8 +184,12 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText.raw(businessName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ManaText.raw(customerName, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+              ManaText.raw(businessName,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 18)),
+              ManaText.raw(customerName,
+                  style: const TextStyle(
+                      color: ManaColors.textSecondary, fontSize: 13)),
             ],
           ),
         ),
@@ -197,7 +218,11 @@ class _MySummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final stats = <(String, String, ManaStatus)>[
       ('Active Loans', '${data.activeLoansCount}', ManaStatus.good),
-      ('Total Outstanding', _currency.format(data.totalOutstanding), ManaStatus.neutral),
+      (
+        'Total Outstanding',
+        _currency.format(data.totalOutstanding),
+        ManaStatus.neutral
+      ),
       (
         'Next Payment Due',
         data.nextPaymentDueDate != null
@@ -205,8 +230,16 @@ class _MySummary extends StatelessWidget {
             : '—',
         ManaStatus.warn,
       ),
-      ('Pending Loan Requests', '${data.pendingLoanRequestsCount}', ManaStatus.warn),
-      ('Pending Online Payments', '${data.pendingOnlinePaymentsCount}', ManaStatus.warn),
+      (
+        'Pending Loan Requests',
+        '${data.pendingLoanRequestsCount}',
+        ManaStatus.warn
+      ),
+      (
+        'Pending Online Payments',
+        '${data.pendingOnlinePaymentsCount}',
+        ManaStatus.warn
+      ),
     ];
     return Card(
       child: Padding(
@@ -214,7 +247,8 @@ class _MySummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('my summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const ManaText('my summary',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
               spacing: ManaSpacing.lg,
@@ -225,7 +259,9 @@ class _MySummary extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ManaText.raw(s.$2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            ManaText.raw(s.$2,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 2),
                             ManaStatusPill(label: s.$1, status: s.$3),
                           ],
@@ -257,12 +293,22 @@ class _QuickActions extends ConsumerWidget {
     final actions = <(String, IconData, String, String)>[
       ('Find A Business', Icons.search, '/cw-002', businessId),
       ('Request New Loan', Icons.request_page_outlined, '/cw-003', businessId),
-      ('My Loans', Icons.account_balance_wallet_outlined, '/cw-004', businessId),
+      (
+        'My Loans',
+        Icons.account_balance_wallet_outlined,
+        '/cw-004',
+        businessId
+      ),
       ('Make A Payment', Icons.payments_outlined, '/cw-004', businessId),
       // My Profile/Memberships is scoped by personId, not businessId — it
       // shows every membership across every business for this person
       // (same convention as IW-005).
-      ('My Profile / Memberships', Icons.badge_outlined, '/cw-006', personId ?? businessId),
+      (
+        'My Profile / Memberships',
+        Icons.badge_outlined,
+        '/cw-006',
+        personId ?? businessId
+      ),
     ];
     return Card(
       child: Padding(
@@ -270,7 +316,8 @@ class _QuickActions extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('quick actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const ManaText('quick actions',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             ...actions.map((a) => ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -300,9 +347,11 @@ class _NoMembershipsState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
+            const Icon(Icons.storefront_outlined,
+                size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('no business memberships yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const ManaText('no business memberships yet',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             const ManaText.raw(
               'Find a Business to request Customer membership. Once the '

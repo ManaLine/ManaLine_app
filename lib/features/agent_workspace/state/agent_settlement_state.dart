@@ -52,7 +52,7 @@ class AgentSettlementApiService {
   /// this agent is `from_agent_id` or `to_agent_id`, so no extra
   /// agent-identity filter is layered on top of what the two `.eq()`
   /// queries below already ask for.
-  Future<double> _fetchNetCashTransfers({
+  Future<int> _fetchNetCashTransfers({
     required String agentId,
     required String startStr,
     required String endStr,
@@ -76,11 +76,11 @@ class AgentSettlementApiService {
     final outTotal = (outgoing as List)
         .cast<Map<String, dynamic>>()
         .where(bothConfirmed)
-        .fold<double>(0, (sum, r) => sum + (r['amount'] as num).toDouble());
+        .fold<int>(0, (sum, r) => sum + (r['amount'] as num).toInt());
     final inTotal = (incoming as List)
         .cast<Map<String, dynamic>>()
         .where(bothConfirmed)
-        .fold<double>(0, (sum, r) => sum + (r['amount'] as num).toDouble());
+        .fold<int>(0, (sum, r) => sum + (r['amount'] as num).toInt());
 
     return inTotal - outTotal; // net effect on this agent's BF cash
   }
@@ -104,7 +104,7 @@ class AgentSettlementApiService {
         .order('created_at', ascending: false)
         .limit(1)
         .maybeSingle();
-    final openingBalance = (bfRow?['opening_bf'] as num?)?.toDouble() ?? 0;
+    final openingBalance = (bfRow?['opening_bf'] as num?)?.toInt() ?? 0;
 
     final collectionRows = await _db
         .from('collections')
@@ -114,11 +114,11 @@ class AgentSettlementApiService {
         .lte('business_date', endStr);
     final collectionIds = (collectionRows as List).map((c) => c['collection_id'] as String).toList();
 
-    double cash = 0, upi = 0, bank = 0, cheque = 0;
+    int cash = 0, upi = 0, bank = 0, cheque = 0;
     if (collectionIds.isNotEmpty) {
       final splitRows = await _db.from('collection_payment_splits').select('payment_mode, amount').inFilter('collection_id', collectionIds);
       for (final s in (splitRows as List)) {
-        final amt = (s['amount'] as num).toDouble();
+        final amt = (s['amount'] as num).toInt();
         switch (s['payment_mode']) {
           case 'Cash':
             cash += amt;
@@ -138,7 +138,7 @@ class AgentSettlementApiService {
         .eq('collection_agent_membership_id', membershipId)
         .gte('issue_business_date', startStr)
         .lte('issue_business_date', endStr);
-    final loanDistribution = (loanRows as List).fold<double>(0, (sum, l) => sum + (l['amount_given'] as num).toDouble());
+    final loanDistribution = (loanRows as List).fold<int>(0, (sum, l) => sum + (l['amount_given'] as num).toInt());
 
     final expenseRows = await _db
         .from('expenses')
@@ -146,7 +146,7 @@ class AgentSettlementApiService {
         .eq('recorded_by_membership_id', membershipId)
         .gte('business_date', startStr)
         .lte('business_date', endStr);
-    final expenses = (expenseRows as List).fold<double>(0, (sum, e) => sum + (e['amount'] as num).toDouble());
+    final expenses = (expenseRows as List).fold<int>(0, (sum, e) => sum + (e['amount'] as num).toInt());
 
     final netCashTransfers = await _fetchNetCashTransfers(agentId: agentId, startStr: startStr, endStr: endStr);
 
@@ -227,14 +227,9 @@ class AgentSettlementApiService {
   /// the same transaction as the account_settlements insert — confirmed
   /// correct against both files' matching assumption, not guessed at.
   Future<SettlementSubmitResult> submitSettlement({
-    required String businessId,
     required String agentId,
     required String cycleType,
-    required DateTime periodStart,
-    required DateTime periodEnd,
-    required double physicalCashDeclared,
-    required SettlementPreview preview,
-    String? remarks,
+    required int physicalCashDeclared, // whole rupees (M8)
   }) async {
     final membershipId = await _resolveMembershipId(agentId);
 
@@ -250,25 +245,22 @@ class AgentSettlementApiService {
       throw StateError('No Running account_period found for this agent — cannot submit a settlement without one.');
     }
 
+    // The server works every figure out from the period's own records; the
+    // phone only declares the physical cash the agent actually counted. The
+    // RPC answers with the server-computed expected and difference so the
+    // result shown here is the real one, not a phone-side copy.
     final result = await _db.schema('app').rpc('submit_agent_settlement', params: {
       'p_account_period_id': periodRow['account_period_id'],
       'p_agent_id': agentId,
       'p_cycle_type': cycleType,
-      'p_opening_balance': preview.openingBalance,
-      'p_cash_collected': preview.cashCollected,
-      'p_upi_collected': preview.upiCollected,
-      'p_bank_collected': preview.bankCollected,
-      'p_cheque_collected': preview.chequeCollected,
-      'p_loan_distribution': preview.loanDistribution,
-      'p_expenses': preview.expenses,
-      'p_expected_closing_balance': preview.expectedClosingBalance,
       'p_physical_cash_declared': physicalCashDeclared,
     });
 
+    final map = result as Map<String, dynamic>;
     return SettlementSubmitResult(
-      settlementId: result as String,
-      expectedClosingBalance: preview.expectedClosingBalance,
-      difference: physicalCashDeclared - preview.expectedClosingBalance,
+      settlementId: map['settlement_id'] as String,
+      expectedClosingBalance: (map['expected_closing_balance'] as num).toInt(),
+      difference: (map['difference'] as num).toInt(),
       status: SettlementStatus.pendingOwnerReview,
     );
   }
@@ -302,17 +294,17 @@ class AgentSettlementApiService {
     return AgentSettlementRecord(
       settlementId: row['settlement_id'] as String,
       summary: SettlementPreview(
-        openingBalance: (row['opening_balance'] as num).toDouble(),
-        cashCollected: (row['cash_collected'] as num).toDouble(),
-        upiCollected: (row['upi_collected'] as num).toDouble(),
-        bankCollected: (row['bank_collected'] as num).toDouble(),
-        chequeCollected: (row['cheque_collected'] as num).toDouble(),
-        loanDistribution: (row['loan_distribution'] as num).toDouble(),
-        expenses: (row['expenses'] as num).toDouble(),
-        expectedClosingBalance: (row['expected_closing_balance'] as num).toDouble(),
+        openingBalance: (row['opening_balance'] as num).toInt(),
+        cashCollected: (row['cash_collected'] as num).toInt(),
+        upiCollected: (row['upi_collected'] as num).toInt(),
+        bankCollected: (row['bank_collected'] as num).toInt(),
+        chequeCollected: (row['cheque_collected'] as num).toInt(),
+        loanDistribution: (row['loan_distribution'] as num).toInt(),
+        expenses: (row['expenses'] as num).toInt(),
+        expectedClosingBalance: (row['expected_closing_balance'] as num).toInt(),
       ),
-      physicalCashDeclared: (row['physical_cash_declared'] as num).toDouble(),
-      difference: (row['difference'] as num).toDouble(),
+      physicalCashDeclared: (row['physical_cash_declared'] as num).toInt(),
+      difference: (row['difference'] as num).toInt(),
       remarks: null, // account_settlements has no agent-remarks column — same schema gap account_review_state.dart already flagged on the Owner side (AccountSettlementDetail.agentRemarks)
       status: SettlementStatusX.fromSchemaValue(row['status'] as String),
       returnReason: returnReasonRow?['return_reason'] as String?,
@@ -337,14 +329,14 @@ final agentSettlementApiServiceProvider = Provider<AgentSettlementApiService>((r
 /// Pre-submission SETTLEMENT SUMMARY figures — see SPEC GAP note above on
 /// how these get sourced.
 class SettlementPreview {
-  final double openingBalance; // sourced from agent_bf_assignments.opening_bf — reuse AgentBfAssignment, don't redefine
-  final double cashCollected;
-  final double upiCollected; // system-sourced, display only
-  final double bankCollected; // system-sourced, display only
-  final double chequeCollected; // system-sourced amount; Cheque Count (UI-only tally) sits alongside, not backing this
-  final double loanDistribution;
-  final double expenses;
-  final double expectedClosingBalance;
+  final int openingBalance; // sourced from agent_bf_assignments.opening_bf — reuse AgentBfAssignment, don't redefine
+  final int cashCollected;
+  final int upiCollected; // system-sourced, display only
+  final int bankCollected; // system-sourced, display only
+  final int chequeCollected; // system-sourced amount; Cheque Count (UI-only tally) sits alongside, not backing this
+  final int loanDistribution;
+  final int expenses;
+  final int expectedClosingBalance;
 
   SettlementPreview({
     required this.openingBalance,
@@ -380,8 +372,8 @@ extension SettlementStatusX on SettlementStatus {
 class AgentSettlementRecord {
   final String settlementId;
   final SettlementPreview summary;
-  final double physicalCashDeclared;
-  final double difference; // expected_closing_balance - actual (physical + verified UPI/Bank/Cheque)
+  final int physicalCashDeclared;
+  final int difference; // expected_closing_balance - actual (physical + verified UPI/Bank/Cheque)
   final String? remarks;
   final SettlementStatus status;
   final String? returnReason; // populated only when status == returned
@@ -399,8 +391,8 @@ class AgentSettlementRecord {
 
 class SettlementSubmitResult {
   final String settlementId;
-  final double expectedClosingBalance;
-  final double difference;
+  final int expectedClosingBalance;
+  final int difference;
   final SettlementStatus status;
 
   SettlementSubmitResult({
@@ -434,7 +426,7 @@ class AgentSettlementState {
   final AgentSettlementRecord? existingSettlement; // set once submitted / when Returned for resubmit
 
   final String cycleType; // Business-level Owner-set config (OW-012 Account Cycle) — read-only display, not chosen here
-  final double physicalCashDeclared;
+  final int physicalCashDeclared;
   final int chequeCountTally; // UI-only, no backing field — see class docs on the screen file
   final String remarks;
 
@@ -455,13 +447,13 @@ class AgentSettlementState {
   /// Expected Balance − Actual Balance = Difference. Actual = Physical
   /// Cash declared + verified UPI/Bank/Cheque (those three are
   /// system-sourced, never Agent-entered, so they flow straight through).
-  double get difference {
+  int get difference {
     if (preview == null) return 0;
     final actual = physicalCashDeclared + preview!.upiCollected + preview!.bankCollected + preview!.chequeCollected;
     return preview!.expectedClosingBalance - actual;
   }
 
-  bool get differenceIsZero => difference.abs() < 0.005;
+  bool get differenceIsZero => difference == 0;
   bool get explanationRequired => !differenceIsZero;
   bool get canSubmit => preview != null && (differenceIsZero || remarks.trim().isNotEmpty);
 
@@ -475,7 +467,7 @@ class AgentSettlementState {
     SettlementPreview? preview,
     AgentSettlementRecord? existingSettlement,
     String? cycleType,
-    double? physicalCashDeclared,
+    int? physicalCashDeclared,
     int? chequeCountTally,
     String? remarks,
   }) {
@@ -558,7 +550,7 @@ class AgentSettlementNotifier extends Notifier<AgentSettlementState> {
     }
   }
 
-  void setPhysicalCash(double value) => state = state.copyWith(physicalCashDeclared: value);
+  void setPhysicalCash(int value) => state = state.copyWith(physicalCashDeclared: value);
   void setChequeCountTally(int value) => state = state.copyWith(chequeCountTally: value);
   void setRemarks(String value) => state = state.copyWith(remarks: value);
 
@@ -571,10 +563,7 @@ class AgentSettlementNotifier extends Notifier<AgentSettlementState> {
   }
 
   Future<SettlementSubmitResult?> submit({
-    required String businessId,
     required String agentId,
-    required DateTime periodStart,
-    required DateTime periodEnd,
   }) async {
     if (!state.canSubmit) return null; // Difference ≠ 0 with empty remarks — Submit must stay disabled at the UI layer too
     if (state.preview == null) {
@@ -585,14 +574,9 @@ class AgentSettlementNotifier extends Notifier<AgentSettlementState> {
     try {
       final api = ref.read(agentSettlementApiServiceProvider);
       final result = await api.submitSettlement(
-        businessId: businessId,
         agentId: agentId,
         cycleType: state.cycleType,
-        periodStart: periodStart,
-        periodEnd: periodEnd,
         physicalCashDeclared: state.physicalCashDeclared,
-        preview: state.preview!,
-        remarks: state.remarks.trim().isEmpty ? null : state.remarks.trim(),
       );
       // On submission: Opening BF/Expected Closing Balance always returns
       // to businesses.owner_bf_balance in full, and agent_bf_current

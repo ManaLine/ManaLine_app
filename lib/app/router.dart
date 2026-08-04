@@ -14,6 +14,7 @@ import '../features/login_registration/screens/lr_010_forgot_password.dart';
 import '../features/login_registration/screens/lr_011_forgot_pin.dart';
 import '../features/login_registration/screens/lr_012_business_selector.dart';
 import '../features/login_registration/screens/lr_013_role_selector.dart';
+import '../shared/business_suspension_gate.dart' show BusinessSuspendedScreen;
 import '../shared/login_nav_args.dart';
 import '../features/owner_workspace/screens/ow_000_first_business_setup.dart';
 import '../features/owner_workspace/screens/ow_001_owner_home_dashboard.dart';
@@ -69,11 +70,8 @@ import '../shared/mana_time.dart';
 /// router against the UI spec finds a direct match, not a renamed
 /// abstraction layer.
 ///
-/// Each route currently points to `_ScaffoldPlaceholder` — swap in the
-/// real screen widget as each one is built (Week 2 onward per the
-/// Development Timeline). This file's job for Week 1 is to prove the
-/// navigation graph matches the spec's own NAVIGATION sections, not to
-/// implement every screen yet.
+/// Every screen in the inventory is built (no more `_ScaffoldPlaceholder`);
+/// remaining stubs are the deliberate deep-link fallbacks below.
 /// Resolves the businessId a workspace route should use: `extra` when
 /// go_router actually carried one (in-app navigation), else the last
 /// businessId a route was reached with (survives browser refresh/direct
@@ -92,6 +90,12 @@ String _resolveBusinessId(GoRouterState s) {
 final manaRouter = GoRouter(
   initialLocation: '/lr-001',
   routes: [
+    // Deep-link to the app's home URL lands here rather than throwing a
+    // "no match" — the app has no root screen, only the LR-001 startup flow.
+    GoRoute(
+      path: '/',
+      redirect: (context, state) => '/lr-001',
+    ),
     // Temporary — remove once you're done reviewing the design system.
     // Reach it manually by navigating to /_design.
     GoRoute(path: '/_design', builder: (c, s) => const DesignShowcaseScreen()),
@@ -434,5 +438,6 @@ final manaRouter = GoRouter(
       builder: (c, s) => const Sp001AadhaarDisputeResolutionScreen(),
     ),
     GoRoute(path: '/admin-panel', builder: (c, s) => const AdminPanelScreen()),
+    GoRoute(path: '/business-suspended', builder: (c, s) => const BusinessSuspendedScreen()),
   ],
 );

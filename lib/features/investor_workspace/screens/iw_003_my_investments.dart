@@ -357,7 +357,7 @@ class _StatementSheet extends StatelessWidget {
                     ...ledger.map((e) => ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
-                          title: ManaText.raw('${e['entry_type']} · ${_currency.format((e['amount'] as num).toDouble())}'),
+                          title: ManaText.raw('${e['entry_type']} · ${_currency.format((e['amount'] as num).toInt())}'),
                           subtitle: ManaText.raw('${e['business_date']}${e['remarks'] != null ? ' · ${e['remarks']}' : ''}',
                               style: const TextStyle(fontSize: 16)),
                         )),
@@ -371,9 +371,9 @@ class _StatementSheet extends StatelessWidget {
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: ManaText.raw(
-                              '${d['status']} · ${_currency.format((d['declared_amount'] as num).toDouble())}'),
+                              '${d['status']} · ${_currency.format((d['declared_amount'] as num).toInt())}'),
                           subtitle: ManaText.raw(
-                              '${d['business_date']}${d['paid_amount'] != null ? ' · paid ${_currency.format((d['paid_amount'] as num).toDouble())}' : ''}',
+                              '${d['business_date']}${d['paid_amount'] != null ? ' · paid ${_currency.format((d['paid_amount'] as num).toInt())}' : ''}',
                               style: const TextStyle(fontSize: 16)),
                         )),
                   const SizedBox(height: ManaSpacing.md),

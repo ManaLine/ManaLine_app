@@ -56,7 +56,7 @@ class CustomerDashboardApiService {
     // Active + Grace Period + Penalty.
     final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status'])).toList();
     final totalOutstanding =
-        activeLoans.fold<double>(0, (sum, l) => sum + (l['remaining_balance'] as num).toDouble());
+        activeLoans.fold<int>(0, (sum, l) => sum + (l['remaining_balance'] as num).toInt());
     final activeLoanIds = activeLoans.map((l) => l['loan_id'] as String).toList();
 
     // Next payment due: earliest still-Pending loan_schedule row across
@@ -90,12 +90,12 @@ class CustomerDashboardApiService {
     final pendingOnlinePaymentsRows = wave2[1] as List;
 
     DateTime? nextDueDate;
-    double? nextDueAmount;
+    int? nextDueAmount;
     if (scheduleFuture != null) {
       final rows = (wave2[2] as List).cast<Map<String, dynamic>>();
       if (rows.isNotEmpty) {
         nextDueDate = DateTime.parse(rows.first['due_date'] as String);
-        nextDueAmount = (rows.first['installment_amount'] as num).toDouble();
+        nextDueAmount = (rows.first['installment_amount'] as num).toInt();
       }
     }
 
@@ -159,9 +159,9 @@ class CustomerDashboardData {
 
   // MY SUMMARY
   final int activeLoansCount;
-  final double totalOutstanding;
+  final int totalOutstanding;
   final DateTime? nextPaymentDueDate;
-  final double? nextPaymentDueAmount;
+  final int? nextPaymentDueAmount;
   final int pendingLoanRequestsCount; // loan_requests, status in (Submitted, Approved, Rejected) per spec's own parenthetical
   final int pendingOnlinePaymentsCount; // customer_online_payments awaiting Owner/Agent confirmation
 

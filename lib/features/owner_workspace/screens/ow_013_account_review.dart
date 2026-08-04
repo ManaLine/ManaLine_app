@@ -153,7 +153,7 @@ class _OwnerBfPanel extends StatelessWidget {
     );
   }
 
-  Widget _bfRow(String label, double amount, {bool emphasize = false}) {
+  Widget _bfRow(String label, int amount, {bool emphasize = false}) {
     final style = TextStyle(
       fontWeight: emphasize ? FontWeight.bold : FontWeight.normal,
       fontSize: emphasize ? 16 : 14,
@@ -263,7 +263,7 @@ class _SettlementCard extends ConsumerWidget {
     );
   }
 
-  Widget _fieldRow(String label, double amount, {Color? color}) {
+  Widget _fieldRow(String label, int amount, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(

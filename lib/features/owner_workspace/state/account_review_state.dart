@@ -44,7 +44,7 @@ class AccountReviewApiService {
         .from('agent_bf_assignments')
         .select('opening_bf, business_members!inner(business_id)')
         .eq('business_members.business_id', businessId);
-    final totalAssigned = (assignmentRows as List).fold<double>(0, (sum, a) => sum + (a['opening_bf'] as num).toDouble());
+    final totalAssigned = (assignmentRows as List).fold<int>(0, (sum, a) => sum + (a['opening_bf'] as num).toInt());
     // "Returning this session" = sum of settlements' opening_balance for
     // settlements actually submitted (Pending/Approved) this session —
     // approximated here as the sum over the just-fetched pending list;
@@ -52,13 +52,13 @@ class AccountReviewApiService {
     // there's no single "this session" boundary column to filter on
     // (flagged: a precise figure needs a session/account_period_id scope
     // the Owner BF Panel's original spec didn't fully pin down either).
-    final totalReturning = settlements.fold<double>(0, (sum, s) => sum + s.handOverTotal);
+    final totalReturning = settlements.fold<int>(0, (sum, s) => sum + s.handOverTotal);
 
     final bfPanel = OwnerBfPanelData(
-      balanceBeforeToday: (business['owner_bf_balance'] as num).toDouble(),
+      balanceBeforeToday: (business['owner_bf_balance'] as num).toInt(),
       totalAssignedThisSession: totalAssigned,
       totalReturningThisSession: totalReturning,
-      ownerBfCurrent: (business['owner_bf_balance'] as num).toDouble(), // provisional — see class field doc; real "current" needs the Approve-time transfer to have already landed
+      ownerBfCurrent: (business['owner_bf_balance'] as num).toInt(), // provisional — see class field doc; real "current" needs the Approve-time transfer to have already landed
     );
 
     final accessDayRows = await _db
@@ -80,7 +80,7 @@ class AccountReviewApiService {
         .map((r) => AgentAccessDay(
               accessDayId: r['access_day_id'] as String,
               agentName: ((r['business_members'] as Map<String, dynamic>)['persons'] as Map<String, dynamic>)['full_name'] as String,
-              allowanceAmount: (r['allowance_amount'] as num).toDouble(),
+              allowanceAmount: (r['allowance_amount'] as num).toInt(),
             ))
         .toList();
 
@@ -95,21 +95,21 @@ class AccountReviewApiService {
       accountPeriodId: r['account_period_id'] as String,
       businessDate: DateTime.parse(period['business_start_date'] as String),
       agentName: agentPerson['full_name'] as String,
-      totalCollections: (r['cash_collected'] as num).toDouble() +
-          (r['upi_collected'] as num).toDouble() +
-          (r['bank_collected'] as num).toDouble() +
-          (r['cheque_collected'] as num).toDouble(),
-      totalLoansIssued: (r['loan_distribution'] as num).toDouble(),
+      totalCollections: (r['cash_collected'] as num).toInt() +
+          (r['upi_collected'] as num).toInt() +
+          (r['bank_collected'] as num).toInt() +
+          (r['cheque_collected'] as num).toInt(),
+      totalLoansIssued: (r['loan_distribution'] as num).toInt(),
       totalInterest: 0, // not a column on account_settlements — Calculation Engine territory, not reimplemented here
       totalProcessingFee: 0, // ditto
-      expenses: (r['expenses'] as num).toDouble(),
-      short: (r['difference'] as num) < 0 ? (r['difference'] as num).abs().toDouble() : 0,
-      excess: (r['difference'] as num) > 0 ? (r['difference'] as num).toDouble() : 0,
-      difference: (r['difference'] as num).toDouble(),
+      expenses: (r['expenses'] as num).toInt(),
+      short: (r['difference'] as num) < 0 ? (r['difference'] as num).abs().toInt() : 0,
+      excess: (r['difference'] as num) > 0 ? (r['difference'] as num).toInt() : 0,
+      difference: (r['difference'] as num).toInt(),
       status: r['status'] as String,
-      handOverCash: (r['physical_cash_declared'] as num).toDouble(),
-      handOverUpi: (r['upi_collected'] as num).toDouble(),
-      handOverCheque: (r['cheque_collected'] as num).toDouble(),
+      handOverCash: (r['physical_cash_declared'] as num).toInt(),
+      handOverUpi: (r['upi_collected'] as num).toInt(),
+      handOverCheque: (r['cheque_collected'] as num).toInt(),
     );
   }
 
@@ -133,7 +133,7 @@ class AccountReviewApiService {
       adjustments: (adjustmentRows as List)
           .map((a) => SettlementAdjustment(
                 type: a['adjustment_type'] as String,
-                amount: (a['amount'] as num).toDouble(),
+                amount: (a['amount'] as num).toInt(),
                 appliedTo: a['applied_to'] as String,
               ))
           .toList(),
@@ -158,11 +158,14 @@ class AccountReviewApiService {
   }
 
   Future<void> returnSettlement({required String settlementId, required String reason}) async {
-    await _db.from('account_settlements').update({
-      'status': 'Returned',
-      'return_reason': reason,
-      'reviewed_at': manaTimestamp(),
-    }).eq('settlement_id', settlementId);
+    // Must go through the RPC: the money that moved to the Owner at submit
+    // has to move back to the agent (the hand-over reverses), and the agent
+    // must still have a float to re-submit with. A plain status UPDATE would
+    // leave the Owner holding cash the agent still needs.
+    await _db.schema('app').rpc('return_settlement', params: {
+      'p_settlement_id': settlementId,
+      'p_reason': reason,
+    });
   }
 
   // POST account-periods/{id}/lock — Owner full access to account_periods.
@@ -195,18 +198,18 @@ class AccountSettlementSummary {
   final String accountPeriodId;
   final DateTime businessDate; // account_period span start, not necessarily "today"
   final String agentName;
-  final double totalCollections;
-  final double totalLoansIssued;
-  final double totalInterest;
-  final double totalProcessingFee;
-  final double expenses;
-  final double short;
-  final double excess;
-  final double difference;
+  final int totalCollections;
+  final int totalLoansIssued;
+  final int totalInterest;
+  final int totalProcessingFee;
+  final int expenses;
+  final int short;
+  final int excess;
+  final int difference;
   final String status; // Pending Owner Review | Approved | Returned
-  final double handOverCash;
-  final double handOverUpi;
-  final double handOverCheque;
+  final int handOverCash;
+  final int handOverUpi;
+  final int handOverCheque;
 
   AccountSettlementSummary({
     required this.settlementId,
@@ -227,12 +230,12 @@ class AccountSettlementSummary {
     required this.handOverCheque,
   });
 
-  double get handOverTotal => handOverCash + handOverUpi + handOverCheque;
+  int get handOverTotal => handOverCash + handOverUpi + handOverCheque;
 }
 
 class SettlementAdjustment {
   final String type; // Short | Excess
-  final double amount;
+  final int amount;
   final String appliedTo; // Agent Salary Deduction | Customer Pending Settlement | Excess Ledger-Unresolved (BR-069)
   SettlementAdjustment({required this.type, required this.amount, required this.appliedTo});
 }
@@ -245,10 +248,10 @@ class AccountSettlementDetail {
 }
 
 class OwnerBfPanelData {
-  final double balanceBeforeToday;
-  final double totalAssignedThisSession;
-  final double totalReturningThisSession;
-  final double ownerBfCurrent; // provisional until each pending account is actually Approved
+  final int balanceBeforeToday;
+  final int totalAssignedThisSession;
+  final int totalReturningThisSession;
+  final int ownerBfCurrent; // provisional until each pending account is actually Approved
   OwnerBfPanelData({
     required this.balanceBeforeToday,
     required this.totalAssignedThisSession,
@@ -260,7 +263,7 @@ class OwnerBfPanelData {
 class AgentAccessDay {
   final String accessDayId;
   final String agentName;
-  final double allowanceAmount;
+  final int allowanceAmount;
   AgentAccessDay({required this.accessDayId, required this.agentName, required this.allowanceAmount});
 }
 

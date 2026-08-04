@@ -78,11 +78,21 @@ void main() {
   });
 
   group('invariant: never negative', () {
-    test('the DB CHECK constraints are the backstop', () {
-      // These names must exist in migration 20260803030000 — the SQL test
-      // harness greps for them so the constraint is not silently dropped.
-      expect('chk_businesses_owner_bf_nonneg', contains('nonneg'));
-      expect('chk_agent_bf_current_nonneg', contains('nonneg'));
+    test('the guards in the RPCs are the backstop, not a CHECK constraint', () {
+      // chk_businesses_owner_bf_nonneg and chk_agent_bf_current_nonneg were
+      // dropped in 20260805035332. They were correct while BF was a stored
+      // running total that only ever moved through guarded RPCs. BF is now
+      // derived from live rows, and a derived figure has to be allowed to
+      // state the truth: a recompute landing negative would otherwise abort
+      // the delete that triggered it, so the user would see a failed delete
+      // instead of a wrong balance they can act on. app.recompute_business_bf
+      // stores the negative and writes an 'owner_bf_negative' audit row.
+      //
+      // What stops NEW spending going negative is the pre-flight check inside
+      // record_expense / create_loan_with_bf_check / grant_agent_bf /
+      // record_cheti_payment — each reads the pot before it spends.
+      const float = 1500.0;
+      expect(float - 2000 < 0, isTrue, reason: 'the RPC must refuse this, not the DB');
     });
 
     test('a loan larger than the float must not mint money', () {

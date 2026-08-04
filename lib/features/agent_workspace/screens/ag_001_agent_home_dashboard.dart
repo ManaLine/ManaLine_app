@@ -73,9 +73,10 @@ class _AgentHomeDashboardScreenState
         // Give the dashboard a frame to lay out before scrolling to it.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final ctx = _compensationKey.currentContext;
-          if (ctx != null)
+          if (ctx != null) {
             Scrollable.ensureVisible(ctx,
                 duration: const Duration(milliseconds: 300));
+          }
         });
       }
     });

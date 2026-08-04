@@ -71,48 +71,6 @@ class AgentSettlementApiService {
     return result as String;
   }
 
-  /// Net BF cash movement for this agent over the period, from
-  /// `cash_transfers` (BR-173). Only transfers CONFIRMED by both sides
-  /// count ("a transfer is only effective once BOTH are set" — API spec
-  /// §5.6 Part 2) — a one-sided pending transfer does not move BF yet, so
-  /// it's excluded here to match that same effective-once-both-confirmed
-  /// rule rather than double-counting an unconfirmed leg.
-  /// RLS (`cash_transfers_agent_select_party`) only returns rows where
-  /// this agent is `from_agent_id` or `to_agent_id`, so no extra
-  /// agent-identity filter is layered on top of what the two `.eq()`
-  /// queries below already ask for.
-  Future<int> _fetchNetCashTransfers({
-    required String agentId,
-    required String startStr,
-    required String endStr,
-  }) async {
-    final outgoing = await _db
-        .from('cash_transfers')
-        .select('amount, from_agent_confirmed_at, to_agent_confirmed_at')
-        .eq('from_agent_id', agentId)
-        .gte('business_date', startStr)
-        .lte('business_date', endStr);
-    final incoming = await _db
-        .from('cash_transfers')
-        .select('amount, from_agent_confirmed_at, to_agent_confirmed_at')
-        .eq('to_agent_id', agentId)
-        .gte('business_date', startStr)
-        .lte('business_date', endStr);
-
-    bool bothConfirmed(Map<String, dynamic> r) =>
-        r['from_agent_confirmed_at'] != null && r['to_agent_confirmed_at'] != null;
-
-    final outTotal = (outgoing as List)
-        .cast<Map<String, dynamic>>()
-        .where(bothConfirmed)
-        .fold<int>(0, (sum, r) => sum + (r['amount'] as num).toInt());
-    final inTotal = (incoming as List)
-        .cast<Map<String, dynamic>>()
-        .where(bothConfirmed)
-        .fold<int>(0, (sum, r) => sum + (r['amount'] as num).toInt());
-
-    return inTotal - outTotal; // net effect on this agent's BF cash
-  }
 
   // Best-effort SETTLEMENT SUMMARY preview — see class doc SPEC GAP note.
   Future<SettlementPreview> fetchSettlementPreview({
@@ -177,23 +135,18 @@ class AgentSettlementApiService {
         .lte('business_date', endStr);
     final expenses = (expenseRows as List).fold<int>(0, (sum, e) => sum + (e['amount'] as num).toInt());
 
-    final netCashTransfers = await _fetchNetCashTransfers(agentId: agentId, startStr: startStr, endStr: endStr);
-
-    // BR-237 "expected_closing_balance" formula — 15_Calculation_Engine.md
-    // owns the authoritative version of this; this is a plausible
-    // reconstruction (Opening + Cash collected − Loans distributed −
-    // Expenses + Net Cash Transfers In/Out (BR-173); UPI/Bank/Cheque are
-    // collected but don't pass through physical BF cash so they're
-    // excluded from the balance itself, only shown for reconciliation)
-    // NOT a verified match. Flagged: master chat/backend should confirm
-    // this against the real engine before this number is trusted for
-    // anything beyond a rough on-screen preview — the actual difference()
-    // getter in AgentSettlementState re-derives this independently of
-    // submitSettlement's real server-computed value anyway, so a preview
-    // mismatch here is a display quality issue, not a financial-integrity
-    // one (the real number always comes from the BLOCKED submit RPC,
-    // never from this preview).
-    final expectedClosingBalance = openingBalance + cash - loanDistribution - expenses + netCashTransfers;
+    // No expected-closing figure is derived here any more.
+    //
+    // It used to be a self-admitted "plausible reconstruction" of BR-237.
+    // submit_agent_settlement now computes the real one from the period's
+    // own records, so a second, unverified formula on the phone could only
+    // ever do one of two things: agree with the server, in which case it
+    // was redundant, or disagree, in which case it told the agent their
+    // cash balanced when the server was about to record a short.
+    //
+    // The component figures below stay: each is a direct SUM of real rows,
+    // not a reconstruction, and the agent needs them to count against.
+    // What they no longer get is a total the app made up.
 
     return SettlementPreview(
       openingBalance: openingBalance,
@@ -203,7 +156,6 @@ class AgentSettlementApiService {
       chequeCollected: cheque,
       loanDistribution: loanDistribution,
       expenses: expenses,
-      expectedClosingBalance: expectedClosingBalance,
     );
   }
 
@@ -365,7 +317,11 @@ class SettlementPreview {
   final int chequeCollected; // system-sourced amount; Cheque Count (UI-only tally) sits alongside, not backing this
   final int loanDistribution;
   final int expenses;
-  final int expectedClosingBalance;
+
+  /// Null before submission, and only ever the SERVER's figure afterwards.
+  /// Nothing in the app computes this — see the note in
+  /// fetchSettlementPreview on why the local reconstruction was removed.
+  final int? expectedClosingBalance;
 
   SettlementPreview({
     required this.openingBalance,
@@ -375,7 +331,7 @@ class SettlementPreview {
     required this.chequeCollected,
     required this.loanDistribution,
     required this.expenses,
-    required this.expectedClosingBalance,
+    this.expectedClosingBalance,
   });
 }
 
@@ -473,18 +429,20 @@ class AgentSettlementState {
     this.remarks = '',
   });
 
-  /// Expected Balance − Actual Balance = Difference. Actual = Physical
-  /// Cash declared + verified UPI/Bank/Cheque (those three are
-  /// system-sourced, never Agent-entered, so they flow straight through).
-  int get difference {
-    if (preview == null) return 0;
-    final actual = physicalCashDeclared + preview!.upiCollected + preview!.bankCollected + preview!.chequeCollected;
-    return preview!.expectedClosingBalance - actual;
-  }
+  /// The difference, or null before submission — the server is the only
+  /// thing that computes it.
+  ///
+  /// This used to be derived here as `expected − (physical + UPI + bank +
+  /// cheque)`. submit_agent_settlement computes `physical_cash_declared −
+  /// expected_cash`, over CASH ONLY. Those two disagree in magnitude (the
+  /// local one folds in three non-cash modes that never pass through
+  /// physical BF) and in sign. An agent could therefore be shown a
+  /// balanced settlement and have the server record a short one, or the
+  /// reverse — the confidently-wrong-number failure, on the screen where
+  /// somebody hands over cash.
+  int? get difference => existingSettlement?.difference;
 
-  bool get differenceIsZero => difference == 0;
-  bool get explanationRequired => !differenceIsZero;
-  bool get canSubmit => preview != null && (differenceIsZero || remarks.trim().isNotEmpty);
+  bool get canSubmit => preview != null;
 
   AgentSettlementState copyWith({
     SettlementScreenStage? stage,

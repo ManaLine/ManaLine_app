@@ -226,8 +226,11 @@ class _ReturnedView extends ConsumerWidget {
 class _SummaryCard extends StatelessWidget {
   final SettlementPreview preview;
   final int physicalCashDeclared;
-  final int difference;
-  const _SummaryCard({required this.preview, required this.physicalCashDeclared, required this.difference});
+
+  /// Null until the server has computed it. Before submission the card
+  /// shows the component figures only — see SettlementPreview.
+  final int? difference;
+  const _SummaryCard({required this.preview, required this.physicalCashDeclared, this.difference});
 
   @override
   Widget build(BuildContext context) {
@@ -247,11 +250,21 @@ class _SummaryCard extends StatelessWidget {
             _row('Loan Distribution', preview.loanDistribution),
             _row('Expenses', preview.expenses),
             const Divider(),
-            _row('Expected Closing Balance', preview.expectedClosingBalance, emphasize: true),
+            // Expected Closing and Difference exist only once the server
+            // has computed them. Rendering a locally-derived stand-in here
+            // is what this change removed.
+            if (preview.expectedClosingBalance != null)
+              _row('Expected Closing Balance', preview.expectedClosingBalance!,
+                  emphasize: true),
             _row('Physical Cash Declared', physicalCashDeclared, emphasize: true),
-            const Divider(),
-            _row('Difference', difference,
-                emphasize: true, color: difference == 0 ? ManaColors.statusGood : ManaColors.statusBad),
+            if (difference != null) ...[
+              const Divider(),
+              _row('Difference', difference!,
+                  emphasize: true,
+                  color: difference == 0
+                      ? ManaColors.statusGood
+                      : ManaColors.statusBad),
+            ],
           ],
         ),
       ),
@@ -373,16 +386,14 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
         TextField(
           controller: _remarksController,
           maxLines: 3,
-          decoration: InputDecoration(
-            labelText: state.explanationRequired ? 'Supporting Remarks (required)' : 'Supporting Remarks',
-            hintText: state.explanationRequired
-                ? 'Explain the difference before you can submit'
-                : 'Optional',
+          decoration: const InputDecoration(
+            labelText: 'Supporting Remarks',
+            hintText: 'Optional — note anything the Owner should know',
           ),
           onChanged: (v) => ref.read(agentSettlementProvider.notifier).setRemarks(v),
         ),
         const SizedBox(height: ManaSpacing.md),
-        _DifferenceBanner(state: state),
+        const _DifferencePendingNote(),
         const SizedBox(height: ManaSpacing.lg),
         SizedBox(
           width: double.infinity,
@@ -410,39 +421,26 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
   }
 }
 
-class _DifferenceBanner extends StatelessWidget {
-  final AgentSettlementState state;
-  const _DifferenceBanner({required this.state});
+/// Replaces the old difference banner, which announced "settlement ready —
+/// difference is zero" off a figure the phone derived with a different
+/// formula from the server's. Telling an agent their cash balances is a
+/// claim only the server can make, and it makes it at submit.
+class _DifferencePendingNote extends StatelessWidget {
+  const _DifferencePendingNote();
 
   @override
   Widget build(BuildContext context) {
-    if (state.differenceIsZero) {
-      return const Card(
-        color: ManaColors.statusGoodFaint,
-        child: Padding(
-          padding: EdgeInsets.all(ManaSpacing.md),
-          child: Row(
-            children: [
-              Icon(Icons.check_circle, color: ManaColors.statusGood),
-              SizedBox(width: ManaSpacing.sm),
-              Expanded(child: ManaText('settlement ready — difference is zero')),
-            ],
-          ),
-        ),
-      );
-    }
-    return Card(
+    return const Card(
       color: ManaColors.statusWarnFaint,
       child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
+        padding: EdgeInsets.all(ManaSpacing.md),
         child: Row(
           children: [
-            const Icon(Icons.warning_amber, color: ManaColors.statusWarn),
-            const SizedBox(width: ManaSpacing.sm),
+            Icon(Icons.info_outline, color: ManaColors.statusWarn),
+            SizedBox(width: ManaSpacing.sm),
             Expanded(
-              child: ManaText.raw(
-                'Difference of ${_currency.format(state.difference.abs())} — explain in Supporting Remarks before you can submit.',
-              ),
+              child: ManaText(
+                  'count your cash and declare it. the difference is worked out when you submit.'),
             ),
           ],
         ),

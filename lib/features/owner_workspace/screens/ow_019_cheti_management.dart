@@ -5,6 +5,8 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/soft_delete_service.dart';
+import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/cheti_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -174,8 +176,51 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                     icon: const Icon(Icons.north_east, size: 18),
                     label: const ManaText('record availing'),
                   ),
+                TextButton.icon(
+                  onPressed: () => _deleteCheti(c),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  style: TextButton.styleFrom(
+                      foregroundColor: ManaColors.statusBad),
+                  label: const ManaText('delete'),
+                ),
               ],
             ),
+            // Collapsed by default: most of the time the aggregate above is
+            // what the Owner wants, and this list exists so a single wrong
+            // instalment can be corrected without deleting the whole chit.
+            if (c.payments.isNotEmpty)
+              Theme(
+                data: Theme.of(context)
+                    .copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: ManaText.raw(
+                    '${c.payments.length} recorded instalment'
+                    '${c.payments.length == 1 ? '' : 's'}',
+                    style: const TextStyle(
+                        fontSize: 13, color: ManaColors.textSecondary),
+                  ),
+                  children: [
+                    for (final p in c.payments)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: ManaText.raw(_currency.format(p.netPaid)),
+                        subtitle: ManaText.raw(
+                          _dateFmt.format(p.businessDate),
+                          style: const TextStyle(
+                              fontSize: 12, color: ManaColors.textSecondary),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          color: ManaColors.statusBad,
+                          tooltip: 'Delete',
+                          onPressed: () => _deleteChetiPayment(c, p),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -220,6 +265,34 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
       builder: (_) => _AvailingSheet(cheti: c),
     );
     if (saved == true) await _reload();
+  }
+
+  /// Deleting the cheti hides the whole chit: its availed lumpsum stops
+  /// counting as cash received. Its instalment payments are separate rows
+  /// and are NOT deleted with it — they are removed individually from the
+  /// payments list, so a mistyped chit does not silently take a month of
+  /// correct instalments with it.
+  Future<void> _deleteCheti(Cheti c) async {
+    final deleted = await ConfirmDeleteDialog.show(
+      context,
+      entity: DeletableEntity.cheti,
+      recordId: c.chetiId,
+      description: 'Cheti ${c.name} — ${_currency.format(c.faceValue)}',
+    );
+    if (deleted && mounted) await _reload();
+  }
+
+  /// One instalment. Deleting it returns that cash to whoever paid it and
+  /// reopens the slot, so the term can be re-recorded correctly.
+  Future<void> _deleteChetiPayment(Cheti c, ChetiPaymentRow p) async {
+    final deleted = await ConfirmDeleteDialog.show(
+      context,
+      entity: DeletableEntity.chetiPayment,
+      recordId: p.paymentId,
+      description: '${c.name} instalment — ${_currency.format(p.netPaid)} '
+          'on ${_dateFmt.format(p.businessDate)}',
+    );
+    if (deleted && mounted) await _reload();
   }
 }
 

@@ -149,6 +149,7 @@ class AgentCustomerApiService {
       remarks: ((row['customer_remarks'] as List?) ?? const [])
           .cast<Map<String, dynamic>>()
           .map((r) => CustomerRemark(
+                remarkId: r['remark_id'] as String,
                 date: DateTime.parse(r['business_date'] as String),
                 enteredBy: '',
                 remark: r['remark_text'] as String,

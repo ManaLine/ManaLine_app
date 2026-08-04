@@ -36,6 +36,22 @@ enum ChetiFrequency {
       .firstWhere((e) => e.dbValue == v, orElse: () => ChetiFrequency.monthly);
 }
 
+/// One recorded instalment. Carried per-cheti so the screen can show and
+/// delete them individually — the aggregate alone cannot be corrected.
+class ChetiPaymentRow {
+  final String paymentId;
+  final DateTime businessDate;
+  final int grossInstalment;
+  final int netPaid;
+
+  ChetiPaymentRow({
+    required this.paymentId,
+    required this.businessDate,
+    required this.grossInstalment,
+    required this.netPaid,
+  });
+}
+
 class Cheti {
   final String chetiId;
   final String name;
@@ -65,6 +81,11 @@ class Cheti {
   /// period's profit and are deliberately not counted here.
   final int recordedDividend;
 
+  /// The instalments recorded in-app, newest first. Empty for a cheti whose
+  /// history predates migration — those are carried as opening figures only
+  /// and have no rows to delete.
+  final List<ChetiPaymentRow> payments;
+
   const Cheti({
     required this.chetiId,
     required this.name,
@@ -83,6 +104,7 @@ class Cheti {
     required this.recordedInstalments,
     required this.recordedAmountPaid,
     required this.recordedDividend,
+    this.payments = const [],
   });
 
   bool get isAvailed => availedDate != null;
@@ -129,7 +151,7 @@ class ChetiApiService {
             'total_instalments, instalment_amount, start_date, '
             'opening_instalments_paid, opening_amount_paid, availed_date, '
             'availed_amount, availed_pre_migration, status, '
-            'cheti_payments(gross_instalment, dividend, net_paid)')
+            'cheti_payments(cheti_payment_id, business_date, gross_instalment, dividend, net_paid)')
         .eq('business_id', businessId)
         .order('start_date', ascending: false);
 
@@ -165,6 +187,16 @@ class ChetiApiService {
         recordedInstalments: payments.length,
         recordedAmountPaid: paidSum,
         recordedDividend: dividendSum,
+        payments: payments
+            .cast<Map<String, dynamic>>()
+            .map((p) => ChetiPaymentRow(
+                  paymentId: p['cheti_payment_id'] as String,
+                  businessDate: DateTime.parse(p['business_date'] as String),
+                  grossInstalment: _num(p['gross_instalment']),
+                  netPaid: _num(p['net_paid']),
+                ))
+            .toList()
+          ..sort((a, b) => b.businessDate.compareTo(a.businessDate)),
       );
     }).toList();
   }

@@ -9,6 +9,8 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/soft_delete_service.dart';
+import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../shared/document_viewer.dart';
 import '../state/customer_state.dart';
 
@@ -1009,6 +1011,19 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
     });
   }
 
+  /// A remark carries no money, so no balance moves — the dialog is told
+  /// that rather than warning about a closing balance that will not change.
+  Future<void> _deleteRemark(CustomerRemark r) async {
+    final deleted = await ConfirmDeleteDialog.show(
+      context,
+      entity: DeletableEntity.customerRemark,
+      recordId: r.remarkId,
+      description: r.remark,
+      affectsBalances: false,
+    );
+    if (deleted && mounted) ref.invalidate(customerProfileProvider(widget.customerId));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1023,9 +1038,22 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
                           child: ListTile(
                             title: ManaText.raw(r.remark),
                             subtitle: ManaText.raw('${r.enteredBy} · ${DateFormat('d MMM yyyy').format(r.date)}'),
-                            trailing: ManaStatusPill(
-                              label: r.priority,
-                              status: r.priority == 'High' ? ManaStatus.bad : ManaStatus.neutral,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: ManaStatusPill(
+                                    label: r.priority,
+                                    status: r.priority == 'High' ? ManaStatus.bad : ManaStatus.neutral,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 18),
+                                  color: ManaColors.statusBad,
+                                  tooltip: 'Delete',
+                                  onPressed: () => _deleteRemark(r),
+                                ),
+                              ],
                             ),
                           ),
                         ))

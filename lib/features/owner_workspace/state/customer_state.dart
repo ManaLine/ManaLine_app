@@ -207,12 +207,13 @@ class CustomerApiService {
   Future<List<DocumentSummary>> fetchCustomerDocuments({required String customerId}) async {
     final rows = await _db
         .from('customer_documents')
-        .select('document_type, file_url, uploaded_at')
+        .select('document_id, document_type, file_url, uploaded_at')
         .eq('customer_id', customerId)
         .eq('is_archived', false)
         .order('uploaded_at', ascending: false);
     return (rows as List)
         .map((r) => DocumentSummary(
+              documentId: r['document_id'] as String,
               documentType: r['document_type'] as String,
               fileUrl: r['file_url'] as String,
               uploadedAt: DateTime.parse(r['uploaded_at'] as String),
@@ -307,6 +308,7 @@ class CustomerApiService {
       remarks: ((row['customer_remarks'] as List?) ?? const [])
           .cast<Map<String, dynamic>>()
           .map((r) => CustomerRemark(
+                remarkId: r['remark_id'] as String,
                 date: DateTime.parse(r['business_date'] as String),
                 enteredBy: '', // requires a persons join on entered_by_person_id — omitted, see KNOWN SIMPLIFICATION pattern
                 remark: r['remark_text'] as String,
@@ -413,12 +415,21 @@ class CustomerCollectionRow {
 }
 
 class CustomerRemark {
+  /// customer_remarks.remark_id — needed so a remark can be deleted. The
+  /// query already selected it; the model used to drop it on the floor.
+  final String remarkId;
   final DateTime date;
   final String enteredBy;
   final String remark;
   final String priority;
 
-  CustomerRemark({required this.date, required this.enteredBy, required this.remark, required this.priority});
+  CustomerRemark({
+    required this.remarkId,
+    required this.date,
+    required this.enteredBy,
+    required this.remark,
+    required this.priority,
+  });
 }
 
 class CustomerProfile {

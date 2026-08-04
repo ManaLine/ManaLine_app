@@ -7,6 +7,8 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/agent_dashboard_state.dart';
+import '../../../shared/soft_delete_service.dart';
+import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/loan_distribution_state.dart';
 import '../../owner_workspace/state/customer_state.dart';
 import '../../owner_workspace/state/loan_wizard_state.dart';
@@ -286,6 +288,19 @@ class _TransferList extends ConsumerWidget {
         .showSnackBar(const SnackBar(content: Text('BF Cash Transfer confirmed — balance updated.')));
   }
 
+  Future<void> _deleteTransfer(
+      BuildContext context, WidgetRef ref, CashTransfer t) async {
+    final other = t.direction(agentId) == 'Incoming' ? t.fromAgentName : t.toAgentName;
+    final deleted = await ConfirmDeleteDialog.show(
+      context,
+      entity: DeletableEntity.cashTransfer,
+      recordId: t.transferId,
+      description: '${_currency.format(t.amount)} with $other on ${t.businessDate}',
+    );
+    if (!deleted || !context.mounted) return;
+    await ref.read(loanDistributionProvider.notifier).loadTransfers(agentId: agentId);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (transfers.isEmpty) {
@@ -313,14 +328,30 @@ class _TransferList extends ConsumerWidget {
                 ),
                 subtitle: ManaText.raw('${t.businessDate} · ${_currency.format(t.amount)}',
                     style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
-                trailing: showConfirmAction
-                    ? ElevatedButton(
-                        onPressed: confirming ? null : () => _confirm(context, ref, t),
-                        child: confirming
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const ManaText('confirm'),
-                      )
-                    : const ManaStatusPill(label: 'Pending', status: ManaStatus.warn),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: showConfirmAction
+                          ? ElevatedButton(
+                              onPressed: confirming ? null : () => _confirm(context, ref, t),
+                              child: confirming
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const ManaText('confirm'),
+                            )
+                          : const ManaStatusPill(label: 'Pending', status: ManaStatus.warn),
+                    ),
+                    // A transfer neither side has confirmed has moved no
+                    // cash yet, so deleting one is how a mistyped hand-over
+                    // is cancelled rather than left pending forever.
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      color: ManaColors.statusBad,
+                      tooltip: 'Delete',
+                      onPressed: () => _deleteTransfer(context, ref, t),
+                    ),
+                  ],
+                ),
               ),
             )),
       ],

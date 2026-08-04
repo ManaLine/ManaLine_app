@@ -871,6 +871,13 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
       // cash position, which is a heavier power than lending today.
       'can_migrate_records': 'Can Enter Pre-Existing Records',
     },
+    'deleting': {
+      // Its own group, and last, because it is the heaviest thing an agent
+      // can be given: deleting a ledger record rewrites a past day's
+      // closing balance and every day after it. Recoverable for 30 days,
+      // then not. OFF by default like every other flag here.
+      'can_delete_records': 'Can Delete Records',
+    },
     'visibility': {
       'can_view_reports': 'Can View Reports',
       'can_export_reports': 'Can Export Reports',

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'widgets/confirm_delete_dialog.dart';
+import 'soft_delete_service.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
@@ -10,7 +13,21 @@ class DocumentSummary {
   final String documentType;
   final String fileUrl;
   final DateTime uploadedAt;
-  DocumentSummary({required this.documentType, required this.fileUrl, required this.uploadedAt});
+
+  /// customer_documents.document_id, when this row came from there.
+  ///
+  /// Null for AGENT documents: agent_documents is not one of the
+  /// soft-deletable tables, so there is no id to delete by and the delete
+  /// action is not offered. Nullable rather than a second model because the
+  /// only difference between the two sources is whether this exists.
+  final String? documentId;
+
+  DocumentSummary({
+    required this.documentType,
+    required this.fileUrl,
+    required this.uploadedAt,
+    this.documentId,
+  });
 }
 
 /// Reusable "Documents" tab: shows one row per expected document type,
@@ -19,22 +36,37 @@ class DocumentSummary {
 /// Documents tabs — previously each was a static list of labels with
 /// `onTap: () {}`, so tapping any row (even ones with a real uploaded
 /// file sitting in Storage) did nothing.
-class DocumentsListView extends StatefulWidget {
+class DocumentsListView extends ConsumerStatefulWidget {
   final List<String> expectedTypes;
   final Future<List<DocumentSummary>> Function() fetchDocuments;
   const DocumentsListView({super.key, required this.expectedTypes, required this.fetchDocuments});
 
   @override
-  State<DocumentsListView> createState() => _DocumentsListViewState();
+  ConsumerState<DocumentsListView> createState() => _DocumentsListViewState();
 }
 
-class _DocumentsListViewState extends State<DocumentsListView> {
+class _DocumentsListViewState extends ConsumerState<DocumentsListView> {
   late Future<List<DocumentSummary>> _future;
 
   @override
   void initState() {
     super.initState();
     _future = widget.fetchDocuments();
+  }
+
+  /// A document carries no money, so no balance moves. Reloads the future
+  /// afterwards so the row falls back to "Not uploaded yet".
+  Future<void> _deleteDocument(DocumentSummary doc, String label) async {
+    final deleted = await ConfirmDeleteDialog.show(
+      context,
+      entity: DeletableEntity.customerDocument,
+      recordId: doc.documentId!,
+      description: '$label — uploaded ${doc.uploadedAt.toIso8601String().split('T').first}',
+      affectsBalances: false,
+    );
+    if (deleted && mounted) {
+      setState(() => _future = widget.fetchDocuments());
+    }
   }
 
   @override
@@ -73,7 +105,21 @@ class _DocumentsListViewState extends State<DocumentsListView> {
                 subtitle: doc == null
                     ? const ManaText.raw('Not uploaded yet', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))
                     : null,
-                trailing: const Icon(Icons.chevron_right),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Only customer documents carry an id, and only they are
+                    // soft-deletable — an agent document has no delete path.
+                    if (doc?.documentId != null)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: ManaColors.statusBad,
+                        tooltip: 'Delete',
+                        onPressed: () => _deleteDocument(doc!, label),
+                      ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
                 onTap: doc == null
                     ? null
                     : () => Navigator.of(context).push(

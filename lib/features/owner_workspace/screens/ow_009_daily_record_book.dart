@@ -330,6 +330,8 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                                   _EntryList(
                                     entries: detail.adjustments,
                                     emptyLabel: 'No corrections/adjustments this day.',
+                                    deletableAs: DeletableEntity.settlementAdjustment,
+                                    businessId: widget.businessId,
                                   ),
                                   _AuditList(entries: detail.auditLog),
                                   _EntryList(

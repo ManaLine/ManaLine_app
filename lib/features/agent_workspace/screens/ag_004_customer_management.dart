@@ -6,9 +6,11 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
-import '../../owner_workspace/state/customer_state.dart' show CustomerSummary, CustomerProfile;
+import '../../owner_workspace/state/customer_state.dart' show CustomerSummary, CustomerProfile, CustomerRemark;
 import '../../owner_workspace/state/collection_mode_state.dart' show CollectionDueRow;
 import '../../owner_workspace/screens/ow_006_collection_mode.dart' show CollectionEntryScreen;
+import '../../../shared/soft_delete_service.dart';
+import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/agent_customer_state.dart';
 import 'ag_007_loan_distribution.dart';
 
@@ -659,6 +661,22 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
     });
   }
 
+  /// Remarks carry no money, so deleting one moves no balance — the dialog
+  /// is told that so it does not warn about a closing balance that will not
+  /// change.
+  Future<void> _deleteRemark(CustomerRemark r) async {
+    final deleted = await ConfirmDeleteDialog.show(
+      context,
+      entity: DeletableEntity.customerRemark,
+      recordId: r.remarkId,
+      description: r.remark,
+      affectsBalances: false,
+    );
+    if (deleted && mounted) {
+      ref.invalidate(agentCustomerProfileProvider(widget.customerId));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -673,9 +691,22 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
                           child: ListTile(
                             title: ManaText.raw(r.remark),
                             subtitle: ManaText.raw('${r.enteredBy} · ${DateFormat('d MMM yyyy').format(r.date)}'),
-                            trailing: ManaStatusPill(
-                              label: r.priority,
-                              status: r.priority == 'High' ? ManaStatus.bad : ManaStatus.neutral,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: ManaStatusPill(
+                                    label: r.priority,
+                                    status: r.priority == 'High' ? ManaStatus.bad : ManaStatus.neutral,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 18),
+                                  color: ManaColors.statusBad,
+                                  tooltip: 'Delete',
+                                  onPressed: () => _deleteRemark(r),
+                                ),
+                              ],
                             ),
                           ),
                         ))

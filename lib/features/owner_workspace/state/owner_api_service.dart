@@ -550,6 +550,43 @@ class OwnerApiService {
     // doc — a judgment call, not silently resolved as "obviously both."
   }
 
+  /// The agent's cash in hand right now, or null when the Owner has never
+  /// granted them a float (no agent_bf_assignments row yet — a real state,
+  /// not zero: an agent with no row cannot be lent against at all).
+  ///
+  /// A direct read is correct here: agent_bf_assignments_owner_all gives the
+  /// Owner ALL on every row whose membership belongs to their business.
+  Future<int?> readAgentBf({required String agentMembershipId}) async {
+    final rows = await _db
+        .from('agent_bf_assignments')
+        .select('agent_bf_current')
+        .eq('membership_id', agentMembershipId)
+        .order('business_date', ascending: false, nullsFirst: false)
+        .limit(1);
+    if (rows.isEmpty) return null;
+    return (rows.first['agent_bf_current'] as num?)?.toInt();
+  }
+
+  /// Owner moves their own cash into an agent's float — the other half of
+  /// create_loan_with_bf_check's INSUFFICIENT_FLOAT answer, which tells the
+  /// Owner to top the agent up but, until now, gave them nowhere to do it.
+  ///
+  /// Deliberately an RPC, not two UPDATEs: the Owner's balance going down
+  /// and the agent's float going up must be one transaction, and the RPC is
+  /// also where "the Owner cannot give money they do not have" is enforced.
+  /// Returns the agent's NEW float, as the server computed it — the caller
+  /// must not add the amount locally and assume it agreed.
+  Future<int> grantAgentBf({
+    required String agentMembershipId,
+    required int amount,
+  }) async {
+    final result = await _db.schema('app').rpc('grant_agent_bf', params: {
+      'p_agent_membership_id': agentMembershipId,
+      'p_amount': amount,
+    });
+    return (result as num).toInt();
+  }
+
   /// BUG FIXED: this was a bare UPDATE ... WHERE agent_id = ?. An agent
   /// with no agent_permissions row — which every Owner-as-Agent created by
   /// the owner_is_first_agent migration was — matched zero rows, and

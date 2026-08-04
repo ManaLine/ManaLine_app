@@ -559,6 +559,25 @@ class WorkforceNotifier extends Notifier<WorkforceState> {
       return false;
     }
   }
+
+  /// Tops the agent up and returns their new float, or null if the grant
+  /// failed. Rethrows so NetworkErrorHandler can render the server's own
+  /// refusal ("Owner BF is only X, cannot top up Y") rather than swallowing
+  /// it into a plausible-looking number — this is a money path.
+  Future<int> grantAgentBf({
+    required String businessId,
+    required String agentMembershipId,
+    required int amount,
+  }) async {
+    final api = ref.read(ownerApiServiceProvider);
+    final newFloat = await api.grantAgentBf(
+      agentMembershipId: agentMembershipId,
+      amount: amount,
+    );
+    // The Owner's own balance moved too, so the workforce figures are stale.
+    await load(businessId);
+    return newFloat;
+  }
 }
 
 final workforceProvider = NotifierProvider<WorkforceNotifier, WorkforceState>(

@@ -562,7 +562,7 @@ class AgentProfileScreen extends ConsumerWidget {
           ),
           data: (profile) => TabBarView(
             children: [
-              _OverviewTab(agent: agent),
+              _OverviewTab(agent: agent, businessId: businessId),
               _PermissionsTab(agentId: agent.agentId, profile: profile),
               _CompensationTab(
                   agentId: agent.agentId, businessId: businessId, profile: profile),
@@ -605,9 +605,71 @@ class AgentProfileScreen extends ConsumerWidget {
   }
 }
 
-class _OverviewTab extends StatelessWidget {
+class _OverviewTab extends ConsumerStatefulWidget {
   final AgentSummary agent;
-  const _OverviewTab({required this.agent});
+  final String businessId;
+  const _OverviewTab({required this.agent, required this.businessId});
+
+  @override
+  ConsumerState<_OverviewTab> createState() => _OverviewTabState();
+}
+
+class _OverviewTabState extends ConsumerState<_OverviewTab> {
+  /// Three distinct states, deliberately not collapsed into one int:
+  /// still loading, no BF row at all (the agent cannot lend yet), and a
+  /// real figure. Rendering "₹0" for "no row" would tell the Owner the
+  /// agent is merely empty when in fact they have never been set up.
+  bool _loadingBf = true;
+  int? _bf;
+  String? _bfError;
+
+  AgentSummary get agent => widget.agent;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBf();
+  }
+
+  Future<void> _loadBf() async {
+    setState(() {
+      _loadingBf = true;
+      _bfError = null;
+    });
+    try {
+      final membershipId = agent.membershipId;
+      if (membershipId == null) {
+        // A search result that is not yet a membership has no float.
+        if (mounted) setState(() => _loadingBf = false);
+        return;
+      }
+      final bf = await ref
+          .read(ownerApiServiceProvider)
+          .readAgentBf(agentMembershipId: membershipId);
+      if (mounted) {
+        setState(() {
+          _bf = bf;
+          _loadingBf = false;
+        });
+      }
+    } catch (e) {
+      // Never show a number we could not read as if it were zero.
+      if (mounted) {
+        setState(() {
+          _bfError = e.toString();
+          _loadingBf = false;
+        });
+      }
+    }
+  }
+
+  String get _bfLabel {
+    if (_loadingBf) return '…';
+    if (_bfError != null) return 'Could not read';
+    if (agent.membershipId == null) return '—';
+    if (_bf == null) return 'No BF granted yet';
+    return '₹${_bf!}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -628,6 +690,22 @@ class _OverviewTab extends StatelessWidget {
         _infoRow('Status', agent.status),
         _infoRow('Business Access', agent.businessAccess),
         _infoRow('Current Route', agent.currentRoute ?? '—'),
+        _infoRow('Cash In Hand (BF)', _bfLabel),
+        // The agent cannot be lent against without a float, and
+        // create_loan_with_bf_check refuses with INSUFFICIENT_FLOAT until
+        // the Owner tops them up. This is where that happens.
+        if (agent.membershipId != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: _openTopUpSheet,
+                icon: const Icon(Icons.add, size: 18),
+                label: const ManaText('add bf'),
+              ),
+            ),
+          ),
         _infoRow("Today's Collections",
             '₹${agent.todaysCollections.toStringAsFixed(0)}'),
         _infoRow("Today's Loans", '₹${agent.todaysLoans.toStringAsFixed(0)}'),
@@ -647,6 +725,81 @@ class _OverviewTab extends StatelessWidget {
     );
   }
 
+  Future<void> _openTopUpSheet() async {
+    final controller = TextEditingController();
+    final granted = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        String? error;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
+            title: const ManaText('add bf'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText.raw(
+                    'Move cash from your own balance into ${agent.fullName}\'s float.',
+                    style: const TextStyle(
+                        color: ManaColors.textSecondary, fontSize: 13)),
+                const SizedBox(height: ManaSpacing.md),
+                TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    prefixText: '₹ ',
+                    labelText: 'Amount',
+                    errorText: error,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const ManaText('cancel')),
+              ElevatedButton(
+                onPressed: () {
+                  // Whole rupees only — every money column is numeric(_,0),
+                  // so paise cannot be stored and must not be accepted.
+                  final amount = int.tryParse(controller.text.trim());
+                  if (amount == null || amount <= 0) {
+                    setDialogState(() => error = 'Enter a whole rupee amount above zero');
+                    return;
+                  }
+                  Navigator.pop(dialogContext, amount);
+                },
+                child: const ManaText('add'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (granted == null || !mounted) return;
+
+    // NetworkErrorHandler surfaces the server's own refusal — notably
+    // "Owner BF is only X, cannot top up Y" — instead of a raw exception.
+    final newFloat = await NetworkErrorHandler.run(context, () async {
+      return ref.read(workforceProvider.notifier).grantAgentBf(
+            businessId: widget.businessId,
+            agentMembershipId: agent.membershipId!,
+            amount: granted,
+          );
+    });
+
+    if (!mounted || newFloat == null) return;
+    // Trust the server's returned float, not local arithmetic.
+    setState(() => _bf = newFloat);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: ManaText.raw(
+              '₹$granted added. ${agent.fullName} now holds ₹$newFloat.')),
+    );
+  }
+
   Widget _infoRow(String label, String value) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
@@ -655,9 +808,12 @@ class _OverviewTab extends StatelessWidget {
                 child: ManaText(label,
                     style: const TextStyle(
                         color: ManaColors.textSecondary, fontSize: 13))),
-            ManaText.raw(value,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            Flexible(
+              child: ManaText.raw(value,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13)),
+            ),
           ],
         ),
       );

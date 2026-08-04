@@ -6,7 +6,10 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/widgets/record_expense_sheet.dart';
+import '../../login_registration/state/auth_flow_state.dart';
 import '../state/day_closure_state.dart';
+import '../state/owner_workspace_state.dart' show ownerApiServiceProvider;
 
 final _currency =
     NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -53,10 +56,58 @@ class _DayClosureScreenState extends ConsumerState<DayClosureScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(dayClosureProvider);
 
+    // An expense recorded after the day is Closed would move cash the
+    // closing figures were already computed from, so the action is only
+    // offered while the day is still open.
+    final dayStillOpen = state.phase == DayClosurePhase.cashVerification ||
+        state.phase == DayClosurePhase.differenceFound ||
+        state.phase == DayClosurePhase.finalReview ||
+        state.phase == DayClosurePhase.reopened;
+
     return Scaffold(
-      appBar: AppBar(title: const ManaText('day closure')),
+      appBar: AppBar(
+        title: const ManaText('day closure'),
+        actions: [
+          if (dayStillOpen)
+            TextButton.icon(
+              onPressed: _recordExpense,
+              icon: const Icon(Icons.receipt_long, size: 18),
+              label: const ManaText('expense'),
+            ),
+        ],
+      ),
       body: SafeArea(child: _buildBody(context, state)),
     );
+  }
+
+  /// Owner-paid expense. Deducts from owner_bf_balance server-side, so the
+  /// day's figures change underneath us — the precheck is re-run afterwards
+  /// rather than patching the numbers on screen.
+  Future<void> _recordExpense() async {
+    final personId = ref.read(authFlowProvider).personId;
+    if (personId == null) return;
+    final api = ref.read(ownerApiServiceProvider);
+
+    final recorded = await RecordExpenseSheet.show(
+      context,
+      payerNote: 'Paid from your own balance (Owner BF).',
+      onSubmit: ({required category, required amount, remarks}) async {
+        final membershipId = await api.ownerMembershipId(
+            businessId: widget.businessId, personId: personId);
+        await api.recordExpense(
+          businessId: widget.businessId,
+          category: category,
+          amount: amount,
+          membershipId: membershipId,
+          businessDate: widget.businessDate,
+          remarks: remarks,
+        );
+      },
+    );
+
+    if (!recorded || !mounted) return;
+    await ref.read(dayClosureProvider.notifier).runPrecheck(
+        businessId: widget.businessId, businessDate: widget.businessDate);
   }
 
   Widget _buildBody(BuildContext context, DayClosureState state) {

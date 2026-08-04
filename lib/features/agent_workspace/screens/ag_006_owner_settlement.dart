@@ -5,6 +5,8 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/mana_time.dart';
+import '../../../shared/widgets/record_expense_sheet.dart';
 import '../state/agent_settlement_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -57,7 +59,20 @@ class _OwnerSettlementScreenState extends ConsumerState<OwnerSettlementScreen> {
     final state = ref.watch(agentSettlementProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('settlement')),
+      appBar: AppBar(
+        title: const ManaText('settlement'),
+        actions: [
+          // Only before submission. Once the settlement is Pending or
+          // Approved, a new expense would move the float the submitted
+          // figures were computed from.
+          if (state.stage == SettlementScreenStage.draftEntry)
+            TextButton.icon(
+              onPressed: _recordExpense,
+              icon: const Icon(Icons.receipt_long, size: 18),
+              label: const ManaText('expense'),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: switch (state.stage) {
           SettlementScreenStage.loading => const Center(child: CircularProgressIndicator()),
@@ -86,6 +101,42 @@ class _OwnerSettlementScreenState extends ConsumerState<OwnerSettlementScreen> {
         },
       ),
     );
+  }
+
+  /// Agent-paid expense. Comes out of this agent's own float, which is
+  /// exactly why it belongs here: it reduces what they hand over. The
+  /// preview is reloaded afterwards rather than adjusted locally, so the
+  /// Expenses line and the expected closing stay the server's numbers.
+  ///
+  /// No client-side permission gate: can_record_expenses is enforced inside
+  /// record_expense, and a button hidden by a stale local copy of a
+  /// permission is worse than one that returns the server's real refusal.
+  Future<void> _recordExpense() async {
+    final api = ref.read(agentSettlementApiServiceProvider);
+
+    final recorded = await RecordExpenseSheet.show(
+      context,
+      payerNote: 'Paid from your own cash in hand. This reduces what you '
+          'hand over at settlement.',
+      onSubmit: ({required category, required amount, remarks}) async {
+        await api.recordExpense(
+          agentId: widget.agentId,
+          businessId: widget.businessId,
+          category: category,
+          amount: amount,
+          businessDate: manaBusinessDate(),
+          remarks: remarks,
+        );
+      },
+    );
+
+    if (!recorded || !mounted) return;
+    await ref.read(agentSettlementProvider.notifier).enter(
+          businessId: widget.businessId,
+          agentId: widget.agentId,
+          periodStart: widget.periodStart,
+          periodEnd: widget.periodEnd,
+        );
   }
 }
 

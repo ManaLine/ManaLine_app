@@ -550,6 +550,56 @@ class OwnerApiService {
     // doc — a judgment call, not silently resolved as "obviously both."
   }
 
+  /// Records an expense and deducts it from the payer's own cash in the
+  /// same transaction — the Owner's balance here, since the Owner is the
+  /// one recording it.
+  ///
+  /// An RPC rather than an insert into `expenses`: a plain insert writes
+  /// the row without moving any money, which is exactly how expenses
+  /// behaved before this shipped — an agent's expense never reduced what
+  /// they owed at hand-over. The RPC also refuses when the payer does not
+  /// have the cash. Returns the new expense_id.
+  Future<String> recordExpense({
+    required String businessId,
+    required String category,
+    required int amount,
+    required String membershipId,
+    required String businessDate,
+    String? remarks,
+  }) async {
+    final result = await _db.schema('app').rpc('record_expense', params: {
+      'p_business_id': businessId,
+      'p_category': category,
+      'p_amount': amount,
+      'p_membership_id': membershipId,
+      'p_business_date': businessDate,
+      'p_remarks': remarks,
+    });
+    return result as String;
+  }
+
+  /// The Owner's own Active membership in this business — `record_expense`
+  /// deducts from whoever the membership belongs to, so this must be the
+  /// caller's own row, never an agent's.
+  Future<String> ownerMembershipId({
+    required String businessId,
+    required String personId,
+  }) async {
+    final rows = await _db
+        .from('business_members')
+        .select('membership_id')
+        .eq('person_id', int.parse(personId))
+        .eq('business_id', businessId)
+        .eq('membership_status', 'Active')
+        .eq('role', 'Owner')
+        .limit(1);
+    if (rows.isEmpty) {
+      throw StateError(
+          'No Active Owner membership in business $businessId for this person.');
+    }
+    return rows.first['membership_id'] as String;
+  }
+
   /// The agent's cash in hand right now, or null when the Owner has never
   /// granted them a float (no agent_bf_assignments row yet — a real state,
   /// not zero: an agent with no row cannot be lent against at all).

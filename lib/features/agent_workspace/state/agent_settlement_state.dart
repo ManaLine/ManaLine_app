@@ -42,6 +42,35 @@ class AgentSettlementApiService {
     return row['membership_id'] as String;
   }
 
+  /// Records an agent-paid expense. Deducts it from THIS agent's float in
+  /// the same transaction, which is the whole point: until record_expense
+  /// existed, an agent's expense was a row that never reduced what they
+  /// owed the Owner at hand-over, so every settlement came up short by the
+  /// amount they had legitimately spent.
+  ///
+  /// Gated server-side on the Owner-granted can_record_expenses permission
+  /// (OFF by default, BR-236 pattern) and on the agent actually having the
+  /// cash — both surface as the RPC's own message, not a local guess.
+  Future<String> recordExpense({
+    required String agentId,
+    required String businessId,
+    required String category,
+    required int amount,
+    required String businessDate,
+    String? remarks,
+  }) async {
+    final membershipId = await _resolveMembershipId(agentId);
+    final result = await _db.schema('app').rpc('record_expense', params: {
+      'p_business_id': businessId,
+      'p_category': category,
+      'p_amount': amount,
+      'p_membership_id': membershipId,
+      'p_business_date': businessDate,
+      'p_remarks': remarks,
+    });
+    return result as String;
+  }
+
   /// Net BF cash movement for this agent over the period, from
   /// `cash_transfers` (BR-173). Only transfers CONFIRMED by both sides
   /// count ("a transfer is only effective once BOTH are set" — API spec

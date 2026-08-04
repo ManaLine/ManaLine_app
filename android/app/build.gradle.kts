@@ -6,7 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.mana_line"
-    compileSdk = flutter.compileSdkVersion
+    // Pinned rather than flutter.compileSdkVersion, which resolves to 33 for
+    // this Flutter SDK. camera_android_camerax, image_picker_android and
+    // app_links all refuse to link below 36, and the failure surfaces as
+    // :app:checkDebugAarMetadata rather than as a compile error, so it does
+    // not obviously point at the SDK level.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

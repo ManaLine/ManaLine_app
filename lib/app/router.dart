@@ -64,6 +64,7 @@ import '../features/investor_workspace/screens/iw_003_my_investments.dart';
 import '../features/investor_workspace/screens/iw_004_request_withdrawal.dart';
 import '../features/investor_workspace/screens/iw_005_my_profile_memberships.dart';
 import '../shared/mana_time.dart';
+import '../shared/widgets/recent_deletes_screen.dart';
 
 /// Route map mirrors the locked screen inventory 1:1 — file/screen
 /// numbers double as route names, so anyone cross-referencing this
@@ -203,6 +204,14 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ow-010',
       builder: (c, s) => ReportHubScreen(businessId: _resolveBusinessId(s)),
+    ),
+    // Not a screen-id route: Recent Deletes is not a spec screen, so it has
+    // no locked id. Giving it one would put a route in the id namespace that
+    // no spec screen answers to and break the 1:1 cross-reference; a named
+    // path keeps that contract intact.
+    GoRoute(
+      path: '/recent-deletes',
+      builder: (c, s) => RecentDeletesScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-011',

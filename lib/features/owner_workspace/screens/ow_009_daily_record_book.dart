@@ -7,6 +7,8 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/soft_delete_service.dart';
+import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/record_book_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -56,6 +58,11 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
               PopupMenuItem(value: 'Closed', child: ManaText('closed')),
             ],
             icon: const Icon(Icons.filter_list),
+          ),
+          IconButton(
+            tooltip: 'Recent Deletes',
+            icon: const Icon(Icons.restore_from_trash),
+            onPressed: () => context.push('/recent-deletes?businessId=${widget.businessId}'),
           ),
         ],
       ),
@@ -295,17 +302,31 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                                     entries: detail.collections,
                                     emptyLabel: 'No collections this day.',
                                     onOpenSource: (loanId) => _goTo(context, '/ow-006', loanId),
+                                    deletableAs: DeletableEntity.collection,
+                                    businessId: widget.businessId,
                                   ),
                                   _EntryList(
                                     entries: detail.loans,
                                     emptyLabel: 'No loans distributed this day.',
                                     onOpenSource: (loanId) => _goTo(context, '/ow-007', loanId),
+                                    deletableAs: DeletableEntity.loan,
+                                    businessId: widget.businessId,
                                   ),
-                                  _EntryList(entries: detail.expenses, emptyLabel: 'No expenses this day.'),
-                                  _EntryList(entries: detail.deposits, emptyLabel: 'No investor deposits this day.'),
+                                  _EntryList(
+                                      entries: detail.expenses,
+                                      emptyLabel: 'No expenses this day.',
+                                      deletableAs: DeletableEntity.expense,
+                                      businessId: widget.businessId),
+                                  _EntryList(
+                                      entries: detail.deposits,
+                                      emptyLabel: 'No investor deposits this day.',
+                                      deletableAs: DeletableEntity.investment,
+                                      businessId: widget.businessId),
                                   _EntryList(
                                       entries: detail.withdrawals,
-                                      emptyLabel: 'No investor withdrawals this day.'),
+                                      emptyLabel: 'No investor withdrawals this day.',
+                                      deletableAs: DeletableEntity.investmentWithdrawal,
+                                      businessId: widget.businessId),
                                   _EntryList(
                                     entries: detail.adjustments,
                                     emptyLabel: 'No corrections/adjustments this day.',
@@ -366,14 +387,28 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
   }
 }
 
-class _EntryList extends StatelessWidget {
+class _EntryList extends ConsumerWidget {
   final List<DayDetailEntry> entries;
   final String emptyLabel;
   final void Function(String loanId)? onOpenSource;
-  const _EntryList({required this.entries, required this.emptyLabel, this.onOpenSource});
+
+  /// What kind of record these rows are. Null makes the tab read-only —
+  /// used for tabs whose rows are not individually deletable.
+  final DeletableEntity? deletableAs;
+
+  /// Needed to refresh the day after a delete changes its figures.
+  final String? businessId;
+
+  const _EntryList({
+    required this.entries,
+    required this.emptyLabel,
+    this.onOpenSource,
+    this.deletableAs,
+    this.businessId,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (entries.isEmpty) {
       return Center(
         child: ManaText.raw(emptyLabel, style: const TextStyle(color: ManaColors.textSecondary)),
@@ -393,8 +428,10 @@ class _EntryList extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ManaText.raw(_currency.format(e.amount),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              Flexible(
+                child: ManaText.raw(_currency.format(e.amount),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
               if (e.isCorrection) ...[
                 const SizedBox(width: ManaSpacing.xs),
                 const ManaStatusPill(label: 'Correction', status: ManaStatus.warn),
@@ -404,11 +441,31 @@ class _EntryList extends StatelessWidget {
                   icon: const Icon(Icons.open_in_new, size: 18),
                   onPressed: () => onOpenSource!(e.sourceLoanId!),
                 ),
+              if (deletableAs != null)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  color: ManaColors.statusBad,
+                  tooltip: 'Delete',
+                  onPressed: () => _delete(context, ref, e),
+                ),
             ],
           ),
         );
       },
     );
+  }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref, DayDetailEntry e) async {
+    final deleted = await ConfirmDeleteDialog.show(
+      context,
+      entity: deletableAs!,
+      recordId: e.id,
+      description: '${e.label} — ${_currency.format(e.amount)}',
+    );
+    if (!deleted || !context.mounted || businessId == null) return;
+    // The day's figures moved, and so did every day after it. Reload rather
+    // than removing the row from the list and leaving the totals stale.
+    await ref.read(recordBookProvider.notifier).load(businessId!);
   }
 }
 

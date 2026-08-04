@@ -694,11 +694,13 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Flexible(
-                                  child: ManaStatusPill(
-                                    label: r.priority,
-                                    status: r.priority == 'High' ? ManaStatus.bad : ManaStatus.neutral,
-                                  ),
+                                // Not Flexible: a flexible child in a
+                                // MainAxisSize.min Row makes it claim the
+                                // whole tile width, which ListTile.trailing
+                                // rejects outright.
+                                ManaStatusPill(
+                                  label: r.priority,
+                                  status: r.priority == 'High' ? ManaStatus.bad : ManaStatus.neutral,
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline, size: 18),

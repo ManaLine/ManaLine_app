@@ -331,16 +331,17 @@ class _TransferList extends ConsumerWidget {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(
-                      child: showConfirmAction
-                          ? ElevatedButton(
-                              onPressed: confirming ? null : () => _confirm(context, ref, t),
-                              child: confirming
-                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const ManaText('confirm'),
-                            )
-                          : const ManaStatusPill(label: 'Pending', status: ManaStatus.warn),
-                    ),
+                    // Not Flexible: a flexible child in a MainAxisSize.min
+                    // Row makes it claim the whole tile width, which
+                    // ListTile.trailing rejects outright.
+                    showConfirmAction
+                        ? ElevatedButton(
+                            onPressed: confirming ? null : () => _confirm(context, ref, t),
+                            child: confirming
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const ManaText('confirm'),
+                          )
+                        : const ManaStatusPill(label: 'Pending', status: ManaStatus.warn),
                     // A transfer neither side has confirmed has moved no
                     // cash yet, so deleting one is how a mistyped hand-over
                     // is cancelled rather than left pending forever.

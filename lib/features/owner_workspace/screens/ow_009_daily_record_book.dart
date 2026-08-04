@@ -422,22 +422,33 @@ class _EntryList extends ConsumerWidget {
       separatorBuilder: (_, __) => const Divider(height: ManaSpacing.lg),
       itemBuilder: (context, i) {
         final e = entries[i];
+        // The amount and the Correction pill moved OUT of `trailing` and
+        // onto the subtitle line. ListTile's trailing slot must size to its
+        // content, and amount + pill + open + delete together consumed the
+        // whole tile width — which ListTile rejects outright rather than
+        // merely overflowing. Actions stay in trailing; facts read below the
+        // title, in a Wrap so they can drop to a second line when scaled.
         return ListTile(
           contentPadding: EdgeInsets.zero,
+          isThreeLine: e.isCorrection,
           title: ManaText.raw(e.label),
-          subtitle: ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.timestamp),
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          subtitle: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: ManaSpacing.sm,
+            runSpacing: ManaSpacing.xs,
+            children: [
+              ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.timestamp),
+                  style: const TextStyle(
+                      fontSize: 13, color: ManaColors.textSecondary)),
+              ManaText.raw(_currency.format(e.amount),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              if (e.isCorrection)
+                const ManaStatusPill(label: 'Correction', status: ManaStatus.warn),
+            ],
+          ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Flexible(
-                child: ManaText.raw(_currency.format(e.amount),
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
-              if (e.isCorrection) ...[
-                const SizedBox(width: ManaSpacing.xs),
-                const ManaStatusPill(label: 'Correction', status: ManaStatus.warn),
-              ],
               if (onOpenSource != null && e.sourceLoanId != null)
                 IconButton(
                   icon: const Icon(Icons.open_in_new, size: 18),

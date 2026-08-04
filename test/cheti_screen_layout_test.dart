@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_019_cheti_management.dart';
@@ -35,6 +36,7 @@ Cheti _cheti({
   DateTime? availedDate,
   int? availedAmount,
   int recordedInstalments = 0,
+  List<ChetiPaymentRow> payments = const [],
 }) =>
     Cheti(
       chetiId: name,
@@ -54,13 +56,37 @@ Cheti _cheti({
       recordedInstalments: recordedInstalments,
       recordedAmountPaid: 0,
       recordedDividend: 0,
+      payments: payments,
     );
+
+/// Recorded instalments, so the expandable payments list and its per-row
+/// delete button actually get laid out. Seeded with a five-figure amount:
+/// the row puts a currency string beside a date and a delete icon, which is
+/// the shape that overflows once translated.
+List<ChetiPaymentRow> _payments() => [
+      ChetiPaymentRow(
+        paymentId: 'p1',
+        businessDate: DateTime(2026, 7, 1),
+        grossInstalment: 5000,
+        netPaid: 4750,
+      ),
+      ChetiPaymentRow(
+        paymentId: 'p2',
+        businessDate: DateTime(2026, 8, 1),
+        grossInstalment: 5000,
+        netPaid: 4820,
+      ),
+    ];
 
 /// Deliberately wide, deliberately awkward: a long name, a negative net
 /// position (which renders in red with a minus sign), and an availed cheti
 /// carrying the extra subtitle line.
 final _seed = ChetiListState(chetis: [
-  _cheti(name: 'Sri Venkateswara Monthly Cheti'),
+  _cheti(
+    name: 'Sri Venkateswara Monthly Cheti',
+    recordedInstalments: 2,
+    payments: _payments(),
+  ),
   _cheti(
     name: 'Ramesh Cheti',
     availedDate: DateTime(2026, 6, 1),
@@ -118,5 +144,52 @@ void main() {
 
       expectNoLayoutFault(tester, 'OW-019 empty at 2.0x');
     });
+
+    // The instalment rows live in a collapsed ExpansionTile, so every test
+    // above lays out the header and nothing else. Expanding is the only way
+    // to measure the row that actually carries the delete button.
+    for (final scale in [1.0, 2.0]) {
+      testWidgets('the expanded instalment list survives ${scale}x',
+          (tester) async {
+        // One cheti, not three: at 2.0x three cards push the expander past
+        // the sliver's build range, so the finder sees nothing and the test
+        // would pass by measuring an unbuilt widget.
+        await pumpManaScreen(
+          tester,
+          const ChetiManagementScreen(businessId: 'test-business'),
+          textScale: scale,
+          overrides: [
+            chetiListProvider.overrideWith((ref) => _SeededChetiNotifier(
+                ref,
+                ChetiListState(chetis: [
+                  _cheti(
+                    name: 'Sri Venkateswara Monthly Cheti',
+                    recordedInstalments: 2,
+                    payments: _payments(),
+                  ),
+                ]))),
+          ],
+        );
+
+        // scrollUntilVisible only brings the tile partly into view, so at
+        // 2.0x its centre — where tap aims — was still off-screen and the
+        // tap silently missed. ensureVisible puts the whole tile on screen.
+        final expander = find.textContaining('recorded instalment');
+        await tester.scrollUntilVisible(expander, 200,
+            scrollable: find.byType(Scrollable).first);
+        await tester.ensureVisible(expander.first);
+        await tester.pump();
+        await tester.tap(expander.first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300)); // expansion
+
+        expectNoLayoutFault(tester, 'OW-019 instalment list at ${scale}x');
+        // Asserted on the payment AMOUNT, not on the delete icon: the card
+        // itself carries a delete button, so an icon finder would pass even
+        // if the list never expanded and nothing new was ever laid out.
+        expect(find.textContaining('4,750'), findsOneWidget);
+        expect(find.textContaining('4,820'), findsOneWidget);
+      });
+    }
   });
 }

@@ -345,14 +345,19 @@ class OwnerApiService {
       // zero regardless of the business's actual cash.
       //
       // Reads today's day_ledger.opening_balance when a row exists, and
-      // otherwise falls back to businesses.owner_bf_balance, which is the
-      // Owner's cash pool and the only BF figure this schema actually
-      // maintains today (settlement returns an agent's cash into it).
+      // otherwise falls back to businesses.owner_bf_balance.
       //
-      // KNOWN GAP, not fixed here: nothing writes day_ledger at all, and
-      // recording an investment does not credit owner_bf_balance — so BF
-      // stays 0 until one of those changes. Whether an investment should
-      // move the cash pool is a money decision, not a display one.
+      // The KNOWN GAP that used to be recorded here is closed. Triggers on
+      // all eight source tables write day_ledger now, and owner_bf_balance
+      // is derived by app.recompute_business_bf() rather than accumulated,
+      // so an investment does move the cash pool.
+      //
+      // The two figures are not interchangeable, which is why the ledger is
+      // preferred: opening_balance is business-wide cash, while
+      // owner_bf_balance is only the Owner's pot — the agents' floats are
+      // subtracted out of it. The fallback is still right, because it is
+      // only reached when no ledger row exists at all, and a business with
+      // no ledger has nothing in an agent's pocket either.
       openingBalance: openingBf,
       todaysCollections: 0, // ditto — day-scoped aggregate, not duplicated here to avoid two different "today" computations drifting apart
       todaysLoanDistribution: 0,

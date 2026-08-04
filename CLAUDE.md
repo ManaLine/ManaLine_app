@@ -46,6 +46,7 @@ Full list in README §"Money conventions"; the ones that change code:
 - **BF is cash** — only money that actually moved. Interest/fee withheld from a disbursement never left the till, so they never return to it as fresh cash; adding them back double counts (pinned in `test/migration_loan_math_test.dart`).
 - **A cheti is an asset, not an expense** (instalments come back as an availed lumpsum).
 - **`day_ledger` is recomputed, never incremented** — triggers on the eight source tables call `app.recompute_day_ledger()`, which rebuilds the day from scratch. Backdated entries cascade forward (one day's closing is the next day's opening).
+- **BF is derived, never a stored running total** — `app.recompute_agent_bf()` recomposes an agent's cash from its events; `app.recompute_business_bf()` sets `owner_bf_balance` to the latest `day_ledger` closing minus what the agents hold. Delete and restore both move BF because neither has to remember to. Day one seeds from `businesses.opening_bf_declared_amount`, **never** from `owner_bf_balance` — seeding from a running total was the original defect. The two non-negative CHECKs are gone on purpose: a derived figure must be allowed to state the truth, and the pre-flight guards in the spending RPCs are the real backstop.
 - One `remaining_balance` per loan; no payment waterfall; no interest accrual engine yet.
 
 ## Backend gotchas

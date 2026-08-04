@@ -105,6 +105,30 @@ from scratch. Incrementing drifts — a failed retry double-counts, a
 deleted row never un-counts. Backdated entries cascade forward, because
 one day's closing is the next day's opening.
 
+**BF is derived, never stored as a running total.** Both pots come out of
+live rows: `app.recompute_agent_bf()` recomposes an agent's cash from its
+events, and `app.recompute_business_bf()` sets
+`businesses.owner_bf_balance` to the latest `day_ledger` closing minus
+what the agents are holding. A grant, an agent-to-agent transfer and a
+settlement handover move cash *between* pots without changing the total,
+which is why none of them touch `day_ledger`.
+
+The seed for day one is `businesses.opening_bf_declared_amount` — what
+the Owner counted in the box — and never `owner_bf_balance`. Seeding from
+a running total was the original defect: it drifted every time cash
+moved, and `recompute_day_ledger_onward()` only walks forward, so the
+seed row was never revisited. One business carried a phantom ₹10,00,000
+across every ledger day this way.
+
+The two non-negative CHECK constraints were dropped with this change. A
+derived figure has to be allowed to state the truth; a recompute landing
+negative would otherwise abort the delete that triggered it, and a failed
+delete is a worse signal than a visible wrong balance. The pre-flight
+guards inside `record_expense`, `create_loan_with_bf_check`,
+`grant_agent_bf` and `record_cheti_payment` are what stop new spending
+from going negative. See
+`supabase/migrations/20260805035332_bf_derived_from_live_rows.sql`.
+
 ---
 
 ## Working on this repo

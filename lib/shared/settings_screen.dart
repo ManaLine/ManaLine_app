@@ -354,6 +354,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: null,
             ),
             _SettingsTile(
+              icon: Icons.no_accounts_outlined,
+              title: 'Switch Off Or Delete Account',
+              subtitle: 'Both are reversible — switching off keeps everything, '
+                  'and a deletion can be stopped for 90 days.',
+              titleColor: ManaColors.statusBad,
+              onTap: () => context.push('/account-closure'),
+            ),
+            _SettingsTile(
               icon: Icons.fingerprint,
               title: 'Biometric Login',
               trailing: _biometricEnabled == null

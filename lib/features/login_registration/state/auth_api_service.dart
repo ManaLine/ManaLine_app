@@ -208,6 +208,14 @@ class AuthApiService {
     required String credential,
     required String credentialType,
     required String deviceFingerprint,
+    /// Set only after the person has been shown that their account is switched
+    /// off (or scheduled for deletion) and has confirmed they want it back.
+    ///
+    /// Reactivation rides on the login call rather than its own endpoint
+    /// because a disabled person cannot obtain a token, so they cannot call an
+    /// authenticated RPC to undo it. The credential they just presented is the
+    /// identity proof.
+    bool reactivate = false,
   }) async {
     try {
       final res = await _client.functions.invoke(_Fn.login, headers: _anonAuth, body: {
@@ -215,6 +223,7 @@ class AuthApiService {
         'credential': credential,
         'credential_type': credentialType,
         'device_fingerprint': deviceFingerprint,
+        if (reactivate) 'reactivate': true,
       });
       final data = _asMap(res.data);
       return LoginResult(
@@ -242,6 +251,21 @@ class AuthApiService {
             message: firstError?['message'] as String? ??
                 'Account is locked after too many failed attempts. Verify via OTP to unlock.',
             personId: firstError?['person_id']?.toString(),
+          );
+        }
+        // P4: the person switched their own account off, or asked for it to be
+        // deleted. Distinct from a lockout — nothing is wrong with their
+        // credentials, and the remedy is a confirmation rather than an OTP.
+        // Typed so the login screens can offer to bring the account back
+        // instead of showing "incorrect credentials", which would be a lie.
+        final code = firstError?['code'];
+        if (code == 'ACCOUNT_DISABLED' || code == 'ACCOUNT_PENDING_DELETION') {
+          throw AccountDisabledException(
+            message: firstError?['message'] as String? ??
+                'This account is switched off.',
+            personId: firstError?['person_id']?.toString(),
+            pendingDeletion: code == 'ACCOUNT_PENDING_DELETION',
+            purgeAfter: firstError?['purge_after']?.toString(),
           );
         }
       }
@@ -385,6 +409,34 @@ class AccountLockedException implements Exception {
   final String message;
   final String? personId;
   const AccountLockedException({required this.message, this.personId});
+  @override
+  String toString() => message;
+}
+
+/// The person switched their own account off, or asked for it to be deleted.
+///
+/// Deliberately separate from [AccountLockedException]: a lockout is the app
+/// defending itself against someone guessing, and the way out is an OTP. This
+/// is the account holder's own earlier decision, and the way out is simply
+/// confirming they changed their mind — so the two must not share a message.
+class AccountDisabledException implements Exception {
+  final String message;
+  final String? personId;
+
+  /// True when a 90-day deletion is already running, in which case signing
+  /// back in cancels it.
+  final bool pendingDeletion;
+
+  /// yyyy-MM-dd the purge falls due, when one is scheduled.
+  final String? purgeAfter;
+
+  const AccountDisabledException({
+    required this.message,
+    this.personId,
+    this.pendingDeletion = false,
+    this.purgeAfter,
+  });
+
   @override
   String toString() => message;
 }

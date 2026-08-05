@@ -28,6 +28,10 @@ interface LoginBody {
   credential: string; // password or pin
   credential_type: "password" | "pin";
   device_fingerprint: string;
+  /** Set by the client only after the person has been shown that their account
+   * is switched off (or scheduled for deletion) and has confirmed they want it
+   * back. See the account-state block below. */
+  reactivate?: boolean;
 }
 
 const MAX_PIN_ATTEMPTS = 3; // BR-201
@@ -77,7 +81,8 @@ Deno.serve(async (req: Request) => {
     .from("persons")
     .select(
       "person_id, mlid, password_hash, pin_hash, pin_length, verification_ring, " +
-        "failed_pin_attempts, failed_password_attempts, is_deceased",
+        "failed_pin_attempts, failed_password_attempts, is_deceased, " +
+        "account_status, purge_after",
     )
     .eq(isMobile ? "mobile_number" : "mlid", body.identifier.trim())
     .maybeSingle();
@@ -172,6 +177,47 @@ Deno.serve(async (req: Request) => {
 
   if (person.is_deceased) {
     return errorResponse(403, "FORBIDDEN", "This account is no longer active.");
+  }
+
+  // P4 Security: the person's own account state. This is the ONLY place it can
+  // be enforced — every other entry point already holds a minted token.
+  //
+  // Checked AFTER the credential compare on purpose: telling an
+  // unauthenticated caller "this account is disabled" before they prove who
+  // they are would confirm the account exists, which is exactly what
+  // genericFailure() above is written to avoid.
+  //
+  // Reactivation rides on this same call rather than a separate endpoint,
+  // because a disabled person cannot obtain a token and so cannot call an
+  // authenticated RPC to undo it. The credential just verified IS the identity
+  // proof.
+  const accountStatus = person.account_status ?? "Active";
+  if (accountStatus !== "Active") {
+    if (body.reactivate === true) {
+      // Signing back in and asking for the account back also clears the purge
+      // clock — nobody should remain on a deletion countdown they can no
+      // longer see.
+      await admin
+        .from("persons")
+        .update({
+          account_status: "Active",
+          account_disabled_at: null,
+          deletion_requested_at: null,
+          purge_after: null,
+        })
+        .eq("person_id", person.person_id);
+    } else {
+      return errorResponse(
+        403,
+        accountStatus === "Pending Deletion"
+          ? "ACCOUNT_PENDING_DELETION"
+          : "ACCOUNT_DISABLED",
+        accountStatus === "Pending Deletion"
+          ? "This account is scheduled for deletion. You can still bring it back."
+          : "This account is switched off. You can switch it back on.",
+        { person_id: person.person_id, purge_after: person.purge_after ?? null },
+      );
+    }
   }
 
   // Success: reset both failure counters (BR-201).

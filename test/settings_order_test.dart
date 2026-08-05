@@ -83,15 +83,20 @@ void main() {
       storage: rememberedDeviceStorage(),
     );
 
-    // Five placeholders. Was six until Backup shipped — the count is asserted
-    // so that building a feature, or adding a new placeholder, has to be a
-    // deliberate edit here rather than passing unnoticed.
-    expect(find.text('Coming Soon'), findsNWidgets(5));
+    // Four placeholders. Six at first, then five when Backup shipped, now four
+    // with Subscription — the count is asserted so that building a feature, or
+    // adding a new placeholder, has to be a deliberate edit here rather than
+    // passing unnoticed.
+    expect(find.text('Coming Soon'), findsNWidgets(4));
 
     // The rows must be genuinely inert. A placeholder that still accepts taps
     // would navigate nowhere and read as a broken app.
+    // Business Transfer is still unbuilt, so it stands in for the placeholder
+    // shape now that Subscription is live for an Owner.
     final tile = tester.widget<ListTile>(
-      find.ancestor(of: find.text('Subscription'), matching: find.byType(ListTile)).first,
+      find.ancestor(
+              of: find.text('Business Transfer'), matching: find.byType(ListTile))
+          .first,
     );
     expect(tile.onTap, isNull);
     expect(tile.enabled, isFalse);

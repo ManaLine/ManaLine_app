@@ -277,12 +277,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('subscription'),
-            const _SettingsTile(
-              icon: Icons.card_membership_outlined,
-              title: 'Subscription',
-              subtitle: 'Your plan and its limits.',
-              trailing: _ComingSoon(),
-            ),
+            // Owner only. The tiers priced here are the Owner's; a Customer or
+            // Investor pays per role, and showing them an agent cap would be
+            // answering a question they did not ask.
+            widget.homeRoute == '/ow-001'
+                ? _SettingsTile(
+                    icon: Icons.card_membership_outlined,
+                    title: 'Subscription',
+                    subtitle: 'Your plan and its limits.',
+                    onTap: () =>
+                        context.push('/subscription', extra: widget.businessId),
+                  )
+                : const _SettingsTile(
+                    icon: Icons.card_membership_outlined,
+                    title: 'Subscription',
+                    subtitle: 'Your plan and its limits.',
+                    trailing: _ComingSoon(),
+                  ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('backup'),
             // Live for the Owner and Agent workspaces. Customers and Investors

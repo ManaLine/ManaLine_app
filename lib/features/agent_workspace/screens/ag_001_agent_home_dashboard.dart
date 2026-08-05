@@ -8,6 +8,9 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
+import '../../../design/components/mana_header.dart';
+import '../../../design/components/mana_app_shell.dart';
+import '../../../shared/person_identity.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/agent_dashboard_state.dart';
@@ -87,87 +90,99 @@ class _AgentHomeDashboardScreenState
     ref.watch(translationLoaderProvider);
     final state = ref.watch(agentDashboardProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('agent_dashboard')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'Notifications',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => Ag008NotificationsScreen(
-                    agentId: widget.agentId, businessId: widget.businessId),
+    // Notifications and Profile stay as header actions — they belong to this
+    // screen. Switch / Settings / Logout move to the shell's global row, and
+    // the rest of the old overflow menu becomes drawer rows, which is how they
+    // stop being hidden behind a three-dot glyph.
+    return ManaAppShell(
+      userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
+      businessName: businessNameFor(ref, widget.businessId),
+      actions: [
+        ManaHeaderAction(
+          icon: Icons.notifications_outlined,
+          label: 'Notifications',
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => Ag008NotificationsScreen(
+                  agentId: widget.agentId, businessId: widget.businessId),
+            ),
+          ),
+        ),
+        ManaHeaderAction(
+          icon: Icons.person_outline,
+          label: 'Profile',
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => Ag009ProfileScreen(
+                personId: ref.read(authFlowProvider).personId ?? '',
+                agentId: widget.agentId,
+                businessId: widget.businessId,
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => Ag009ProfileScreen(
-                  personId: ref.read(authFlowProvider).personId ?? '',
-                  agentId: widget.agentId,
-                  businessId: widget.businessId,
-                ),
-              ),
+        ),
+      ],
+      sections: [
+        ManaDrawerSection(
+          icon: Icons.people_outline,
+          labelKey: 'customers',
+          actions: [
+            ManaDrawerAction(
+              labelKey: 'customer management',
+              onTap: () => context.push('/ag-004', extra: widget.businessId),
             ),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (v) {
-              switch (v) {
-                case 'switch_business':
-                  context.go('/lr-012');
-                case 'switch_role':
-                  context.go('/lr-013');
-                case 'create_business':
-                  // Same OW-000 flow LR-012's S0 uses for a person's first
-                  // business — this Agent already has an account and at
-                  // least one membership, so it's an *additional* business,
-                  // not their first (isAdditionalBusiness: true).
-                  context.push('/ow-000', extra: true);
-                case 'change_area':
-                  // BUG FIXED this pass: addArea/removeArea (agent_
-                  // dashboard_state.dart) were both fully implemented,
-                  // real RPCs (add_area_to_session/remove_area_from_
-                  // session), with zero UI entry point anywhere.
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    builder: (_) => _ChangeAreaSheet(
-                        state: state,
-                        agentId: widget.agentId,
-                        businessId: widget.businessId),
-                  );
-                case 'settings':
-                  context.push('/ag-settings', extra: widget.businessId);
-                case 'logout':
-                  ref.read(authFlowProvider.notifier).reset();
-                  context.go('/lr-003');
-              }
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                  value: 'switch_business',
-                  child: ManaText('switch workspace')),
-              const PopupMenuItem(
-                  value: 'switch_role', child: ManaText('switch role')),
-              const PopupMenuItem(
-                  value: 'create_business',
-                  child: ManaText('create new business')),
-              if (state.stage == AgentSessionStage.running)
-                const PopupMenuItem(
-                    value: 'change_area', child: ManaText('change area')),
-              const PopupMenuItem(
-                  value: 'settings', child: ManaText('settings')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: 'logout', child: ManaText('logout')),
-            ],
-          ),
-        ],
-      ),
+            ManaDrawerAction(
+              labelKey: "today's route",
+              onTap: () => context.push('/ag-003', extra: widget.businessId),
+            ),
+          ],
+        ),
+        ManaDrawerSection(
+          icon: Icons.work_outline,
+          labelKey: 'my work',
+          actions: [
+            ManaDrawerAction(
+              labelKey: 'draft transactions',
+              onTap: () => context.push('/ag-005', extra: widget.businessId),
+            ),
+            ManaDrawerAction(
+              labelKey: 'transaction history',
+              onTap: () => context.push('/ag-010', extra: widget.businessId),
+            ),
+            ManaDrawerAction(
+              labelKey: 'change area',
+              // Null while the session is not running: the add/remove-area
+              // RPCs only apply to a running session, so offering it earlier
+              // would open a sheet that cannot act.
+              onTap: state.stage != AgentSessionStage.running
+                  ? null
+                  : () => showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (_) => _ChangeAreaSheet(
+                            state: state,
+                            agentId: widget.agentId,
+                            businessId: widget.businessId),
+                      ),
+            ),
+            ManaDrawerAction(
+              labelKey: 'create new business',
+              // Same OW-000 flow LR-012's S0 uses for a person's first
+              // business — this Agent already has an account and at least one
+              // membership, so it is an *additional* business.
+              onTap: () => context.push('/ow-000', extra: true),
+            ),
+          ],
+        ),
+      ],
+      onSettings: () => context.push('/ag-settings', extra: widget.businessId),
+      onSwitch: () => context.go('/lr-013', extra: widget.businessId),
+      onLogout: () {
+        ref.read(authFlowProvider.notifier).reset();
+        context.go('/lr-003');
+      },
+      bottomNavigationBar: _AgentFooterNav(
+          businessId: widget.businessId, agentId: widget.agentId),
       body: SafeArea(
         child: switch (state.stage) {
           // Structure-shaped placeholder instead of a spinner while the
@@ -193,8 +208,6 @@ class _AgentHomeDashboardScreenState
             ),
         },
       ),
-      bottomNavigationBar: _AgentFooterNav(
-          businessId: widget.businessId, agentId: widget.agentId),
     );
   }
 }

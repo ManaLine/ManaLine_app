@@ -77,3 +77,29 @@ String manaDateOf(DateTime when) {
   final d = when.day.toString().padLeft(2, '0');
   return '$y-$m-$d';
 }
+
+/// Today in IST as `dd-mm-yyyy` — the form the app header shows.
+///
+/// Deliberately separate from [manaBusinessDate]: that one is `yyyy-MM-dd`
+/// because it is written into `date` columns, and this one is for reading on
+/// a screen. Never send this to the database.
+String manaDisplayDate([DateTime? when]) {
+  final t = when ?? manaNowIst();
+  final d = t.day.toString().padLeft(2, '0');
+  final m = t.month.toString().padLeft(2, '0');
+  return '$d-$m-${t.year.toString().padLeft(4, '0')}';
+}
+
+/// The IST wall clock as 12-hour `h:mm AM/PM`, for display only.
+///
+/// Built from [manaNowIst] rather than `TimeOfDay.format` or `DateTime.now`,
+/// so a handset on the wrong timezone shows the same time as the one the
+/// database is stamping rows with. A header clock that disagrees with the
+/// business day would be read as the app being wrong about the day.
+String manaClock12([DateTime? when]) {
+  final t = when ?? manaNowIst();
+  final suffix = t.hour < 12 ? 'AM' : 'PM';
+  // 00:xx is 12 AM and 12:xx is 12 PM — a bare `hour % 12` renders both as 0.
+  final h12 = t.hour % 12 == 0 ? 12 : t.hour % 12;
+  return '$h12:${t.minute.toString().padLeft(2, '0')} $suffix';
+}

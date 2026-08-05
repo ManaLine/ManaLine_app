@@ -6,6 +6,8 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
+import '../../../design/components/mana_app_shell.dart';
+import '../../../shared/person_identity.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/investor_dashboard_state.dart';
 import '../../../shared/translation_service.dart';
@@ -42,35 +44,47 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
     ref.watch(translationLoaderProvider);
     final async = ref.watch(investorDashboardProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('investor_dashboard')),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (v) {
-              switch (v) {
-                case 'switch_business':
-                  context.go('/lr-012');
-                case 'switch_role':
-                  context.go('/lr-013');
-                case 'settings':
-                  context.push('/iw-settings', extra: widget.businessId);
-                case 'logout':
-                  ref.read(authFlowProvider.notifier).reset();
-                  context.go('/lr-003');
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'switch_business', child: ManaText('switch workspace')),
-              PopupMenuItem(value: 'switch_role', child: ManaText('switch role')),
-              PopupMenuItem(value: 'settings', child: ManaText('settings')),
-              PopupMenuDivider(),
-              PopupMenuItem(value: 'logout', child: ManaText('logout')),
-            ],
-          ),
-        ],
-      ),
+    // Same change as CW-001: the three controls come out of the overflow menu
+    // and the drawer gives this workspace persistent navigation.
+    return ManaAppShell(
+      userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
+      businessName: businessNameFor(ref, widget.businessId),
+      sections: [
+        ManaDrawerSection(
+          icon: Icons.savings_outlined,
+          labelKey: 'my investments',
+          actions: [
+            ManaDrawerAction(
+              labelKey: 'my investments',
+              onTap: () => context.push('/iw-003', extra: widget.businessId),
+            ),
+            ManaDrawerAction(
+              labelKey: 'request withdrawal',
+              onTap: () => context.push('/iw-004', extra: widget.businessId),
+            ),
+          ],
+        ),
+        ManaDrawerSection(
+          icon: Icons.person_outline,
+          labelKey: 'my account',
+          actions: [
+            ManaDrawerAction(
+              labelKey: 'my profile',
+              onTap: () => context.push('/iw-005', extra: widget.businessId),
+            ),
+            ManaDrawerAction(
+              labelKey: 'find a business',
+              onTap: () => context.push('/iw-002'),
+            ),
+          ],
+        ),
+      ],
+      onSettings: () => context.push('/iw-settings', extra: widget.businessId),
+      onSwitch: () => context.go('/lr-013', extra: widget.businessId),
+      onLogout: () {
+        ref.read(authFlowProvider.notifier).reset();
+        context.go('/lr-003');
+      },
       body: SafeArea(
         child: async.when(
           // Only shown on a genuine cold load — revisits keep the previous

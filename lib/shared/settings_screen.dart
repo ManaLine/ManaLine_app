@@ -236,30 +236,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            const _SectionHeader('language'),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
-              child: ManaLanguageSelector(
-                current: lang,
-                onChanged: (l) async {
-                  ref.read(authFlowProvider.notifier).setLanguage(l);
-                  final personId = ref.read(authFlowProvider).personId;
-                  if (personId == null) return; // session-only if not logged in
-                  try {
-                    await Supabase.instance.client
-                        .from('persons')
-                        .update({'preferred_language': l.enumValue}).eq(
-                            'person_id', personId);
-                  } catch (_) {
-                    // Non-fatal — language still applies for this session
-                    // even if the DB write fails; no need to block the UI
-                    // over a preference persistence hiccup.
-                  }
-                },
-              ),
-            ),
+            // ORDER IS LOCKED: Profile, Permissions, Subscription, Backup,
+            // Security, Business Transfer, Share App, Appearance, Languages,
+            // About, Logout.
+            //
+            // Six of those are P2/P3/P4 features that do not exist yet. They
+            // are rendered here as disabled "Coming Soon" rows rather than
+            // omitted, so the order is fixed once and later phases fill a row
+            // instead of reshuffling a screen users have already learned. A
+            // disabled row is also honest — it says "not yet", where an absent
+            // row says "never", and a row wired to a dead route would say
+            // "broken".
+            //
+            // `Account` is gone. It held exactly one item, Logout, which now
+            // sits at the bottom in its own right.
             if (_profileRoute != null) ...[
-              const SizedBox(height: ManaSpacing.lg),
               const _SectionHeader('profile'),
               _SettingsTile(
                 icon: Icons.person_outline,
@@ -268,7 +259,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () =>
                     context.push(_profileRoute!, extra: widget.businessId),
               ),
+              const SizedBox(height: ManaSpacing.lg),
             ],
+            const _SectionHeader('permissions'),
+            const _SettingsTile(
+              icon: Icons.verified_user_outlined,
+              title: 'Permissions',
+              subtitle: 'What each agent is allowed to do.',
+              trailing: _ComingSoon(),
+            ),
+            const SizedBox(height: ManaSpacing.lg),
+            const _SectionHeader('subscription'),
+            const _SettingsTile(
+              icon: Icons.card_membership_outlined,
+              title: 'Subscription',
+              subtitle: 'Your plan and its limits.',
+              trailing: _ComingSoon(),
+            ),
+            const SizedBox(height: ManaSpacing.lg),
+            const _SectionHeader('backup'),
+            const _SettingsTile(
+              icon: Icons.backup_outlined,
+              title: 'Backup',
+              subtitle: 'Export your records to Excel.',
+              trailing: _ComingSoon(),
+            ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('security'),
             _SettingsTile(
@@ -317,13 +332,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: null,
             ),
             const SizedBox(height: ManaSpacing.lg),
+            const _SectionHeader('business transfer'),
+            const _SettingsTile(
+              icon: Icons.swap_horizontal_circle_outlined,
+              title: 'Business Transfer',
+              subtitle: 'Hand this business to another owner.',
+              trailing: _ComingSoon(),
+            ),
+            const SizedBox(height: ManaSpacing.lg),
+            const _SectionHeader('share app'),
+            const _SettingsTile(
+              icon: Icons.share_outlined,
+              title: 'Share App',
+              subtitle: 'Send a link to someone.',
+              trailing: _ComingSoon(),
+            ),
+            const SizedBox(height: ManaSpacing.lg),
+            const _SectionHeader('appearance'),
+            const _SettingsTile(
+              icon: Icons.palette_outlined,
+              title: 'Appearance',
+              subtitle: 'Light, dark and font size.',
+              trailing: _ComingSoon(),
+            ),
+            const SizedBox(height: ManaSpacing.lg),
+            const _SectionHeader('languages'),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
+              child: ManaLanguageSelector(
+                current: lang,
+                onChanged: (l) async {
+                  ref.read(authFlowProvider.notifier).setLanguage(l);
+                  final personId = ref.read(authFlowProvider).personId;
+                  if (personId == null) return; // session-only if not logged in
+                  try {
+                    await Supabase.instance.client
+                        .from('persons')
+                        .update({'preferred_language': l.enumValue}).eq(
+                            'person_id', personId);
+                  } catch (_) {
+                    // Non-fatal — language still applies for this session
+                    // even if the DB write fails; no need to block the UI
+                    // over a preference persistence hiccup.
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('about'),
             const _SettingsTile(
                 icon: Icons.info_outline,
                 title: 'App Version',
                 trailing: ManaText.raw(_versionLabel)),
             const SizedBox(height: ManaSpacing.lg),
-            const _SectionHeader('account'),
             _SettingsTile(
               icon: Icons.logout,
               title: 'Logout',
@@ -351,6 +412,20 @@ class _SectionHeader extends StatelessWidget {
             fontWeight: FontWeight.w700,
             color: ManaColors.textSecondary,
             letterSpacing: 1),
+      );
+}
+
+/// Trailing marker for a row whose feature is scheduled but not built.
+///
+/// A plain label rather than a chip or a badge: it has to read as a status,
+/// not as something else to tap.
+class _ComingSoon extends StatelessWidget {
+  const _ComingSoon();
+
+  @override
+  Widget build(BuildContext context) => const ManaText(
+        'coming soon',
+        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
       );
 }
 

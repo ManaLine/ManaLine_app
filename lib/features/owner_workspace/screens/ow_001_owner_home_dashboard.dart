@@ -9,6 +9,8 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_header.dart';
+import '../../../design/components/mana_app_shell.dart';
+import '../../../shared/person_identity.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/motion.dart';
 import '../../login_registration/state/auth_flow_state.dart';
@@ -20,6 +22,62 @@ import '../../../shared/network_error_handler.dart';
 
 final _currency =
     NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+
+/// The Owner's drawer. Supplied by the screen rather than baked into
+/// [ManaAppShell] because an Agent's "Customers" is not an Owner's — same
+/// label, different destinations and different permissions.
+///
+/// Every destination passes `extra: businessId`. Omitting it is what made
+/// router.dart fall through to `ManaSession.instance.lastBusinessId ??
+/// 'stub-business-id'`, which is the confirmed cause of the "back click ->
+/// dead end" bug this file's own header comment records.
+List<ManaDrawerSection> _ownerDrawerSections(
+    BuildContext context, String businessId) {
+  return [
+    ManaDrawerSection(
+      icon: Icons.people_outline,
+      labelKey: 'customers',
+      actions: [
+        ManaDrawerAction(
+          labelKey: 'customer management',
+          onTap: () => context.push('/ow-004', extra: businessId),
+        ),
+        ManaDrawerAction(
+          labelKey: 'new loan',
+          onTap: () => context.push('/ow-005', extra: businessId),
+        ),
+        ManaDrawerAction(
+          labelKey: 'group loan management',
+          onTap: () => context.push('/ow-015', extra: businessId),
+        ),
+      ],
+    ),
+    ManaDrawerSection(
+      icon: Icons.badge_outlined,
+      labelKey: 'workforce',
+      actions: [
+        ManaDrawerAction(
+          labelKey: 'workforce management',
+          onTap: () => context.push('/ow-002', extra: businessId),
+        ),
+        ManaDrawerAction(
+          labelKey: 'account review',
+          onTap: () => context.push('/ow-013', extra: businessId),
+        ),
+      ],
+    ),
+    ManaDrawerSection(
+      icon: Icons.savings_outlined,
+      labelKey: 'investors',
+      actions: [
+        ManaDrawerAction(
+          labelKey: 'investor management',
+          onTap: () => context.push('/ow-003', extra: businessId),
+        ),
+      ],
+    ),
+  ];
+}
 
 /// OW-001 — Owner Home Dashboard. Read-only aggregation screen; every write
 /// happens on the destination screens its Quick Actions/cards link to (per
@@ -63,12 +121,24 @@ class _OwnerHomeDashboardScreenState
   Widget build(BuildContext context) {
     final async = ref.watch(ownerDashboardProvider);
 
-    return Scaffold(
-      // top: false so the coloured header block bleeds under the status bar —
-      // that edge-to-edge colour is the whole point of the pattern. SafeArea
-      // wraps its child in MediaQuery.removePadding, so leaving top on would
-      // hide the inset from ManaHeaderBlock and leave a white strip above the
-      // blue. Bottom is still guarded, and ManaBottomNav has its own SafeArea.
+    // The shell owns the Scaffold, the drawer and the identity/clock header;
+    // this screen keeps its own content header (logo, notifications badge,
+    // search) as the row of workspace actions inside it. The shell's own
+    // SafeArea handling lives in its header, which is why the body below no
+    // longer sets `top: false` — there is no longer a coloured block here to
+    // bleed under the status bar.
+    return ManaAppShell(
+      userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
+      businessName: async.valueOrNull?.businessName,
+      sections: _ownerDrawerSections(context, widget.businessId),
+      onSettings: () =>
+          context.push('/ow-settings', extra: widget.businessId),
+      onSwitch: () => context.go('/lr-013', extra: widget.businessId),
+      onLogout: () {
+        ref.read(authFlowProvider.notifier).reset();
+        context.go('/lr-003');
+      },
+      bottomNavigationBar: _FooterNav(businessId: widget.businessId),
       body: SafeArea(
         top: false,
         child: async.when(
@@ -134,7 +204,6 @@ class _OwnerHomeDashboardScreenState
           ),
         ),
       ),
-      bottomNavigationBar: _FooterNav(businessId: widget.businessId),
     );
   }
 

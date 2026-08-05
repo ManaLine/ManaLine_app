@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../design/tokens/colors.dart';
@@ -62,6 +63,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         '/iw-001' => '/iw-005',
         _ => null, // reached from the business selector, before a role exists
       };
+  /// Opens the system share sheet. No app store link yet — MANA LINE is not
+  /// published — so the message says what the app is rather than pointing at a
+  /// download that would 404. Add the store URL here when there is one.
+  Future<void> _shareApp() async {
+    await SharePlus.instance.share(
+      ShareParams(
+        text: 'MANA LINE — the app my lending business runs on. It keeps every '
+            'loan, collection and daily balance in one place.',
+        subject: 'MANA LINE',
+      ),
+    );
+  }
+
   /// Backup exports business records, so it only means anything in the two
   /// workspaces that have them. The server is still the authority — RLS
   /// decides what any given person can actually read — this only keeps the row
@@ -393,11 +407,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('share app'),
-            const _SettingsTile(
+            // One system share sheet rather than five per-app buttons.
+            // WhatsApp, Telegram, Facebook, Instagram and email all appear in
+            // it, and it shows whichever the person actually has installed —
+            // where hardcoded buttons would offer apps they do not have and
+            // miss the one they use. Per-app deep links also break whenever
+            // those apps change their URL schemes.
+            _SettingsTile(
               icon: Icons.share_outlined,
               title: 'Share App',
-              subtitle: 'Send a link to someone.',
-              trailing: _ComingSoon(),
+              subtitle: 'Tell someone about MANA LINE.',
+              onTap: _shareApp,
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('appearance'),
@@ -432,10 +452,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('about'),
-            const _SettingsTile(
-                icon: Icons.info_outline,
-                title: 'App Version',
-                trailing: ManaText.raw(_versionLabel)),
+            _SettingsTile(
+              icon: Icons.info_outline,
+              title: 'About MANA LINE',
+              subtitle: 'What this app does, and the terms you agreed to.',
+              trailing: const ManaText.raw(_versionLabel),
+              onTap: () => context.push('/about'),
+            ),
             const SizedBox(height: ManaSpacing.lg),
             _SettingsTile(
               icon: Icons.logout,

@@ -38,12 +38,27 @@ class NotificationsApiService {
     await _db.from('notifications').update({'is_read': true}).eq('notification_id', notificationId);
   }
 
+  /// Scoped to this business by the filter, and to this PERSON by RLS —
+  /// notifications_self_update_read restricts every UPDATE to
+  /// recipient_person_id = app.current_person_id(). Without that policy this
+  /// would mark a colleague's notifications read too, so the safety is real
+  /// but it lives in the database, not in this query.
   Future<void> markAllRead({required String businessId}) async {
     await _db
         .from('notifications')
         .update({'is_read': true})
         .eq('business_id', businessId)
         .eq('is_read', false);
+  }
+
+  /// Removes this person's notifications for this business.
+  ///
+  /// Same story as above: the DELETE is scoped to the caller by
+  /// notifications_self_delete, added alongside this method — before that
+  /// policy existed a delete matched zero rows and PostgREST answered 200, so
+  /// the list would have emptied on screen and refilled on the next refresh.
+  Future<void> clearAll({required String businessId}) async {
+    await _db.from('notifications').delete().eq('business_id', businessId);
   }
 
   AgentNotification _fromRow(Map<String, dynamic> row) {
@@ -248,6 +263,20 @@ class AgentNotificationsNotifier extends Notifier<AgentNotificationsState> {
     try {
       final api = ref.read(notificationsApiServiceProvider);
       await api.markAllRead(businessId: businessId);
+    } catch (e) {
+      state = state.copyWith(notifications: existing, error: e.toString());
+    }
+  }
+
+  /// Optimistically empties the list, and puts it back if the server refuses.
+  /// Same pattern as markAllRead — the alternative is a screen that sits
+  /// unchanged for a round trip and looks broken on a village connection.
+  Future<void> clearAll({required String businessId}) async {
+    final existing = state.notifications;
+    state = state.copyWith(notifications: const []);
+    try {
+      final api = ref.read(notificationsApiServiceProvider);
+      await api.clearAll(businessId: businessId);
     } catch (e) {
       state = state.copyWith(notifications: existing, error: e.toString());
     }

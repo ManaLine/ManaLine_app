@@ -35,6 +35,33 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
     });
   }
 
+  Future<void> _confirmClear() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const ManaText('clear all notifications?'),
+        content: const ManaText.raw(
+            'They will be removed from this list. Your loans, collections and '
+            'records are not affected.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const ManaText('cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const ManaText.raw('Clear All')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await NetworkErrorHandler.run(context, () async {
+      await ref
+          .read(agentNotificationsProvider.notifier)
+          .clearAll(businessId: widget.businessId);
+      return true;
+    });
+  }
+
   Future<void> _open(AgentNotification n) async {
     await NetworkErrorHandler.run(context, () async {
       await ref.read(agentNotificationsProvider.notifier).markRead(notificationId: n.notificationId);
@@ -108,6 +135,14 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
                 ? null
                 : () => ref.read(agentNotificationsProvider.notifier).markAllRead(businessId: widget.businessId),
             child: const ManaText.raw('Mark All Read'),
+          ),
+          // Clearing deletes; marking read does not. So this one asks first,
+          // and the two are not put side by side as if they were the same
+          // weight of action.
+          IconButton(
+            tooltip: 'Clear All',
+            icon: const Icon(Icons.delete_sweep_outlined),
+            onPressed: state.notifications.isEmpty ? null : _confirmClear,
           ),
         ],
       ),

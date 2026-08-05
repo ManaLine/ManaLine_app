@@ -50,24 +50,32 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                       ),
                     ),
                   )
-                : ListView(
-                    padding: const EdgeInsets.all(ManaSpacing.lg),
-                    children: [
-                      _SummaryCard(personId: widget.personId, profile: state.profile!),
-                      const SizedBox(height: ManaSpacing.xl),
-                      ManaText('business memberships', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: ManaSpacing.sm),
-                      if (state.memberships.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: ManaSpacing.lg),
-                          child: ManaText.raw(
-                            'No Business Memberships found.',
-                            style: TextStyle(color: ManaColors.textSecondary),
-                          ),
-                        )
-                      else
-                        ...state.memberships.map((m) => _MembershipTile(membership: m)),
-                    ],
+                : RefreshIndicator(
+                    // An Owner approving or removing this membership happens
+                    // elsewhere; without a pull the screen shows yesterday's
+                    // answer until it is closed and reopened.
+                    onRefresh: () => ref
+                        .read(investorProfileProviderIW005.notifier)
+                        .load(widget.personId),
+                    child: ListView(
+                      padding: const EdgeInsets.all(ManaSpacing.lg),
+                      children: [
+                        _SummaryCard(personId: widget.personId, profile: state.profile!),
+                        const SizedBox(height: ManaSpacing.xl),
+                        ManaText('business memberships', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: ManaSpacing.sm),
+                        if (state.memberships.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: ManaSpacing.lg),
+                            child: ManaText.raw(
+                              'No Business Memberships found.',
+                              style: TextStyle(color: ManaColors.textSecondary),
+                            ),
+                          )
+                        else
+                          ...state.memberships.map((m) => _MembershipTile(membership: m)),
+                      ],
+                    ),
                   ),
       ),
     );

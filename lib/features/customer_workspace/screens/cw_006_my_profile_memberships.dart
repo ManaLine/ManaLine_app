@@ -55,7 +55,14 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                       ),
                     ),
                   )
-                : ListView(
+                : RefreshIndicator(
+                    // Memberships change from the Owner's side — an approval
+                    // or a removal happens elsewhere and this screen would
+                    // otherwise show yesterday's answer until it is left and
+                    // reopened.
+                    onRefresh: () =>
+                        ref.read(customerProfileProvider.notifier).load(widget.personId),
+                    child: ListView(
                     padding: const EdgeInsets.all(ManaSpacing.lg),
                     children: [
                       _SummaryCard(personId: widget.personId, profile: state.profile!),
@@ -73,6 +80,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                       else
                         ...state.memberships.map((m) => _MembershipTile(membership: m)),
                     ],
+                  ),
                   ),
       ),
     );

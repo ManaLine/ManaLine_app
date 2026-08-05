@@ -20,7 +20,7 @@ void main() {
     'Business Transfer',
     'Share App',
     'Appearance',
-    'App Version',
+    'About MANA LINE',
     'Logout',
   ];
 
@@ -83,11 +83,12 @@ void main() {
       storage: rememberedDeviceStorage(),
     );
 
-    // Three placeholders: Permissions, Share App, Appearance. Six at first,
-    // then Backup, Subscription and Business Transfer each shipped. The count
-    // is asserted so that building a feature, or adding a new placeholder, has
-    // to be a deliberate edit here rather than passing unnoticed.
-    expect(find.text('Coming Soon'), findsNWidgets(3));
+    // Two placeholders left: Permissions and Appearance. Six at first, then
+    // Backup, Subscription, Business Transfer and Share App each shipped. The
+    // count is asserted so that building a feature, or adding a new
+    // placeholder, has to be a deliberate edit here rather than passing
+    // unnoticed.
+    expect(find.text('Coming Soon'), findsNWidgets(2));
 
     // The rows must be genuinely inert. A placeholder that still accepts taps
     // would navigate nowhere and read as a broken app.

@@ -187,7 +187,12 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                           style: const TextStyle(color: ManaColors.statusBad)),
                     ),
                   )
-                : ListView(
+                : RefreshIndicator(
+                    // Verification ring, address and the business list all
+                    // change from outside this screen, so it needs a way to
+                    // ask again without being closed and reopened.
+                    onRefresh: _load,
+                    child: ListView(
                     padding: const EdgeInsets.all(ManaSpacing.lg),
                     children: [
                       _IdentityCard(
@@ -249,6 +254,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                             style: TextStyle(color: ManaColors.statusBad)),
                       ),
                     ],
+                  ),
                   ),
       ),
     );

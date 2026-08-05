@@ -8,6 +8,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/business_name_checker.dart';
+import '../../../shared/photo_compression.dart';
 import '../state/business_management_state.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
@@ -283,9 +284,15 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
       if (businessId != null && _logoBytes != null) {
         try {
           final path = '$businessId/logo.jpg';
+          // Compressed before upload: the business-logos bucket now has a
+          // 512KB ceiling, and a gallery pick at full resolution would sail
+          // past it and fail. The logo renders at 40px in the header, so
+          // there is nothing to lose by resizing it.
+          final logoBytes = ManaPhotoCompressor.compress(
+              _logoBytes!, ManaPhotoPreset.logo);
           await Supabase.instance.client.storage.from('business-logos').uploadBinary(
                 path,
-                _logoBytes!,
+                logoBytes,
                 fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
               );
           final url =

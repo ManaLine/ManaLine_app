@@ -7,6 +7,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/live_photo_upload.dart';
 import '../state/global_workflow_state.dart';
 
 /// OW-014 Profile Completion sub-flow — the destination for the "Complete
@@ -77,17 +78,13 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
         final bytes = await picked.readAsBytes();
         if (!mounted) return;
         final ok = await NetworkErrorHandler.run(context, () async {
-          final storage = Supabase.instance.client.storage.from('profile-photos');
-          final path = '${widget.personId}/photo.jpg';
-          await storage.uploadBinary(
-            path,
-            bytes,
-            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
-          );
           // Signed, not public — the bucket is private and holds photos of
           // real people. Same 1-year expiry + re-sign caveat as
           // LivePhotoUpload; see that class's doc comment.
-          final url = await storage.createSignedUrl(path, 60 * 60 * 24 * 365);
+          final url = await ProfilePhotoUpload.upload(
+            bytes: bytes,
+            personId: widget.personId,
+          );
           await ref
               .read(globalWorkflowApiServiceProvider)
               .updateMemberIdentity(personId: widget.personId, profilePhotoUrl: url);

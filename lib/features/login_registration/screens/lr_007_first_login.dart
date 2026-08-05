@@ -10,6 +10,7 @@ import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
+import '../../../shared/live_photo_upload.dart';
 import 'lr_005_otp_verification.dart';
 
 /// LR-007 — Mobile Number + Password auth. Branches by pin_exists in
@@ -163,14 +164,10 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     if (pendingPhoto != null) {
       try {
         final personId = result!.personId!;
-        final path = '$personId/photo.jpg';
-        await Supabase.instance.client.storage.from('profile-photos').uploadBinary(
-              path,
-              pendingPhoto,
-              fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
-            );
-        final url =
-            await Supabase.instance.client.storage.from('profile-photos').createSignedUrl(path, 60 * 60 * 24 * 365);
+        final url = await ProfilePhotoUpload.upload(
+          bytes: pendingPhoto,
+          personId: personId,
+        );
         await Supabase.instance.client
             .from('persons')
             .update({'profile_photo_url': url})

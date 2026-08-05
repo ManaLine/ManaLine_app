@@ -7,6 +7,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
+import '../../../shared/live_photo_upload.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/mana_time.dart';
 
@@ -65,15 +66,13 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
     // wondering why there is still no photo.
     final ok = await NetworkErrorHandler.run(context, () async {
       final db = Supabase.instance.client;
-      // Same bucket and path shape LR-007 writes, so a retry overwrites
-      // the original rather than orphaning it.
-      final path = '$personId/photo.jpg';
-      await db.storage.from('profile-photos').uploadBinary(
-            path,
-            bytes,
-            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
-          );
-      final url = await db.storage.from('profile-photos').createSignedUrl(path, 60 * 60 * 24 * 365);
+      // Through ProfilePhotoUpload so the photo is compressed on the way out.
+      // Same bucket and path shape LR-007 writes, so a retry overwrites the
+      // original rather than orphaning it.
+      final url = await ProfilePhotoUpload.upload(
+        bytes: bytes,
+        personId: personId,
+      );
       await db.from('persons').update({'profile_photo_url': url}).eq('person_id', personId);
       return true;
     });

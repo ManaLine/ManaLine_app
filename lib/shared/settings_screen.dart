@@ -381,11 +381,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('business transfer'),
-            const _SettingsTile(
+            // Available in every workspace, not just the Owner's: someone with
+            // no business of their own still needs somewhere to see and accept
+            // an offer made to them.
+            _SettingsTile(
               icon: Icons.swap_horizontal_circle_outlined,
               title: 'Business Transfer',
-              subtitle: 'Hand this business to another owner.',
-              trailing: _ComingSoon(),
+              subtitle: 'Hand a business over, or accept one offered to you.',
+              onTap: () =>
+                  context.push('/business-transfer', extra: widget.businessId),
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('share app'),

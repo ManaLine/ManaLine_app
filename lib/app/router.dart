@@ -41,6 +41,7 @@ import '../features/owner_workspace/screens/ow_019_cheti_management.dart';
 import '../features/owner_workspace/screens/backup_screen.dart';
 import '../features/owner_workspace/screens/import_screen.dart';
 import '../features/owner_workspace/screens/subscription_screen.dart';
+import '../features/owner_workspace/screens/business_transfer_screen.dart';
 import '../features/owner_workspace/screens/loan_requests_screen.dart';
 import '../features/owner_workspace/screens/withdrawal_requests_screen.dart';
 import '../shared/settings_screen.dart';
@@ -305,6 +306,11 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/account-closure',
       builder: (c, s) => const AccountClosureScreen(),
+    ),
+    GoRoute(
+      path: '/business-transfer',
+      builder: (c, s) =>
+          BusinessTransferScreen(businessId: _resolveBusinessId(s)),
     ),
     // Reached from LR-012, before any workspace has been chosen — so it goes
     // back to the business selector and shows no workspace-specific Profile.

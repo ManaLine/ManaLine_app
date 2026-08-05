@@ -83,9 +83,10 @@ void main() {
       storage: rememberedDeviceStorage(),
     );
 
-    // Six placeholders — a count, so adding a seventh without building it is
-    // deliberate rather than accidental.
-    expect(find.text('Coming Soon'), findsNWidgets(6));
+    // Five placeholders. Was six until Backup shipped — the count is asserted
+    // so that building a feature, or adding a new placeholder, has to be a
+    // deliberate edit here rather than passing unnoticed.
+    expect(find.text('Coming Soon'), findsNWidgets(5));
 
     // The rows must be genuinely inert. A placeholder that still accepts taps
     // would navigate nowhere and read as a broken app.
@@ -94,6 +95,34 @@ void main() {
     );
     expect(tile.onTap, isNull);
     expect(tile.enabled, isFalse);
+  });
+
+  testWidgets('Backup is live for an Owner and inert for a Customer',
+      (tester) async {
+    await pumpManaScreen(
+      tester,
+      const SettingsScreen(homeRoute: '/ow-001'),
+      surfaceSize: tallSurface,
+      storage: rememberedDeviceStorage(),
+    );
+    final ownerTile = tester.widget<ListTile>(
+      find.ancestor(of: find.text('Backup'), matching: find.byType(ListTile)).first,
+    );
+    expect(ownerTile.onTap, isNotNull, reason: 'an Owner has records to export');
+
+    // A Customer holds no business records, so the row must stay a placeholder
+    // rather than produce six empty sheets — which would read as a broken
+    // export, not an empty one.
+    await pumpManaScreen(
+      tester,
+      const SettingsScreen(homeRoute: '/cw-001'),
+      surfaceSize: tallSurface,
+      storage: rememberedDeviceStorage(),
+    );
+    final customerTile = tester.widget<ListTile>(
+      find.ancestor(of: find.text('Backup'), matching: find.byType(ListTile)).first,
+    );
+    expect(customerTile.onTap, isNull);
   });
 
   for (final scale in kManaTextScales) {

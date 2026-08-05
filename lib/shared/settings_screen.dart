@@ -62,6 +62,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         '/iw-001' => '/iw-005',
         _ => null, // reached from the business selector, before a role exists
       };
+  /// Backup exports business records, so it only means anything in the two
+  /// workspaces that have them. The server is still the authority — RLS
+  /// decides what any given person can actually read — this only keeps the row
+  /// out of sight where it could not produce anything.
+  bool get _backupIsAvailable =>
+      widget.homeRoute == '/ow-001' || widget.homeRoute == '/ag-001';
+
   // Matches pubspec.yaml's `version: 0.1.0` — kept as a plain literal
   // rather than pulling in package_info_plus (not an existing
   // dependency) for one static line. Update this alongside pubspec.yaml
@@ -278,12 +285,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('backup'),
-            const _SettingsTile(
-              icon: Icons.backup_outlined,
-              title: 'Backup',
-              subtitle: 'Export your records to Excel.',
-              trailing: _ComingSoon(),
-            ),
+            // Live for the Owner and Agent workspaces. Customers and Investors
+            // keep the placeholder: they hold no business records, so a
+            // "backup" there would produce six empty sheets, which reads as a
+            // broken export rather than an empty one.
+            _backupIsAvailable
+                ? _SettingsTile(
+                    icon: Icons.backup_outlined,
+                    title: 'Backup',
+                    subtitle: 'Export your records to Excel.',
+                    onTap: () =>
+                        context.push('/backup', extra: widget.businessId),
+                  )
+                : const _SettingsTile(
+                    icon: Icons.backup_outlined,
+                    title: 'Backup',
+                    subtitle: 'Export your records to Excel.',
+                    trailing: _ComingSoon(),
+                  ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('security'),
             _SettingsTile(

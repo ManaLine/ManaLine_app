@@ -303,6 +303,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     subtitle: 'Export your records to Excel.',
                     trailing: _ComingSoon(),
                   ),
+            // Import sits under Backup rather than in its own section: they
+            // are the two halves of the same job, and separating them put a
+            // heading between "get your records out" and "put your records in".
+            if (_backupIsAvailable)
+              _SettingsTile(
+                icon: Icons.upload_file_outlined,
+                title: 'Import Records',
+                subtitle: 'Enter loans from before you joined MANA LINE.',
+                onTap: () => context.push('/import', extra: widget.businessId),
+              ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('security'),
             _SettingsTile(

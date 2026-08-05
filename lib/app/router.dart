@@ -39,6 +39,7 @@ import '../features/owner_workspace/screens/ow_017_transaction_history.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/ow_019_cheti_management.dart';
 import '../features/owner_workspace/screens/backup_screen.dart';
+import '../features/owner_workspace/screens/import_screen.dart';
 import '../features/owner_workspace/screens/loan_requests_screen.dart';
 import '../features/owner_workspace/screens/withdrawal_requests_screen.dart';
 import '../shared/settings_screen.dart';
@@ -286,6 +287,12 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/backup',
       builder: (c, s) => BackupScreen(businessId: _resolveBusinessId(s)),
+    ),
+    // Import lives beside Backup for the same reason: it is reached from
+    // Settings, which is shared across workspaces, so it has no OW-nnn.
+    GoRoute(
+      path: '/import',
+      builder: (c, s) => ImportScreen(businessId: _resolveBusinessId(s)),
     ),
     // Reached from LR-012, before any workspace has been chosen — so it goes
     // back to the business selector and shows no workspace-specific Profile.

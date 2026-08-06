@@ -8,6 +8,7 @@ import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
 import 'widgets/language_selector.dart';
 import 'local_auth_store.dart';
+import 'mana_biometric.dart';
 import 'network_error_handler.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
 import '../features/login_registration/state/auth_api_service.dart';
@@ -180,6 +181,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
+    // Nothing to enable if the handset cannot do it. Checked before the PIN
+    // dialog so the person is not asked to prove themselves for a feature
+    // their phone does not have.
+    if (!await ManaBiometric.isAvailable()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'This phone has no fingerprint or face unlock set up. Add one in phone settings first.')),
+      );
+      return;
+    }
+
     final pinLength = await LocalAuthStore.readPinLength();
     if (pinLength == null) {
       if (!mounted) return;
@@ -191,16 +205,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
-    // Real server-side PIN verification before enabling — same
-    // "identity re-confirmed via the real login RPC" pattern already
-    // used elsewhere (LR-011's password-gated PIN reset), not just a
-    // local string comparison. Note: this enables the STORED-PIN
-    // convenience-retrieval path LR-009 already has (biometric unlock
-    // fetches the locally-saved PIN and submits it as a normal login) —
-    // it does not itself trigger a real fingerprint/Face ID hardware
-    // prompt. That native prompt is a separate, not-yet-built piece
-    // (LR-009's own code has a TODO for wiring the `local_auth` package)
-    // — flagged honestly here rather than implied as already working.
+    // The fingerprint itself, before anything is stored. Turning this on means
+    // "this finger may replay my saved PIN", so the finger has to be present
+    // at the moment the permission is granted — otherwise someone holding an
+    // unlocked phone could enable it with a PIN they shoulder-surfed and then
+    // use their OWN fingerprint from then on.
+    final bio = await ManaBiometric.authenticate(
+      reason: 'Confirm your fingerprint to turn on biometric sign-in',
+    );
+    if (!mounted) return;
+    if (bio != ManaBiometricResult.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ManaBiometric.messageFor(bio))),
+      );
+      return;
+    }
+
+    // Then the server-side PIN check — same "identity re-confirmed via the
+    // real login RPC" pattern as LR-011's password-gated PIN reset, not a
+    // local string comparison.
     if (!mounted) return;
     final entered = await showDialog<String>(
         context: context, builder: (_) => const _PinVerifyDialog());
@@ -283,12 +306,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: ManaSpacing.lg),
             ],
             const _SectionHeader('permissions'),
-            const _SettingsTile(
-              icon: Icons.verified_user_outlined,
-              title: 'Permissions',
-              subtitle: 'What each agent is allowed to do.',
-              trailing: _ComingSoon(),
-            ),
+            // Points at OW-002, which already has the real editor — every
+            // permission column, per agent, with the server as the authority.
+            // Building a second one here would be two places to change the
+            // same switch, and they would disagree the first time one was
+            // edited.
+            //
+            // Owner only: permissions are something an Owner grants, not
+            // something an Agent sets for themselves. An Agent seeing their
+            // own permissions read-only would be reasonable, but that is a
+            // screen that does not exist yet and is not worth faking.
+            widget.homeRoute == '/ow-001'
+                ? _SettingsTile(
+                    icon: Icons.verified_user_outlined,
+                    title: 'Permissions',
+                    subtitle: 'Set what each agent is allowed to do.',
+                    onTap: () =>
+                        context.push('/ow-002', extra: widget.businessId),
+                  )
+                : const _SettingsTile(
+                    icon: Icons.verified_user_outlined,
+                    title: 'Permissions',
+                    subtitle: 'What each agent is allowed to do.',
+                    trailing: _ComingSoon(),
+                  ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('subscription'),
             // Owner only. The tiers priced here are the Owner's; a Customer or
@@ -389,8 +430,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           _togglingBiometric ? null : _onBiometricToggled,
                     ),
               subtitle: _biometricEnabled == true
-                  ? 'Enabled — used for fast PIN login on this device.'
-                  : 'Enable to skip typing your PIN on this device.',
+                  ? 'Enabled — your fingerprint signs you in on this device.'
+                  : 'Enable to sign in with your fingerprint instead of typing your PIN.',
               onTap: null,
             ),
             const SizedBox(height: ManaSpacing.lg),
@@ -421,11 +462,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('appearance'),
-            const _SettingsTile(
+            _SettingsTile(
               icon: Icons.palette_outlined,
+              // Subtitle says text size only — it used to promise "Light, dark
+              // and font size", and dark mode is not built. Advertising it
+              // here and not delivering it inside is how a settings screen
+              // stops being trusted.
               title: 'Appearance',
-              subtitle: 'Light, dark and font size.',
-              trailing: _ComingSoon(),
+              subtitle: 'Text size.',
+              onTap: () => context.push('/appearance'),
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('languages'),

@@ -47,6 +47,7 @@ import '../features/owner_workspace/screens/withdrawal_requests_screen.dart';
 import '../shared/settings_screen.dart';
 import '../shared/account_closure_screen.dart';
 import '../shared/about_screen.dart';
+import '../shared/appearance_screen.dart';
 import '../features/agent_workspace/screens/ag_001_agent_home_dashboard.dart';
 import '../features/agent_workspace/screens/ag_002_collection_mode.dart';
 import '../features/agent_workspace/screens/ag_003_todays_route.dart';
@@ -314,6 +315,7 @@ final manaRouter = GoRouter(
           BusinessTransferScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(path: '/about', builder: (c, s) => const AboutScreen()),
+    GoRoute(path: '/appearance', builder: (c, s) => const AppearanceScreen()),
     // Reached from LR-012, before any workspace has been chosen — so it goes
     // back to the business selector and shows no workspace-specific Profile.
     GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen(homeRoute: '/lr-012')),

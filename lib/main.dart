@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/router.dart';
+import 'shared/appearance_state.dart';
 import 'design/theme.dart';
 import 'design/tokens/colors.dart';
 import 'design/tokens/spacing.dart';
@@ -85,11 +86,11 @@ void _redirectToPinLogin() {
   });
 }
 
-class ManaLineApp extends StatelessWidget {
+class ManaLineApp extends ConsumerWidget {
   const ManaLineApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // A build with no --dart-define points at REPLACE-ME.supabase.co, which
     // HANGS rather than failing — the app looked alive but every screen
     // showed raw translation keys and login claimed "no internet" on a
@@ -102,11 +103,33 @@ class ManaLineApp extends StatelessWidget {
       );
     }
 
+    final textSize = ref.watch(appearanceProvider);
+
     return MaterialApp.router(
       title: 'MANA LINE',
       debugShowCheckedModeBanner: false,
       theme: ManaTheme.light(),
       routerConfig: manaRouter,
+      // The chosen font size, applied once at the root so every screen and
+      // every dialog inherits it.
+      //
+      // MULTIPLIED with the device's own setting rather than replacing it:
+      // someone who has already enlarged text system-wide has said something
+      // about their eyesight, and overriding that to a flat 1.0 would take it
+      // away. The layout tests cover 1.0x-2.0x, and this tops out at 1.3x on
+      // top of whatever the handset is already doing.
+      builder: (context, child) {
+        // The device's own factor, recovered by asking it to scale a known
+        // size. TextScaler has no "factor" getter and is not necessarily
+        // linear, so this samples it rather than assuming.
+        final deviceFactor = MediaQuery.textScalerOf(context).scale(100) / 100;
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(deviceFactor * textSize.scale),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }

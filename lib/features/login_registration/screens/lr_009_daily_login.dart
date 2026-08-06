@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
+import '../../../shared/mana_biometric.dart';
 import '../../../shared/login_nav_args.dart';
 import '../../../shared/widgets/language_selector.dart';
 import '../state/auth_flow_state.dart';
@@ -69,11 +70,38 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
     if (!enabled || !mounted) return;
     _biometricAttempted = true;
 
-    // TODO: real native biometric prompt (local_auth package).
-    // On success → _submitWithStoredPin(). On failure/cancel → S5:
-    // silently fall back to PIN pad, no error, no counter increment.
-    // Stub: does nothing automatically here so the PIN pad remains the
-    // testable path in this scaffold; wire local_auth in a follow-up.
+    // A real fingerprint is now required before the stored PIN is used.
+    //
+    // WHAT THIS REPLACES: the toggle used to store a flag and this method did
+    // nothing, while "biometric unlock" elsewhere simply submitted the saved
+    // PIN. Anyone holding an unlocked handset could sign in, because the only
+    // thing being proved was that a PIN had once been saved on this device.
+    //
+    // Only 'ok' proceeds. Every other outcome falls through to the PIN pad in
+    // silence — per S5, no error, no counter increment. A cancelled prompt is
+    // a person choosing to type instead, not a failed login, and showing them
+    // a red message for it would be wrong.
+    if (!await ManaBiometric.isAvailable()) return;
+    final result = await ManaBiometric.authenticate(
+      reason: 'Confirm it is you to open MANA LINE',
+    );
+    if (!mounted || result != ManaBiometricResult.ok) return;
+
+    await _submitWithStoredPin();
+  }
+
+  /// The convenience path behind a successful fingerprint.
+  ///
+  /// The stored PIN is still sent to the server and still validated against
+  /// persons.pin_hash — biometrics decide whether this device may REPLAY the
+  /// saved PIN, they never stand in for the server's own check. That is the
+  /// same reasoning as _submit's note below: an on-device comparison proves
+  /// "same device", not "the right person".
+  Future<void> _submitWithStoredPin() async {
+    final stored = await LocalAuthStore.readPinValue();
+    if (stored == null || stored.isEmpty || !mounted) return;
+    setState(() => _entered = stored);
+    await _submit();
   }
 
   void _onDigit(String d) {

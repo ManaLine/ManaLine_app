@@ -74,8 +74,7 @@ void main() {
     expect(find.text('Logout'), findsOneWidget);
   });
 
-  testWidgets('unbuilt features read as Coming Soon, not as working rows',
-      (tester) async {
+  testWidgets('an Owner has no placeholder rows left', (tester) async {
     await pumpManaScreen(
       tester,
       const SettingsScreen(homeRoute: '/ow-001'),
@@ -83,17 +82,34 @@ void main() {
       storage: rememberedDeviceStorage(),
     );
 
-    // Two placeholders left: Permissions and Appearance. Six at first, then
-    // Backup, Subscription, Business Transfer and Share App each shipped. The
-    // count is asserted so that building a feature, or adding a new
-    // placeholder, has to be a deliberate edit here rather than passing
-    // unnoticed.
-    expect(find.text('Coming Soon'), findsNWidgets(2));
+    // Zero. It started at six — Backup, Subscription, Business Transfer,
+    // Share App, Appearance and Permissions each shipped in turn. The count is
+    // asserted so that adding a new placeholder, or a feature quietly
+    // regressing to one, has to be a deliberate edit here.
+    expect(find.text('Coming Soon'), findsNothing);
 
-    // The rows must be genuinely inert. A placeholder that still accepts taps
-    // would navigate nowhere and read as a broken app.
-    // Permissions is still unbuilt, so it stands in for the placeholder shape
-    // now that Subscription and Business Transfer are both live.
+    // And every one of them actually goes somewhere.
+    for (final row in ['Permissions', 'Subscription', 'Backup',
+                       'Business Transfer', 'Share App', 'Appearance']) {
+      final tile = tester.widget<ListTile>(
+        find.ancestor(of: find.text(row), matching: find.byType(ListTile)).first,
+      );
+      expect(tile.onTap, isNotNull, reason: '$row should be live for an Owner');
+    }
+  });
+
+  testWidgets('a placeholder, where one still exists, is genuinely inert',
+      (tester) async {
+    // Customer and Investor workspaces keep placeholders for the rows that are
+    // Owner-only. A placeholder that still accepts taps would navigate nowhere
+    // and read as a broken app, so the inertness is what is asserted.
+    await pumpManaScreen(
+      tester,
+      const SettingsScreen(homeRoute: '/cw-001'),
+      surfaceSize: tallSurface,
+      storage: rememberedDeviceStorage(),
+    );
+
     final tile = tester.widget<ListTile>(
       find.ancestor(of: find.text('Permissions'), matching: find.byType(ListTile))
           .first,

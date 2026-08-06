@@ -138,6 +138,14 @@ class CustomerApiService {
     String? doorNo,
     String? pinCode,
     String? villageId,
+    /// Optional GPS pin for the address, captured at registration.
+    ///
+    /// All three stay null when the person declined location, has it switched
+    /// off, or no fix arrived — registration must never depend on GPS, so the
+    /// address is written exactly as before and the pin columns stay empty.
+    double? gpsLatitude,
+    double? gpsLongitude,
+    double? gpsAccuracyM,
   }) async {
     if (existingPersonId != null) {
       // Linking an already-existing person -- business_members/customers
@@ -195,6 +203,12 @@ class CustomerApiService {
       'p_door_no': doorNo,
       'p_pin_code': pinCode,
       'p_village_id': villageId,
+      // Sent in the SAME call that creates the address rather than as a second
+      // "now attach the GPS" write — a separate call can fail on its own and
+      // leave a customer whose address exists but whose pin silently does not.
+      'p_gps_latitude': gpsLatitude,
+      'p_gps_longitude': gpsLongitude,
+      'p_gps_accuracy_m': gpsAccuracyM,
     });
     return result as String; // RETURNS UUID (customer_id) -- a scalar return
   }

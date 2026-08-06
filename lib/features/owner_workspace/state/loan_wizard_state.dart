@@ -5,6 +5,8 @@ import 'customer_state.dart' show CustomerSummary, customerApiServiceProvider;
 import '../../../shared/live_photo_upload.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/mana_time.dart';
+import '../../../shared/mana_location.dart';
+import '../../../shared/gps_address_service.dart';
 
 /// OW-005 New Loan Workflow — real Supabase wiring. No dedicated
 /// eligibility-check endpoint; validation is inline inside the create call,
@@ -536,13 +538,15 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
       state = state.copyWith(error: 'Live photo is required before a loan can be created (BR-036/081).');
       return null;
     }
-    // M6: GPS consent is mandatory before the address-verification GPS
-    // capture. When consentGiven is false the screen should show a one-time
-    // consent prompt; after the user agrees, set consentGiven and retry.
-    if (!state.consentGiven) {
-      state = state.copyWith(error: 'Location consent is required before issuing a loan. Tap the consent prompt to continue.');
-      return null;
-    }
+    // GPS DOES NOT GATE A LOAN. This used to hard-stop when consentGiven was
+    // false, which meant a person who declined location — or whose phone has
+    // it switched off, or who is standing where no fix arrives — could not
+    // lend money at all. Location is verification of where a loan was issued;
+    // it is not a condition of issuing one, and a customer waiting at the
+    // counter should never be turned away because a satellite was slow.
+    //
+    // Consent is now asked once at first login (LR-007) and the pin is
+    // captured best-effort below, after the loan exists.
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final photoUrl = await LivePhotoUpload.upload(
@@ -603,6 +607,25 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
             error: 'Loan ${result.loanNumber} was created, but the guarantor could not be saved: $e. '
                 'Add the guarantor from Loan Details once the loan appears in the list.',
           );
+        }
+      }
+
+      // Where the loan was issued, recorded AFTER it exists — update_loan_gps
+      // takes a loan_id, and the loan is the thing that must succeed. Every
+      // failure here is swallowed on purpose: a missing pin is a missing
+      // verification detail, while a thrown exception at this point would
+      // report a successfully created loan as a failure and invite the Owner
+      // to create it a second time.
+      if (result.loanId != null) {
+        try {
+          final fix = await ManaLocation.currentFix();
+          if (fix.hasPosition) {
+            await ref
+                .read(gpsAddressServiceProvider)
+                .recordLoanLocation(loanId: result.loanId!, fix: fix);
+          }
+        } catch (_) {
+          // Deliberately silent — see above.
         }
       }
 

@@ -9,6 +9,18 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Required for LiveFaceCaptureScreen (LR-004 F1 / BR-036, loan issuance BR-081) -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- GPS address verification. COARSE as well as FINE because Android 12+
+         lets the user grant only approximate location, and the app must still
+         work when they do — a coarse fix is reported as "couldn't verify"
+         rather than failing outright.
+
+         Deliberately NOT declared: ACCESS_BACKGROUND_LOCATION. Location is
+         only ever read while an agent is standing at a customer's door with
+         the app open. Asking for background access would be asking for the
+         right to follow people around, and Play Store review treats it as a
+         high-risk permission requiring separate justification. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <application
         android:label="mana_line"
         android:name="${applicationName}"

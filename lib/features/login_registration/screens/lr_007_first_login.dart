@@ -11,6 +11,7 @@ import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/live_photo_upload.dart';
+import '../../../shared/gps_address_service.dart';
 import 'lr_005_otp_verification.dart';
 
 /// LR-007 — Mobile Number + Password auth. Branches by pin_exists in
@@ -181,6 +182,13 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
 
     if (!mounted) return;
 
+    // Location consent, asked ONCE at first login rather than at every
+    // doorstep. An agent prompted on every visit taps through without
+    // reading, which is not consent. Declining is a real answer and costs
+    // nothing: GPS never gates a loan, a customer or an address.
+    await _askLocationConsent(result!.personId!);
+    if (!mounted) return;
+
     final redirect = _pendingRedirect ?? widget.redirectAfterSuccess;
     if (redirect != null) {
       context.push(redirect);
@@ -208,6 +216,49 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
       }
     } else {
       context.go('/lr-008');
+    }
+  }
+
+  /// Asked once, at first login. Stored on the person, so no screen asks
+  /// again.
+  ///
+  /// Non-fatal throughout: if the write fails, the person simply has not
+  /// consented and nothing captures location. Location is never required for
+  /// anything, so a failure here has no downstream victim.
+  Future<void> _askLocationConsent(String personId) async {
+    try {
+      final already =
+          await ref.read(gpsAddressServiceProvider).hasConsent(personId: personId);
+      if (already || !mounted) return;
+
+      final granted = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const ManaText('use your location?'),
+          content: const ManaText.raw(
+            'When you visit a customer, MANA LINE can note where you were, to '
+            'confirm the visit happened at their address.\n\n'
+            'It is only read while you are using the app, never in the '
+            'background. You can say no — nothing in the app stops working '
+            'either way.',
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const ManaText('not now')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const ManaText('allow')),
+          ],
+        ),
+      );
+
+      await ref
+          .read(gpsAddressServiceProvider)
+          .setConsent(personId: personId, granted: granted == true);
+    } catch (_) {
+      // Deliberately swallowed: this is a preference, not a money path, and a
+      // failure to record it must not block a login that already succeeded.
     }
   }
 

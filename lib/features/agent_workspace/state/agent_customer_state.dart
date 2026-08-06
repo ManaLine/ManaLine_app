@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../shared/mana_location.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../owner_workspace/state/customer_state.dart'
     show CustomerSummary, CustomerLoanSummary, CustomerRemark, CustomerProfile;
@@ -249,6 +251,28 @@ class AgentCustomerApiService {
         'p_pin_code': pinCode,
         'p_village_id': villageId,
       });
+
+      // Drop a GPS pin on the address the agent just corrected, if a fix is
+      // available. Best-effort and deliberately after the address write: the
+      // address is what the agent came to fix, and a failed or refused
+      // location must not undo it or report it as a failure.
+      //
+      // The pin never changes the village — that is the agent's choice, made
+      // above. See the pin-only decision in 20260805141851.
+      try {
+        final fix = await ManaLocation.currentFix();
+        if (fix.hasPosition) {
+          await _db.schema('app').rpc('update_customer_address_from_gps', params: {
+            'p_customer_id': customerId,
+            'p_new_lat': fix.latitude,
+            'p_new_lng': fix.longitude,
+            'p_accuracy_m': fix.accuracyM,
+          });
+        }
+      } catch (_) {
+        // Silent on purpose — see above. A missing pin is a missing
+        // verification detail, not a failed address edit.
+      }
     }
   }
 

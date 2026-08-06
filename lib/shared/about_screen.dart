@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
+import '../features/login_registration/state/auth_flow_state.dart';
+import '../features/owner_workspace/state/global_workflow_state.dart';
+import 'mana_time.dart';
+import 'network_error_handler.dart';
 
 /// P2 About + Terms.
 ///
@@ -42,6 +48,7 @@ class AboutScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: const [
+            ...<Widget>[
             ManaText('mana line',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
             SizedBox(height: ManaSpacing.xs),
@@ -90,8 +97,117 @@ class AboutScreen extends ConsumerWidget {
               'Questions: manaline.in@gmail.com',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
+            ],
+            TermsAcceptance(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Records acceptance of the terms shown above.
+///
+/// This exists because persons.terms_accepted_at was READ in two places —
+/// app.owner_member_profile's completion summary and OW-014's member-side
+/// check — and written by nothing at all, so both were permanently false and
+/// a profile could never report the member side as complete.
+///
+/// Placed at the bottom of the terms rather than behind a separate screen: an
+/// "I accept" button somewhere the terms are not visible is a worse record of
+/// consent than one directly under them.
+class TermsAcceptance extends ConsumerStatefulWidget {
+  const TermsAcceptance({super.key});
+
+  @override
+  ConsumerState<TermsAcceptance> createState() => _TermsAcceptanceState();
+}
+
+class _TermsAcceptanceState extends ConsumerState<TermsAcceptance> {
+  bool _busy = false;
+  DateTime? _acceptedAt;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final personId = ref.read(authFlowProvider).personId;
+    if (personId == null) {
+      if (mounted) setState(() => _loaded = true);
+      return;
+    }
+    try {
+      final row = await Supabase.instance.client
+          .from('persons')
+          .select('terms_accepted_at')
+          .eq('person_id', int.parse(personId))
+          .maybeSingle();
+      final raw = row?['terms_accepted_at'] as String?;
+      if (!mounted) return;
+      setState(() {
+        _acceptedAt = raw == null ? null : DateTime.tryParse(raw);
+        _loaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loaded = true);
+    }
+  }
+
+  Future<void> _accept() async {
+    final personId = ref.read(authFlowProvider).personId;
+    if (personId == null) return;
+    setState(() => _busy = true);
+
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref
+          .read(globalWorkflowApiServiceProvider)
+          .acceptTerms(personId: personId);
+      return true;
+    });
+
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (ok == true) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Nothing to offer someone who is not signed in, and nothing to say until
+    // the current state is known — a button that flips from "Accept" to
+    // "Accepted" a second after the screen opens looks like a misclick.
+    if (!_loaded || ref.watch(authFlowProvider).personId == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (_acceptedAt != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: ManaSpacing.lg),
+        child: ManaText.raw(
+          'You accepted these terms on ${manaDisplayDate(_acceptedAt)}.',
+          style: const TextStyle(
+              fontSize: 13, color: ManaColors.textSecondary),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: ManaSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ElevatedButton(
+            onPressed: _busy ? null : _accept,
+            child: const ManaText('i accept these terms'),
+          ),
+          if (_busy) ...[
+            const SizedBox(height: ManaSpacing.md),
+            const Center(child: CircularProgressIndicator()),
+          ],
+        ],
       ),
     );
   }

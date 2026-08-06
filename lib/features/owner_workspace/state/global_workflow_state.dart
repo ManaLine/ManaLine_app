@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../login_registration/state/auth_api_service.dart' show AuthApiService;
+import '../../../shared/mana_time.dart';
 
 /// OW-014 Global Workflow — Pre-Existing Member Creation. Real Supabase
 /// wiring over Modules 0/1. Registration/OTP send/verify reuse
@@ -217,35 +218,49 @@ class GlobalWorkflowApiService {
     });
   }
 
-  Future<void> sendOtp({required String mobileNumber}) async {
-    // FLAGGED: AuthApiService.sendOtp needs personId+purpose, not a bare
-    // mobile number — this stub's own signature never carried personId,
-    // so it can't be forwarded correctly without a lookup first. Left
-    // genuinely unimplemented rather than guessing which purpose/person.
-    throw UnimplementedError(
-      'sendOtp needs personId (not just mobileNumber) to call AuthApiService.sendOtp — original stub signature '
-      'never carried it. Resolve the personId lookup at the call site before wiring this through.',
-    );
-  }
+  // REMOVED: sendOtp, verifyOtp, acceptAgreement.
+  //
+  // All three were declared here, threw UnimplementedError, and were called by
+  // nothing. Their signatures were also wrong for the real endpoints —
+  // sendOtp took a bare mobile number where AuthApiService.sendOtp needs
+  // personId + purpose, and verifyOtp took mobile+code where the real one
+  // needs the otp_id returned by a prior send.
+  //
+  // They are deleted rather than implemented because AuthApiService already
+  // does this correctly and six LR screens use it. Building these out would
+  // have produced a SECOND OTP path competing with a working one, which is the
+  // "two implementations drift" problem — and an auth path is the worst place
+  // to have it. Anything here that needs an OTP should call
+  // authApiServiceProvider directly.
+  //
+  // acceptAgreement went too. Terms acceptance is recorded on
+  // persons.terms_accepted_at (see acceptTerms below), which is what OW-014's
+  // completion check actually reads. agreement_acceptances stays unused: its
+  // otp_id is NOT NULL, so writing it would force an SMS round trip every time
+  // someone accepts terms, and nothing today needs a per-agreement audit row.
 
-  Future<bool> verifyOtp({required String mobileNumber, required String otp}) async {
-    throw UnimplementedError(
-      'verifyOtp needs an otp_id (from a prior sendOtp call), not a bare mobileNumber+code pair — same gap as '
-      'sendOtp above.',
-    );
-  }
-
-  /// FLAGGED: agreement_acceptances requires otp_id (NOT NULL FK to
-  /// otp_verifications) per the real schema — this stub's own signature
-  /// only ever carried agreementId, with no OTP step modeled at all.
-  /// Left genuinely unimplemented rather than inventing a bypass of a
-  /// NOT NULL constraint.
-  Future<void> acceptAgreement({required String agreementId}) async {
-    throw UnimplementedError(
-      'acceptAgreement needs an otp_id — agreement_acceptances.otp_id is NOT NULL in the real schema, but this '
-      'stub\'s signature never collected one. The screen needs an OTP step before this call, not just the '
-      'agreement_id.',
-    );
+  /// Records that this person accepted the current Terms.
+  ///
+  /// THIS WAS NEVER WRITTEN BY ANYTHING. persons.terms_accepted_at is READ in
+  /// two places — app.owner_member_profile's completion summary and the
+  /// member-side check inside OW-014 — and both gate on it being non-null. No
+  /// code anywhere set it, so that condition was permanently false and profile
+  /// completion could never report the member side as done.
+  ///
+  /// Written directly rather than through an RPC because persons_self_update
+  /// already permits exactly this: `person_id = app.current_person_id()`, on
+  /// both USING and WITH CHECK. A person setting their own acceptance is the
+  /// one case that policy is for.
+  Future<void> acceptTerms({required String personId, int version = 1}) async {
+    await _db.from('persons').update({
+      // manaTimestamp, not DateTime.now: every timestamp column in this schema
+      // is naive IST, and a UTC string here would record acceptance five and a
+      // half hours out.
+      'terms_accepted_at': manaTimestamp(),
+      'terms_version': version,
+      'privacy_accepted_at': manaTimestamp(),
+      'privacy_version': version,
+    }).eq('person_id', int.parse(personId));
   }
 
   /// Returns the status the server actually applied — 'Complete' only when

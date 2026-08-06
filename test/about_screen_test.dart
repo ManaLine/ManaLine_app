@@ -47,4 +47,16 @@ void main() {
     expect(find.textContaining('caste'), findsOneWidget);
     expect(find.textContaining('nothing about you as a person'), findsOneWidget);
   });
+
+  testWidgets('acceptance is not offered to someone not signed in',
+      (tester) async {
+    // No personId means no row to write terms_accepted_at onto. Offering the
+    // button anyway would produce a control that silently does nothing.
+    await pumpManaScreen(
+      tester,
+      const AboutScreen(),
+      surfaceSize: const Size(360, 3000),
+    );
+    expect(find.text('I Accept These Terms'), findsNothing);
+  });
 }

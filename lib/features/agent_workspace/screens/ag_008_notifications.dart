@@ -180,7 +180,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
                     margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
                     decoration:
                         BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
-                    child: ManaText.raw(state.error!, style: const TextStyle(color: ManaColors.statusBad)),
+                    child: ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
                   ),
                 ),
               Expanded(
@@ -188,7 +188,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
                     ? const Center(child: CircularProgressIndicator())
                     : state.visible.isEmpty
                         // S2 — Empty.
-                        ? const Center(
+                        ? Center(
                             child: ManaText.raw('No notifications.',
                                 style: TextStyle(color: ManaColors.textSecondary)),
                           )
@@ -260,7 +260,7 @@ class _NotificationRow extends StatelessWidget {
               ManaText.raw(notification.message, style: const TextStyle(fontSize: 13)),
               const SizedBox(height: 2),
               ManaText.raw(_dateTime.format(notification.createdAt),
-                  style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             ],
           ),
         ),

@@ -56,8 +56,8 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                     _summary(state),
                     const SizedBox(height: ManaSpacing.lg),
                     if (state.chetis.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: ManaText.raw(
                           'No chetis yet. Add one you are already paying, or a '
                           'new one you have just joined.',
@@ -81,7 +81,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: ManaText.raw('Cheti — net position',
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             ),
@@ -125,7 +125,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                   child: ManaText.raw(
                     '${c.type.dbValue} · ${c.frequency.dbValue}',
                     textAlign: TextAlign.end,
-                    style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                    style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
                   ),
                 ),
               ],
@@ -154,7 +154,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                   'Availed ${_dateFmt.format(c.availedDate!)}'
                   '${c.availedPreMigration ? ' (before migration)' : ''}'
                   '${c.instalmentsRemaining > 0 ? ' — ${c.instalmentsRemaining} instalments still to pay' : ''}',
-                  style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
                 ),
               ),
             const SizedBox(height: ManaSpacing.sm),
@@ -197,7 +197,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                   title: ManaText.raw(
                     '${c.payments.length} recorded instalment'
                     '${c.payments.length == 1 ? '' : 's'}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13, color: ManaColors.textSecondary),
                   ),
                   children: [
@@ -208,7 +208,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                         title: ManaText.raw(_currency.format(p.netPaid)),
                         subtitle: ManaText.raw(
                           _dateFmt.format(p.businessDate),
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 12, color: ManaColors.textSecondary),
                         ),
                         trailing: IconButton(
@@ -231,7 +231,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(label,
-              style: const TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
+              style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
           ManaText.raw(value,
               style: TextStyle(
                   fontSize: 15,
@@ -465,7 +465,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
               },
             ),
             const Divider(height: ManaSpacing.xl),
-            const ManaText.raw(
+            ManaText.raw(
               'Already part-way through? Enter the position as it stands '
               'today. Past instalments are not recreated and do not move BF — '
               'that cash left the till before this app existed.',
@@ -484,7 +484,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
                           '${_currency.format(_openingImplied!)}. The gap is the '
                           'dividend you have already earned — enter what you '
                           'actually paid.',
-                  style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
                 ),
               ),
             SwitchListTile(
@@ -514,7 +514,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(_error!,
-                  style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+                  style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
             ],
             const SizedBox(height: ManaSpacing.lg),
             FilledButton(
@@ -637,7 +637,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
           const SizedBox(height: ManaSpacing.md),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                   child: ManaText.raw('Cash out of BF',
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))),
               ManaText.raw(_netV == null ? '—' : _currency.format(_netV),
@@ -647,7 +647,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
           if (_error != null) ...[
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(_error!,
-                style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+                style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
           ],
           const SizedBox(height: ManaSpacing.lg),
           FilledButton(
@@ -721,7 +721,7 @@ class _AvailingSheetState extends ConsumerState<_AvailingSheet> {
             'This adds to BF. You keep paying the remaining '
             '${widget.cheti.instalmentsRemaining} instalments — availing does '
             'not close the cheti.',
-            style: const TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
           ),
           const SizedBox(height: ManaSpacing.md),
           TextField(

@@ -182,7 +182,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
             children: [
               Row(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 16,
                     backgroundColor: ManaColors.inkFaint,
                     child: Icon(Icons.storefront, size: 16, color: ManaColors.textSecondary),
@@ -196,7 +196,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
                   // tiles below already constrain their label this way.
                   Expanded(
                     child: ManaText.raw(result.businessName,
-                        style: const TextStyle(color: ManaColors.textSecondary)),
+                        style: TextStyle(color: ManaColors.textSecondary)),
                   ),
                 ],
               ),
@@ -235,7 +235,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
               Icon(icon, color: ManaColors.brand),
               const SizedBox(width: ManaSpacing.md),
               Expanded(child: ManaText(role)),
-              const Icon(Icons.chevron_right, color: ManaColors.textSecondary),
+              Icon(Icons.chevron_right, color: ManaColors.textSecondary),
             ],
           ),
         ),

@@ -123,14 +123,14 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                     const SizedBox(height: ManaSpacing.sm),
                     _VillageFilterDropdown(state: state),
                     const SizedBox(height: ManaSpacing.xs),
-                    const ManaText.raw(
+                    ManaText.raw(
                       'Sorted by: highest outstanding → penalty → grace period → today\'s due → village → name',
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
                     if (state.filtered.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
                           child:
                               ManaText.raw('No customers match this view.', style: TextStyle(color: ManaColors.textSecondary)),
@@ -226,7 +226,7 @@ class _CustomerRow extends StatelessWidget {
         ),
         subtitle: ManaText.raw(
           '${customer.village} · ${customer.mlid} · LRI ${customer.lineRepaymentIndex}',
-          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -236,7 +236,7 @@ class _CustomerRow extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             if (customer.todaysDue > 0)
               ManaText.raw('Due ${_currency.format(customer.todaysDue)}',
-                  style: const TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
+                  style: TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
           ],
         ),
         onTap: onTap,
@@ -484,7 +484,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
               ? 'Find a customer who already has a MANA LINE ID and link them '
                   'to this business. Search by Phone, Aadhaar, MANA LINE ID, or Full Name.'
               : 'Search by Phone, Aadhaar, MANA LINE ID, or Full Name.',
-          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         Row(
@@ -510,7 +510,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
         // point at the action that does register someone new.
         if (_notFound) ...[
           const SizedBox(height: ManaSpacing.md),
-          const ManaText.raw(
+          ManaText.raw(
             'No one found with that Phone / Aadhaar / MANA LINE ID / Name. '
             'Check the value, or use "Add Customer" to register a new person.',
             style: TextStyle(fontSize: 13, color: ManaColors.statusBad),
@@ -544,7 +544,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   List<Widget> _createNewStage() => [
         const ManaText('no match found — create new identity', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw(
+        ManaText.raw(
           'New customer must be physically present — this reuses the same '
           'registration fields as account registration.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -745,7 +745,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
         if (_selectedVillageLabel != null) ...[
           const SizedBox(height: ManaSpacing.xs),
           ManaText.raw('Selected: $_selectedVillageLabel',
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ],
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
@@ -870,7 +870,7 @@ class _SummaryTab extends StatelessWidget {
         Center(
             child:
                 ManaText.raw(customer.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-        Center(child: ManaText.raw(customer.mlid, style: const TextStyle(color: ManaColors.textSecondary))),
+        Center(child: ManaText.raw(customer.mlid, style: TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
         _row('Father / Husband', customer.fatherHusbandName),
         _row('Village', customer.village),
@@ -891,7 +891,7 @@ class _SummaryTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
@@ -905,7 +905,7 @@ class _LoansTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (profile.loans.isEmpty) {
-      return const Center(
+      return Center(
         child: ManaText.raw('No loans yet.', style: TextStyle(color: ManaColors.textSecondary)),
       );
     }
@@ -945,7 +945,7 @@ class _CollectionsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (profile.collections.isEmpty) {
-      return const Center(
+      return Center(
         child: ManaText.raw('No collections yet.', style: TextStyle(color: ManaColors.textSecondary)),
       );
     }
@@ -953,11 +953,11 @@ class _CollectionsTab extends StatelessWidget {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: profile.collections
           .map((c) => ListTile(
-                leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
+                leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
                 title: ManaText.raw(_currency.format(c.amount)),
                 subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
                 trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),
-                    style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
               ))
           .toList(),
     );
@@ -1032,7 +1032,7 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
           child: ListView(
             padding: const EdgeInsets.all(ManaSpacing.lg),
             children: widget.profile.remarks.isEmpty
-                ? const [ManaText.raw('No remarks yet.', style: TextStyle(color: ManaColors.textSecondary))]
+                ? [ManaText.raw('No remarks yet.', style: TextStyle(color: ManaColors.textSecondary))]
                 : widget.profile.remarks
                     .map((r) => Card(
                           child: ListTile(
@@ -1094,9 +1094,9 @@ class _HistoryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(ManaSpacing.lg),
+        padding: const EdgeInsets.all(ManaSpacing.lg),
         child: ManaText.raw(
           'Chronological record: Customer Created, Loans Created, Loan Closures, '
           'Collections, Transfers, Address Changes, Agent Changes.\nNo entries yet.',
@@ -1113,9 +1113,9 @@ class _AuditTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(ManaSpacing.lg),
+        padding: const EdgeInsets.all(ManaSpacing.lg),
         child: ManaText.raw(
           'Who Changed, What Changed, Old Value, New Value — per BR-158. No entries yet.',
           textAlign: TextAlign.center,

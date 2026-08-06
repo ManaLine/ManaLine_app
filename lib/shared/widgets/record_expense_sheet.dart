@@ -137,7 +137,7 @@ class _RecordExpenseSheetState extends State<RecordExpenseSheet> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(widget.payerNote,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: ManaColors.textSecondary, fontSize: 13)),
               const SizedBox(height: ManaSpacing.lg),
               DropdownButtonFormField<String>(

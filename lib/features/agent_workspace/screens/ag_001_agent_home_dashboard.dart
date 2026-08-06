@@ -316,7 +316,7 @@ class _BfGateState extends ConsumerState<_BfGate> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.account_balance_wallet_outlined,
+                Icon(Icons.account_balance_wallet_outlined,
                     size: 40, color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.md),
                 const ManaText('opening bf for this session'),
@@ -325,7 +325,7 @@ class _BfGateState extends ConsumerState<_BfGate> {
                     style: const TextStyle(
                         fontSize: 28, fontWeight: FontWeight.bold)),
                 const SizedBox(height: ManaSpacing.sm),
-                const ManaText.raw(
+                ManaText.raw(
                   'Confirm this figure to proceed, or Update if it looks wrong — '
                   'you will be blocked from the workspace until the Owner corrects it.',
                   textAlign: TextAlign.center,
@@ -370,17 +370,17 @@ class _BfNotGrantedBlock extends StatelessWidget {
   const _BfNotGrantedBlock();
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(ManaSpacing.xl),
+        padding: const EdgeInsets.all(ManaSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.lock_clock_outlined,
                 size: 40, color: ManaColors.textSecondary),
-            SizedBox(height: ManaSpacing.md),
-            ManaText('access not yet granted'),
-            SizedBox(height: ManaSpacing.sm),
+            const SizedBox(height: ManaSpacing.md),
+            const ManaText('access not yet granted'),
+            const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               'Owner has not assigned an Opening BF for this session yet. '
               'Please contact your Owner.',
@@ -398,17 +398,17 @@ class _BfUpdateRequestedBlock extends StatelessWidget {
   const _BfUpdateRequestedBlock();
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(ManaSpacing.xl),
+        padding: const EdgeInsets.all(ManaSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.hourglass_top_outlined,
                 size: 40, color: ManaColors.statusWarn),
-            SizedBox(height: ManaSpacing.md),
-            ManaText('waiting on owner'),
-            SizedBox(height: ManaSpacing.sm),
+            const SizedBox(height: ManaSpacing.md),
+            const ManaText('waiting on owner'),
+            const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               'Your Opening BF dispute has been sent to the Owner. You will be '
               're-prompted with the corrected figure once they resolve it.',
@@ -463,14 +463,14 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
       children: [
         const ManaText('select operating area(s)'),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw(
+        ManaText.raw(
           'Only areas enabled by your Owner are shown. Select one or more to start today\'s Business Session.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         if (areas.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
             child: Center(
               child: ManaText.raw(
                   'No areas enabled for you yet. Contact your Owner.',
@@ -554,7 +554,7 @@ class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
             const ManaText('change area',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw(
+            ManaText.raw(
               'Adding an area starts working it immediately; removing one stops new collections there for today (its Account Period keeps running to its own end date).',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
@@ -716,7 +716,7 @@ class _SectionCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       ManaText.raw(r.$1,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 13, color: ManaColors.textSecondary)),
                       ManaText.raw(r.$2,
                           style: const TextStyle(
@@ -751,7 +751,7 @@ class _CompensationSection extends StatelessWidget {
             const ManaText('my compensation',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw('Read-only, set by Owner.',
+            ManaText.raw('Read-only, set by Owner.',
                 style:
                     TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
@@ -773,7 +773,7 @@ class _CompensationSection extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       ManaText.raw(r.$1,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 13, color: ManaColors.textSecondary)),
                       ManaText.raw(r.$2,
                           style: const TextStyle(
@@ -792,7 +792,7 @@ class _CompensationSection extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ManaText.raw(h.cycleLabel,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 13, color: ManaColors.textSecondary)),
                         ManaText.raw(_currency.format(h.amount),
                             style: const TextStyle(fontSize: 16)),
@@ -1006,7 +1006,7 @@ class _LiveActivity extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
-              const ManaText.raw('Nothing yet today.',
+              ManaText.raw('Nothing yet today.',
                   style:
                       TextStyle(fontSize: 13, color: ManaColors.textSecondary))
             else
@@ -1015,7 +1015,7 @@ class _LiveActivity extends StatelessWidget {
                     child: Row(
                       children: [
                         ManaText.raw(_time.format(e.at),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 13, color: ManaColors.textSecondary)),
                         const SizedBox(width: ManaSpacing.sm),
                         Expanded(

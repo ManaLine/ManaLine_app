@@ -119,7 +119,7 @@ class _StepIndicator extends StatelessWidget {
           ),
           const SizedBox(width: ManaSpacing.md),
           ManaText.raw('Step $current of $total',
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ],
       ),
     );
@@ -175,7 +175,7 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
       children: [
         ManaText('select customer', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw('Search by Phone, MANA LINE ID, Aadhaar, Customer Name, or Village.',
+        ManaText.raw('Search by Phone, MANA LINE ID, Aadhaar, Customer Name, or Village.',
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         Row(
@@ -210,7 +210,7 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
             ),
           )
         else if (_query.text.trim().isNotEmpty && !_searching)
-          const ManaText.raw('No matching customer. New customers must be physically present '
+          ManaText.raw('No matching customer. New customers must be physically present '
               'and created via Customer Management before a first loan can be issued.',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
       ],
@@ -262,7 +262,7 @@ class _Step2Eligibility extends ConsumerWidget {
         ManaText('eligibility check', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw('Customer: ${customer?.fullName ?? ''}',
-            style: const TextStyle(color: ManaColors.textSecondary)),
+            style: TextStyle(color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         Card(
           child: Padding(
@@ -284,10 +284,10 @@ class _Step2Eligibility extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         children: [
-                          const Icon(Icons.schedule, size: 16, color: ManaColors.textSecondary),
+                          Icon(Icons.schedule, size: 16, color: ManaColors.textSecondary),
                           const SizedBox(width: ManaSpacing.sm),
                           Expanded(child: ManaText(c, style: const TextStyle(fontSize: 13))),
-                          const ManaText.raw('at confirm',
+                          ManaText.raw('at confirm',
                               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         ],
                       ),
@@ -313,7 +313,7 @@ class _Step2Eligibility extends ConsumerWidget {
             padding: const EdgeInsets.all(ManaSpacing.md),
             decoration: BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
             child: ManaText.raw(state.eligibilityFailureReason!,
-                style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
           ),
         ],
         const SizedBox(height: ManaSpacing.lg),
@@ -518,7 +518,7 @@ class _Step4GuarantorState extends ConsumerState<_Step4Guarantor> {
       children: [
         ManaText('guarantor', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw('Guarantor is loan-scoped, not customer-scoped — different loans '
+        ManaText.raw('Guarantor is loan-scoped, not customer-scoped — different loans '
             'for the same customer may have different guarantors.',
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
@@ -607,7 +607,7 @@ class _Step4bLivePhotoState extends ConsumerState<_Step4bLivePhoto> {
       children: [
         ManaText('live photo', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw(
+        ManaText.raw(
           'Mandatory before this loan can be created (BR-036/081, fraud prevention). '
           'Camera capture only — gallery upload is never offered.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -634,7 +634,7 @@ class _Step4bLivePhotoState extends ConsumerState<_Step4bLivePhoto> {
         const SizedBox(height: ManaSpacing.xl),
         const ManaText('grace period (days)', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw(
+        ManaText.raw(
           'Internal only — never shown to the customer (BR-206). Owner-configurable, '
           'overridable per loan (BR-007/381).',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -714,7 +714,7 @@ class _Step5Confirm extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(ManaSpacing.md),
             decoration: BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
-            child: ManaText.raw(state.error!, style: const TextStyle(color: ManaColors.statusBad)),
+            child: ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
           ),
         ],
         const SizedBox(height: ManaSpacing.lg),
@@ -751,7 +751,7 @@ class _Step5Confirm extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),

@@ -81,7 +81,7 @@ class _MyLoansScreenState extends ConsumerState<MyLoansScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+            Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load loans'),
             const SizedBox(height: ManaSpacing.sm),
@@ -127,15 +127,15 @@ class _LoanCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (loan.templateName != null)
-                ManaText.raw(loan.templateName!, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                ManaText.raw(loan.templateName!, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ManaText.raw(
                 'Outstanding ${_currency.format(loan.outstandingBalance)} of ${_currency.format(loan.principalAmount)}',
-                style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary),
+                style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
               ),
               if (loan.nextDueDate != null)
                 ManaText.raw(
                   'Next due ${_currency.format(loan.nextDueAmount ?? 0)} on ${_dateFmt.format(loan.nextDueDate!)}',
-                  style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary),
+                  style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
                 ),
             ],
           ),
@@ -162,11 +162,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.account_balance_wallet_outlined, size: 48, color: ManaColors.textSecondary),
+            Icon(Icons.account_balance_wallet_outlined, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('no loans yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
-            const ManaText.raw(
+            ManaText.raw(
               'You have no loans in this Business yet.',
               textAlign: TextAlign.center,
               style: TextStyle(color: ManaColors.textSecondary),
@@ -230,7 +230,7 @@ class _LoanDetailScreenState extends ConsumerState<LoanDetailScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+                          Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
                           const SizedBox(height: ManaSpacing.md),
                           const ManaText('could not load loan'),
                           const SizedBox(height: ManaSpacing.sm),
@@ -312,7 +312,7 @@ class _AgreementSummaryCard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             ManaText.raw(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ],
         ),
@@ -334,7 +334,7 @@ class _ScheduleCard extends StatelessWidget {
             const ManaText('repayment schedule', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: ManaSpacing.sm),
             if (schedule.isEmpty)
-              const ManaText.raw('No schedule available.', style: TextStyle(color: ManaColors.textSecondary))
+              ManaText.raw('No schedule available.', style: TextStyle(color: ManaColors.textSecondary))
             else
               ...schedule.map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -394,7 +394,7 @@ class _PaymentHistoryCard extends StatelessWidget {
                 child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
               )
             else if (history.isEmpty)
-              const ManaText.raw('No confirmed payments yet.', style: TextStyle(color: ManaColors.textSecondary))
+              ManaText.raw('No confirmed payments yet.', style: TextStyle(color: ManaColors.textSecondary))
             else
               ...history.map((h) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -402,7 +402,7 @@ class _PaymentHistoryCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ManaText.raw('${_dateFmt.format(h.businessDate)} · ${h.receiptNumber}',
-                            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         Row(
                           children: [
                             ManaText.raw(_currency.format(h.collectedAmount),
@@ -439,7 +439,7 @@ class _PendingOnlinePaymentsCard extends StatelessWidget {
           children: [
             const ManaText('pending online payments', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw('Awaiting Owner/Agent confirmation.',
+            ManaText.raw('Awaiting Owner/Agent confirmation.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             ...pending.map((p) => Padding(
@@ -475,9 +475,9 @@ class _PenaltyGraceCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const ManaText('penalty', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                  ManaText('penalty', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                   ManaText.raw(_currency.format(detail.penaltyAmount!),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ManaColors.statusBad)),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ManaColors.statusBad)),
                 ],
               ),
             if (detail.gracePeriodEndDate != null)
@@ -486,7 +486,7 @@ class _PenaltyGraceCard extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const ManaText('grace period end date', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                    ManaText('grace period end date', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                     ManaText.raw(_dateFmt.format(detail.gracePeriodEndDate!), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   ],
                 ),

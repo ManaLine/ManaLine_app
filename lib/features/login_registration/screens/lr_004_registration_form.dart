@@ -481,7 +481,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                   padding: const EdgeInsets.only(top: ManaSpacing.xs),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 16, color: ManaColors.textSecondary),
+                      Icon(Icons.info_outline, size: 16, color: ManaColors.textSecondary),
                       const SizedBox(width: 4),
                       Expanded(
                         child: TextButton(
@@ -549,7 +549,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                       const SizedBox(height: ManaSpacing.sm),
                       ManaText.raw(
                         'PIN Code above (${_pinCode.text.trim().isEmpty ? "not yet entered" : _pinCode.text.trim()}) will be used for this village.',
-                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
                       const SizedBox(height: ManaSpacing.sm),
                       Row(
@@ -581,7 +581,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               if (_selectedVillageLabel != null) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw('Selected: $_selectedVillageLabel',
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
               const SizedBox(height: ManaSpacing.xl),
 
@@ -624,10 +624,10 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: ManaText.raw(_aadhaarError!,
-                      style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                      style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                 ),
               const SizedBox(height: ManaSpacing.sm),
-              const ManaText.raw(
+              ManaText.raw(
                 'Enter your Aadhaar Number carefully. Incorrect entry may result '
                 'in account suspension until resolved.',
                 style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),

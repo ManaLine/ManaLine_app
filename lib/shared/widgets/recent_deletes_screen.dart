@@ -132,13 +132,13 @@ class _DeletedRowState extends ConsumerState<_DeletedRow> {
                 'deleted by ${r.deletedBy}',
                 _dateFmt.format(r.deletedAt),
               ].join(' · '),
-              style: const TextStyle(
+              style: TextStyle(
                   color: ManaColors.textSecondary, fontSize: 12),
             ),
             if (r.reason != null && r.reason!.isNotEmpty) ...[
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw('“${r.reason}”',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: ManaColors.textSecondary,
                       fontSize: 12,
                       fontStyle: FontStyle.italic)),

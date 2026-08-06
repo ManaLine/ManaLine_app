@@ -383,7 +383,7 @@ class _Header extends ConsumerWidget {
       leading: Container(
         color: ManaColors.brandFaint,
         child: logoUrl == null
-            ? const Icon(Icons.storefront, color: ManaColors.brandDeep)
+            ? Icon(Icons.storefront, color: ManaColors.brandDeep)
             : Image.network(
                 logoUrl!,
                 fit: BoxFit.cover,
@@ -391,7 +391,7 @@ class _Header extends ConsumerWidget {
                 // the placeholder is right; showing a broken-image glyph in
                 // the header of every screen is not.
                 errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.storefront, color: ManaColors.brandDeep),
+                    Icon(Icons.storefront, color: ManaColors.brandDeep),
               ),
       ),
       actions: [
@@ -426,7 +426,7 @@ class _Header extends ConsumerWidget {
         tooltip: 'More options',
         iconSize: 24,
         constraints: const BoxConstraints(minWidth: kManaMinTapTarget),
-        icon: const Icon(Icons.more_vert, color: ManaColors.textOnDark),
+        icon: Icon(Icons.more_vert, color: ManaColors.textOnDark),
         onSelected: (v) {
           switch (v) {
             case 'switch_business':
@@ -462,7 +462,7 @@ class _Header extends ConsumerWidget {
           const PopupMenuItem(value: 'settings', child: ManaText('settings')),
           if (ref.watch(authFlowProvider).isPlatformAdmin) ...[
             const PopupMenuDivider(),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'admin_panel',
               child: ManaText.raw('admin panel',
                   style: TextStyle(
@@ -554,7 +554,7 @@ class _NotificationsSheet extends StatelessWidget {
                         pendingInvitations > 0 || pendingAcceptances > 0
                             ? 'Nothing else to report.'
                             : 'No notifications yet.',
-                        style: const TextStyle(color: ManaColors.textSecondary),
+                        style: TextStyle(color: ManaColors.textSecondary),
                       ),
                     )
                   : ListView.separated(
@@ -576,12 +576,12 @@ class _NotificationsSheet extends StatelessWidget {
                           title: ManaText.raw(n.label,
                               style: const TextStyle(fontSize: 13)),
                           subtitle: ManaText.raw(n.type,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 13,
                                   color: ManaColors.textSecondary)),
                           trailing: ManaText.raw(
                               DateFormat('d MMM, hh:mm a').format(n.timestamp),
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 13,
                                   color: ManaColors.textSecondary)),
                         );
@@ -692,7 +692,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
             const ManaText('search',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw(
+            ManaText.raw(
                 'Search by Phone, MANA LINE ID, Aadhaar, or Name.',
                 style:
                     TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
@@ -721,7 +721,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
             const SizedBox(height: ManaSpacing.md),
             if (_error != null)
               ManaText.raw(_error!,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: ManaColors.statusBad, fontSize: 13)),
             if (_found != null)
               Card(
@@ -733,8 +733,8 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                       subtitle: ManaText.raw(_found!.mlid),
                     ),
                     if (_foundRoles.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
                             ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
                         child: ManaText.raw('Not a member of this business.',
                             style: TextStyle(
@@ -788,7 +788,7 @@ class _MembershipRow extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: kManaMinTapTarget),
           child: Row(
             children: [
-              const Icon(Icons.mark_email_unread_outlined,
+              Icon(Icons.mark_email_unread_outlined,
                   color: ManaColors.brand),
               const SizedBox(width: ManaSpacing.md),
               Expanded(
@@ -799,12 +799,12 @@ class _MembershipRow extends StatelessWidget {
                     ManaText.raw(label,
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                     ManaText.raw(subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13, color: ManaColors.textSecondary)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: ManaColors.textSecondary),
+              Icon(Icons.chevron_right, color: ManaColors.textSecondary),
             ],
           ),
         ),
@@ -907,13 +907,13 @@ class _BfRow extends StatelessWidget {
                   const ManaText.raw('BF',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: ManaSpacing.sm),
-                  const ManaText.raw('=',
+                  ManaText.raw('=',
                       style: TextStyle(color: ManaColors.textSecondary)),
                   const SizedBox(width: ManaSpacing.sm),
                   Expanded(
                     child: ManaAmount(data.openingBalance),
                   ),
-                  const Icon(Icons.chevron_right,
+                  Icon(Icons.chevron_right,
                       color: ManaColors.textSecondary),
                 ],
               ),
@@ -1103,7 +1103,7 @@ class _QuickActionGroup extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ManaText(title,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: ManaColors.textSecondary)),
@@ -1142,9 +1142,9 @@ class _LiveActivity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const Card(
+      return Card(
         child: Padding(
-          padding: EdgeInsets.all(ManaSpacing.lg),
+          padding: const EdgeInsets.all(ManaSpacing.lg),
           child: ManaText.raw('No activity yet today.',
               style: TextStyle(color: ManaColors.textSecondary)),
         ),
@@ -1155,13 +1155,13 @@ class _LiveActivity extends StatelessWidget {
         children: items
             .take(5)
             .map((a) => ListTile(
-                  leading: const Icon(Icons.circle,
+                  leading: Icon(Icons.circle,
                       size: 8, color: ManaColors.brand),
                   title: ManaText.raw(a.label,
                       style: const TextStyle(fontSize: 13)),
                   trailing: ManaText.raw(
                       DateFormat('hh:mm a').format(a.timestamp),
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 13, color: ManaColors.textSecondary)),
                 ))
             .toList(),
@@ -1196,9 +1196,9 @@ class _AttentionRequired extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (cards.isEmpty) {
-      return const Card(
+      return Card(
         child: Padding(
-          padding: EdgeInsets.all(ManaSpacing.lg),
+          padding: const EdgeInsets.all(ManaSpacing.lg),
           child: ManaText.raw('Nothing needs attention right now.',
               style: TextStyle(color: ManaColors.textSecondary)),
         ),

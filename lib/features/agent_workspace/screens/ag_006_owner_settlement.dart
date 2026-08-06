@@ -167,7 +167,7 @@ class _StatusOnlyView extends StatelessWidget {
         const SizedBox(height: ManaSpacing.sm),
         Center(
           child: ManaText.raw(body,
-              textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.textSecondary)),
+              textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
         ),
         if (s != null) ...[
           const SizedBox(height: ManaSpacing.xl),
@@ -195,11 +195,11 @@ class _ReturnedView extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
                     Icon(Icons.undo, color: ManaColors.statusBad),
-                    SizedBox(width: ManaSpacing.sm),
-                    ManaText('returned — correction required', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: ManaSpacing.sm),
+                    const ManaText('returned — correction required', style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
                 if (s?.returnReason != null) ...[
@@ -335,9 +335,9 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
   Widget build(BuildContext context) {
     final state = widget.state;
     if (state.preview == null) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(ManaSpacing.lg),
+          padding: const EdgeInsets.all(ManaSpacing.lg),
           child: ManaText.raw('Unable to load settlement figures.', style: TextStyle(color: ManaColors.textSecondary)),
         ),
       );
@@ -350,7 +350,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             ManaText.raw('${_dateFmt.format(widget.periodStart)} – ${_dateFmt.format(widget.periodEnd)}',
-                style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             // cycle_type is Business-level/Owner-set (OW-012 Account Cycle
             // config) — read-only display here, never an Agent choice per
             // submission.
@@ -430,15 +430,15 @@ class _DifferencePendingNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
+    return Card(
       color: ManaColors.statusWarnFaint,
       child: Padding(
-        padding: EdgeInsets.all(ManaSpacing.md),
+        padding: const EdgeInsets.all(ManaSpacing.md),
         child: Row(
           children: [
             Icon(Icons.info_outline, color: ManaColors.statusWarn),
-            SizedBox(width: ManaSpacing.sm),
-            Expanded(
+            const SizedBox(width: ManaSpacing.sm),
+            const Expanded(
               child: ManaText(
                   'count your cash and declare it. the difference is worked out when you submit.'),
             ),

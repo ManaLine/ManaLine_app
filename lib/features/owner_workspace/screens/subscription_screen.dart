@@ -39,7 +39,7 @@ class SubscriptionScreen extends ConsumerWidget {
               child: ManaText.raw(
                 'Could not load your current usage.\n\n$e',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13, color: ManaColors.statusBad),
               ),
             ),
@@ -47,7 +47,7 @@ class SubscriptionScreen extends ConsumerWidget {
           data: (u) => ListView(
             padding: const EdgeInsets.all(ManaSpacing.lg),
             children: [
-              const ManaText.raw(
+              ManaText.raw(
                 'Nothing is being charged yet. These are the planned prices, '
                 'shown so you can see which one fits your business.',
                 style:
@@ -65,7 +65,7 @@ class SubscriptionScreen extends ConsumerWidget {
               const ManaText('customers and investors',
                   style: TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: ManaSpacing.xs),
-              const ManaText.raw(
+              ManaText.raw(
                 'Customers and Investors view their records free. Requesting a '
                 'loan, or requesting to invest or withdraw, is ₹99 a year for '
                 'that role — and one discounted Combo covers a person who is '
@@ -190,12 +190,12 @@ class _TierCard extends StatelessWidget {
                 ? 'For businesses beyond the Business plan.'
                 : 'Up to ${tier.agents} agents, ${tier.customers} customers, '
                     '${tier.investors} investors.',
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 13, color: ManaColors.textSecondary),
           ),
           if (isCurrent) ...[
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw(
+            ManaText.raw(
               'Your business fits here.',
               style: TextStyle(
                   fontSize: 13,

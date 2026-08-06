@@ -101,13 +101,13 @@ class _WorkforceManagementScreenState
                         child: Center(
                           child: ManaText.raw('Could not load agents.\n${state.error}',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                              style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                         ),
                       )
                     else if (state.filtered.isEmpty)
-                      const Padding(
+                      Padding(
                         padding:
-                            EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                            const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
                           child: ManaText.raw('No agents match this view.',
                               style:
@@ -240,7 +240,7 @@ class _AgentRow extends StatelessWidget {
           child: ManaText.raw(
             '${agent.mlid} · ${agent.phoneNumber}',
             style:
-                const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                TextStyle(fontSize: 13, color: ManaColors.textSecondary),
           ),
         ),
         trailing: ManaStatusPill(label: agent.status, status: _statusKind),
@@ -321,7 +321,7 @@ class _RegisterNewAgentSheetState
               const ManaText('register new agent',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: ManaSpacing.xs),
-              const ManaText.raw(
+              ManaText.raw(
                 'For an agent who does not yet have a MANA LINE ID. Reuses the same '
                 'Identity Registration fields as account registration.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -451,7 +451,7 @@ class _AddExistingAgentSheetState
             const ManaText('add existing agent',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw(
+            ManaText.raw(
               'For an agent who already has a MANA LINE ID (MLID/MLPI/MLTI).',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
@@ -499,7 +499,7 @@ class _AddExistingAgentSheetState
                 ),
               )
             else if (_mlid.text.trim().isNotEmpty && !_searching)
-              const ManaText.raw(
+              ManaText.raw(
                   'No match found yet — search to look up this MLID.',
                   style:
                       TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
@@ -684,7 +684,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
                     fontWeight: FontWeight.bold, fontSize: 18))),
         Center(
             child: ManaText.raw(agent.mlid,
-                style: const TextStyle(color: ManaColors.textSecondary))),
+                style: TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
         _infoRow('Phone Number', agent.phoneNumber),
         _infoRow('Status', agent.status),
@@ -740,7 +740,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
               children: [
                 ManaText.raw(
                     'Move cash from your own balance into ${agent.fullName}\'s float.',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: ManaColors.textSecondary, fontSize: 13)),
                 const SizedBox(height: ManaSpacing.md),
                 TextField(
@@ -806,7 +806,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
           children: [
             Expanded(
                 child: ManaText(label,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: ManaColors.textSecondary, fontSize: 13))),
             Flexible(
               child: ManaText.raw(value,
@@ -943,7 +943,7 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText.raw(
+        ManaText.raw(
           'An agent sees only what is switched on here. With everything off '
           'their home screen has no actions at all.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -951,7 +951,7 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
         const SizedBox(height: ManaSpacing.md),
         for (final group in _groups.entries) ...[
           ManaText(group.key,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
           ...group.value.entries.map((e) => SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -1051,7 +1051,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
         // Salary — it never appears in that formula in any form. Leaving the
         // old wording would have told the Owner the opposite of what the
         // salary engine now does.
-        const ManaText.raw(
+        ManaText.raw(
             'Paid same-day in cash. Does NOT reduce payable salary — tracked '
             'for your visibility only (CALC BR-068, supersedes BR-046).',
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
@@ -1063,7 +1063,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
               labelText: 'Profit Share % (optional, tentative)'),
         ),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw(
+        ManaText.raw(
             'Reference only — the system never multiplies this against any '
             'figure. Distribute the actual amount below (BR-232).',
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
@@ -1084,7 +1084,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
             style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         if (widget.profile.compensationHistory.isEmpty)
-          const ManaText.raw('No history yet.',
+          ManaText.raw('No history yet.',
               style: TextStyle(color: ManaColors.textSecondary))
         else
           ...widget.profile.compensationHistory.map((c) => ListTile(
@@ -1158,7 +1158,7 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const ManaText.raw(
+              ManaText.raw(
                 'Enter the actual amount being distributed. Nothing is '
                 'calculated from the Profit Share % — that figure is your '
                 'own reference (BR-232).',
@@ -1237,7 +1237,7 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
             child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
           ))
         else if (_declarations.isEmpty)
-          const ManaText.raw('Nothing distributed yet.',
+          ManaText.raw('Nothing distributed yet.',
               style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
         else
           ..._declarations.map((d) => Card(
@@ -1299,19 +1299,19 @@ class _AreasTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText.raw(
+        ManaText.raw(
           'Agent cannot choose areas outside those assigned here — Agent-side area '
           'selection (e.g. Collection Mode) is restricted to this set.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         if (profile.assignedAreas.isEmpty)
-          const ManaText.raw('No areas assigned yet.',
+          ManaText.raw('No areas assigned yet.',
               style: TextStyle(color: ManaColors.textSecondary))
         else
           ...profile.assignedAreas.map((a) => Card(
                 child: ListTile(
-                  leading: const Icon(Icons.location_on_outlined,
+                  leading: Icon(Icons.location_on_outlined,
                       color: ManaColors.brand),
                   title: ManaText.raw(a),
                 ),
@@ -1341,19 +1341,19 @@ class _VillagePickerSheet extends StatelessWidget {
             child: ManaText('select village', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
           if (areas.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(ManaSpacing.lg),
+            Padding(
+              padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw('No Operating Areas exist yet for this business — add one from Business Management first.',
                   style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             )
           else
             ...areas.map((a) => ListTile(
-                  leading: const Icon(Icons.location_on_outlined, color: ManaColors.brand),
+                  leading: Icon(Icons.location_on_outlined, color: ManaColors.brand),
                   title: ManaText.raw(a.name),
                   subtitle: ManaText.raw(
                       '${a.villagesLabel}\n'
                       '${a.isUnassigned ? 'No agent assigned' : 'Agents: ${a.assignedAgentsLabel}'}',
-                      style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   isThreeLine: true,
                   onTap: () => Navigator.of(context).pop(a),
                 )),
@@ -1386,9 +1386,9 @@ class _AuditTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(ManaSpacing.lg),
+        padding: const EdgeInsets.all(ManaSpacing.lg),
         child: ManaText.raw(
           'Membership/permission/compensation changes are logged here per BR-158 — '
           'no entries yet.',

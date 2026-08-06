@@ -65,17 +65,17 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
                     // UnimplementedError paths remain. It was alarming the
                     // Owner about a gap that had already been closed.
                     if (state.groups.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
                             vertical: ManaSpacing.xxl, horizontal: ManaSpacing.md),
                         child: Column(
                           children: [
                             Icon(Icons.groups_2_outlined, size: 40, color: ManaColors.textSecondary),
-                            SizedBox(height: ManaSpacing.md),
-                            ManaText.raw('No groups yet',
+                            const SizedBox(height: ManaSpacing.md),
+                            const ManaText.raw('No groups yet',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            SizedBox(height: ManaSpacing.sm),
+                            const SizedBox(height: ManaSpacing.sm),
                             // The dead end: "Create Group" builds a group
                             // out of EXISTING loans, and this business has
                             // none, so the create screen has nothing to
@@ -95,7 +95,7 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
                     else
                       ...state.groups.map((g) => Card(
                             child: ListTile(
-                              leading: const Icon(Icons.groups_outlined, color: ManaColors.brand),
+                              leading: Icon(Icons.groups_outlined, color: ManaColors.brand),
                               title: ManaText.raw(g.groupName),
                               subtitle: ManaText.raw('${g.memberCount} members'),
                               trailing: const Icon(Icons.chevron_right),
@@ -176,7 +176,7 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
             ),
             const SizedBox(height: ManaSpacing.md),
             if (_results.isEmpty)
-              const ManaText.raw('Search for individual loans to add as group members.',
+              ManaText.raw('Search for individual loans to add as group members.',
                   style: TextStyle(color: ManaColors.textSecondary))
             else
               // Checkmark-ListTile selection pattern — Radio/RadioListTile
@@ -290,7 +290,7 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      const ManaText.raw(
+                      ManaText.raw(
                         'Computed live from member loans — never stored.',
                         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
@@ -318,7 +318,7 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                     ),
                   )),
               const SizedBox(height: ManaSpacing.md),
-              const ManaText.raw(
+              ManaText.raw(
                 'Membership is fixed permanently at creation — no additions or removals.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),

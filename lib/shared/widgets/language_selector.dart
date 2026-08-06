@@ -35,7 +35,7 @@ class ManaLanguageSelector extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.language, size: 18, color: ManaColors.textSecondary),
+        Icon(Icons.language, size: 18, color: ManaColors.textSecondary),
         const SizedBox(width: 8),
         DropdownButtonHideUnderline(
           child: DropdownButton<ManaLanguage>(

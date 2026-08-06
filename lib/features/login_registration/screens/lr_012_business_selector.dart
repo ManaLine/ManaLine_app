@@ -194,7 +194,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 24,
                 backgroundColor: ManaColors.inkFaint,
                 child: Icon(Icons.storefront, color: ManaColors.textSecondary),
@@ -218,11 +218,11 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                     ),
                     const SizedBox(height: 2),
                     ManaText.raw(g.roles.join(', '),
-                        style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                        style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: ManaColors.textSecondary),
+              Icon(Icons.chevron_right, color: ManaColors.textSecondary),
             ],
           ),
         ),
@@ -288,7 +288,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                 _PendingRequestsSection(pending: pending, onRespond: _respondToRequest),
                 const SizedBox(height: ManaSpacing.xl),
               ],
-              const Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
+              Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
               const SizedBox(height: ManaSpacing.md),
               const ManaText('no business linked', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: ManaSpacing.sm),
@@ -364,7 +364,7 @@ class _PendingRequestsSectionState extends State<_PendingRequestsSection> {
                 children: [
                   ManaText.raw('${m.businessName} — as ${m.role}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  const ManaText.raw('Waiting for your response.', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  ManaText.raw('Waiting for your response.', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   const SizedBox(height: ManaSpacing.sm),
                   Row(
                     children: [
@@ -530,7 +530,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
           const ManaText('request to join a business', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: ManaSpacing.md),
 
-          const ManaText('1. select role', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ManaText('1. select role', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           const SizedBox(height: ManaSpacing.xs),
           Wrap(
             spacing: ManaSpacing.sm,
@@ -545,7 +545,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
           ),
           const SizedBox(height: ManaSpacing.md),
 
-          const ManaText('2. find the business', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ManaText('2. find the business', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           const SizedBox(height: ManaSpacing.xs),
           TextField(
             controller: _queryController,
@@ -597,7 +597,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
               _suggestions.isEmpty &&
               _foundBusiness == null) ...[
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw('No matching business found. Check the name/MLBI and try again.',
+            ManaText.raw('No matching business found. Check the name/MLBI and try again.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ],
 
@@ -608,7 +608,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
           // it's genuinely the business they mean before sending a request.
           if (_foundBusiness != null) ...[
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('3. confirm business details', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            ManaText('3. confirm business details', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.xs),
             Card(
               child: Padding(
@@ -643,7 +643,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
 
           if (_error != null) ...[
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+            ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
           ],
 
           const SizedBox(height: ManaSpacing.lg),
@@ -666,7 +666,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
         children: [
           SizedBox(
             width: 120,
-            child: ManaText.raw(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            child: ManaText.raw(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ),
           Expanded(
             child: ManaText.raw(value, style: const TextStyle(fontSize: 13)),

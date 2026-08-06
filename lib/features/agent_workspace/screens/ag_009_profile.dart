@@ -68,7 +68,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
                         child: ManaText.raw(
                           state.error ?? 'Could not load profile.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: ManaColors.statusBad),
+                          style: TextStyle(color: ManaColors.statusBad),
                         ),
                       ),
                     )
@@ -91,7 +91,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
                           const SizedBox(height: ManaSpacing.xl),
                           ManaText('other business memberships', style: Theme.of(context).textTheme.titleMedium),
                           const SizedBox(height: ManaSpacing.xs),
-                          const ManaText.raw(
+                          ManaText.raw(
                             'Each Owner sees only their own tenancy\'s data for you — nothing here is shared or blended across businesses.',
                             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                           ),
@@ -183,8 +183,8 @@ class _FieldRow extends StatelessWidget {
             ],
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.only(top: 2),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
           child: Icon(Icons.lock_outline, size: 16, color: ManaColors.textDisabled),
         ),
       ],
@@ -204,9 +204,9 @@ class _RouteAreaSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = assignments.where((a) => a.enabled).toList();
     if (enabled.isEmpty) {
-      return const Card(
+      return Card(
         child: Padding(
-          padding: EdgeInsets.all(ManaSpacing.lg),
+          padding: const EdgeInsets.all(ManaSpacing.lg),
           child: ManaText.raw('No Operating Areas currently assigned.', style: TextStyle(color: ManaColors.textSecondary)),
         ),
       );
@@ -218,7 +218,7 @@ class _RouteAreaSummary extends StatelessWidget {
           children: enabled
               .map((a) => ListTile(
                     dense: true,
-                    leading: const Icon(Icons.route_outlined, color: ManaColors.brand),
+                    leading: Icon(Icons.route_outlined, color: ManaColors.brand),
                     title: ManaText.raw(a.areaName),
                     trailing: a.selectedInSession
                         ? const ManaStatusPill(label: 'In Session', status: ManaStatus.good)
@@ -246,11 +246,11 @@ class _CompensationLinkOutRow extends StatelessWidget {
     final s = summary;
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.account_balance_wallet_outlined, color: ManaColors.brand),
+        leading: Icon(Icons.account_balance_wallet_outlined, color: ManaColors.brand),
         title: ManaText.raw(s != null ? _currency.format(s.fixedSalary) : '—',
             style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: ManaText.raw(s?.salaryCycleStatus ?? 'Compensation not yet available',
-            style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
+            style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
         trailing: const Icon(Icons.chevron_right),
         // Opens AG-001, scrolled/anchored to its "MY COMPENSATION
         // (Read-Only, Set By Owner)" panel — see END RESULT integration

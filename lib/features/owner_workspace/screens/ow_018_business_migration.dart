@@ -78,7 +78,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const ManaText.raw(
+              ManaText.raw(
                 'This business has already been started. Reopening lets you '
                 'enter pre-existing records again. The reason is recorded in '
                 'the audit log.',
@@ -196,13 +196,13 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
   Widget _errorState(String message) => ListView(
         padding: const EdgeInsets.all(ManaSpacing.xl),
         children: [
-          const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+          Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
           const SizedBox(height: ManaSpacing.md),
           const Center(child: ManaText('could not load migration status')),
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+              style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
           const SizedBox(height: ManaSpacing.md),
           Center(child: ElevatedButton(onPressed: _load, child: const ManaText('retry'))),
         ],
@@ -235,7 +235,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                       'Reopen migration to enter records from the old book.'
                   : 'Enter the loans that were already running when you joined. '
                       'Each one records what you gave out and what has come back.',
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
             if (s.migrationLocked)
@@ -262,7 +262,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText.raw(
+            ManaText.raw(
               'Count the cash box today and enter that figure. Everything '
               'before today is out of scope — the count already reflects it.\n\n'
               'This locks when you finish migration and cannot be changed '
@@ -359,7 +359,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
               ),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: ManaText.raw('Line balance — still with customers',
                         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   ),
@@ -368,7 +368,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
               ),
             ),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw(
+            ManaText.raw(
               'Line balance is deliberately outside BF — that money is out on '
               'the line, not in the cash box.',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -513,7 +513,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            const ManaText.raw(
+            ManaText.raw(
               'Enter the loan as it stands today. The repayment schedule is '
               'created from today forward for whatever is still owed — past '
               'instalments are not recreated, so the customer\'s Line Score '
@@ -579,7 +579,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             if (_validationError != null && _customer != null) ...[
               const SizedBox(height: ManaSpacing.md),
               ManaText.raw(_validationError!,
-                  style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+                  style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
             ],
             const SizedBox(height: ManaSpacing.lg),
             FilledButton(
@@ -644,7 +644,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                 child: ManaText.raw(
                   '$_pendingV instalments will be created. They begin only once '
                   'the migration is finished, not today.',
-                  style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
               ),
           ],

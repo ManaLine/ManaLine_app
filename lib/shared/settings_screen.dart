@@ -527,7 +527,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ManaText(
         label,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             color: ManaColors.textSecondary,
@@ -543,7 +543,7 @@ class _ComingSoon extends StatelessWidget {
   const _ComingSoon();
 
   @override
-  Widget build(BuildContext context) => const ManaText(
+  Widget build(BuildContext context) => ManaText(
         'coming soon',
         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
       );

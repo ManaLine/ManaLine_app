@@ -71,8 +71,8 @@ class _DraftTransactionsScreenState extends ConsumerState<DraftTransactionsScree
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
                     if (state.openDrafts.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
                           child: ManaText.raw(
                             'No open drafts. Interrupted entries you Save Draft on will show up here.',
@@ -126,7 +126,7 @@ class _DraftCard extends ConsumerWidget {
               children: [
                 ManaStatusPill(label: draft.draftType.schemaValue, status: ManaStatus.neutral),
                 ManaText.raw(_dateTimeFmt.format(draft.updatedAt),
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -137,11 +137,11 @@ class _DraftCard extends ConsumerWidget {
             if (draft.loanNumber != null) ...[
               const SizedBox(height: 2),
               ManaText.raw('Loan ${draft.loanNumber}',
-                  style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             ],
             const SizedBox(height: 2),
             ManaText.raw('Created ${_dateTimeFmt.format(draft.createdAt)}',
-                style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
               spacing: ManaSpacing.sm,

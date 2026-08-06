@@ -101,7 +101,7 @@ class ManaHeaderBlock extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: ManaColors.textOnDark,
@@ -112,7 +112,7 @@ class ManaHeaderBlock extends StatelessWidget {
                           subtitle!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             // Not a dimmed white: at 13sp on blue, opacity
                             // would push this under the contrast floor.
@@ -204,7 +204,7 @@ class ManaHeaderAction extends StatelessWidget {
                       ),
                       child: Text(
                         badgeCount! > 99 ? '99+' : '$badgeCount',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: ManaColors.textPrimary,
@@ -331,7 +331,7 @@ class _ActionTile extends StatelessWidget {
                         ),
                         child: Text(
                           action.badgeCount! > 99 ? '99+' : '${action.badgeCount}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: ManaColors.textPrimary,
@@ -399,7 +399,7 @@ class ManaBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: ManaColors.surface,
         border: Border(top: BorderSide(color: ManaColors.divider)),
       ),

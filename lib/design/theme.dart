@@ -7,26 +7,51 @@ import 'motion.dart';
 class ManaTheme {
   ManaTheme._();
 
+  /// Builds a theme for [palette] AND makes it the active one.
+  ///
+  /// The swap has to happen here rather than in a widget, because ~840
+  /// `ManaColors.*` call sites read the palette statically at build time — the
+  /// theme and those tokens must never disagree, and building a ThemeData from
+  /// one palette while the tokens still return another is exactly the
+  /// half-dark screen this design avoids.
+  static ThemeData forPalette(ManaPalette palette) {
+    ManaColors.use(palette);
+    return _build(palette);
+  }
+
   static ThemeData light() {
-    final textTheme = ManaTypography.textTheme(Brightness.light);
+    ManaColors.use(ManaPalette.light);
+    return _build(ManaPalette.light);
+  }
+
+  static ThemeData dark() {
+    ManaColors.use(ManaPalette.dark);
+    return _build(ManaPalette.dark);
+  }
+
+  static ThemeData _build(ManaPalette palette) {
+    final textTheme = ManaTypography.textTheme(palette.brightness);
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: ManaColors.surfaceMuted,
-      colorScheme: const ColorScheme.light(
+      brightness: palette.brightness,
+      scaffoldBackgroundColor: palette.surfaceMuted,
+      colorScheme: ColorScheme(
+        brightness: palette.brightness,
         // brandDeep, not brand: Flutter puts onPrimary (white) text on this,
         // and small white-on-#007ACC is only 4.51:1 — too thin to read in
         // direct sun. On brandDeep it is 7.18:1.
-        primary: ManaColors.brandDeep,
-        onPrimary: ManaColors.textOnDark,
+        primary: palette.brandDeep,
+        onPrimary: palette.textOnDark,
         // Amber accent carries DARK text, never white: textPrimary on accent
-        // is 8.0:1, white on accent would be 1.76:1 and unreadable.
-        secondary: ManaColors.accent,
-        onSecondary: ManaColors.textPrimary,
-        error: ManaColors.statusBad,
-        surface: ManaColors.surface,
-        onSurface: ManaColors.textPrimary,
+        // is 8.0:1, white on accent would be 1.76:1 and unreadable. True in
+        // both palettes — accent is the one colour that does not change.
+        secondary: palette.accent,
+        onSecondary: ManaPalette.light.textPrimary,
+        error: palette.statusBad,
+        onError: palette.textOnDark,
+        surface: palette.surface,
+        onSurface: palette.textPrimary,
       ),
       textTheme: textTheme,
       // One declaration gives all ~60 GoRoute screens the same transition,
@@ -59,7 +84,7 @@ class ManaTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ManaRadius.md),
-          side: const BorderSide(color: ManaColors.divider, width: 1),
+          side: BorderSide(color: ManaColors.divider, width: 1),
         ),
       ),
       chipTheme: ChipThemeData(
@@ -90,7 +115,7 @@ class ManaTheme {
           // Outlined = secondary action. Blue reads as interactive without
           // competing with the amber filled button for primary attention.
           foregroundColor: ManaColors.brandDeep,
-          side: const BorderSide(color: ManaColors.brandDeep, width: 1.2),
+          side: BorderSide(color: ManaColors.brandDeep, width: 1.2),
           textStyle: textTheme.labelLarge,
           padding: const EdgeInsets.symmetric(
             horizontal: ManaSpacing.lg, vertical: ManaSpacing.md,
@@ -108,24 +133,24 @@ class ManaTheme {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ManaRadius.sm),
-          borderSide: const BorderSide(color: ManaColors.divider),
+          borderSide: BorderSide(color: ManaColors.divider),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ManaRadius.sm),
-          borderSide: const BorderSide(color: ManaColors.divider),
+          borderSide: BorderSide(color: ManaColors.divider),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ManaRadius.sm),
           // Focused field = blue, matching the interactive family. Amber is
           // reserved for filled actions so it stays unambiguous.
-          borderSide: const BorderSide(color: ManaColors.brand, width: 1.5),
+          borderSide: BorderSide(color: ManaColors.brand, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ManaRadius.sm),
-          borderSide: const BorderSide(color: ManaColors.statusBad),
+          borderSide: BorderSide(color: ManaColors.statusBad),
         ),
       ),
-      dividerTheme: const DividerThemeData(color: ManaColors.divider, thickness: 1),
+      dividerTheme: DividerThemeData(color: ManaColors.divider, thickness: 1),
       // Visible keyboard focus everywhere — quality floor per design skill's
       // "responsive, focus-visible, reduced-motion" baseline.
       focusColor: ManaColors.brand.withValues(alpha: 0.24),

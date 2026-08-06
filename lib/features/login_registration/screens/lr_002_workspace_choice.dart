@@ -136,7 +136,7 @@ class _ProductCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (enabled) const Icon(Icons.chevron_right, color: ManaColors.textSecondary),
+                if (enabled) Icon(Icons.chevron_right, color: ManaColors.textSecondary),
               ],
             ),
           ),

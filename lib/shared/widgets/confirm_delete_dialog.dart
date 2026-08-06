@@ -94,7 +94,7 @@ class _ConfirmDeleteDialogState extends ConsumerState<ConfirmDeleteDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          const Icon(Icons.warning_amber, color: ManaColors.statusWarn),
+          Icon(Icons.warning_amber, color: ManaColors.statusWarn),
           const SizedBox(width: ManaSpacing.sm),
           Expanded(child: ManaText('delete ${widget.entity.label.toLowerCase()}')),
         ],
@@ -108,14 +108,14 @@ class _ConfirmDeleteDialogState extends ConsumerState<ConfirmDeleteDialog> {
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: ManaSpacing.md),
             if (widget.affectsBalances)
-              const ManaText.raw(
+              ManaText.raw(
                 'This entry counts towards the day it belongs to. Deleting it '
                 'changes that day\'s closing balance, and every day after it.',
                 style: TextStyle(
                     color: ManaColors.textSecondary, fontSize: 13),
               ),
             const SizedBox(height: ManaSpacing.sm),
-            const ManaText.raw(
+            ManaText.raw(
               'It moves to Recent Deletes and can be restored for 30 days. '
               'After that it is removed permanently.',
               style: TextStyle(

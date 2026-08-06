@@ -119,7 +119,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            const ManaText.raw(
+            ManaText.raw(
               'Enter loans your business already had before it came onto MANA '
               'LINE. If any row is wrong, nothing is imported — fix the sheet '
               'and upload it again.',
@@ -154,7 +154,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
                 _formatError!,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13, color: ManaColors.statusBad),
               ),
             ],
@@ -184,7 +184,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               if (!outcome.rejected)
                 ManaText.raw(
                   '${outcome.imported} loans imported.',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: ManaColors.statusGood),
                 )
@@ -192,7 +192,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                 ManaText.raw(
                   'Nothing was imported. ${outcome.errors.length} '
                   '${outcome.errors.length == 1 ? "row" : "rows"} need fixing:',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: ManaColors.statusBad),
                 ),

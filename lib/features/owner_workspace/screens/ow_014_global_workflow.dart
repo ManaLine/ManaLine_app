@@ -70,7 +70,7 @@ class _SelectTypeStep extends ConsumerWidget {
         for (final type in MemberType.values)
           Card(
             child: ListTile(
-              leading: const Icon(Icons.person_outline, color: ManaColors.brand),
+              leading: Icon(Icons.person_outline, color: ManaColors.brand),
               title: ManaText(type.label),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => ref.read(globalWorkflowProvider.notifier).selectType(type),
@@ -103,7 +103,7 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
         ManaText('search existing mlid', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         if (state.memberType != null)
-          ManaText.raw('Type: ${state.memberType!.label}', style: const TextStyle(color: ManaColors.textSecondary)),
+          ManaText.raw('Type: ${state.memberType!.label}', style: TextStyle(color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _mobileController,
@@ -111,7 +111,7 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
           decoration: const InputDecoration(labelText: 'Mobile Number'),
         ),
         const SizedBox(height: ManaSpacing.sm),
-        const ManaText.raw('— OR —', style: TextStyle(color: ManaColors.textSecondary), textAlign: TextAlign.center),
+        ManaText.raw('— OR —', style: TextStyle(color: ManaColors.textSecondary), textAlign: TextAlign.center),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _mlidController,
@@ -132,7 +132,7 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
         ),
         if (state.error != null) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw(state.error!, style: const TextStyle(color: ManaColors.statusBad)),
+          ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
         ],
       ],
     );
@@ -157,7 +157,7 @@ class _FoundStep extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.md),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.check_circle, color: ManaColors.statusGood),
+            leading: Icon(Icons.check_circle, color: ManaColors.statusGood),
             title: ManaText.raw(result.fullName),
             subtitle: ManaText.raw('MLID: ${result.mlid}${result.mobileNumber != null ? ' · ${result.mobileNumber}' : ''}'),
           ),
@@ -292,14 +292,14 @@ class _IncompleteStep extends StatelessWidget {
             Container(
               width: 10,
               height: 10,
-              decoration: const BoxDecoration(color: ManaColors.statusBad, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: ManaColors.statusBad, shape: BoxShape.circle),
             ),
             const SizedBox(width: ManaSpacing.sm),
             ManaText('incomplete profile', style: Theme.of(context).textTheme.headlineMedium),
           ],
         ),
         const SizedBox(height: ManaSpacing.md),
-        const ManaText.raw(
+        ManaText.raw(
           'This member exists as an internal record only, usable for manual/offline collection and '
           'record-keeping. Cannot receive SMS, receive OTP, accept agreements, or request online '
           'services until profile completion.',
@@ -326,7 +326,7 @@ class _IncompleteStep extends StatelessWidget {
         ),
         if (!_canOpen) ...[
           const SizedBox(height: ManaSpacing.sm),
-          const ManaText.raw(
+          ManaText.raw(
             'No member selected — create or select a member first.',
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
           ),

@@ -90,7 +90,7 @@ class _SearchAndResults extends ConsumerWidget {
           const SizedBox(height: ManaSpacing.lg),
           Expanded(
             child: state.phase == DiscoveryPhase.search
-                ? const Center(
+                ? Center(
                     child: ManaText.raw(
                       'Search for a Business to request Investor membership.',
                       textAlign: TextAlign.center,
@@ -98,7 +98,7 @@ class _SearchAndResults extends ConsumerWidget {
                     ),
                   )
                 : state.results.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: ManaText.raw('No businesses matched your search.',
                             style: TextStyle(color: ManaColors.textSecondary)),
                       )
@@ -125,12 +125,12 @@ class _BusinessResultCard extends ConsumerWidget {
         leading: CircleAvatar(
           backgroundColor: ManaColors.inkFaint,
           backgroundImage: business.logoUrl != null ? NetworkImage(business.logoUrl!) : null,
-          child: business.logoUrl == null ? const Icon(Icons.storefront, color: ManaColors.textSecondary) : null,
+          child: business.logoUrl == null ? Icon(Icons.storefront, color: ManaColors.textSecondary) : null,
         ),
         title: ManaText.raw(business.businessName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
           '${business.mlbi}${business.operatingAreas.isNotEmpty ? ' · ${business.operatingAreas.join(', ')}' : ''}',
-          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         trailing: ManaStatusPill(
           label: business.acceptingNewInvestors ? 'Active' : 'Not Accepting New Investors',
@@ -333,7 +333,7 @@ class _ResultState extends StatelessWidget {
             const SizedBox(height: ManaSpacing.md),
             ManaText(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(body, textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.textSecondary)),
+            ManaText.raw(body, textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(onPressed: onPrimary, child: ManaText(primaryLabel)),
           ],

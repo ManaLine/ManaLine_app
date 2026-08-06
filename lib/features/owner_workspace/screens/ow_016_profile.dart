@@ -184,7 +184,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       child: ManaText.raw(_error ?? 'Could not load profile.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: ManaColors.statusBad)),
+                          style: TextStyle(color: ManaColors.statusBad)),
                     ),
                   )
                 : RefreshIndicator(
@@ -221,9 +221,9 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                               fontWeight: FontWeight.bold, fontSize: 16)),
                       const SizedBox(height: ManaSpacing.sm),
                       if (_businesses.isEmpty)
-                        const Padding(
+                        Padding(
                           padding:
-                              EdgeInsets.symmetric(vertical: ManaSpacing.lg),
+                              const EdgeInsets.symmetric(vertical: ManaSpacing.lg),
                           child: ManaText.raw('No businesses found.',
                               style:
                                   TextStyle(color: ManaColors.textSecondary)),
@@ -248,9 +248,9 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                           ref.read(authFlowProvider.notifier).reset();
                           context.go('/lr-003');
                         },
-                        icon: const Icon(Icons.logout,
+                        icon: Icon(Icons.logout,
                             color: ManaColors.statusBad),
-                        label: const ManaText.raw('logout',
+                        label: ManaText.raw('logout',
                             style: TextStyle(color: ManaColors.statusBad)),
                       ),
                     ],
@@ -311,18 +311,18 @@ class _IdentityCard extends StatelessWidget {
                     ),
                     Container(
                       padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: ManaColors.brandDeep,
                         shape: BoxShape.circle,
                       ),
                       child: savingPhoto
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 12,
                               height: 12,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: ManaColors.textOnDark),
                             )
-                          : const Icon(Icons.photo_camera,
+                          : Icon(Icons.photo_camera,
                               size: 12, color: ManaColors.textOnDark),
                     ),
                   ],
@@ -338,10 +338,10 @@ class _IdentityCard extends StatelessWidget {
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 16)),
                   ManaText.raw(person['mlid'] as String? ?? '',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: ManaColors.textSecondary, fontSize: 13)),
                   ManaText.raw(person['mobile_number'] as String? ?? '',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: ManaColors.textSecondary, fontSize: 13)),
                 ],
               ),
@@ -360,8 +360,8 @@ class _AddressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (address == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: ManaSpacing.md),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.md),
         child: ManaText.raw('No address on file.',
             style: TextStyle(color: ManaColors.textSecondary)),
       );
@@ -674,7 +674,7 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                 const SizedBox(height: 6),
                 ManaText.raw(
                   'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13, color: ManaColors.textSecondary),
                 ),
               ],

@@ -34,11 +34,11 @@ class _ErrorBanner extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+            Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load data'),
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+            ManaText.raw(message, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
             const SizedBox(height: ManaSpacing.sm),
             ElevatedButton(onPressed: onRetry, child: const ManaText('retry')),
           ],
@@ -116,7 +116,7 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
               : state.businesses.isEmpty
                   ? ListView(
                       padding: const EdgeInsets.all(ManaSpacing.xxl),
-                      children: const [
+                      children: [
                         Center(
                           child: ManaText.raw(
                             'No businesses yet. Tap "Create Business" to get started.',
@@ -171,7 +171,7 @@ class _BusinessSummaryCard extends StatelessWidget {
                     backgroundColor: ManaColors.inkFaint,
                     backgroundImage: business.logoUrl != null ? NetworkImage(business.logoUrl!) : null,
                     child: business.logoUrl == null
-                        ? const Icon(Icons.storefront, color: ManaColors.textSecondary)
+                        ? Icon(Icons.storefront, color: ManaColors.textSecondary)
                         : null,
                   ),
                   const SizedBox(width: ManaSpacing.md),
@@ -182,7 +182,7 @@ class _BusinessSummaryCard extends StatelessWidget {
                         ManaText.raw(business.businessName,
                             style: Theme.of(context).textTheme.titleLarge),
                         ManaText.raw(business.mlbi,
-                            style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                            style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -220,7 +220,7 @@ class _StatChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: ManaColors.textSecondary),
         const SizedBox(width: 4),
-        ManaText.raw(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+        ManaText.raw(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
       ],
     );
   }
@@ -324,7 +324,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            const ManaText.raw(
+            ManaText.raw(
               'This is the same Create Business step covered in first-time setup — '
               'use it here to add another business, or to start one you skipped earlier.',
               style: TextStyle(color: ManaColors.textSecondary),
@@ -338,7 +338,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
                   backgroundColor: ManaColors.surfaceSunken,
                   backgroundImage: _logoBytes != null ? MemoryImage(_logoBytes!) : null,
                   child: _logoBytes == null
-                      ? const Icon(Icons.add_a_photo_outlined, color: ManaColors.textSecondary)
+                      ? Icon(Icons.add_a_photo_outlined, color: ManaColors.textSecondary)
                       : null,
                 ),
               ),
@@ -693,7 +693,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText.raw(
+        ManaText.raw(
           'An operating area is one round, covering as many villages as the '
           'round actually walks. Name it, add its first village here, then '
           'attach the rest from the area itself.',
@@ -748,7 +748,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
         const ManaText('current operating areas', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         if (areas.isEmpty)
-          const ManaText.raw('No Operating Areas yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw('No Operating Areas yet.', style: TextStyle(color: ManaColors.textSecondary))
         else
           ...areas.map((a) => Card(
                 child: Column(
@@ -781,7 +781,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                           const PopupMenuItem(value: 'rename', child: ManaText('rename area')),
                           const PopupMenuItem(value: 'village', child: ManaText('add village')),
                           const PopupMenuDivider(),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'remove',
                             child: ManaText.raw('remove area',
                                 style: TextStyle(color: ManaColors.statusBad)),
@@ -912,11 +912,11 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
             ),
             if (search.searching) const Center(child: CircularProgressIndicator()),
             if (!search.searching && search.matches.isEmpty && _pinCode.text.trim().length == 6)
-              const ManaText.raw('No villages found for that PIN.',
+              ManaText.raw('No villages found for that PIN.',
                   style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             ...search.matches.map((m) => ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.location_on_outlined, color: ManaColors.brand),
+                  leading: Icon(Icons.location_on_outlined, color: ManaColors.brand),
                   title: ManaText.raw('${m.villageTownName} — ${m.pinCode}'),
                   onTap: () {
                     ref.read(operatingAreaSearchProvider.notifier).reset();
@@ -958,7 +958,7 @@ class _AssignAgentSheet extends StatelessWidget {
                 ManaText.raw(area.name,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ManaText.raw(area.villagesLabel,
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ),
           ),
@@ -966,8 +966,8 @@ class _AssignAgentSheet extends StatelessWidget {
           // round may be shared (GLOBAL BR-065), so taking one person off
           // must not disturb the others.
           if (!area.isUnassigned) ...[
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
                   ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.xs),
               child: ManaText('working this round',
                   style: TextStyle(
@@ -985,16 +985,16 @@ class _AssignAgentSheet extends StatelessWidget {
                 )),
             const Divider(height: 1),
           ],
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
                 ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.xs),
             child: ManaText('add an agent',
                 style: TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
           ),
           if (agents.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(ManaSpacing.lg),
+            Padding(
+              padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw(
                   'No Active agents in this business yet — add one from Workforce Management first. '
                   'If you work this round yourself, add yourself as an agent.',
@@ -1123,7 +1123,7 @@ class _AgreementsTabState extends ConsumerState<_AgreementsTab> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText.raw(
+        ManaText.raw(
           'Business Agreements are business-specific — a multi-business Owner '
           'sets these independently per MLBI; they do not carry over.',
           style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
@@ -1136,11 +1136,11 @@ class _AgreementsTabState extends ConsumerState<_AgreementsTab> {
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (agreements.isEmpty)
-          const ManaText.raw('No agreements created yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw('No agreements created yet.', style: TextStyle(color: ManaColors.textSecondary))
         else
           ...agreements.map((a) => Card(
                 child: ListTile(
-                  leading: const Icon(Icons.description_outlined, color: ManaColors.ink),
+                  leading: Icon(Icons.description_outlined, color: ManaColors.ink),
                   title: ManaText.raw('${a.agreementType} Agreement · v${a.version}'),
                   subtitle: ManaText.raw('${a.sourceType} · effective ${a.effectiveDate}'),
                 ),
@@ -1343,11 +1343,11 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.close, color: ManaColors.statusBad),
+                        icon: Icon(Icons.close, color: ManaColors.statusBad),
                         onPressed: () => _decideInvestorRequest(r, false),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.check, color: ManaColors.statusGood),
+                        icon: Icon(Icons.check, color: ManaColors.statusGood),
                         onPressed: () => _decideInvestorRequest(r, true),
                       ),
                     ],
@@ -1368,7 +1368,7 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         ],
         const ManaText('active members', style: TextStyle(fontWeight: FontWeight.bold)),
         if (active.isEmpty)
-          const ManaText.raw('No active members yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw('No active members yet.', style: TextStyle(color: ManaColors.textSecondary))
         else
           ...active.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
       ],
@@ -1480,7 +1480,7 @@ class _AccountPeriodsEmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xl),
       child: Column(
         children: [
-          const Icon(Icons.event_note_outlined, size: 40, color: ManaColors.textSecondary),
+          Icon(Icons.event_note_outlined, size: 40, color: ManaColors.textSecondary),
           const SizedBox(height: ManaSpacing.md),
           ManaText.raw(headline,
               textAlign: TextAlign.center,
@@ -1488,7 +1488,7 @@ class _AccountPeriodsEmptyState extends StatelessWidget {
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(detail,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           const SizedBox(height: ManaSpacing.lg),
           FilledButton.tonalIcon(
             // Same DefaultTabController this tab is already inside, so this

@@ -60,9 +60,9 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
     if (!state.loading && state.customers.isEmpty && state.error == null && !state.permissions.canViewCustomers) {
       return Scaffold(
         appBar: AppBar(title: const ManaText('customer management')),
-        body: const Center(
+        body: Center(
           child: Padding(
-            padding: EdgeInsets.all(ManaSpacing.lg),
+            padding: const EdgeInsets.all(ManaSpacing.lg),
             child: ManaText.raw(
               'You do not have permission to view customers on this business.',
               textAlign: TextAlign.center,
@@ -106,8 +106,8 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
                     _FilterChips(state: state),
                     const SizedBox(height: ManaSpacing.md),
                     if (state.filtered.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
                           child: ManaText.raw('No assigned customers match this view.',
                               style: TextStyle(color: ManaColors.textSecondary)),
@@ -206,7 +206,7 @@ class _CustomerRow extends StatelessWidget {
         ),
         subtitle: ManaText.raw(
           '${customer.fatherHusbandName} · ${customer.village} · LRI ${customer.lineRepaymentIndex}',
-          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -216,7 +216,7 @@ class _CustomerRow extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             if (customer.todaysDue > 0)
               ManaText.raw('Due ${_currency.format(customer.todaysDue)}',
-                  style: const TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
+                  style: TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
           ],
         ),
         onTap: onTap,
@@ -443,7 +443,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                   if (selectedVillageLabel != null) ...[
                     const SizedBox(height: ManaSpacing.xs),
                     ManaText.raw('Selected: $selectedVillageLabel',
-                        style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   ],
                   const SizedBox(height: ManaSpacing.lg),
                   ElevatedButton(
@@ -487,7 +487,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
               for (final type in AgentDocumentType.values)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.description_outlined, color: ManaColors.brand),
+                  leading: Icon(Icons.description_outlined, color: ManaColors.brand),
                   title: ManaText(type.displayLabel),
                   onTap: () => Navigator.of(sheetContext).pop(type),
                 ),
@@ -519,7 +519,7 @@ class _SummaryTab extends StatelessWidget {
         const Center(child: ManaVerificationRing(isVerified: true, size: 72)),
         const SizedBox(height: ManaSpacing.md),
         Center(child: ManaText.raw(s.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-        Center(child: ManaText.raw(s.mlid, style: const TextStyle(color: ManaColors.textSecondary))),
+        Center(child: ManaText.raw(s.mlid, style: TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
         _row('Village', s.village),
         _row('Phone', s.phoneNumber),
@@ -528,7 +528,7 @@ class _SummaryTab extends StatelessWidget {
         _row('Outstanding', _currency.format(s.outstandingBalance)),
         _row("Today's Due", _currency.format(s.todaysDue)),
         const SizedBox(height: ManaSpacing.md),
-        const ManaText.raw(
+        ManaText.raw(
           'Outstanding, Today\'s Due, and loan figures are read-only here — '
           'collection and loan-issue writes only happen via Collection Mode / Loan Distribution.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -541,7 +541,7 @@ class _SummaryTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
@@ -556,7 +556,7 @@ class _LoanInformationTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (profile.loans.isEmpty) {
-      return const Center(child: ManaText.raw('No loans yet.', style: TextStyle(color: ManaColors.textSecondary)));
+      return Center(child: ManaText.raw('No loans yet.', style: TextStyle(color: ManaColors.textSecondary)));
     }
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -598,7 +598,7 @@ class _LoanInformationTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
@@ -614,18 +614,18 @@ class _CollectionHistoryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (profile.collections.isEmpty) {
-      return const Center(
+      return Center(
           child: ManaText.raw('No collections yet.', style: TextStyle(color: ManaColors.textSecondary)));
     }
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: profile.collections
           .map((c) => ListTile(
-                leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
+                leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
                 title: ManaText.raw(_currency.format(c.amount)),
                 subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
                 trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),
-                    style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
               ))
           .toList(),
     );
@@ -685,7 +685,7 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
           child: ListView(
             padding: const EdgeInsets.all(ManaSpacing.lg),
             children: widget.profile.remarks.isEmpty
-                ? const [ManaText.raw('No remarks yet.', style: TextStyle(color: ManaColors.textSecondary))]
+                ? [ManaText.raw('No remarks yet.', style: TextStyle(color: ManaColors.textSecondary))]
                 : widget.profile.remarks
                     .map((r) => Card(
                           child: ListTile(

@@ -145,7 +145,7 @@ class _CustomerHomeDashboardScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off,
+            Icon(Icons.cloud_off,
                 size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load dashboard'),
@@ -156,7 +156,7 @@ class _CustomerHomeDashboardScreenState
                 e.toString(),
                 textAlign: TextAlign.center,
                 style:
-                    const TextStyle(fontSize: 13, color: ManaColors.statusBad),
+                    TextStyle(fontSize: 13, color: ManaColors.statusBad),
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -205,7 +205,7 @@ class _Header extends StatelessWidget {
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 18)),
               ManaText.raw(customerName,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: ManaColors.textSecondary, fontSize: 13)),
             ],
           ),
@@ -364,13 +364,13 @@ class _NoMembershipsState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.storefront_outlined,
+            Icon(Icons.storefront_outlined,
                 size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('no business memberships yet',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
-            const ManaText.raw(
+            ManaText.raw(
               'Find a Business to request Customer membership. Once the '
               'Owner or Agent approves, it will appear here.',
               textAlign: TextAlign.center,

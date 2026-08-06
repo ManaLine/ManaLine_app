@@ -96,7 +96,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                     Padding(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       child: ManaText.raw('Could not load loan requests.\n${snapshot.error}',
-                          textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                          textAlign: TextAlign.center, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                     ),
                   ],
                 );
@@ -105,7 +105,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
               if (requests.isEmpty) {
                 return ListView(
                   padding: const EdgeInsets.all(ManaSpacing.xxl),
-                  children: const [
+                  children: [
                     Center(
                       child: ManaText.raw('No pending loan requests.', style: TextStyle(color: ManaColors.textSecondary)),
                     ),
@@ -133,14 +133,14 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                                   ],
                                 ),
                                 ManaText.raw(r.customerMlid,
-                                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                                 if (r.purposeRemark != null && r.purposeRemark!.isNotEmpty) ...[
                                   const SizedBox(height: ManaSpacing.xs),
                                   ManaText.raw(r.purposeRemark!, style: const TextStyle(fontSize: 13)),
                                 ],
                                 const SizedBox(height: ManaSpacing.xs),
                                 ManaText.raw('Requested ${DateFormat('d MMM yyyy').format(r.createdAt)}',
-                                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                                 const SizedBox(height: ManaSpacing.sm),
                                 Row(
                                   children: [

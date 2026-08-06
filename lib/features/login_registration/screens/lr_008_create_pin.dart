@@ -227,7 +227,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.fingerprint, size: 56, color: ManaColors.brand),
+        Icon(Icons.fingerprint, size: 56, color: ManaColors.brand),
         const SizedBox(height: ManaSpacing.md),
         ManaText.raw(ref.t('enable_biometric_q'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.xl),

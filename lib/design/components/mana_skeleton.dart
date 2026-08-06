@@ -176,7 +176,7 @@ class ManaSkeleton extends StatelessWidget {
           shaderCallback: (bounds) => LinearGradient(
             begin: Alignment(-1.0 - 2.0 * (1 - t), 0),
             end: Alignment(1.0 - 2.0 * (1 - t), 0),
-            colors: const [
+            colors: [
               ManaColors.surfaceSunken,
               ManaColors.inkFaint,
               ManaColors.surfaceSunken,

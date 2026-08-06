@@ -52,14 +52,14 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                   children: [
                     _SummaryStrip(state: state),
                     const SizedBox(height: ManaSpacing.xs),
-                    const ManaText.raw(
+                    ManaText.raw(
                       'Sorted by: penalty → grace period → today\'s due → village → name',
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
                     if (state.sorted.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
                           child: ManaText.raw('Nobody due today.',
                               style: TextStyle(color: ManaColors.textSecondary)),
@@ -138,7 +138,7 @@ class _DueRow extends StatelessWidget {
           ],
         ),
         subtitle: ManaText.raw('${row.village} · ${row.loanNumber}',
-            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -146,7 +146,7 @@ class _DueRow extends StatelessWidget {
             ManaText.raw(_currency.format(row.installmentDue),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ManaText.raw('LRI ${row.lineRepaymentIndex}',
-                style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ],
         ),
         onTap: onTap,
@@ -233,7 +233,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
@@ -569,7 +569,7 @@ class _ExtensionFormState extends ConsumerState<_ExtensionForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText.raw(
+        ManaText.raw(
           'Customer is requesting more time on this loan. Approving updates Grace '
           'Status and writes an audit entry; rejecting makes no change and is not audited.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),

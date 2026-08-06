@@ -207,7 +207,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
                 child: ManaText.raw(
                   'Could not load this profile.\n${snapshot.error}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: ManaColors.statusBad, fontSize: 13),
+                  style: TextStyle(color: ManaColors.statusBad, fontSize: 13),
                 ),
               );
             }
@@ -217,7 +217,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
               children: [
                 ManaText.raw(c.fullName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
                 ManaText.raw('${c.mlid} · ${c.profileStatus}',
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                 const SizedBox(height: ManaSpacing.lg),
                 const ManaText('owner captured', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: ManaSpacing.sm),
@@ -252,7 +252,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
                 const SizedBox(height: ManaSpacing.lg),
                 const ManaText('member completes these', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: ManaSpacing.xs),
-                const ManaText.raw(
+                ManaText.raw(
                   'These cannot be done on the member\'s behalf — the credential is theirs to set and the '
                   'OTP goes to their phone.',
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -279,7 +279,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
                 ),
                 if (!c.ownerStepsDone) ...[
                   const SizedBox(height: ManaSpacing.sm),
-                  const ManaText.raw(
+                  ManaText.raw(
                     'Photo, address and at least one identity document are required first.',
                     style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                   ),
@@ -317,7 +317,7 @@ class _StepTile extends StatelessWidget {
         title: ManaText.raw(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(subtitle, style: const TextStyle(fontSize: 13)),
         trailing: done
-            ? const Icon(Icons.check_circle, color: ManaColors.statusGood, size: 20)
+            ? Icon(Icons.check_circle, color: ManaColors.statusGood, size: 20)
             : (onTap == null ? null : const Icon(Icons.chevron_right)),
         onTap: onTap,
       ),
@@ -570,7 +570,7 @@ class _AddressDialogState extends State<_AddressDialog> {
                 ManaText.raw(
                   'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, '
                   '${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
-                  style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
               ],
             ],
@@ -637,7 +637,7 @@ class _ContactDialogState extends State<_ContactDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText.raw(
+            ManaText.raw(
               'Blank fields are left unchanged.',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),

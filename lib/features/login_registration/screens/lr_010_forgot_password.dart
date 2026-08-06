@@ -239,7 +239,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         if (_otpError != null) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw(_otpError!, style: const TextStyle(color: ManaColors.statusBad),
+          ManaText.raw(_otpError!, style: TextStyle(color: ManaColors.statusBad),
               textAlign: TextAlign.center),
         ],
         const SizedBox(height: ManaSpacing.lg),

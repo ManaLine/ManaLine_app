@@ -84,7 +84,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
             const ManaText('export to excel',
                 style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: ManaSpacing.sm),
-            const ManaText.raw(
+            ManaText.raw(
               'Creates a spreadsheet of your customers, loans, collections, '
               'expenses, investments and daily ledger. Deleted records are '
               'not included.',
@@ -124,7 +124,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                   'Some sheets were too large and were cut to '
                   '${BackupExportService.maxRowsPerSheet} rows: '
                   '${r.truncatedSheets.join(", ")}. This backup is incomplete.',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13, color: ManaColors.statusBad),
                 ),
               ],

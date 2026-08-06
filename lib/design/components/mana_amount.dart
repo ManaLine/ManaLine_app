@@ -198,7 +198,7 @@ class ManaAmountField extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             // 13sp floor — see the typography rationale. Labels were at 10sp.
             fontSize: 13,
             color: ManaColors.textSecondary,

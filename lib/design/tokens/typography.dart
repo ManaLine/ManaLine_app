@@ -25,7 +25,7 @@ class ManaTypography {
     final baseColor = brightness == Brightness.dark
         ? ManaColors.textOnDark
         : ManaColors.textPrimary;
-    const secondaryColor = ManaColors.textSecondary;
+    final secondaryColor = ManaColors.textSecondary;
 
     return TextTheme(
       // Headers — Manrope, heavier weights only, used with restraint

@@ -128,12 +128,12 @@ class _NotAllowedState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.block, size: 48, color: ManaColors.textSecondary),
+            Icon(Icons.block, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('not available for this business',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
-            const ManaText.raw(
+            ManaText.raw(
               'This Business does not currently accept Customer-initiated '
               'loan requests. Please speak with the Owner or Agent directly.',
               textAlign: TextAlign.center,
@@ -167,14 +167,14 @@ class _CooldownState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.hourglass_top, size: 48, color: ManaColors.statusWarn),
+            Icon(Icons.hourglass_top, size: 48, color: ManaColors.statusWarn),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('resubmission not available yet',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             if (state.lastResult?.rejectionReason != null) ...[
               ManaText.raw('Previous request rejected: ${state.lastResult!.rejectionReason}',
-                  textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.textSecondary)),
+                  textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
               const SizedBox(height: ManaSpacing.sm),
             ],
             ManaText.raw(
@@ -182,7 +182,7 @@ class _CooldownState extends StatelessWidget {
                   ? 'You may submit a new request to this Business after ${_dateFmt.format(cooldown.toLocal())}.'
                   : 'You may submit a new request to this Business after a 24-hour cooldown.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: ManaColors.textSecondary),
+              style: TextStyle(color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
@@ -209,7 +209,7 @@ class _TemplateSelectionStep extends ConsumerWidget {
       children: [
         const ManaText('select a loan template', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: ManaSpacing.sm),
-        const ManaText.raw(
+        ManaText.raw(
           'Choose a template, or request a custom amount.',
           style: TextStyle(color: ManaColors.textSecondary),
         ),
@@ -251,7 +251,7 @@ class _TemplateTile extends StatelessWidget {
         title: ManaText.raw(template.templateName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
           '${_currency.format(template.defaultAmount)} · ${template.durationValue} × ${template.repaymentFrequency}',
-          style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
         onTap: onTap,
       ),
@@ -273,7 +273,7 @@ class _CustomAmountTile extends StatelessWidget {
           color: selected ? ManaColors.brand : ManaColors.textSecondary,
         ),
         title: const ManaText('request custom amount'),
-        subtitle: const ManaText.raw(
+        subtitle: ManaText.raw(
           'Not tied to a template — enter your own amount and frequency.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
@@ -375,7 +375,7 @@ class _RequestDetailsStep extends ConsumerWidget {
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (state.error != null) ...[
-          ManaText.raw(state.error!, style: const TextStyle(color: ManaColors.statusBad)),
+          ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
           const SizedBox(height: ManaSpacing.sm),
         ],
         SizedBox(
@@ -428,7 +428,7 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+          ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
           Flexible(child: ManaText.raw(value, textAlign: TextAlign.right, style: const TextStyle(fontSize: 13))),
         ],
       ),
@@ -532,7 +532,7 @@ class _ResultState extends StatelessWidget {
             const SizedBox(height: ManaSpacing.md),
             ManaText(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(body, textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.textSecondary)),
+            ManaText.raw(body, textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(onPressed: onPrimary, child: ManaText(primaryLabel)),
           ],

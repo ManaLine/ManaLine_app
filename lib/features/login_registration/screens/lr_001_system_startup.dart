@@ -107,7 +107,7 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
                 excludeSemantics: true,
                 child: RichText(
                   textAlign: TextAlign.center,
-                  text: const TextSpan(
+                  text: TextSpan(
                     style: TextStyle(
                       color: ManaColors.textOnDark,
                       letterSpacing: 3,
@@ -115,7 +115,7 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                     children: [
-                      TextSpan(text: 'EVERY '),
+                      const TextSpan(text: 'EVERY '),
                       TextSpan(
                         text: '₹',
                         style: TextStyle(
@@ -125,16 +125,16 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
                           letterSpacing: 0,
                         ),
                       ),
-                      TextSpan(text: ' COUNTS'),
+                      const TextSpan(text: ' COUNTS'),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: ManaSpacing.xxl),
               if (_state == _StartupState.slowLoad) ...[
-                const CircularProgressIndicator(color: ManaColors.brand),
+                CircularProgressIndicator(color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.md),
-                const ManaText.raw('Loading...', style: TextStyle(color: ManaColors.textOnDark)),
+                ManaText.raw('Loading...', style: TextStyle(color: ManaColors.textOnDark)),
               ],
               if (_state == _StartupState.failure) _FailureCard(onRetry: () {
                 setState(() => _state = _StartupState.loading);
@@ -156,9 +156,9 @@ class _FailureCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Icon(Icons.wifi_off, color: ManaColors.statusBad, size: 32),
+        Icon(Icons.wifi_off, color: ManaColors.statusBad, size: 32),
         const SizedBox(height: ManaSpacing.sm),
-        const ManaText.raw(
+        ManaText.raw(
           'Unable to connect. Please check your internet connection and try again.',
           textAlign: TextAlign.center,
           style: TextStyle(color: ManaColors.textOnDark),

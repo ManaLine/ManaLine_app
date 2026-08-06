@@ -43,7 +43,7 @@ class _DesignShowcaseScreenState extends State<DesignShowcaseScreen> {
           const ManaText('color tokens',
               style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.sm),
-          const Wrap(
+          Wrap(
             spacing: ManaSpacing.sm,
             runSpacing: ManaSpacing.sm,
             children: [

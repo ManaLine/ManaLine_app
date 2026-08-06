@@ -227,7 +227,7 @@ class _ShellHeader extends StatelessWidget {
                         userName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: ManaColors.textOnDark,
@@ -238,7 +238,7 @@ class _ShellHeader extends StatelessWidget {
                           businessName!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             // Not a dimmed white — at 13sp on blue, opacity
                             // drops this under the contrast floor.
@@ -268,7 +268,7 @@ class _ShellHeader extends StatelessWidget {
                     '${manaDisplayDate(now)}  •  ${manaClock12(now)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       color: ManaColors.textOnDark,
                       height: 1.2,
@@ -369,7 +369,7 @@ class _ManaDrawer extends StatelessWidget {
                     userName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: ManaColors.textOnDark,
@@ -380,7 +380,7 @@ class _ManaDrawer extends StatelessWidget {
                       businessName!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         color: ManaColors.textOnDark,
                         height: 1.3,

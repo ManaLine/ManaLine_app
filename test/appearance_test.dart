@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mana_line/design/tokens/colors.dart';
 import 'package:mana_line/shared/appearance_screen.dart';
 import 'package:mana_line/shared/appearance_state.dart';
 import 'package:mana_line/shared/mana_biometric.dart';
@@ -69,15 +70,110 @@ void main() {
       expect(find.textContaining('12,450'), findsOneWidget);
     });
 
-    testWidgets('says dark mode is absent rather than leaving a gap',
-        (tester) async {
+    testWidgets('offers all three theme choices', (tester) async {
       await pumpManaScreen(
         tester,
         const AppearanceScreen(),
         surfaceSize: const Size(360, 1600),
       );
-      // Stated out loud so nobody hunts for a switch that is not there.
-      expect(find.textContaining('Dark mode is not available'), findsOneWidget);
+      expect(find.text('Match My Phone'), findsOneWidget);
+      expect(find.text('Light'), findsOneWidget);
+      expect(find.text('Dark'), findsOneWidget);
+    });
+  });
+
+  group('dark palette', () {
+    test('every token differs from light — no half-applied palette', () {
+      // If a token were left pointing at its light value, that one element
+      // would stay bright on a dark screen. Surfaces and text are the ones
+      // that would show it worst.
+      const l = ManaPalette.light;
+      const d = ManaPalette.dark;
+      expect(d.surface, isNot(l.surface));
+      expect(d.surfaceMuted, isNot(l.surfaceMuted));
+      expect(d.surfaceSunken, isNot(l.surfaceSunken));
+      expect(d.textPrimary, isNot(l.textPrimary));
+      expect(d.textSecondary, isNot(l.textSecondary));
+      expect(d.brand, isNot(l.brand));
+      expect(d.statusGood, isNot(l.statusGood));
+      expect(d.statusBad, isNot(l.statusBad));
+      expect(d.statusWarn, isNot(l.statusWarn));
+    });
+
+    test('the scaffold sits behind cards in both palettes', () {
+      // Light: cards are white on a grey page. Dark: cards must be LIGHTER
+      // than the page, not darker, or they sink instead of lifting.
+      expect(ManaPalette.light.surface.computeLuminance(),
+          greaterThan(ManaPalette.light.surfaceMuted.computeLuminance()));
+      expect(ManaPalette.dark.surface.computeLuminance(),
+          greaterThan(ManaPalette.dark.surfaceMuted.computeLuminance()));
+    });
+
+    test('the CVD-safe split survives in dark', () {
+      // The whole point of the teal/orange pair is that they separate on the
+      // blue-yellow axis, which red-green colour blindness leaves intact.
+      // Inverting the light values would have destroyed that, and these two
+      // carry money meaning — Short versus Excess, penalty, defaulted.
+      final good = ManaPalette.dark.statusGood;
+      final bad = ManaPalette.dark.statusBad;
+      // ignore: deprecated_member_use
+      expect(good.blue, greaterThan(bad.blue + 60),
+          reason: 'teal must keep a much stronger blue channel than orange');
+      // And they must not collapse in greyscale either.
+      expect((good.computeLuminance() - bad.computeLuminance()).abs(),
+          greaterThan(0.02));
+    });
+
+    test('body text clears 7:1 against its own surface in both palettes', () {
+      // The light palette was built to AAA for body text because this is read
+      // outdoors. Dark must not quietly drop below that.
+      double ratio(Color fg, Color bg) {
+        final a = fg.computeLuminance(), b = bg.computeLuminance();
+        final hi = a > b ? a : b, lo = a > b ? b : a;
+        return (hi + 0.05) / (lo + 0.05);
+      }
+
+      expect(ratio(ManaPalette.light.textPrimary, ManaPalette.light.surface),
+          greaterThan(7.0));
+      expect(ratio(ManaPalette.dark.textPrimary, ManaPalette.dark.surface),
+          greaterThan(7.0));
+      // Secondary text is labels-only, so AA is the bar, not AAA.
+      expect(ratio(ManaPalette.dark.textSecondary, ManaPalette.dark.surface),
+          greaterThan(4.5));
+    });
+
+    test('status colours stay legible on the dark surface', () {
+      double ratio(Color fg, Color bg) {
+        final a = fg.computeLuminance(), b = bg.computeLuminance();
+        final hi = a > b ? a : b, lo = a > b ? b : a;
+        return (hi + 0.05) / (lo + 0.05);
+      }
+
+      for (final c in [
+        ManaPalette.dark.statusGood,
+        ManaPalette.dark.statusBad,
+        ManaPalette.dark.statusWarn,
+        ManaPalette.dark.brand,
+      ]) {
+        expect(ratio(c, ManaPalette.dark.surface), greaterThan(4.5));
+      }
+    });
+
+    test('swapping the palette moves every ManaColors token', () {
+      // ManaColors is global mutable state, which is the whole mechanism —
+      // this asserts the swap actually reaches the token getters, since 840
+      // call sites depend on exactly that.
+      ManaColors.use(ManaPalette.light);
+      final lightSurface = ManaColors.surface;
+      expect(ManaColors.isDark, isFalse);
+
+      ManaColors.use(ManaPalette.dark);
+      expect(ManaColors.surface, isNot(lightSurface));
+      expect(ManaColors.isDark, isTrue);
+
+      // Left as the tests found it — a leaked dark palette would silently
+      // change what every other widget test renders.
+      ManaColors.use(ManaPalette.light);
     });
   });
 

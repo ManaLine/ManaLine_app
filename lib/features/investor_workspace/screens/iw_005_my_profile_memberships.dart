@@ -46,7 +46,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                       child: ManaText.raw(
                         state.error ?? 'Could not load profile.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: ManaColors.statusBad),
+                        style: TextStyle(color: ManaColors.statusBad),
                       ),
                     ),
                   )
@@ -65,8 +65,8 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                         ManaText('business memberships', style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: ManaSpacing.sm),
                         if (state.memberships.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: ManaSpacing.lg),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: ManaSpacing.lg),
                             child: ManaText.raw(
                               'No Business Memberships found.',
                               style: TextStyle(color: ManaColors.textSecondary),
@@ -240,8 +240,8 @@ class _FieldRow extends StatelessWidget {
           ),
         ),
         if (locked)
-          const Padding(
-            padding: EdgeInsets.only(top: 2),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
             child: Icon(Icons.lock_outline, size: 16, color: ManaColors.textDisabled),
           )
         else if (onEdit != null)
@@ -570,7 +570,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
             const SizedBox(height: 4),
             ManaText.raw(
               'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ],
         ],

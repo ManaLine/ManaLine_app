@@ -178,7 +178,7 @@ class _BusinessTransferScreenState
               padding: const EdgeInsets.all(ManaSpacing.xl),
               child: ManaText.raw('$e',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13, color: ManaColors.statusBad)),
             ),
           ),
@@ -225,7 +225,7 @@ class _BusinessTransferScreenState
                   const ManaText('hand this business to someone',
                       style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: ManaSpacing.xs),
-                  const ManaText.raw(
+                  ManaText.raw(
                     'They have to accept before anything moves. Settle your own '
                     'agent cash and review any waiting settlements first.',
                     style: TextStyle(
@@ -248,7 +248,7 @@ class _BusinessTransferScreenState
                   if (_lookupError != null) ...[
                     const SizedBox(height: ManaSpacing.sm),
                     ManaText.raw(_lookupError!,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13, color: ManaColors.statusBad)),
                   ],
                   if (_found != null) ...[
@@ -334,7 +334,7 @@ class _OfferCard extends StatelessWidget {
           ManaText.raw(transfer.businessName,
               style: const TextStyle(fontWeight: FontWeight.w700)),
           ManaText.raw(transfer.mlbi,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13, color: ManaColors.textSecondary)),
           const SizedBox(height: ManaSpacing.xs),
           ManaText.raw(
@@ -346,7 +346,7 @@ class _OfferCard extends StatelessWidget {
           if (transfer.note != null && transfer.note!.isNotEmpty) ...[
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw('"${transfer.note}"',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13, color: ManaColors.textSecondary)),
           ],
           const SizedBox(height: ManaSpacing.sm),

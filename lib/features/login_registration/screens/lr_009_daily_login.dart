@@ -303,7 +303,7 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               if (_error != null) ...[
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw(_error!,
-                    style: const TextStyle(color: ManaColors.statusBad)),
+                    style: TextStyle(color: ManaColors.statusBad)),
               ],
               const SizedBox(height: ManaSpacing.xl),
               _numberPad(),

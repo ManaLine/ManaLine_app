@@ -77,9 +77,9 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
               ? const ManaSkeletonList(itemHeight: 220)
               : state.rows.isEmpty
                   ? ListView(
-                      children: const [
+                      children: [
                         Padding(
-                          padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                          padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                           child: Center(
                             child: ManaText.raw('No business days recorded yet.',
                                 style: TextStyle(color: ManaColors.textSecondary)),
@@ -178,7 +178,7 @@ class _LedgerRowCard extends StatelessWidget {
               if (row.remarks != null && row.remarks!.isNotEmpty) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(row.remarks!,
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ],
           ),
@@ -191,7 +191,7 @@ class _LedgerRowCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+        ManaText(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ManaText.raw(
           _currency.format(amount),
           style: TextStyle(
@@ -260,8 +260,8 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                 ),
               ),
               if (widget.row.isClosed)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: ManaSpacing.lg, vertical: ManaSpacing.xs),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.lg, vertical: ManaSpacing.xs),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: ManaText.raw(
@@ -291,7 +291,7 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                     : state.detailError != null
                         ? Center(
                             child: ManaText.raw(state.detailError!,
-                                style: const TextStyle(color: ManaColors.statusBad)),
+                                style: TextStyle(color: ManaColors.statusBad)),
                           )
                         : detail == null
                             ? const SizedBox.shrink()
@@ -413,7 +413,7 @@ class _EntryList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (entries.isEmpty) {
       return Center(
-        child: ManaText.raw(emptyLabel, style: const TextStyle(color: ManaColors.textSecondary)),
+        child: ManaText.raw(emptyLabel, style: TextStyle(color: ManaColors.textSecondary)),
       );
     }
     return ListView.separated(
@@ -438,7 +438,7 @@ class _EntryList extends ConsumerWidget {
             runSpacing: ManaSpacing.xs,
             children: [
               ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.timestamp),
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13, color: ManaColors.textSecondary)),
               ManaText.raw(_currency.format(e.amount),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -493,7 +493,7 @@ class _AuditList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) {
-      return const Center(
+      return Center(
         child: ManaText.raw('No administrative/security events this day.',
             style: TextStyle(color: ManaColors.textSecondary)),
       );
@@ -508,9 +508,9 @@ class _AuditList extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           title: ManaText(e.actionType),
           subtitle: ManaText.raw('${e.entityType} · ${e.entityId}',
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           trailing: ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.entryTimestamp),
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         );
       },
     );

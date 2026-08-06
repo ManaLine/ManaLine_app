@@ -180,7 +180,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: ManaSpacing.md),
-                ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad),
+                ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad),
                     textAlign: TextAlign.center),
               ],
               const SizedBox(height: ManaSpacing.lg),

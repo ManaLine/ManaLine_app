@@ -68,13 +68,13 @@ class _ErrorBanner extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.xl),
       children: [
-        const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+        Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
         const SizedBox(height: ManaSpacing.md),
         const Center(child: ManaText('could not load data')),
         const SizedBox(height: ManaSpacing.sm),
         ManaText.raw(message,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+            style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
         const SizedBox(height: ManaSpacing.sm),
         Center(child: ElevatedButton(onPressed: onRetry, child: const ManaText('retry'))),
       ],
@@ -107,8 +107,8 @@ class _AccountReviewTab extends ConsumerWidget {
                 if (state.bfPanel != null) _OwnerBfPanel(data: state.bfPanel!),
                 const SizedBox(height: ManaSpacing.md),
                 if (state.settlements.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                     child: Center(
                       child: ManaText.raw('No accounts pending review.',
                           style: TextStyle(color: ManaColors.textSecondary)),
@@ -143,7 +143,7 @@ class _OwnerBfPanel extends StatelessWidget {
             const Divider(),
             _bfRow('Owner BF, current', data.ownerBfCurrent, emphasize: true),
             const SizedBox(height: 4),
-            const ManaText.raw(
+            ManaText.raw(
               'Provisional until each pending account is Approved.',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
@@ -201,7 +201,7 @@ class _SettlementCard extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ManaText.raw(_dateFmt.format(settlement.businessDate),
-                    style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                 ManaStatusPill(label: settlement.status, status: _statusKind),
               ],
             ),
@@ -229,7 +229,7 @@ class _SettlementCard extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: ManaText.raw(breakdown.join(' / '),
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
@@ -363,7 +363,7 @@ class _SettlementDetailSheet extends StatelessWidget {
           ManaText.raw(detail.summary.agentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           const SizedBox(height: ManaSpacing.md),
           if (detail.adjustments.isEmpty)
-            const ManaText.raw('No Short/Excess adjustments.', style: TextStyle(color: ManaColors.textSecondary))
+            ManaText.raw('No Short/Excess adjustments.', style: TextStyle(color: ManaColors.textSecondary))
           else
             ...detail.adjustments.map((a) => ListTile(
                   dense: true,
@@ -391,14 +391,14 @@ class _DailyAllowanceTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText.raw(
+        ManaText.raw(
           'Tracking/visibility only — no linkage to Payable Salary or any figure elsewhere on this screen.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         if (state.accessDays.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
             child: Center(
               child: ManaText.raw('No access days granted this session.',
                   style: TextStyle(color: ManaColors.textSecondary)),

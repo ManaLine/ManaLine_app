@@ -164,19 +164,19 @@ class _PreCheckBlocked extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const Icon(Icons.block, color: ManaColors.statusBad, size: 40),
+        Icon(Icons.block, color: ManaColors.statusBad, size: 40),
         const SizedBox(height: ManaSpacing.sm),
         Text('Day Closure Cannot Start',
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw(
+        ManaText.raw(
           'The following items must be resolved before Cash Verification can open.',
           style: TextStyle(color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         ...state.blockingIssues.map((issue) => Card(
               child: ListTile(
-                leading: const Icon(Icons.error_outline,
+                leading: Icon(Icons.error_outline,
                     color: ManaColors.statusBad),
                 title: ManaText.raw(issue.type),
                 subtitle: ManaText.raw('${issue.count} item(s) outstanding'),
@@ -196,7 +196,7 @@ class _PreCheckBlocked extends StatelessWidget {
           ...state.warnings.map((w) => Card(
                 color: ManaColors.statusWarnFaint,
                 child: ListTile(
-                  leading: const Icon(Icons.warning_amber,
+                  leading: Icon(Icons.warning_amber,
                       color: ManaColors.statusWarn),
                   title: ManaText.raw(w.type),
                   subtitle: ManaText.raw('${w.count} item(s)'),
@@ -248,7 +248,7 @@ class _CashVerificationState extends ConsumerState<_CashVerification> {
         Text('Cash Verification',
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw(
+        ManaText.raw(
           'Enter the physical count — actual on-hand — for each payment method.',
           style: TextStyle(color: ManaColors.textSecondary),
         ),
@@ -318,7 +318,7 @@ class _ExpectedRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           ManaText.raw(label,
-              style: const TextStyle(color: ManaColors.textSecondary)),
+              style: TextStyle(color: ManaColors.textSecondary)),
           Text(_currency.format(value),
               style: Theme.of(context).textTheme.bodyMedium),
         ],
@@ -366,7 +366,7 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const Icon(Icons.sync_problem, color: ManaColors.statusWarn, size: 36),
+        Icon(Icons.sync_problem, color: ManaColors.statusWarn, size: 36),
         const SizedBox(height: ManaSpacing.sm),
         Text('Difference Found',
             style: Theme.of(context).textTheme.headlineMedium),
@@ -399,7 +399,7 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
               ),
             )),
         const SizedBox(height: ManaSpacing.lg),
-        const ManaText.raw(
+        ManaText.raw(
           'Owner must resolve — correct a mis-entered Actual figure above, or '
           'record a Short/Excess adjustment, then Recalculate.',
           style: TextStyle(color: ManaColors.textSecondary),
@@ -707,14 +707,14 @@ class _ClosedReceipt extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const Icon(Icons.lock, color: ManaColors.statusGood, size: 36),
+        Icon(Icons.lock, color: ManaColors.statusGood, size: 36),
         const SizedBox(height: ManaSpacing.sm),
         Text('Business Day Closed',
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
             '${detail.businessDate} · Closed by ${detail.closedByName}',
-            style: const TextStyle(color: ManaColors.textSecondary)),
+            style: TextStyle(color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         _SummaryRow(label: 'Opening Balance', value: detail.openingBalance),
         _SummaryRow(label: 'Collections', value: detail.collections),
@@ -731,7 +731,7 @@ class _ClosedReceipt extends ConsumerWidget {
         if (detail.remarks != null) ...[
           const SizedBox(height: ManaSpacing.md),
           ManaText.raw('Remarks: ${detail.remarks}',
-              style: const TextStyle(color: ManaColors.textSecondary)),
+              style: TextStyle(color: ManaColors.textSecondary)),
         ],
         if (detail.isReopened) ...[
           const SizedBox(height: ManaSpacing.md),
@@ -741,7 +741,7 @@ class _ClosedReceipt extends ConsumerWidget {
               padding: const EdgeInsets.all(ManaSpacing.md),
               child: ManaText.raw(
                 'Reopened ${detail.reopenedAt} — Reason: ${detail.reopenReason}',
-                style: const TextStyle(color: ManaColors.statusWarn),
+                style: TextStyle(color: ManaColors.statusWarn),
               ),
             ),
           ),
@@ -765,7 +765,7 @@ class _ClosedReceipt extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText.raw(
+            ManaText.raw(
               'Reason is mandatory and this action always writes an audit entry. '
               'Reopening unlocks new adjustment entries only — existing entries '
               'for this date cannot be edited.',
@@ -815,11 +815,11 @@ class _ReopenedAwaitingCloseAgain extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const Icon(Icons.lock_open, color: ManaColors.statusWarn, size: 36),
+        Icon(Icons.lock_open, color: ManaColors.statusWarn, size: 36),
         const SizedBox(height: ManaSpacing.sm),
         Text('Day Reopened', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        const ManaText.raw(
+        ManaText.raw(
           'Only new adjustment entries dated to this business day are permitted. '
           'Existing Collections, Loans, and Expenses for this date cannot be '
           'edited. Once adjustments are entered, run Close Again to re-close.',

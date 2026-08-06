@@ -51,9 +51,9 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.check_circle, color: ManaColors.statusGood, size: 64),
+                Icon(Icons.check_circle, color: ManaColors.statusGood, size: 64),
                 const SizedBox(height: ManaSpacing.lg),
-                const ManaText('your mana line id',
+                ManaText('your mana line id',
                     style: TextStyle(color: ManaColors.textSecondary)),
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw(
@@ -67,7 +67,7 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
                 ),
                 if (isTemp) ...[
                   const SizedBox(height: ManaSpacing.md),
-                  const ManaText.raw(
+                  ManaText.raw(
                     'Temporary ID issued. Add your Aadhaar later from your '
                     'profile to get your permanent ID.',
                     textAlign: TextAlign.center,

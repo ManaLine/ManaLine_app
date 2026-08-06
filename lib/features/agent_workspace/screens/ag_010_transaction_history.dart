@@ -63,7 +63,7 @@ class _Ag010TransactionHistoryScreenState extends ConsumerState<Ag010Transaction
                         child: ManaText.raw(
                           state.error!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: ManaColors.statusBad, fontSize: 13),
+                          style: TextStyle(color: ManaColors.statusBad, fontSize: 13),
                         ),
                       ),
                     )
@@ -76,7 +76,7 @@ class _Ag010TransactionHistoryScreenState extends ConsumerState<Ag010Transaction
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const ManaText('total collected (last 100)', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                ManaText('total collected (last 100)', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                                 ManaText.raw(_currency.format(state.totalCollected),
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               ],
@@ -85,8 +85,8 @@ class _Ag010TransactionHistoryScreenState extends ConsumerState<Ag010Transaction
                         ),
                         const SizedBox(height: ManaSpacing.md),
                         if (state.entries.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                             child: Center(
                               child: ManaText.raw('No transactions recorded yet.',
                                   style: TextStyle(color: ManaColors.textSecondary)),
@@ -134,14 +134,14 @@ class _HistoryRow extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             ManaText.raw('Loan ${entry.loanNumber}',
-                style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: 2),
             ManaText.raw(_dateTimeFmt.format(entry.entryTimestamp),
-                style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             if (entry.receiptNumber != null) ...[
               const SizedBox(height: 2),
               ManaText.raw('Receipt: ${entry.receiptNumber}',
-                  style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             Align(

@@ -152,7 +152,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(child: ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad)))
+                ? Center(child: ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad)))
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: ListView(
@@ -163,7 +163,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                           color: ManaColors.surfaceSunken,
                           child: Column(
                             children: [
-                              const ManaText('net change (this view)',
+                              ManaText('net change (this view)',
                                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                               const SizedBox(height: 4),
                               ManaText.raw(
@@ -178,8 +178,8 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                           ),
                         ),
                         if (_transactions.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(ManaSpacing.xl),
+                          Padding(
+                            padding: const EdgeInsets.all(ManaSpacing.xl),
                             child: Center(
                               child: ManaText.raw('No transactions yet.', style: TextStyle(color: ManaColors.textSecondary)),
                             ),
@@ -215,7 +215,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                   color: t.isCredit ? ManaColors.statusGood : ManaColors.statusBad,
                 )),
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(_dateFmt.format(t.timestamp), style: const TextStyle(color: ManaColors.textSecondary)),
+            ManaText.raw(_dateFmt.format(t.timestamp), style: TextStyle(color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
             const Divider(),
             ...t.raw.entries
@@ -225,7 +225,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          ManaText.raw(e.key, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                          ManaText.raw(e.key, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                           ManaText.raw('${e.value}', style: const TextStyle(fontSize: 13)),
                         ],
                       ),
@@ -277,7 +277,7 @@ class _TxnTile extends StatelessWidget {
           ),
           ManaText.raw(
             _currency.format(runningBalance),
-            style: const TextStyle(color: ManaColors.textSecondary, fontSize: 16),
+            style: TextStyle(color: ManaColors.textSecondary, fontSize: 16),
           ),
         ],
       ),

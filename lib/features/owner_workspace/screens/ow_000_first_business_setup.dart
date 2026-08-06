@@ -72,7 +72,7 @@ class _FirstBusinessSetupScreenState
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: ManaText.raw(state.error!,
-                    style: const TextStyle(color: ManaColors.statusBad)),
+                    style: TextStyle(color: ManaColors.statusBad)),
               ),
             Expanded(child: _stepBody(state)),
           ],
@@ -140,7 +140,7 @@ class _StepIndicator extends StatelessWidget {
           ),
           const SizedBox(width: ManaSpacing.md),
           ManaText.raw('Step $current of $total',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13, color: ManaColors.textSecondary)),
         ],
       ),
@@ -184,7 +184,7 @@ class _StepScaffold extends StatelessWidget {
               if (subtitle != null) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(subtitle!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: ManaColors.textSecondary, fontSize: 13)),
               ],
               const SizedBox(height: ManaSpacing.lg),
@@ -340,7 +340,7 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
                 backgroundImage:
                     _logoBytes != null ? MemoryImage(_logoBytes!) : null,
                 child: _logoBytes == null
-                    ? const Icon(Icons.add_a_photo_outlined,
+                    ? Icon(Icons.add_a_photo_outlined,
                         color: ManaColors.textSecondary)
                     : null,
               ),
@@ -703,7 +703,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
           if (_selectedVillage != null) ...[
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw('Selected: $_selectedVillage',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13, color: ManaColors.textSecondary)),
           ],
           const SizedBox(height: ManaSpacing.md),
@@ -720,13 +720,13 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
           ),
           const SizedBox(height: ManaSpacing.lg),
           if (state.operatingAreas.isEmpty)
-            const ManaText.raw('No Operating Areas added yet.',
+            ManaText.raw('No Operating Areas added yet.',
                 style: TextStyle(color: ManaColors.textSecondary))
           else
             ...state.operatingAreas.map((a) => Card(
                   child: ListTile(
                     leading:
-                        const Icon(Icons.location_on, color: ManaColors.brand),
+                        Icon(Icons.location_on, color: ManaColors.brand),
                     title: ManaText.raw('${a.villageName} — ${a.pinCode}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.close, size: 18),
@@ -914,7 +914,7 @@ class _Step4ExistingMembers extends ConsumerWidget {
       child: Card(
         child: ListTile(
           leading:
-              const Icon(Icons.group_add_outlined, color: ManaColors.brand),
+              Icon(Icons.group_add_outlined, color: ManaColors.brand),
           title: const ManaText('start pre-existing member migration'),
           subtitle: const ManaText.raw('Launches OW-014 Global Workflow.',
               style: TextStyle(fontSize: 13)),
@@ -1013,8 +1013,8 @@ class _Step6AssignAreas extends ConsumerWidget {
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
             if (agents.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(ManaSpacing.lg),
+              Padding(
+                padding: const EdgeInsets.all(ManaSpacing.lg),
                 child: ManaText.raw('No active agents found.',
                     style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
               )

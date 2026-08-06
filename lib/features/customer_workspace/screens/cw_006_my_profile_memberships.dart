@@ -51,7 +51,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                       child: ManaText.raw(
                         state.error ?? 'Could not load profile.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: ManaColors.statusBad),
+                        style: TextStyle(color: ManaColors.statusBad),
                       ),
                     ),
                   )
@@ -70,8 +70,8 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                       const ManaText('business memberships', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       const SizedBox(height: ManaSpacing.sm),
                       if (state.memberships.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: ManaSpacing.lg),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: ManaSpacing.lg),
                           child: ManaText.raw(
                             'No Business Memberships found.',
                             style: TextStyle(color: ManaColors.textSecondary),
@@ -181,7 +181,7 @@ class _SummaryCard extends ConsumerWidget {
                     children: [
                       ManaText.raw(profile.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                       const SizedBox(height: 2),
-                      ManaText.raw(profile.mlid, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      ManaText.raw(profile.mlid, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                     ],
                   ),
                 ),
@@ -237,15 +237,15 @@ class _FieldRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText(label, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary, fontWeight: FontWeight.w600)),
+              ManaText(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary, fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
               ManaText.raw(value, style: const TextStyle(fontSize: 14)),
             ],
           ),
         ),
         if (locked)
-          const Padding(
-            padding: EdgeInsets.only(top: 2),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
             child: Icon(Icons.lock_outline, size: 16, color: ManaColors.textDisabled),
           )
         else if (onEdit != null)
@@ -586,7 +586,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
             const SizedBox(height: 4),
             ManaText.raw(
               'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
-              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ],
         ],

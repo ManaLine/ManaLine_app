@@ -75,7 +75,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
             mainAxisSize: MainAxisSize.min,
             children: [
               ManaText.raw('Requested: ${_currency.format(r.requestedAmount)} (${r.withdrawalType})',
-                  style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
+                  style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
               const SizedBox(height: ManaSpacing.md),
               TextField(
                 controller: principalController,
@@ -143,7 +143,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                     Padding(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       child: ManaText.raw('Could not load withdrawal requests.\n${snapshot.error}',
-                          textAlign: TextAlign.center, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                          textAlign: TextAlign.center, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                     ),
                   ],
                 );
@@ -152,7 +152,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
               if (requests.isEmpty) {
                 return ListView(
                   padding: const EdgeInsets.all(ManaSpacing.xxl),
-                  children: const [
+                  children: [
                     Center(
                       child: ManaText.raw('No pending withdrawal requests.', style: TextStyle(color: ManaColors.textSecondary)),
                     ),
@@ -180,14 +180,14 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                                   ],
                                 ),
                                 ManaText.raw('${r.investorMlid} · ${r.withdrawalType}',
-                                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                                 if (r.remarks != null && r.remarks!.isNotEmpty) ...[
                                   const SizedBox(height: ManaSpacing.xs),
                                   ManaText.raw(r.remarks!, style: const TextStyle(fontSize: 13)),
                                 ],
                                 const SizedBox(height: ManaSpacing.xs),
                                 ManaText.raw('Requested ${DateFormat('d MMM yyyy').format(r.createdAt)}',
-                                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                                 const SizedBox(height: ManaSpacing.sm),
                                 Row(
                                   children: [

@@ -204,13 +204,13 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
         ),
         const SizedBox(height: ManaSpacing.xl),
         if (widget.upiInProgress) ...[
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.symmetric(vertical: ManaSpacing.lg),
+              padding: const EdgeInsets.symmetric(vertical: ManaSpacing.lg),
               child: Column(
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: ManaSpacing.md),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: ManaSpacing.md),
                   ManaText.raw('Waiting for UPI app…', style: TextStyle(color: ManaColors.textSecondary)),
                 ],
               ),
@@ -244,7 +244,7 @@ class _SubmittedState extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.hourglass_top, size: 56, color: ManaColors.statusWarn),
+            Icon(Icons.hourglass_top, size: 56, color: ManaColors.statusWarn),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('payment submitted', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.sm),
@@ -252,10 +252,10 @@ class _SubmittedState extends ConsumerWidget {
               ManaText.raw(
                 '${_moneyFormat.format(record.amount)} submitted ${_dateFmt.format(record.submittedAt.toLocal())}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: ManaColors.textSecondary),
+                style: TextStyle(color: ManaColors.textSecondary),
               ),
             const SizedBox(height: ManaSpacing.sm),
-            const ManaText.raw(
+            ManaText.raw(
               'Status: Submitted By Customer — Pending Owner/Agent Confirmation. '
               'You will be notified once it is confirmed.',
               textAlign: TextAlign.center,
@@ -296,7 +296,7 @@ class _ConfirmedState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, size: 56, color: ManaColors.statusGood),
+            Icon(Icons.check_circle, size: 56, color: ManaColors.statusGood),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('payment confirmed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.sm),
@@ -304,7 +304,7 @@ class _ConfirmedState extends StatelessWidget {
               ManaText.raw(
                 '${_moneyFormat.format(record.amount)} posted to this loan.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: ManaColors.textSecondary),
+                style: TextStyle(color: ManaColors.textSecondary),
               ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
@@ -333,7 +333,7 @@ class _DisputedState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 56, color: ManaColors.statusBad),
+            Icon(Icons.error_outline, size: 56, color: ManaColors.statusBad),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('payment could not be confirmed',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
@@ -341,7 +341,7 @@ class _DisputedState extends StatelessWidget {
             // No Customer-side retry/resubmit action exists for a
             // Disputed payment per CW-005's own rule — stays open
             // until resolved manually, outside the app.
-            const ManaText.raw(
+            ManaText.raw(
               'Please contact the Business directly to resolve this payment.',
               textAlign: TextAlign.center,
               style: TextStyle(color: ManaColors.textSecondary),

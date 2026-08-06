@@ -21,7 +21,8 @@ class AppearanceScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final current = ref.watch(appearanceProvider);
+    final appearance = ref.watch(appearanceProvider);
+    final current = appearance.textSize;
 
     return Scaffold(
       appBar: AppBar(
@@ -35,10 +36,39 @@ class AppearanceScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
+            const ManaText('theme',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: ManaSpacing.xs),
+            ManaText.raw(
+              'Dark uses less battery on some phones, and is easier at night. '
+              'Light is easier to read in direct sun.',
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+            ),
+            const SizedBox(height: ManaSpacing.md),
+            RadioGroup<ManaThemeChoice>(
+              groupValue: appearance.theme,
+              onChanged: (v) {
+                if (v != null) {
+                  ref.read(appearanceProvider.notifier).setTheme(v);
+                }
+              },
+              child: Column(
+                children: [
+                  for (final choice in ManaThemeChoice.values)
+                    RadioListTile<ManaThemeChoice>(
+                      value: choice,
+                      contentPadding: EdgeInsets.zero,
+                      title: ManaText(choice.label),
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: ManaSpacing.lg),
             const ManaText('text size',
                 style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw(
+            ManaText.raw(
               'This adds to whatever text size your phone is already set to.',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
@@ -49,7 +79,9 @@ class AppearanceScreen extends ConsumerWidget {
             RadioGroup<ManaTextSize>(
               groupValue: current,
               onChanged: (v) {
-                if (v != null) ref.read(appearanceProvider.notifier).set(v);
+                if (v != null) {
+                  ref.read(appearanceProvider.notifier).setTextSize(v);
+                }
               },
               child: Column(
                 children: [
@@ -74,19 +106,19 @@ class AppearanceScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(ManaRadius.md),
                 border: Border.all(color: ManaColors.divider),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ManaText.raw('Today’s Collection',
                       style: TextStyle(
                           fontSize: 13, color: ManaColors.textSecondary)),
-                  SizedBox(height: ManaSpacing.xs),
+                  const SizedBox(height: ManaSpacing.xs),
                   // A real money figure through the real component, not
                   // lorem text: the whole reason to change text size in this
                   // app is being able to read amounts.
-                  ManaAmount(12450, semanticLabel: 'Example amount'),
-                  SizedBox(height: ManaSpacing.sm),
-                  ManaText.raw(
+                  const ManaAmount(12450, semanticLabel: 'Example amount'),
+                  const SizedBox(height: ManaSpacing.sm),
+                  const ManaText.raw(
                     'Ravi Kumar — instalment due today',
                     style: TextStyle(fontSize: 13),
                   ),
@@ -95,10 +127,13 @@ class AppearanceScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: ManaSpacing.xl),
-            // Said out loud rather than left as a silent absence, so nobody
-            // goes looking for a switch that is not there.
-            const ManaText.raw(
-              'Dark mode is not available yet.',
+            // The one honest caveat. The dark palette's contrast ratios were
+            // derived, not measured on glass, and this app is read outdoors on
+            // cheap screens — so it is worth saying that light remains the
+            // tested-in-the-field option.
+            ManaText.raw(
+              'Dark is new. If anything is hard to read outdoors, switch back '
+              'to light and tell us which screen.',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ],

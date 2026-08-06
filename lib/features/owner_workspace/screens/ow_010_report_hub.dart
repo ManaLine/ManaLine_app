@@ -87,8 +87,8 @@ class _ReportHubScreenState extends ConsumerState<ReportHubScreen> {
                             _MonthlySummaryCard(summary: state.monthlySummary!),
                           const SizedBox(height: ManaSpacing.md),
                           if (state.rows.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
                                   vertical: ManaSpacing.xxl),
                               child: Center(
                                 child: ManaText.raw(
@@ -350,7 +350,7 @@ class _RecordBookRowCard extends StatelessWidget {
               if (row.remarks != null && row.remarks!.isNotEmpty) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(row.remarks!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ],
@@ -364,7 +364,7 @@ class _RecordBookRowCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText(label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13, color: ManaColors.textSecondary)),
           ManaText.raw(value,
               style:
@@ -411,7 +411,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
               : state.detailError != null
                   ? Center(
                       child: ManaText.raw(state.detailError!,
-                          style: const TextStyle(color: ManaColors.statusBad)))
+                          style: TextStyle(color: ManaColors.statusBad)))
                   : detail == null
                       ? const SizedBox.shrink()
                       : ListView(
@@ -499,7 +499,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
           children: [
             ManaText(title,
                 style: const TextStyle(fontWeight: FontWeight.w700)),
-            const ManaText.raw('—',
+            ManaText.raw('—',
                 style: TextStyle(color: ManaColors.textSecondary)),
           ],
         ),

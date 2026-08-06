@@ -92,7 +92,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ManaText.raw(loan.loanNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ManaText.raw(loan.customerName, style: const TextStyle(color: ManaColors.textSecondary)),
+              ManaText.raw(loan.customerName, style: TextStyle(color: ManaColors.textSecondary)),
             ],
           ),
         ),
@@ -134,7 +134,7 @@ class _SummaryCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
@@ -157,8 +157,8 @@ class _GuarantorSection extends StatelessWidget {
         // wondering if the section failed to load (spec RESOLVED note).
         Card(
           child: guarantor == null
-              ? const Padding(
-                  padding: EdgeInsets.all(ManaSpacing.md),
+              ? Padding(
+                  padding: const EdgeInsets.all(ManaSpacing.md),
                   child: ManaText.raw('No Guarantor', style: TextStyle(color: ManaColors.textSecondary)),
                 )
               : Padding(
@@ -167,7 +167,7 @@ class _GuarantorSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ManaText.raw(guarantor!.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ManaText.raw(guarantor!.relationship, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      ManaText.raw(guarantor!.relationship, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                       const SizedBox(height: ManaSpacing.xs),
                       ManaText.raw(guarantor!.phone, style: const TextStyle(fontSize: 13)),
                       ManaText.raw(guarantor!.address, style: const TextStyle(fontSize: 13)),
@@ -291,7 +291,7 @@ class _ActionsSection extends ConsumerWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ManaText.raw(
+            ManaText.raw(
               'Owner may edit: Collection Agent, Remarks, Future Effective '
               'Information only. Loan Amount, Amount Given, Interest, '
               'Processing Fee, Historical Collections, and Business Date are '
@@ -441,15 +441,15 @@ class _PaymentHistorySection extends StatelessWidget {
         const ManaText('payment history', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         if (loan.paymentHistory.isEmpty)
-          const ManaText.raw('No payments yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw('No payments yet.', style: TextStyle(color: ManaColors.textSecondary))
         else
           ...loan.paymentHistory.map((p) => Card(
                 child: ListTile(
-                  leading: const Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
+                  leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
                   title: ManaText.raw(_currency.format(p.amount)),
                   subtitle: ManaText.raw('${p.paymentMode} · ${p.collector} · #${p.receiptNumber}'),
                   trailing: ManaText.raw(DateFormat('d MMM').format(p.businessDate),
-                      style: const TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
+                      style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
                 ),
               )),
       ],
@@ -505,7 +505,7 @@ class _PenaltySection extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ManaText.raw(
+              ManaText.raw(
                 'Owner-only action — a higher-trust concession than applying '
                 'the penalty in the first place.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),

@@ -101,7 +101,7 @@ class _AccountClosureScreenState extends ConsumerState<AccountClosureScreen> {
             const ManaText('switch off my account',
                 style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw(
+            ManaText.raw(
               'Your records stay exactly as they are. You will not be able to '
               'sign in until you switch it back on, which you can do at any '
               'time by signing in again.',
@@ -122,11 +122,11 @@ class _AccountClosureScreenState extends ConsumerState<AccountClosureScreen> {
               child: const ManaText('switch off'),
             ),
             const Divider(height: ManaSpacing.xxl),
-            const ManaText('delete my account',
+            ManaText('delete my account',
                 style: TextStyle(
                     fontWeight: FontWeight.w700, color: ManaColors.statusBad)),
             const SizedBox(height: ManaSpacing.xs),
-            const ManaText.raw(
+            ManaText.raw(
               'Your account is switched off straight away and scheduled for '
               'deletion in 90 days. You can still change your mind at any '
               'point in those 90 days by signing in again.',
@@ -136,7 +136,7 @@ class _AccountClosureScreenState extends ConsumerState<AccountClosureScreen> {
             // Said plainly rather than discovered at the point of failure: an
             // Owner cannot leave a live business behind, because its agents
             // and customers would have nobody able to administer them.
-            const ManaText.raw(
+            ManaText.raw(
               'If you own a business, transfer or close it first.',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),

@@ -115,20 +115,20 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       children: [
                         ManaText.raw(DateFormat('d MMM yyyy').format(DateTime.now()),
-                            style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         const SizedBox(height: ManaSpacing.sm),
                         _RouteSummaryCard(state: state),
                         const SizedBox(height: ManaSpacing.md),
                         _RouteProgress(state: state),
                         const SizedBox(height: ManaSpacing.xs),
-                        const ManaText.raw(
+                        ManaText.raw(
                           'Village and customer order are set by your Owner — this route cannot be reordered.',
                           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                         ),
                         const SizedBox(height: ManaSpacing.md),
                         if (state.stops.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                             child: Center(
                               child: ManaText.raw('No route assigned for the enabled areas in this session.',
                                   style: TextStyle(color: ManaColors.textSecondary)),
@@ -235,7 +235,7 @@ class _RouteProgress extends StatelessWidget {
                 value: state.completedPercent,
                 minHeight: 8,
                 backgroundColor: ManaColors.surfaceSunken,
-                valueColor: const AlwaysStoppedAnimation(ManaColors.statusGood),
+                valueColor: AlwaysStoppedAnimation(ManaColors.statusGood),
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -244,11 +244,11 @@ class _RouteProgress extends StatelessWidget {
               runSpacing: ManaSpacing.xs,
               children: [
                 ManaText.raw('Visit ${(state.visitPercent * 100).toStringAsFixed(0)}%',
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                 ManaText.raw('Collection ${(state.collectionPercent * 100).toStringAsFixed(0)}%',
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                 ManaText.raw('Remaining ${(state.remainingPercent * 100).toStringAsFixed(0)}%',
-                    style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ),
           ],
@@ -326,7 +326,7 @@ class _RouteStopRow extends StatelessWidget {
         title: ManaText.raw(stop.customerName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
           '${stop.loanNumber} · LRI ${stop.lineRepaymentIndex}',
-          style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -360,7 +360,7 @@ class _VisitOutcomeSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(stop.customerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const ManaText('visit outcome', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            ManaText('visit outcome', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             const SizedBox(height: ManaSpacing.md),
             for (final outcome in VisitOutcome.values)
               ListTile(
@@ -395,7 +395,7 @@ class _EndRouteBar extends StatelessWidget {
       return Center(
         child: ManaText.raw(
           '${state.customersPending} customer${state.customersPending == 1 ? '' : 's'} left to visit.',
-          style: const TextStyle(color: ManaColors.textSecondary),
+          style: TextStyle(color: ManaColors.textSecondary),
         ),
       );
     }

@@ -38,10 +38,10 @@ class AdminPanelScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: ManaColors.statusBad),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.warning_amber_rounded, color: ManaColors.statusBad),
-                  SizedBox(width: ManaSpacing.sm),
+                  const SizedBox(width: ManaSpacing.sm),
                   Expanded(
                     child: ManaText.raw(
                       'Every action below is permanent and cannot be undone. A snapshot is logged before deletion, but the live data itself is gone forever once you confirm.',
@@ -159,9 +159,9 @@ class _DeletePersonCardState extends State<_DeletePersonCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText.raw('Delete Person', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
+            ManaText.raw('Delete Person', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
             const SizedBox(height: 4),
-            const ManaText.raw('Search by MLID first — deletes the person and everything referencing them.',
+            ManaText.raw('Search by MLID first — deletes the person and everything referencing them.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
@@ -208,7 +208,7 @@ class _DeletePersonCardState extends State<_DeletePersonCard> {
             ],
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+              ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             SizedBox(
@@ -321,9 +321,9 @@ class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText.raw('Delete Business', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
+            ManaText.raw('Delete Business', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
             const SizedBox(height: 4),
-            const ManaText.raw('Search by MLBI first — deletes the business and everything under it, not the people themselves.',
+            ManaText.raw('Search by MLBI first — deletes the business and everything under it, not the people themselves.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
@@ -371,7 +371,7 @@ class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
             ],
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+              ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             SizedBox(
@@ -484,9 +484,9 @@ class _DeleteLoanCardState extends State<_DeleteLoanCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText.raw('Delete Loan (Transaction)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
+            ManaText.raw('Delete Loan (Transaction)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
             const SizedBox(height: 4),
-            const ManaText.raw('No human-readable code exists for loans — Loan ID (UUID) only, found via Report Hub/History.',
+            ManaText.raw('No human-readable code exists for loans — Loan ID (UUID) only, found via Report Hub/History.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
@@ -533,7 +533,7 @@ class _DeleteLoanCardState extends State<_DeleteLoanCard> {
             ],
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+              ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             SizedBox(
@@ -646,9 +646,9 @@ class _DeleteCollectionCardState extends State<_DeleteCollectionCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText.raw('Delete Collection (Transaction)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
+            ManaText.raw('Delete Collection (Transaction)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: ManaColors.statusBad)),
             const SizedBox(height: 4),
-            const ManaText.raw('No human-readable code exists for collections — Collection ID (UUID) only, found via History.',
+            ManaText.raw('No human-readable code exists for collections — Collection ID (UUID) only, found via History.',
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
@@ -693,7 +693,7 @@ class _DeleteCollectionCardState extends State<_DeleteCollectionCard> {
             ],
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(_error!, style: const TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+              ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
             ],
             const SizedBox(height: ManaSpacing.sm),
             SizedBox(

@@ -103,12 +103,32 @@ class ManaLineApp extends ConsumerWidget {
       );
     }
 
-    final textSize = ref.watch(appearanceProvider);
+    final appearance = ref.watch(appearanceProvider);
+
+    // Which palette the tokens must resolve against. Decided HERE rather than
+    // left to MaterialApp, because ManaColors is global state and the ~840
+    // token call sites read it at build time — the theme and the tokens have
+    // to be told the same thing, in that order, before anything renders.
+    final platformDark =
+        MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final wantDark = switch (appearance.theme) {
+      ManaThemeChoice.dark => true,
+      ManaThemeChoice.light => false,
+      ManaThemeChoice.system => platformDark,
+    };
+    final palette = wantDark ? ManaPalette.dark : ManaPalette.light;
+    final themeData = ManaTheme.forPalette(palette);
 
     return MaterialApp.router(
       title: 'MANA LINE',
       debugShowCheckedModeBanner: false,
-      theme: ManaTheme.light(),
+      // Both slots get the SAME resolved theme, and themeMode is left alone.
+      // Handing MaterialApp a light and a dark theme and letting it choose
+      // would let it switch without ManaColors.use() running, which is
+      // precisely the state where the chrome is dark and every card is still
+      // light.
+      theme: themeData,
+      darkTheme: themeData,
       routerConfig: manaRouter,
       // The chosen font size, applied once at the root so every screen and
       // every dialog inherits it.
@@ -125,7 +145,8 @@ class ManaLineApp extends ConsumerWidget {
         final deviceFactor = MediaQuery.textScalerOf(context).scale(100) / 100;
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(deviceFactor * textSize.scale),
+            textScaler:
+                TextScaler.linear(deviceFactor * appearance.textSize.scale),
           ),
           child: child!,
         );
@@ -144,18 +165,18 @@ class _MisconfiguredBuildScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: ManaColors.ink,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(ManaSpacing.xl),
+            padding: const EdgeInsets.all(ManaSpacing.xl),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.build_circle_outlined,
                     size: 48, color: ManaColors.accent),
-                SizedBox(height: ManaSpacing.md),
+                const SizedBox(height: ManaSpacing.md),
                 Text(
                   'Build not configured',
                   textAlign: TextAlign.center,
@@ -164,7 +185,7 @@ class _MisconfiguredBuildScreen extends StatelessWidget {
                       fontSize: 20,
                       fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: ManaSpacing.sm),
+                const SizedBox(height: ManaSpacing.sm),
                 Text(
                   'This build has no Supabase URL or key, so every request '
                   'goes to a host that does not exist and simply hangs — it '

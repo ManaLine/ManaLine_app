@@ -47,35 +47,35 @@ class AboutScreen extends ConsumerWidget {
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
-          children: const [
+          children: [
             ...<Widget>[
-            ManaText('mana line',
+            const ManaText('mana line',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
-            SizedBox(height: ManaSpacing.xs),
+            const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(versionLabel,
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-            SizedBox(height: ManaSpacing.lg),
+            const SizedBox(height: ManaSpacing.lg),
 
-            _Point(
+            const _Point(
               title: 'This app keeps records. It does not move money.',
               body: 'Every rupee is handed over in person, exactly as it '
                   'always was. MANA LINE writes down what happened. No '
                   'payment passes through this app, and no account here can '
                   'hold your money.',
             ),
-            _Point(
+            const _Point(
               title: 'Your records are kept carefully.',
               body: 'Records are locked to your business, and only people you '
                   'have given a role can see them. Photos and documents are '
                   'private and are never shown publicly.',
             ),
-            _Point(
+            const _Point(
               title: 'Keep your PIN and phone to yourself.',
               body: 'If you share your PIN, lend your phone while signed in, '
                   'or let someone else record entries as you, we cannot undo '
                   'what they do. Records made that way count as yours.',
             ),
-            _Point(
+            const _Point(
               title: 'Line Score is arithmetic, not an opinion.',
               body: 'It is worked out only from repayments already recorded '
                   'in this app — how much, and how close to the due date. It '
@@ -83,7 +83,7 @@ class AboutScreen extends ConsumerWidget {
                   'religion, village, family, age or anything you have said. '
                   'Repay on time and it rises.',
             ),
-            _Point(
+            const _Point(
               title: 'Deleting your account.',
               body: 'You can switch your account off at any time and switch it '
                   'back on by signing in. If you ask for deletion, it happens '
@@ -92,13 +92,13 @@ class AboutScreen extends ConsumerWidget {
                   'business’s books, with your personal details removed.',
             ),
 
-            SizedBox(height: ManaSpacing.lg),
+            const SizedBox(height: ManaSpacing.lg),
             ManaText.raw(
               'Questions: manaline.in@gmail.com',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             ],
-            TermsAcceptance(),
+            const TermsAcceptance(),
           ],
         ),
       ),
@@ -188,7 +188,7 @@ class _TermsAcceptanceState extends ConsumerState<TermsAcceptance> {
         padding: const EdgeInsets.only(top: ManaSpacing.lg),
         child: ManaText.raw(
           'You accepted these terms on ${manaDisplayDate(_acceptedAt)}.',
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 13, color: ManaColors.textSecondary),
         ),
       );

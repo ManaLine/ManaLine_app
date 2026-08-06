@@ -126,7 +126,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
+            Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load dashboard'),
             const SizedBox(height: ManaSpacing.sm),
@@ -139,7 +139,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
               child: ManaText.raw(
                 e.toString(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: ManaColors.statusBad),
+                style: TextStyle(fontSize: 13, color: ManaColors.statusBad),
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -176,7 +176,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ManaText.raw(businessName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ManaText.raw(investorName, style: const TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+              ManaText.raw(investorName, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             ],
           ),
         ),
@@ -217,7 +217,7 @@ class _NotificationsSheet extends StatelessWidget {
             const SizedBox(height: ManaSpacing.md),
             Expanded(
               child: notifications.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: ManaText.raw('No notifications yet.', style: TextStyle(color: ManaColors.textSecondary)),
                     )
                   : ListView.separated(
@@ -233,9 +233,9 @@ class _NotificationsSheet extends StatelessWidget {
                             color: n.read ? ManaColors.textSecondary : ManaColors.brand,
                           ),
                           title: ManaText.raw(n.message, style: const TextStyle(fontSize: 13)),
-                          subtitle: ManaText.raw(n.type, style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                          subtitle: ManaText.raw(n.type, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                           trailing: ManaText.raw(DateFormat('d MMM, hh:mm a').format(n.timestamp),
-                              style: const TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                         );
                       },
                     ),
@@ -357,11 +357,11 @@ class _NoMembershipsState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
+            Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('no business memberships yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
-            const ManaText.raw(
+            ManaText.raw(
               'Find a Business to request Investor membership. Once the '
               'Owner approves, it will appear here.',
               textAlign: TextAlign.center,

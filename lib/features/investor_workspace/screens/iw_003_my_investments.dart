@@ -95,22 +95,22 @@ class _MyInvestmentsScreenState extends ConsumerState<MyInvestmentsScreen> {
 
   Widget _emptyState() {
     return ListView(
-      children: const [
+      children: [
         Padding(
-          padding: EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+          padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
           child: Center(
             child: Padding(
-              padding: EdgeInsets.all(ManaSpacing.xl),
+              padding: const EdgeInsets.all(ManaSpacing.xl),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.savings_outlined,
                       size: 48, color: ManaColors.textSecondary),
-                  SizedBox(height: ManaSpacing.md),
-                  ManaText('no investments recorded yet',
+                  const SizedBox(height: ManaSpacing.md),
+                  const ManaText('no investments recorded yet',
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  SizedBox(height: ManaSpacing.sm),
+                  const SizedBox(height: ManaSpacing.sm),
                   ManaText.raw(
                     "Your Business Membership is active. The Owner records "
                     "the actual investment (Amount, ROI, Interest Method) "
@@ -135,7 +135,7 @@ class _MyInvestmentsScreenState extends ConsumerState<MyInvestmentsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off,
+            Icon(Icons.cloud_off,
                 size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             const ManaText('could not load investments'),
@@ -186,7 +186,7 @@ class _InvestmentListCard extends StatelessWidget {
             children: [
               ManaText.raw(
                 '${investment.investmentId} · ${roiLabel(investment.roiRate)} · ${investment.interestMethod} · since ${_dateFmt.format(investment.effectiveDate)}',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: 4),
@@ -352,7 +352,7 @@ class _StatementSheet extends StatelessWidget {
                   ManaText('interest ledger', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (ledger.isEmpty)
-                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
+                    ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
                   else
                     ...ledger.map((e) => ListTile(
                           dense: true,
@@ -365,7 +365,7 @@ class _StatementSheet extends StatelessWidget {
                   ManaText('distributions', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (distributions.isEmpty)
-                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
+                    ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
                   else
                     ...distributions.map((d) => ListTile(
                           dense: true,
@@ -380,7 +380,7 @@ class _StatementSheet extends StatelessWidget {
                   ManaText('withdrawal requests', style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (withdrawals.isEmpty)
-                    const ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
+                    ManaText.raw('No entries yet.', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
                   else
                     ...withdrawals.map((w) => ListTile(
                           dense: true,
@@ -415,7 +415,7 @@ class _AgreementSnapshotCard extends StatelessWidget {
             const ManaText('agreement snapshot',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 4),
-            const ManaText.raw(
+            ManaText.raw(
                 'Frozen terms at time of investment — never live-recalculated.',
                 style:
                     TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
@@ -440,7 +440,7 @@ class _AgreementSnapshotCard extends StatelessWidget {
           children: [
             Expanded(
                 child: ManaText(label,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value,
                 style:
@@ -468,7 +468,7 @@ class _InterestLedgerSection extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
-              const ManaText.raw('No interest ledger entries yet.',
+              ManaText.raw('No interest ledger entries yet.',
                   style: TextStyle(color: ManaColors.textSecondary))
             else
               ...entries.map((e) => Padding(
@@ -485,12 +485,12 @@ class _InterestLedgerSection extends StatelessWidget {
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13)),
                               ManaText.raw(_dateFmt.format(e.businessDate),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 13,
                                       color: ManaColors.textSecondary)),
                               if (e.remarks != null && e.remarks!.isNotEmpty)
                                 ManaText.raw(e.remarks!,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 13,
                                         color: ManaColors.textSecondary)),
                             ],
@@ -543,7 +543,7 @@ class _WithdrawalHistorySection extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
-              const ManaText.raw('No withdrawals recorded yet.',
+              ManaText.raw('No withdrawals recorded yet.',
                   style: TextStyle(color: ManaColors.textSecondary))
             else
               ...entries.map((e) => Padding(
@@ -561,13 +561,13 @@ class _WithdrawalHistorySection extends StatelessWidget {
                                       fontSize: 13)),
                               ManaText.raw(
                                 '${_dateFmt.format(e.businessDate)} · Approved by ${e.approvedBy}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 13,
                                     color: ManaColors.textSecondary),
                               ),
                               if (e.remarks != null && e.remarks!.isNotEmpty)
                                 ManaText.raw(e.remarks!,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 13,
                                         color: ManaColors.textSecondary)),
                             ],
@@ -609,14 +609,14 @@ class _DistributionHistorySection extends StatelessWidget {
             const ManaText('distribution history',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 4),
-            const ManaText.raw(
+            ManaText.raw(
               'Profit Share — Declaration and Payment are recorded separately; '
               'a row may show Declared with no Paid data yet.',
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
-              const ManaText.raw('No profit share declarations yet.',
+              ManaText.raw('No profit share declarations yet.',
                   style: TextStyle(color: ManaColors.textSecondary))
             else
               ...entries.map((e) => Padding(
@@ -641,14 +641,14 @@ class _DistributionHistorySection extends StatelessWidget {
                           ],
                         ),
                         ManaText.raw(_dateFmt.format(e.declaredDate),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 13, color: ManaColors.textSecondary)),
                         if (e.isPaid) ...[
                           const SizedBox(height: 4),
                           ManaText.raw(
                             'Paid: ${_currency.format(e.paidAmount ?? 0)} on ${_dateFmt.format(e.paidDate!)}'
                             '${(e.paidInterestAmount ?? 0) > 0 ? ' (+ ${_currency.format(e.paidInterestAmount!)} interest on unpaid gap)' : ''}',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 16, color: ManaColors.statusGood),
                           ),
                         ],

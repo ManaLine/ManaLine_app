@@ -7,6 +7,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
+import '../../../shared/widgets/address_check_banner.dart';
 import '../state/collection_mode_state.dart';
 import 'package:go_router/go_router.dart';
 
@@ -179,6 +180,11 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
+            // Whether this is the customer's registered address. Purely
+            // informational — it never blocks a collection, because collecting
+            // at a shop or a relative's house is ordinary and a customer who
+            // moved has done nothing wrong.
+            AddressCheckBanner(customerId: row.customerId),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(ManaSpacing.md),

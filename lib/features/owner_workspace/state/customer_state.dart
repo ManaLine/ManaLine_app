@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../shared/mana_location.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/document_viewer.dart' show DocumentSummary;
 import '../../../shared/mana_time.dart';
@@ -609,6 +611,16 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
     required String villageId,
   }) async {
     try {
+      // Capture the pin HERE rather than in the screen, so every caller gets
+      // it and no new "add customer" surface can forget. Best-effort by
+      // construction: currentFix never throws, and a fix that did not arrive
+      // simply leaves the three parameters null — registration goes through
+      // exactly as it did before GPS existed.
+      //
+      // The address being registered is the one in front of the Owner right
+      // now, which is what makes the pin worth anything.
+      final fix = await ManaLocation.currentFix();
+
       await ref.read(customerApiServiceProvider).createCustomer(
             businessId: businessId,
             fullName: fullName,
@@ -619,6 +631,9 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
             doorNo: doorNo,
             pinCode: pinCode,
             villageId: villageId,
+            gpsLatitude: fix.latitude,
+            gpsLongitude: fix.longitude,
+            gpsAccuracyM: fix.accuracyM,
           );
       await load(businessId);
       return true;

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/mana_location.dart';
+import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/document_viewer.dart' show DocumentSummary;
 import '../../../shared/mana_time.dart';
@@ -9,6 +10,11 @@ import '../../../shared/mana_time.dart';
 /// OW-004 Customer Domain — real Supabase wiring over Module 3
 /// (persons/person_addresses/business_members/customers/customer_remarks).
 class CustomerApiService {
+  /// Needed for authFlowProvider.personId on writes that record who did them
+  /// — see addRemark. Matches CollectionApiService's shape.
+  final Ref ref;
+  CustomerApiService({required this.ref});
+
   SupabaseClient get _db => Supabase.instance.client;
 
   /// Village/outstanding/todaysDue/lineRepaymentIndex are derived values —
@@ -338,23 +344,30 @@ class CustomerApiService {
     await _db.from('customers').update({'customer_status': status}).eq('customer_id', customerId);
   }
 
+  /// This app's identity layer does not use Supabase Auth's own session, so
+  /// entered_by_person_id has to come from authFlowProvider.personId — which
+  /// is why this service takes a Ref, the same shape CollectionApiService and
+  /// AgentCustomerApiService already use.
+  ///
+  /// It previously threw UnimplementedError because the service was
+  /// constructed without a Ref and the author would not guess a person_id.
+  /// That was the right call; the fix was simply never made. The agent side
+  /// (AgentCustomerApiService.addRemark) has done exactly this all along, so
+  /// this is the same write, not a new one.
   Future<void> addRemark({required String customerId, required String remark, String? priority}) async {
-    // ARCHITECTURE NOTE: this app's identity layer (see auth_api_service.dart)
-    // does not use Supabase Auth's own session — entered_by_person_id must
-    // come from the caller's own authFlowProvider.personId, which this
-    // *ApiService layer (by this session's own established convention,
-    // see collection_mode_state.dart) reads via a Ref rather than
-    // _db.auth. This class was written as a plain (non-Ref) service to
-    // match the ORIGINAL stub's constructor shape; flagged here rather
-    // than silently guessing a person_id. Caller (CustomerProfileNotifier)
-    // must be upgraded to pass personId through, OR this service
-    // upgraded to take a Ref — same fix needed either way, left to
-    // whichever chat wires the AsyncNotifier call site.
-    throw UnimplementedError(
-      'addRemark needs entered_by_person_id from authFlowProvider.personId, which this service (constructed '
-      'without a Ref, unlike collection_mode_state.dart\'s CollectionApiService) has no access to. Flagged, not '
-      'guessed — see architecture note in source.',
-    );
+    final personId = ref.read(authFlowProvider).personId;
+    if (personId == null) {
+      // Loud, not silent: a remark attributed to nobody is worse than a
+      // remark that failed to save, because the first looks like it worked.
+      throw StateError('No logged-in person_id available — cannot set entered_by_person_id.');
+    }
+    await _db.from('customer_remarks').insert({
+      'customer_id': customerId,
+      'entered_by_person_id': int.parse(personId),
+      'remark_text': remark,
+      'priority': priority ?? 'Normal',
+      'business_date': manaBusinessDate(),
+    });
   }
 }
 
@@ -473,7 +486,7 @@ class CustomerProfile {
 // --- Riverpod state ----------------------------------------------------
 
 final customerApiServiceProvider = Provider<CustomerApiService>((ref) {
-  return CustomerApiService();
+  return CustomerApiService(ref: ref);
 });
 
 /// C2b — locked cascading sort: Highest Outstanding → Penalty →

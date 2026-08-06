@@ -46,7 +46,10 @@ class DraftTransactionsApiService {
         _ => DraftStatus.draft,
       };
 
-  /// BLOCKED ON RPC: submitting a draft must, in one transaction: validate
+  /// HISTORY — NO LONGER BLOCKED. submit_draft exists and is called below;
+  /// kept for the atomicity reasoning, which still explains the design.
+  ///
+  /// Was: submitting a draft must, in one transaction: validate
   /// payload_json against the target table's real required fields, INSERT
   /// the real record on whichever of collections/loans/customer_remarks/
   /// customer_documents draft_type points to, then remove/close the draft

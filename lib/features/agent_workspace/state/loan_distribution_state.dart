@@ -20,7 +20,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// debugging a silent/opaque Postgrest 403 loses more time than one
 /// debugging a clear `UnimplementedError` with the RPC name). Both
 /// `initiateTransfer` and `confirmTransfer` are therefore stubbed as
-/// BLOCKED ON RPC below, consistent with the same treatment already used
+/// HISTORY — NO LONGER BLOCKED. Both cash-transfer RPCs exist and are called
+/// below. The reasoning is kept because it explains the design; the second
+/// RLS finding about reading a counterparty Agent's name is still live.
+///
+/// Was: blocked on RPC below, consistent with the same treatment already used
 /// in agent_dashboard_state.dart for `agent_bf_assignments`/
 /// `account_periods` writes that hit the identical RLS shape.
 ///
@@ -41,7 +45,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class CashTransferApiService {
   SupabaseClient get _db => Supabase.instance.client;
 
-  // BLOCKED ON RPC: no Agent INSERT policy exists on `cash_transfers`
+  // HISTORY — NO LONGER BLOCKED; see the FIXED note below, which is the
+  // current state. Kept for the reasoning.
+  //
+  // Was: no Agent INSERT policy exists on `cash_transfers`
   // (see class doc above) — a raw `.insert()` here would be RLS-denied
   // every time for an Agent caller, not just architecturally undesirable.
   // Expected once built: supabase.rpc('initiate_cash_transfer', params: {
@@ -139,7 +146,10 @@ class CashTransferApiService {
     );
   }
 
-  // BLOCKED ON RPC: no Agent UPDATE policy exists on `cash_transfers`
+  // HISTORY — NO LONGER BLOCKED; confirm_cash_transfer exists and is called
+  // below. Kept for the reasoning.
+  //
+  // Was: no Agent UPDATE policy exists on `cash_transfers`
   // either (same RLS section as initiateTransfer above) — confirming a
   // transfer means setting from_agent_confirmed_at OR
   // to_agent_confirmed_at depending on which side the caller is, and RLS

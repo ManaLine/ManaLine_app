@@ -159,7 +159,11 @@ class AgentSettlementApiService {
     );
   }
 
-  // BLOCKED ON RPC: creates the `account_settlements` row (status='Pending
+  // HISTORY — NO LONGER BLOCKED. submit_agent_settlement exists and is
+  // called below; kept because it records why this had to be one atomic
+  // server-side step, which is still the reason it is written this way.
+  //
+  // Was: creates the `account_settlements` row (status='Pending
   // Owner Review') AND performs the Merged Addendum item 4 BF transfer
   // (agent_bf_current -> owner_bf_balance, agent_bf_current resets to 0) in
   // the same atomic step — exactly the kind of financial multi-table write

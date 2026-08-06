@@ -82,7 +82,12 @@ class AgentApiService {
     );
   }
 
-  // BLOCKED ON RPC: rls_role_matrix.md is explicit here — "agent_bf_
+  // HISTORY — NO LONGER BLOCKED. The RPC exists and is called below; this
+  // paragraph is kept because it records WHY the write goes through a
+  // SECURITY DEFINER function rather than a direct update, which is still
+  // true. See the FIXED note further down.
+  //
+  // Was: rls_role_matrix.md is explicit here — "agent_bf_
   // assignments: ... No Agent UPDATE — session-start confirmation
   // (confirmed_by_agent/update_requested) should go through a SECURITY
   // DEFINER RPC, not a raw column-scoped UPDATE grant." This is not a
@@ -172,7 +177,10 @@ class AgentApiService {
     }).toList();
   }
 
-  // BLOCKED ON RPC: rls_role_matrix.md, `account_periods` — "No client
+  // HISTORY — NO LONGER BLOCKED. start_business_session exists and is called
+  // below; kept for the reasoning, which still holds.
+  //
+  // Was: rls_role_matrix.md, `account_periods` — "No client
   // INSERT/UPDATE for Agent — submission must go through a SECURITY
   // DEFINER RPC." Same non-optional RLS constraint as the BF methods
   // above — creating one account_periods row per selected area, all

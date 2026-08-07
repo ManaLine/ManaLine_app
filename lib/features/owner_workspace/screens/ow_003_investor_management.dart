@@ -9,6 +9,7 @@ import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/text_utils.dart';
+import '../../../shared/translation_service.dart';
 import '../state/investor_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -67,10 +68,10 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('investor management'),
+        title: ManaText.raw(ref.t('investor_management')),
         actions: [
           IconButton(
-            tooltip: 'Add Existing Investor',
+            tooltip: ref.t('add_existing_investor'),
             icon: const Icon(Icons.person_add_alt_1_outlined),
             onPressed: () => showModalBottomSheet(
               context: context,
@@ -81,7 +82,7 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
           // OW-014 Global Workflow — an investor whose money predates this
           // business joining MANA LINE.
           IconButton(
-            tooltip: 'Pre-Existing Investor',
+            tooltip: ref.t('pre_existing_investor'),
             icon: const Icon(Icons.history_edu_outlined),
             onPressed: () => context
                 .push('/ow-014?type=investor', extra: widget.businessId)
@@ -101,9 +102,9 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                     const SizedBox(height: ManaSpacing.lg),
                     TextField(
                       controller: _search,
-                      decoration: const InputDecoration(
-                        hintText: 'Search by name or MLID',
-                        prefixIcon: Icon(Icons.search),
+                      decoration: InputDecoration(
+                        hintText: ref.t('search_by_name_or_mlid'),
+                        prefixIcon: const Icon(Icons.search),
                       ),
                       onChanged: (v) => ref.read(investorWorkforceProvider.notifier).setSearchQuery(v),
                     ),
@@ -123,7 +124,8 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
-                          child: ManaText.raw('Could not load investors.\n${state.error}',
+                          child: ManaText.raw(
+                              ref.t('could_not_load_investors').replaceAll('{error}', '${state.error}'),
                               textAlign: TextAlign.center,
                               style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                         ),
@@ -132,7 +134,7 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
-                          child: ManaText.raw('No investors match this view.',
+                          child: ManaText.raw(ref.t('no_investors_match_view'),
                               style: TextStyle(color: ManaColors.textSecondary)),
                         ),
                       )
@@ -154,20 +156,20 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
   }
 }
 
-class _DashboardStrip extends StatelessWidget {
+class _DashboardStrip extends ConsumerWidget {
   final InvestorWorkforceState state;
   const _DashboardStrip({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final stats = <(String, String, ManaStatus)>[
-      ('Total', '${state.total}', ManaStatus.neutral),
-      ('Active', '${state.active}', ManaStatus.good),
-      ('Pending Invitations', '${state.pendingInvitations}', ManaStatus.warn),
-      ('Pending Acceptance', '${state.pendingAcceptance}', ManaStatus.warn),
-      ('Suspended', '${state.suspended}', ManaStatus.bad),
-      ('Total Investment', _currency.format(state.totalInvestment), ManaStatus.neutral),
-      ('Interest Payable', _currency.format(state.interestPayable), ManaStatus.neutral),
+      (ref.t('total'), '${state.total}', ManaStatus.neutral),
+      (ref.t('active'), '${state.active}', ManaStatus.good),
+      (ref.t('pending_invitation_status'), '${state.pendingInvitations}', ManaStatus.warn),
+      (ref.t('pending_acceptance_status'), '${state.pendingAcceptance}', ManaStatus.warn),
+      (ref.t('suspended'), '${state.suspended}', ManaStatus.bad),
+      (ref.t('total_investment_balance'), _currency.format(state.totalInvestment), ManaStatus.neutral),
+      (ref.t('interest_payable'), _currency.format(state.interestPayable), ManaStatus.neutral),
     ];
     return ManaStatStrip(
       valueFontSize: 16,
@@ -183,14 +185,14 @@ class _StatusFilterChips extends ConsumerWidget {
   final InvestorWorkforceState state;
   const _StatusFilterChips({required this.state});
 
-  static const _statuses = [
-    'Active',
-    'Pending Invitation',
-    'Pending Acceptance',
-    'Temporarily Disabled',
-    'Suspended',
-    'Removed',
-  ];
+  static const _statusKeys = {
+    'Active': 'active',
+    'Pending Invitation': 'pending_invitation_status',
+    'Pending Acceptance': 'pending_acceptance_status',
+    'Temporarily Disabled': 'temporarily_disabled',
+    'Suspended': 'suspended',
+    'Removed': 'removed',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -198,14 +200,14 @@ class _StatusFilterChips extends ConsumerWidget {
       spacing: ManaSpacing.xs,
       children: [
         ChoiceChip(
-          label: const ManaText('all'),
+          label: ManaText.raw(ref.t('all')),
           selected: state.statusFilter == null,
           onSelected: (_) => ref.read(investorWorkforceProvider.notifier).setStatusFilter(null),
         ),
-        ..._statuses.map((s) => ChoiceChip(
-              label: ManaText(s),
-              selected: state.statusFilter == s,
-              onSelected: (_) => ref.read(investorWorkforceProvider.notifier).setStatusFilter(s),
+        ..._statusKeys.entries.map((e) => ChoiceChip(
+              label: ManaText.raw(ref.t(e.value)),
+              selected: state.statusFilter == e.key,
+              onSelected: (_) => ref.read(investorWorkforceProvider.notifier).setStatusFilter(e.key),
             )),
       ],
     );
@@ -253,7 +255,7 @@ class _PendingRequestCard extends ConsumerWidget {
                           .read(investorWorkforceProvider.notifier)
                           .rejectRequest(businessId, investor.investorId);
                     }),
-                    child: const ManaText('reject'),
+                    child: ManaText.raw(ref.t('reject')),
                   ),
                 ),
                 const SizedBox(width: ManaSpacing.sm),
@@ -264,7 +266,7 @@ class _PendingRequestCard extends ConsumerWidget {
                           .read(investorWorkforceProvider.notifier)
                           .approveRequest(businessId, investor.investorId);
                     }),
-                    child: const ManaText('approve'),
+                    child: ManaText.raw(ref.t('approve')),
                   ),
                 ),
               ],
@@ -353,14 +355,14 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('add existing investor', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('add_existing_investor'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.lg),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _mlid,
-                    decoration: const InputDecoration(labelText: 'Enter MLID'),
+                    decoration: InputDecoration(labelText: ref.t('enter_mlid')),
                     onChanged: (_) => setState(() => _found = null),
                   ),
                 ),
@@ -369,7 +371,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                   onPressed: (_mlid.text.trim().isNotEmpty && !_searching) ? _search : null,
                   child: _searching
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const ManaText('search'),
+                      : ManaText.raw(ref.t('search')),
                 ),
               ],
             ),
@@ -384,7 +386,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                     onPressed: _adding ? null : _add,
                     child: _adding
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const ManaText('add'),
+                        : ManaText.raw(ref.t('add')),
                   ),
                 ),
               ),
@@ -411,15 +413,15 @@ class InvestorProfileScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: ManaText.raw(investor.fullName),
-          bottom: const TabBar(tabs: [Tab(text: 'Overview'), Tab(text: 'Investments')]),
+          bottom: TabBar(tabs: [Tab(text: ref.t('overview')), Tab(text: ref.t('investments'))]),
           actions: [
             PopupMenuButton<String>(
               onSelected: (status) => _changeStatus(context, ref, status),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'Active', child: ManaText('reactivate')),
-                PopupMenuItem(value: 'Temporarily Disabled', child: ManaText('disable')),
-                PopupMenuItem(value: 'Suspended', child: ManaText('suspend')),
-                PopupMenuItem(value: 'Removed', child: ManaText('remove')),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'Active', child: ManaText.raw(ref.t('reactivate'))),
+                PopupMenuItem(value: 'Temporarily Disabled', child: ManaText.raw(ref.t('disable'))),
+                PopupMenuItem(value: 'Suspended', child: ManaText.raw(ref.t('suspend'))),
+                PopupMenuItem(value: 'Removed', child: ManaText.raw(ref.t('remove'))),
               ],
             ),
           ],
@@ -446,11 +448,14 @@ class InvestorProfileScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: ManaText('confirm: ${status.toLowerCase()}'),
-        content: ManaText.raw('Change ${investor.fullName}\'s membership status to "$status"?'),
+        title: ManaText.raw(ref.t('confirm_status_change_title').replaceAll('{status}', status)),
+        content: ManaText.raw(ref
+            .t('change_status_note')
+            .replaceAll('{name}', investor.fullName)
+            .replaceAll('{status}', status)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const ManaText('cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const ManaText('confirm')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: ManaText.raw(ref.t('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: ManaText.raw(ref.t('confirm'))),
         ],
       ),
     );
@@ -461,12 +466,12 @@ class InvestorProfileScreen extends ConsumerWidget {
   }
 }
 
-class _OverviewTab extends StatelessWidget {
+class _OverviewTab extends ConsumerWidget {
   final InvestorSummary investor;
   const _OverviewTab({required this.investor});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
@@ -477,13 +482,13 @@ class _OverviewTab extends StatelessWidget {
                 ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
         Center(child: ManaText.raw(investor.mlid, style: TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
-        _row('Phone Number', investor.phoneNumber),
-        _row('Investment Balance', _currency.format(investor.investmentBalance)),
-        _row('ROI', roiLabel(investor.roi)),
-        _row('ROI, yearly equivalent', roiAnnualEquivalent(investor.roi)),
-        _row('Interest Due', _currency.format(investor.interestDue)),
-        _row('Membership Status', investor.membershipStatus),
-        _row('Last Transaction',
+        _row(ref.t('phone_number'), investor.phoneNumber),
+        _row(ref.t('investment_balance'), _currency.format(investor.investmentBalance)),
+        _row(ref.t('roi'), roiLabel(investor.roi)),
+        _row(ref.t('roi_yearly_equivalent'), roiAnnualEquivalent(investor.roi)),
+        _row(ref.t('interest_due'), _currency.format(investor.interestDue)),
+        _row(ref.t('membership_status'), investor.membershipStatus),
+        _row(ref.t('last_transaction'),
             investor.lastTransaction == null ? '—' : DateFormat('d MMM yyyy').format(investor.lastTransaction!)),
       ],
     );
@@ -493,7 +498,7 @@ class _OverviewTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText.raw(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           ],
         ),
@@ -520,19 +525,19 @@ class _InvestmentsTab extends ConsumerWidget {
         ElevatedButton.icon(
           onPressed: isActive ? () => _showInvestDialog(context, ref) : null,
           icon: const Icon(Icons.add),
-          label: const ManaText('record investment'),
+          label: ManaText.raw(ref.t('record_investment')),
         ),
         if (!isActive)
           Padding(
             padding: const EdgeInsets.only(top: ManaSpacing.xs),
             child: ManaText.raw(
-              'Only Active investors can have new investments recorded (current status: ${profile.summary.membershipStatus}).',
+              ref.t('only_active_investors_note').replaceAll('{status}', profile.summary.membershipStatus),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ),
         const SizedBox(height: ManaSpacing.lg),
         if (profile.investments.isEmpty)
-          ManaText.raw('No investments recorded yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_investments_recorded_yet'), style: TextStyle(color: ManaColors.textSecondary))
         else
           ...profile.investments.map((inv) => Card(
                 child: Padding(
@@ -556,15 +561,15 @@ class _InvestmentsTab extends ConsumerWidget {
                           // payment or withdrawal exists, because that is
                           // money movement and BR-002 makes it permanent.
                           PopupMenuButton<String>(
-                            tooltip: 'Investment options',
+                            tooltip: ref.t('investment_options'),
                             onSelected: (v) => v == 'edit'
                                 ? _showInvestDialog(context, ref, existing: inv)
                                 : _confirmDeleteInvestment(context, ref, inv),
                             itemBuilder: (_) => [
-                              const PopupMenuItem(value: 'edit', child: ManaText('edit investment')),
+                              PopupMenuItem(value: 'edit', child: ManaText.raw(ref.t('edit_investment'))),
                               PopupMenuItem(
                                 value: 'delete',
-                                child: ManaText.raw('delete investment',
+                                child: ManaText.raw(ref.t('delete_investment'),
                                     style: TextStyle(color: ManaColors.statusBad)),
                               ),
                             ],
@@ -584,11 +589,11 @@ class _InvestmentsTab extends ConsumerWidget {
                           // label stops the figure reading as too small.
                           Expanded(
                             child: _small(
-                              inv.isCompound ? 'Accrued this year' : 'Accrued',
+                              ref.t(inv.isCompound ? 'accrued_this_year' : 'accrued'),
                               _currency.format(inv.interestAccrued),
                             ),
                           ),
-                          Expanded(child: _small('Paid', _currency.format(inv.interestPaid))),
+                          Expanded(child: _small(ref.t('paid'), _currency.format(inv.interestPaid))),
                         ],
                       ),
                       // Where the compounded years went. Without this the
@@ -599,9 +604,9 @@ class _InvestmentsTab extends ConsumerWidget {
                         Row(
                           children: [
                             Expanded(
-                                child: _small('Invested', _currency.format(inv.originalPrincipal))),
+                                child: _small(ref.t('invested'), _currency.format(inv.originalPrincipal))),
                             Expanded(
-                                child: _small('Added to principal',
+                                child: _small(ref.t('added_to_principal'),
                                     _currency.format(inv.principalAmount - inv.originalPrincipal))),
                           ],
                         ),
@@ -617,7 +622,7 @@ class _InvestmentsTab extends ConsumerWidget {
                         child: Row(
                           children: [
                             Expanded(
-                              child: ManaText.raw('Total interest earned',
+                              child: ManaText.raw(ref.t('total_interest_earned'),
                                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                             ),
                             ManaAmount(inv.totalInterestEarned, size: ManaAmountSize.compact),
@@ -633,7 +638,7 @@ class _InvestmentsTab extends ConsumerWidget {
                               onPressed: inv.principalAmount >= 1
                                   ? () => _showWithdrawDialog(context, ref, inv)
                                   : null,
-                              child: const ManaText('withdraw'),
+                              child: ManaText.raw(ref.t('withdraw')),
                             ),
                           ),
                           // BUG FIXED this pass: declareProfitShare/
@@ -650,7 +655,7 @@ class _InvestmentsTab extends ConsumerWidget {
                                   isScrollControlled: true,
                                   builder: (_) => _ProfitShareSheet(investment: inv),
                                 ),
-                                child: const ManaText('profit share'),
+                                child: ManaText.raw(ref.t('profit_share')),
                               ),
                             ),
                           ],
@@ -667,7 +672,7 @@ class _InvestmentsTab extends ConsumerWidget {
   Widget _small(String label, String value) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ManaText.raw(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         ],
       );
@@ -677,20 +682,20 @@ class _InvestmentsTab extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('delete investment?'),
+        title: ManaText.raw(ref.t('delete_investment_confirm_title')),
         content: ManaText.raw(
-          '${_currency.format(inv.principalAmount)} at ${roiLabel(inv.roiRate)}, '
-          'effective ${DateFormat('d MMM yyyy').format(inv.effectiveDate)}.\n\n'
-          'This removes the record entirely. It is refused if any interest '
-          'payment or withdrawal has been made against it — correct those '
-          'with Edit instead.',
+          ref
+              .t('delete_investment_confirm_note')
+              .replaceAll('{amount}', _currency.format(inv.principalAmount))
+              .replaceAll('{roi}', roiLabel(inv.roiRate))
+              .replaceAll('{date}', DateFormat('d MMM yyyy').format(inv.effectiveDate)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: ManaColors.statusBad),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const ManaText('delete'),
+            child: ManaText.raw(ref.t('delete')),
           ),
         ],
       ),
@@ -721,14 +726,14 @@ class _InvestmentsTab extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: ManaText(existing == null ? 'record investment' : 'edit investment'),
+          title: ManaText.raw(ref.t(existing == null ? 'record_investment' : 'edit_investment')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: amount,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Amount *'),
+                decoration: InputDecoration(labelText: '${ref.t('amount')} *'),
                 onChanged: (_) => setState(() {}),
               ),
               TextField(
@@ -737,9 +742,9 @@ class _InvestmentsTab extends ConsumerWidget {
                 // no decimal point, and this field is routinely a fraction
                 // (₹1.50 per 100).
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'ROI — ₹ per 100 per month *',
-                  helperText: 'e.g. 1.5 means ₹1.50 per ₹100 each month',
+                decoration: InputDecoration(
+                  labelText: '${ref.t('roi_per_100_label')} *',
+                  helperText: ref.t('roi_per_100_helper'),
                 ),
                 onChanged: (_) => setState(() {}),
               ),
@@ -760,17 +765,17 @@ class _InvestmentsTab extends ConsumerWidget {
                 ),
               DropdownButtonFormField<String>(
                 initialValue: method,
-                decoration: const InputDecoration(labelText: 'Interest Method'),
-                items: const [
-                  DropdownMenuItem(value: 'Simple', child: ManaText.raw('Simple')),
-                  DropdownMenuItem(value: 'Yearly Compound', child: ManaText.raw('Yearly Compound')),
+                decoration: InputDecoration(labelText: ref.t('interest_method')),
+                items: [
+                  DropdownMenuItem(value: 'Simple', child: ManaText.raw(ref.t('simple'))),
+                  DropdownMenuItem(value: 'Yearly Compound', child: ManaText.raw(ref.t('yearly_compound'))),
                 ],
                 onChanged: (v) => setState(() => method = v ?? 'Simple'),
               ),
               const SizedBox(height: ManaSpacing.md),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const ManaText('Effective Date'),
+                title: ManaText.raw(ref.t('effective_date')),
                 subtitle: ManaText.raw(DateFormat('d MMM yyyy').format(effectiveDate)),
                 trailing: const Icon(Icons.calendar_today, size: 18),
                 onTap: () async {
@@ -786,7 +791,7 @@ class _InvestmentsTab extends ConsumerWidget {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
             // Was always enabled, and the parse failure afterwards just
             // `return`ed — a second silent no-op on top of the schema one.
             // Gate the button on the values actually parsing instead.
@@ -795,7 +800,7 @@ class _InvestmentsTab extends ConsumerWidget {
                       double.tryParse(roi.text.trim()) != null)
                   ? () => Navigator.pop(dialogContext, true)
                   : null,
-              child: const ManaText('save'),
+              child: ManaText.raw(ref.t('save')),
             ),
           ],
         ),
@@ -832,31 +837,31 @@ class _InvestmentsTab extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const ManaText('request withdrawal'),
+          title: ManaText.raw(ref.t('request_withdrawal')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: amount,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Amount * (cannot exceed available balance)'),
+                decoration: InputDecoration(labelText: ref.t('amount_cannot_exceed_balance')),
               ),
               DropdownButtonFormField<String>(
                 initialValue: type,
-                decoration: const InputDecoration(labelText: 'Withdrawal Type'),
-                items: const [
-                  DropdownMenuItem(value: 'Interest Only', child: ManaText.raw('Interest Only')),
-                  DropdownMenuItem(value: 'Principal Partial', child: ManaText.raw('Principal Partial')),
-                  DropdownMenuItem(value: 'Principal Full', child: ManaText.raw('Principal Full')),
-                  DropdownMenuItem(value: 'Principal + Interest', child: ManaText.raw('Principal + Interest')),
+                decoration: InputDecoration(labelText: ref.t('withdrawal_type')),
+                items: [
+                  DropdownMenuItem(value: 'Interest Only', child: ManaText.raw(ref.t('interest_only'))),
+                  DropdownMenuItem(value: 'Principal Partial', child: ManaText.raw(ref.t('principal_partial'))),
+                  DropdownMenuItem(value: 'Principal Full', child: ManaText.raw(ref.t('principal_full'))),
+                  DropdownMenuItem(value: 'Principal + Interest', child: ManaText.raw(ref.t('principal_plus_interest'))),
                 ],
                 onChanged: (v) => setState(() => type = v ?? 'Interest Only'),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const ManaText('submit')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
+            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: ManaText.raw(ref.t('submit'))),
           ],
         ),
       ),
@@ -902,25 +907,28 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const ManaText('declare profit share'),
+        title: ManaText.raw(ref.t('declare_profit_share')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ManaText.raw('${widget.investment.profitSharePercent}% of total profit for this period',
+            ManaText.raw(
+                ref
+                    .t('percent_of_total_profit_note')
+                    .replaceAll('{percent}', '${widget.investment.profitSharePercent}'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: amountController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Total Profit Amount *'),
+              decoration: InputDecoration(labelText: '${ref.t('total_profit_amount')} *'),
             ),
             const SizedBox(height: ManaSpacing.sm),
-            TextField(controller: remarksController, decoration: const InputDecoration(labelText: 'Remarks')),
+            TextField(controller: remarksController, decoration: InputDecoration(labelText: ref.t('remarks'))),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const ManaText('cancel')),
-          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const ManaText('declare')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: ManaText.raw(ref.t('cancel'))),
+          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: ManaText.raw(ref.t('declare'))),
         ],
       ),
     );
@@ -958,8 +966,8 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
           children: [
             Row(
               children: [
-                const Expanded(child: ManaText('profit share', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-                FilledButton.tonalIcon(onPressed: _declare, icon: const Icon(Icons.add, size: 18), label: const ManaText('declare')),
+                Expanded(child: ManaText.raw(ref.t('profit_share'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+                FilledButton.tonalIcon(onPressed: _declare, icon: const Icon(Icons.add, size: 18), label: ManaText.raw(ref.t('declare'))),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -973,7 +981,7 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
                   final declarations = snapshot.data ?? const [];
                   if (declarations.isEmpty) {
                     return Center(
-                      child: ManaText.raw('No profit share declared yet.', style: TextStyle(color: ManaColors.textSecondary)),
+                      child: ManaText.raw(ref.t('no_profit_share_declarations_yet'), style: TextStyle(color: ManaColors.textSecondary)),
                     );
                   }
                   return ListView.separated(
@@ -988,8 +996,8 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
                         subtitle: ManaText.raw(
                             '${DateFormat('d MMM yyyy').format(d.businessDate)} · of ${_currency.format(d.totalProfitAmount)} total'),
                         trailing: d.status == 'Declared'
-                            ? FilledButton(onPressed: () => _pay(d), child: const ManaText('pay'))
-                            : const ManaStatusPill(label: 'Paid', status: ManaStatus.good),
+                            ? FilledButton(onPressed: () => _pay(d), child: ManaText.raw(ref.t('mark_paid')))
+                            : ManaStatusPill(label: ref.t('paid'), status: ManaStatus.good),
                       );
                     },
                   );

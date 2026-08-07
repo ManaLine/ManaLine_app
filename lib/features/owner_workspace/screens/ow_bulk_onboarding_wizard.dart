@@ -141,6 +141,19 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     });
   }
 
+  Future<void> _identityDownloadCorrection() async {
+    final parse = _identityParse;
+    final outcome = _identityOutcome;
+    if (parse == null || outcome == null) return;
+    try {
+      final bytes =
+          BulkOnboardingService.buildIdentityCorrectionFile(rows: parse.rows, errors: outcome.errors, language: _language);
+      await _svc.shareBytes(bytes, 'ManaLine-Identity-Import-Corrections.xlsx');
+    } catch (e) {
+      _toast('Could not build the corrected file: $e');
+    }
+  }
+
   // -------------------------------------------------------------------
   // Step 2
   // -------------------------------------------------------------------
@@ -208,6 +221,23 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     });
   }
 
+  Future<void> _step2DownloadCorrection() async {
+    final parse = _step2Parse;
+    if (parse == null) return;
+    try {
+      final bytes = BulkOnboardingService.buildStep2CorrectionFile(
+        investorRows: parse.investor.rows,
+        investorErrors: _investorOutcome?.errors ?? const [],
+        customerRows: parse.customer.rows,
+        customerErrors: _customerLoanOutcome?.errors ?? const [],
+        language: _language,
+      );
+      await _svc.shareBytes(bytes, 'ManaLine-Onboarding-Details-Corrections.xlsx');
+    } catch (e) {
+      _toast('Could not build the corrected file: $e');
+    }
+  }
+
   // -------------------------------------------------------------------
   // Step 3
   // -------------------------------------------------------------------
@@ -273,6 +303,18 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       _emiResult = result;
       if (result != null && result.errors.isEmpty) _emiSchedule = null;
     });
+  }
+
+  Future<void> _emiDownloadCorrection() async {
+    final schedule = _emiSchedule;
+    final result = _emiResult;
+    if (schedule == null || result == null) return;
+    try {
+      final bytes = BulkOnboardingService.buildEmiCorrectionFile(schedule: schedule, errors: result.errors, language: _language);
+      await _svc.shareBytes(bytes, 'ManaLine-EMI-History-Corrections.xlsx');
+    } catch (e) {
+      _toast('Could not build the corrected file: $e');
+    }
   }
 
   // -------------------------------------------------------------------
@@ -429,7 +471,10 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             label: const ManaText('import identities'),
           ),
         ],
-        if (outcome != null && !_busy1) _outcomeBlock(outcome, noun: 'identities'),
+        if (outcome != null && !_busy1)
+          _outcomeBlock(outcome,
+              noun: 'identities',
+              onDownloadCorrection: outcome.rejected ? _identityDownloadCorrection : null),
         _navBar(onNext: () => setState(() => _step = 1)),
       ],
     );
@@ -520,8 +565,15 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             label: const ManaText('import details'),
           ),
         ],
-        if (_investorOutcome != null && !_busy2) _outcomeBlock(_investorOutcome!, noun: 'investments'),
-        if (_customerLoanOutcome != null && !_busy2) _outcomeBlock(_customerLoanOutcome!, noun: 'customer loans'),
+        if (_investorOutcome != null && !_busy2)
+          _outcomeBlock(_investorOutcome!,
+              noun: 'investments',
+              onDownloadCorrection: _investorOutcome!.rejected ? _step2DownloadCorrection : null),
+        if (_customerLoanOutcome != null && !_busy2)
+          _outcomeBlock(_customerLoanOutcome!,
+              noun: 'customer loans',
+              onDownloadCorrection:
+                  (_customerLoanOutcome!.rejected && !(_investorOutcome?.rejected ?? false)) ? _step2DownloadCorrection : null),
         _navBar(onNext: () => setState(() => _step = 2)),
       ],
     );
@@ -598,6 +650,12 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
+            const SizedBox(height: ManaSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: _emiDownloadCorrection,
+              icon: const Icon(Icons.download_outlined),
+              label: const ManaText('download corrected file'),
+            ),
           ],
         ],
         _navBar(onNext: () => setState(() => _step = 3), nextLabel: 'finish'),
@@ -646,7 +704,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     );
   }
 
-  Widget _outcomeBlock(ImportOutcome outcome, {required String noun}) {
+  Widget _outcomeBlock(ImportOutcome outcome, {required String noun, VoidCallback? onDownloadCorrection}) {
     return Padding(
       padding: const EdgeInsets.only(top: ManaSpacing.md),
       child: outcome.rejected
@@ -663,6 +721,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: ManaText.raw('Row ${e.row}: ${e.message}', style: const TextStyle(fontSize: 13)),
                   ),
+                if (onDownloadCorrection != null) ...[
+                  const SizedBox(height: ManaSpacing.sm),
+                  OutlinedButton.icon(
+                    onPressed: onDownloadCorrection,
+                    icon: const Icon(Icons.download_outlined),
+                    label: const ManaText('download corrected file'),
+                  ),
+                ],
               ],
             )
           : ManaText.raw('${outcome.imported} $noun imported.',

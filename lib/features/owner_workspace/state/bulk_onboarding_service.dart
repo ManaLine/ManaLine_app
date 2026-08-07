@@ -192,6 +192,55 @@ class BulkOnboardingService {
     }
   }
 
+  /// Rejection from `submitIdentities` is all-or-nothing at the RPC, so
+  /// every row in `rows` is still unimported even though only some failed
+  /// validation. Rather than leave the Owner with just an inline error
+  /// list, hand back the same rows with an Error column appended — nothing
+  /// retyped, row order untouched (so "Row N" in the on-screen error still
+  /// lines up), ready to fix and re-upload as-is.
+  static Uint8List buildIdentityCorrectionFile({
+    required List<Map<String, dynamic>> rows,
+    required List<ImportRowError> errors,
+    required String language,
+  }) {
+    return _buildCorrectionFile(
+      sheetName: 'Identities',
+      columns: identityColumns,
+      labels: _identityLabels,
+      rows: rows,
+      errors: errors,
+      language: language,
+    );
+  }
+
+  static Uint8List _buildCorrectionFile({
+    required String sheetName,
+    required List<String> columns,
+    required Map<String, Map<String, String>> labels,
+    required List<Map<String, dynamic>> rows,
+    required List<ImportRowError> errors,
+    required String language,
+  }) {
+    final excel = Excel.createExcel();
+    final sheet = excel[sheetName];
+    final errorByRow = {for (final e in errors) e.row: e.message};
+    sheet.appendRow([
+      for (final key in columns) TextCellValue(labels[key]?[language] ?? labels[key]!['English']!),
+      TextCellValue('Error'),
+    ]);
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      sheet.appendRow([
+        for (final key in columns) TextCellValue((row[key] ?? '').toString()),
+        TextCellValue(errorByRow[i + 1] ?? ''),
+      ]);
+    }
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The corrected file could not be generated.');
+    return Uint8List.fromList(bytes);
+  }
+
   // ---------------------------------------------------------------------
   // Step 2 — 3-tab onboarding template / parse / submit
   // ---------------------------------------------------------------------
@@ -242,6 +291,16 @@ class BulkOnboardingService {
 
     for (final role in const ['Agent', 'Investor', 'Customer']) {
       final rows = await _prefillRows(businessId, role);
+      // Village A-Z, blanks last, name as tiebreak — so the sheet reads in
+      // the same order as the Owner's paper ledger, which is organised by
+      // village.
+      rows.sort((a, b) {
+        final va = (a.village ?? '').trim();
+        final vb = (b.village ?? '').trim();
+        if (va.isEmpty != vb.isEmpty) return va.isEmpty ? 1 : -1;
+        final cmp = va.toLowerCase().compareTo(vb.toLowerCase());
+        return cmp != 0 ? cmp : a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase());
+      });
       final sheet = excel[role];
       final extraKeys = role == 'Investor'
           ? investorRequired
@@ -406,6 +465,53 @@ class BulkOnboardingService {
     }
   }
 
+  /// Same all-or-nothing-per-tab problem as Step 1, doubled — Investor and
+  /// Customer submit independently, so either or both can come back
+  /// rejected. One workbook, one tab per rejected side, each annotated the
+  /// same way as [buildIdentityCorrectionFile].
+  static Uint8List buildStep2CorrectionFile({
+    required List<Map<String, dynamic>> investorRows,
+    required List<ImportRowError> investorErrors,
+    required List<Map<String, dynamic>> customerRows,
+    required List<ImportRowError> customerErrors,
+    required String language,
+  }) {
+    final excel = Excel.createExcel();
+    const prefillCols = ['mlid', 'full_name', 'user_type', 'village'];
+
+    void writeTab(
+      String name,
+      List<String> extraCols,
+      Map<String, Map<String, String>> extraLabels,
+      List<Map<String, dynamic>> rows,
+      List<ImportRowError> errors,
+    ) {
+      final sheet = excel[name];
+      final errorByRow = {for (final e in errors) e.row: e.message};
+      sheet.appendRow([
+        for (final k in prefillCols) TextCellValue(_prefillLabels[k]![language] ?? _prefillLabels[k]!['English']!),
+        for (final k in extraCols) TextCellValue(extraLabels[k]![language] ?? extraLabels[k]!['English']!),
+        TextCellValue('Error'),
+      ]);
+      for (var i = 0; i < rows.length; i++) {
+        final row = rows[i];
+        sheet.appendRow([
+          for (final k in prefillCols) TextCellValue((row[k] ?? '').toString()),
+          for (final k in extraCols) TextCellValue((row[k] ?? '').toString()),
+          TextCellValue(errorByRow[i + 1] ?? ''),
+        ]);
+      }
+    }
+
+    writeTab('Investor', investorRequired, _investorLabels, investorRows, investorErrors);
+    writeTab('Customer', [...customerLoanRequired, ...customerLoanOptional], _customerLoanLabels, customerRows, customerErrors);
+
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The corrected file could not be generated.');
+    return Uint8List.fromList(bytes);
+  }
+
   Future<Map<String, String>> _resolveCustomerIdsByMlid(String businessId, List<String> mlids) async {
     if (mlids.isEmpty) return {};
     final rows = await _db
@@ -526,6 +632,57 @@ class BulkOnboardingService {
       }
     }
     return EmiSubmitResult(recorded: totalOk, errors: errors);
+  }
+
+  /// Unlike Steps 1 and 2, `submitEmiSchedule` is NOT all-or-nothing —
+  /// instalments that already recorded must not appear in the re-upload, or
+  /// a second run would collect them twice. Only the failed pairs come
+  /// back, repacked into sequential EMI slots starting at 1 (their original
+  /// slot number carried no meaning — [EmiScheduleRow.entries] is already
+  /// compacted past blanks during parse); a customer whose whole schedule
+  /// succeeded is dropped from the file entirely.
+  static Uint8List buildEmiCorrectionFile({
+    required List<EmiScheduleRow> schedule,
+    required List<EmiRowError> errors,
+    required String language,
+  }) {
+    final wholeRowFailed = <String>{};
+    final failedEntryIndexes = <String, Set<int>>{};
+    for (final e in errors) {
+      if (e.instalment == 0) {
+        wholeRowFailed.add(e.mlid);
+      } else {
+        failedEntryIndexes.putIfAbsent(e.mlid, () => {}).add(e.instalment - 1);
+      }
+    }
+
+    final excel = Excel.createExcel();
+    final sheet = excel['EMI History'];
+    sheet.appendRow([
+      TextCellValue(_prefillLabels['mlid']![language] ?? 'MLID'),
+      TextCellValue(_prefillLabels['full_name']![language] ?? 'Name'),
+      for (var i = 1; i <= emiCount; i++) ...[
+        TextCellValue('EMI $i Amount'),
+        TextCellValue('EMI $i Date'),
+      ],
+    ]);
+    for (final row in schedule) {
+      final failedEntries = wholeRowFailed.contains(row.mlid)
+          ? row.entries
+          : [for (final idx in failedEntryIndexes[row.mlid] ?? const <int>{}) row.entries[idx]];
+      if (failedEntries.isEmpty) continue;
+      final cells = <CellValue>[TextCellValue(row.mlid), TextCellValue('')];
+      for (final entry in failedEntries) {
+        cells.add(TextCellValue(entry.amount.toString()));
+        cells.add(TextCellValue(
+            '${entry.date.year.toString().padLeft(4, '0')}-${entry.date.month.toString().padLeft(2, '0')}-${entry.date.day.toString().padLeft(2, '0')}'));
+      }
+      sheet.appendRow(cells);
+    }
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The corrected file could not be generated.');
+    return Uint8List.fromList(bytes);
   }
 
   Future<Map<String, LoanRef>> _resolveLoansByMlid(String businessId, List<String> mlids) async {

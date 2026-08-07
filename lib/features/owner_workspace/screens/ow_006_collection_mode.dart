@@ -8,6 +8,7 @@ import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/widgets/address_check_banner.dart';
+import '../../../shared/translation_service.dart';
 import '../state/collection_mode_state.dart';
 import 'package:go_router/go_router.dart';
 
@@ -40,7 +41,7 @@ class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
     return Scaffold(
       appBar: AppBar(
 leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.businessId)),
-        title: const ManaText('collection mode'),
+        title: ManaText.raw(ref.t('collection_mode')),
 ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -53,7 +54,7 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                     _SummaryStrip(state: state),
                     const SizedBox(height: ManaSpacing.xs),
                     ManaText.raw(
-                      'Sorted by: penalty → grace period → today\'s due → village → name',
+                      ref.t('sorted_by_note'),
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
@@ -61,7 +62,7 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
-                          child: ManaText.raw('Nobody due today.',
+                          child: ManaText.raw(ref.t('nobody_due_today'),
                               style: TextStyle(color: ManaColors.textSecondary)),
                         ),
                       )
@@ -80,20 +81,20 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
   }
 }
 
-class _SummaryStrip extends StatelessWidget {
+class _SummaryStrip extends ConsumerWidget {
   final CollectionModeState state;
   const _SummaryStrip({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final stats = <(String, String, ManaStatus)>[
-      ('Total Due', '${state.totalDue}', ManaStatus.neutral),
-      ('Collected', '${state.collected}', ManaStatus.good),
-      ('Pending', '${state.pending}', ManaStatus.warn),
-      ('Skipped', '${state.skipped}', ManaStatus.neutral),
-      ('Penalty', '${state.penaltyCount}', ManaStatus.bad),
-      ('Grace Period', '${state.graceCount}', ManaStatus.warn),
-      ('Live Collected', _currency.format(state.liveCollectionAmount), ManaStatus.good),
+      (ref.t('total_due'), '${state.totalDue}', ManaStatus.neutral),
+      (ref.t('collected'), '${state.collected}', ManaStatus.good),
+      (ref.t('pending'), '${state.pending}', ManaStatus.warn),
+      (ref.t('skipped'), '${state.skipped}', ManaStatus.neutral),
+      (ref.t('penalty'), '${state.penaltyCount}', ManaStatus.bad),
+      (ref.t('grace_period_label'), '${state.graceCount}', ManaStatus.warn),
+      (ref.t('live_collected'), _currency.format(state.liveCollectionAmount), ManaStatus.good),
     ];
     return ManaStatStrip(
       valueFontSize: 16,
@@ -105,7 +106,7 @@ class _SummaryStrip extends StatelessWidget {
   }
 }
 
-class _DueRow extends StatelessWidget {
+class _DueRow extends ConsumerWidget {
   final CollectionDueRow row;
   final VoidCallback onTap;
   const _DueRow({required this.row, required this.onTap});
@@ -119,7 +120,7 @@ class _DueRow extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = _statusIcon;
     // NOT a ListTile — its leading/title/trailing layout clamps content to
     // a fixed height (~56dp), which a two-line trailing column (amount +
@@ -163,10 +164,10 @@ class _DueRow extends StatelessWidget {
                         ),
                         if (row.penaltyEligible) ...[
                           const SizedBox(width: ManaSpacing.xs),
-                          const ManaStatusPill(label: 'Penalty', status: ManaStatus.bad),
+                          ManaStatusPill(label: ref.t('penalty'), status: ManaStatus.bad),
                         ] else if (row.gracePeriod) ...[
                           const SizedBox(width: ManaSpacing.xs),
-                          const ManaStatusPill(label: 'Grace', status: ManaStatus.warn),
+                          ManaStatusPill(label: ref.t('grace'), status: ManaStatus.warn),
                         ],
                       ],
                     ),
@@ -245,12 +246,12 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
                 padding: const EdgeInsets.all(ManaSpacing.md),
                 child: Column(
                   children: [
-                    _row('Loan Number', row.loanNumber),
-                    _row('Installment Due', _currency.format(row.installmentDue)),
-                    _row('Outstanding Balance', _currency.format(row.outstandingBalance)),
-                    _row('Line Repayment Index', '${row.lineRepaymentIndex}'),
-                    _row('Grace Status', row.gracePeriod ? 'In Grace Period' : 'Normal'),
-                    _row('Penalty Status', row.penaltyEligible ? 'Penalty Eligible' : 'None'),
+                    _row(ref.t('loan_number'), row.loanNumber),
+                    _row(ref.t('installment_due'), _currency.format(row.installmentDue)),
+                    _row(ref.t('outstanding_balance'), _currency.format(row.outstandingBalance)),
+                    _row(ref.t('line_repayment_index'), '${row.lineRepaymentIndex}'),
+                    _row(ref.t('grace_status'), row.gracePeriod ? ref.t('in_grace_period') : ref.t('normal')),
+                    _row(ref.t('penalty_status'), row.penaltyEligible ? ref.t('penalty_eligible') : ref.t('none')),
                   ],
                 ),
               ),
@@ -259,17 +260,17 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
             if (_action == _EntryAction.none) ...[
               ElevatedButton(
                 onPressed: () => setState(() => _action = _EntryAction.collect),
-                child: const ManaText('enter collection'),
+                child: ManaText.raw(ref.t('enter_collection')),
               ),
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton(
                 onPressed: () => setState(() => _action = _EntryAction.noCollection),
-                child: const ManaText('no collection (visit without payment)'),
+                child: ManaText.raw(ref.t('no_collection_visit_without_payment')),
               ),
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton(
                 onPressed: () => setState(() => _action = _EntryAction.extension),
-                child: const ManaText('request extension'),
+                child: ManaText.raw(ref.t('request_extension')),
               ),
             ],
             if (_action == _EntryAction.collect)
@@ -288,7 +289,7 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText.raw(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
@@ -382,14 +383,16 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
     final action = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('already collected today'),
+        title: ManaText.raw(ref.t('already_collected_today')),
         content: ManaText.raw(
-          'This loan already has a payment recorded today by $by '
-          '(${_currency.format(amount)}). Record this payment anyway?',
+          ref
+              .t('already_collected_note')
+              .replaceAll('{by}', by)
+              .replaceAll('{amount}', _currency.format(amount)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('close')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const ManaText('continue')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: ManaText.raw(ref.t('close'))),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: ManaText.raw(ref.t('continue_button'))),
         ],
       ),
     );
@@ -406,14 +409,14 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('receipt'),
+        title: ManaText.raw(ref.t('receipt')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw('Receipt #${result.receiptNumber}'),
+            ManaText.raw(ref.t('receipt_number').replaceAll('{number}', result.receiptNumber)),
             ManaText.raw('${result.resultType} · ${_currency.format(result.collectedAmount)}'),
-            ManaText.raw('New Balance: ${_currency.format(result.newOutstandingBalance)}'),
+            ManaText.raw(ref.t('new_balance').replaceAll('{amount}', _currency.format(result.newOutstandingBalance))),
           ],
         ),
         actions: [
@@ -422,7 +425,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
               Navigator.of(context).pop(); // dialog
               Navigator.of(context).pop(); // entry screen → back to dashboard
             },
-            child: const ManaText('done'),
+            child: ManaText.raw(ref.t('done')),
           ),
         ],
       ),
@@ -437,23 +440,23 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
         TextField(
           controller: _amount,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Collected Amount *'),
+          decoration: InputDecoration(labelText: ref.t('collected_amount_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
         DropdownButtonFormField<String>(
           initialValue: _payerType,
-          decoration: const InputDecoration(labelText: 'Payer'),
-          items: const [
-            DropdownMenuItem(value: 'Customer', child: ManaText.raw('Customer')),
-            DropdownMenuItem(value: 'Guarantor', child: ManaText.raw('Guarantor')),
+          decoration: InputDecoration(labelText: ref.t('payer')),
+          items: [
+            DropdownMenuItem(value: 'Customer', child: ManaText.raw(ref.t('customer'))),
+            DropdownMenuItem(value: 'Guarantor', child: ManaText.raw(ref.t('guarantor'))),
           ],
           onChanged: (v) => setState(() => _payerType = v ?? 'Customer'),
         ),
         const SizedBox(height: ManaSpacing.md),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const ManaText('mixed payment'),
+          title: ManaText.raw(ref.t('mixed_payment')),
           value: _mixed,
           onChanged: (v) => setState(() => _mixed = v),
         ),
@@ -461,18 +464,18 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           TextField(
             controller: _cashAmount,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Cash'),
+            decoration: InputDecoration(labelText: ref.t('cash')),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: ManaSpacing.sm),
           TextField(
             controller: _upiAmount,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'UPI'),
+            decoration: InputDecoration(labelText: ref.t('upi')),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: ManaSpacing.xs),
-          ManaText.raw('Split sum: ${_currency.format(_splitSum)} (must equal collected amount)',
+          ManaText.raw(ref.t('split_sum_note').replaceAll('{amount}', _currency.format(_splitSum)),
               style: TextStyle(
                 fontSize: 16,
                 color: (_splitSum - _collected) != 0 ? ManaColors.statusBad : ManaColors.statusGood,
@@ -494,11 +497,11 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           const SizedBox(height: ManaSpacing.sm),
           DropdownButtonFormField<String>(
             initialValue: _excessDisposition,
-            decoration: const InputDecoration(labelText: 'Excess Disposition *'),
-            items: const [
-              DropdownMenuItem(value: 'Advance', child: ManaText.raw('Advance')),
-              DropdownMenuItem(value: 'Refund', child: ManaText.raw('Refund')),
-              DropdownMenuItem(value: 'Next Installment', child: ManaText.raw('Next Installment')),
+            decoration: InputDecoration(labelText: ref.t('excess_disposition_field')),
+            items: [
+              DropdownMenuItem(value: 'Advance', child: ManaText.raw(ref.t('advance'))),
+              DropdownMenuItem(value: 'Refund', child: ManaText.raw(ref.t('refund'))),
+              DropdownMenuItem(value: 'Next Installment', child: ManaText.raw(ref.t('next_installment'))),
             ],
             onChanged: (v) => setState(() => _excessDisposition = v),
           ),
@@ -507,7 +510,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
         Row(
           children: [
             Expanded(
-              child: OutlinedButton(onPressed: _submitting ? null : widget.onCancel, child: const ManaText('cancel')),
+              child: OutlinedButton(onPressed: _submitting ? null : widget.onCancel, child: ManaText.raw(ref.t('cancel'))),
             ),
             const SizedBox(width: ManaSpacing.md),
             Expanded(
@@ -516,7 +519,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
                 onPressed: (_canSubmit && !_submitting) ? _submit : null,
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('save'),
+                    : ManaText.raw(ref.t('save')),
               ),
             ),
           ],
@@ -542,6 +545,12 @@ class _NoCollectionFormState extends ConsumerState<_NoCollectionForm> {
   bool _submitting = false;
 
   static const _reasons = ['Customer Not Available', 'Customer Refused', 'Requested Later Visit', 'Other'];
+  static const _reasonKeys = {
+    'Customer Not Available': 'customer_not_available',
+    'Customer Refused': 'customer_refused',
+    'Requested Later Visit': 'requested_later_visit',
+    'Other': 'other',
+  };
 
   Future<void> _submit() async {
     if (_reason == null) return;
@@ -561,15 +570,15 @@ class _NoCollectionFormState extends ConsumerState<_NoCollectionForm> {
       children: [
         DropdownButtonFormField<String>(
           initialValue: _reason,
-          decoration: const InputDecoration(labelText: 'Visit Reason *'),
-          items: _reasons.map((r) => DropdownMenuItem(value: r, child: ManaText.raw(r))).toList(),
+          decoration: InputDecoration(labelText: ref.t('visit_reason_field')),
+          items: _reasons.map((r) => DropdownMenuItem(value: r, child: ManaText.raw(ref.t(_reasonKeys[r]!)))).toList(),
           onChanged: (v) => setState(() => _reason = v),
         ),
         const SizedBox(height: ManaSpacing.lg),
         Row(
           children: [
             Expanded(
-              child: OutlinedButton(onPressed: _submitting ? null : widget.onCancel, child: const ManaText('cancel')),
+              child: OutlinedButton(onPressed: _submitting ? null : widget.onCancel, child: ManaText.raw(ref.t('cancel'))),
             ),
             const SizedBox(width: ManaSpacing.md),
             Expanded(
@@ -578,7 +587,7 @@ class _NoCollectionFormState extends ConsumerState<_NoCollectionForm> {
                 onPressed: (_reason != null && !_submitting) ? _submit : null,
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('save visit'),
+                    : ManaText.raw(ref.t('save_visit')),
               ),
             ),
           ],
@@ -613,7 +622,7 @@ class _ExtensionFormState extends ConsumerState<_ExtensionForm> {
     setState(() => _submitting = false);
     if (ok == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: ManaText.raw(approve ? 'Extension approved.' : 'Extension rejected.')),
+        SnackBar(content: ManaText.raw(approve ? ref.t('extension_approved') : ref.t('extension_rejected'))),
       );
       Navigator.of(context).pop();
     }
@@ -625,8 +634,7 @@ class _ExtensionFormState extends ConsumerState<_ExtensionForm> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ManaText.raw(
-          'Customer is requesting more time on this loan. Approving updates Grace '
-          'Status and writes an audit entry; rejecting makes no change and is not audited.',
+          ref.t('extension_note'),
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
@@ -635,7 +643,7 @@ class _ExtensionFormState extends ConsumerState<_ExtensionForm> {
             Expanded(
               child: OutlinedButton(
                 onPressed: _submitting ? null : () => _decide(false),
-                child: const ManaText('reject'),
+                child: ManaText.raw(ref.t('reject')),
               ),
             ),
             const SizedBox(width: ManaSpacing.md),
@@ -644,13 +652,13 @@ class _ExtensionFormState extends ConsumerState<_ExtensionForm> {
                 onPressed: _submitting ? null : () => _decide(true),
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('approve'),
+                    : ManaText.raw(ref.t('approve')),
               ),
             ),
           ],
         ),
         const SizedBox(height: ManaSpacing.sm),
-        TextButton(onPressed: _submitting ? null : widget.onCancel, child: const ManaText('cancel')),
+        TextButton(onPressed: _submitting ? null : widget.onCancel, child: ManaText.raw(ref.t('cancel'))),
       ],
     );
   }

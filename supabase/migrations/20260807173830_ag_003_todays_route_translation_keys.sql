@@ -1,0 +1,22 @@
+INSERT INTO ui_translations (translation_key, english, telugu) VALUES
+('dashboard', 'Dashboard', 'డాష్‌బోర్డ్'),
+('could_not_load_todays_route', 'Could not load today''s route.\n{message}', 'నేటి మార్గం లోడ్ కాలేదు.\n{message}'),
+('villages', 'Villages', 'గ్రామాలు'),
+('assigned', 'Assigned', 'కేటాయించబడింది'),
+('completed', 'Completed', 'పూర్తయింది'),
+('pending_label', 'Pending', 'పెండింగ్'),
+('est_collection', 'Est. Collection', 'అంచనా వసూలు'),
+('village_customer_order_note', 'Village and customer order are set by your Owner — this route cannot be reordered.', 'గ్రామం మరియు కస్టమర్ క్రమాన్ని మీ యజమాని నిర్ణయిస్తారు — ఈ మార్గాన్ని తిరిగి క్రమబద్ధీకరించలేరు.'),
+('no_route_assigned', 'No route assigned for the enabled areas in this session.', 'ఈ సెషన్‌లో ప్రారంభించిన ప్రాంతాలకు ఏ మార్గం కేటాయించలేదు.'),
+('visit_percent', 'Visit {percent}%', 'సందర్శన {percent}%'),
+('collection_percent', 'Collection {percent}%', 'వసూలు {percent}%'),
+('remaining_percent', 'Remaining {percent}%', 'మిగిలిన {percent}%'),
+('partial', 'Partial', 'పాక్షికం'),
+('house_locked', 'House Locked', 'ఇల్లు లాక్ చేయబడింది'),
+('shifted_village', 'Shifted Village', 'గ్రామం మారింది'),
+('extension_requested', 'Extension Requested', 'పొడిగింపు అభ్యర్థించారు'),
+('closed', 'Closed', 'మూసివేయబడింది'),
+('visit_outcome', 'Visit Outcome', 'సందర్శన ఫలితం'),
+('customers_left_to_visit', '{count} customer(s) left to visit.', '{count} కస్టమర్(లు) సందర్శించాల్సి ఉంది.'),
+('route_complete_return_to_dashboard', 'Route Complete — Return to Dashboard', 'మార్గం పూర్తయింది — డాష్‌బోర్డ్‌కు తిరిగి వెళ్లండి')
+ON CONFLICT (translation_key) DO NOTHING;

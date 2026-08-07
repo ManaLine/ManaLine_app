@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/agent_workspace/screens/ag_002_collection_mode.dart';
 import 'package:mana_line/features/owner_workspace/state/collection_mode_state.dart';
+import 'package:mana_line/shared/widgets/language_selector.dart';
 
 import 'support/mana_harness.dart';
 
@@ -14,6 +15,24 @@ class _SeededCollectionModeNotifier extends CollectionModeNotifier {
   @override
   Future<void> load(String businessId) async {}
 }
+
+/// The real ui_translations rows this screen was wired against (migration
+/// 20260807173447 + reused earlier keys).
+const _ag002TeluguTranslations = <String, Map<String, String>>{
+  'collection_mode': {'English': 'Collection Mode', 'Telugu': 'వసూలు మోడ్'},
+  'customers_due': {'English': 'Customers Due', 'Telugu': 'బకాయి కస్టమర్లు'},
+  'collected': {'English': 'Collected', 'Telugu': 'వసూలైంది'},
+  'pending': {'English': 'Pending', 'Telugu': 'పెండింగ్'},
+  'skipped': {'English': 'Skipped', 'Telugu': 'దాటవేయబడింది'},
+  'penalty': {'English': 'Penalty', 'Telugu': 'జరిమానా'},
+  'grace': {'English': 'Grace', 'Telugu': 'గ్రేస్'},
+  'todays_collection_total': {'English': "Today's Collection Total", 'Telugu': 'నేటి వసూలు మొత్తం'},
+  'sorted_by_note_short': {
+    'English': "Sorted by: penalty → grace period → today's due → village",
+    'Telugu': 'క్రమం: జరిమానా → గ్రేస్ పీరియడ్ → నేటి బకాయి → గ్రామం',
+  },
+  'no_customers_due_right_now': {'English': 'No customers due right now.', 'Telugu': 'ప్రస్తుతం ఎవరూ బకాయి లేరు.'},
+};
 
 void main() {
   final dueList = [
@@ -59,6 +78,18 @@ void main() {
         overrides: [collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))],
       );
       expectNoLayoutFault(tester, 'AG-002 Agent Collection Mode at ${scale}x');
+    });
+
+    testWidgets('AG-002 Agent Collection Mode survives text scale ${scale}x in Telugu', (tester) async {
+      await pumpManaScreen(
+        tester,
+        const AgentCollectionModeScreen(businessId: 'b1'),
+        textScale: scale,
+        language: ManaLanguage.telugu,
+        translations: _ag002TeluguTranslations,
+        overrides: [collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))],
+      );
+      expectNoLayoutFault(tester, 'AG-002 Agent Collection Mode at ${scale}x in Telugu');
     });
   }
 

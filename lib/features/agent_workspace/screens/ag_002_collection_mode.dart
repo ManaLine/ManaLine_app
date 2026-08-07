@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
+import '../../../shared/translation_service.dart';
 import '../../owner_workspace/state/collection_mode_state.dart';
 import '../../owner_workspace/screens/ow_006_collection_mode.dart' show CollectionEntryScreen;
 
@@ -40,7 +41,7 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
     final state = ref.watch(collectionModeProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('collection mode')),
+      appBar: AppBar(title: ManaText.raw(ref.t('collection_mode'))),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(collectionModeProvider.notifier).load(widget.businessId),
@@ -55,7 +56,7 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                     _AgentSummaryStrip(state: state),
                     const SizedBox(height: ManaSpacing.xs),
                     ManaText.raw(
-                      'Sorted by: penalty → grace period → today\'s due → village',
+                      ref.t('sorted_by_note_short'),
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
@@ -63,7 +64,7 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
-                          child: ManaText.raw('No customers due right now.',
+                          child: ManaText.raw(ref.t('no_customers_due_right_now'),
                               style: TextStyle(color: ManaColors.textSecondary)),
                         ),
                       )
@@ -86,20 +87,20 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
 /// Penalty, Grace, Today's Collection Total — per spec's COLLECTION
 /// DASHBOARD section (distinct labels from OW-006's strip, same underlying
 /// CollectionModeState fields).
-class _AgentSummaryStrip extends StatelessWidget {
+class _AgentSummaryStrip extends ConsumerWidget {
   final CollectionModeState state;
   const _AgentSummaryStrip({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final stats = <(String, String, ManaStatus)>[
-      ('Customers Due', '${state.totalDue}', ManaStatus.neutral),
-      ('Collected', '${state.collected}', ManaStatus.good),
-      ('Pending', '${state.pending}', ManaStatus.warn),
-      ('Skipped', '${state.skipped}', ManaStatus.neutral),
-      ('Penalty', '${state.penaltyCount}', ManaStatus.bad),
-      ('Grace', '${state.graceCount}', ManaStatus.warn),
-      ("Today's Collection Total", _currency.format(state.liveCollectionAmount), ManaStatus.good),
+      (ref.t('customers_due'), '${state.totalDue}', ManaStatus.neutral),
+      (ref.t('collected'), '${state.collected}', ManaStatus.good),
+      (ref.t('pending'), '${state.pending}', ManaStatus.warn),
+      (ref.t('skipped'), '${state.skipped}', ManaStatus.neutral),
+      (ref.t('penalty'), '${state.penaltyCount}', ManaStatus.bad),
+      (ref.t('grace'), '${state.graceCount}', ManaStatus.warn),
+      (ref.t('todays_collection_total'), _currency.format(state.liveCollectionAmount), ManaStatus.good),
     ];
     return ManaStatStrip(
       valueFontSize: 16,
@@ -111,7 +112,7 @@ class _AgentSummaryStrip extends StatelessWidget {
   }
 }
 
-class _CustomerDueRow extends StatelessWidget {
+class _CustomerDueRow extends ConsumerWidget {
   final CollectionDueRow row;
   final VoidCallback onTap;
   const _CustomerDueRow({required this.row, required this.onTap});
@@ -125,7 +126,7 @@ class _CustomerDueRow extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = _statusIcon;
     // Same bug, same fix as OW-006's _DueRow (this widget is a near-verbatim
     // duplicate of it): ListTile's fixed-height/fixed-width trailing slot
@@ -161,10 +162,10 @@ class _CustomerDueRow extends StatelessWidget {
                         ),
                         if (row.penaltyEligible) ...[
                           const SizedBox(width: ManaSpacing.xs),
-                          const ManaStatusPill(label: 'Penalty', status: ManaStatus.bad),
+                          ManaStatusPill(label: ref.t('penalty'), status: ManaStatus.bad),
                         ] else if (row.gracePeriod) ...[
                           const SizedBox(width: ManaSpacing.xs),
-                          const ManaStatusPill(label: 'Grace', status: ManaStatus.warn),
+                          ManaStatusPill(label: ref.t('grace'), status: ManaStatus.warn),
                         ],
                       ],
                     ),

@@ -873,4 +873,52 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'approve': {'English': 'Approve', 'Telugu': 'ఆమోదించండి'},
   'extension_approved': {'English': 'Extension approved.', 'Telugu': 'పొడిగింపు ఆమోదించబడింది.'},
   'extension_rejected': {'English': 'Extension rejected.', 'Telugu': 'పొడిగింపు తిరస్కరించబడింది.'},
+
+  // --- AG-002 Collection Mode phase-1 wiring (migration 20260807173447) —
+  // English/Telugu only.
+  'customers_due': {'English': 'Customers Due', 'Telugu': 'బకాయి కస్టమర్లు'},
+  'no_customers_due_right_now': {'English': 'No customers due right now.', 'Telugu': 'ప్రస్తుతం ఎవరూ బకాయి లేరు.'},
+  'sorted_by_note_short': {
+    'English': "Sorted by: penalty → grace period → today's due → village",
+    'Telugu': 'క్రమం: జరిమానా → గ్రేస్ పీరియడ్ → నేటి బకాయి → గ్రామం',
+  },
+  'todays_collection_total': {'English': "Today's Collection Total", 'Telugu': 'నేటి వసూలు మొత్తం'},
+
+  // --- AG-003 Today's Route phase-1 wiring (migration 20260807173830) —
+  // English/Telugu only.
+  'dashboard': {'English': 'Dashboard', 'Telugu': 'డాష్‌బోర్డ్'},
+  'could_not_load_todays_route': {
+    'English': "Could not load today's route.\n{message}",
+    'Telugu': 'నేటి మార్గం లోడ్ కాలేదు.\n{message}',
+  },
+  'villages': {'English': 'Villages', 'Telugu': 'గ్రామాలు'},
+  'assigned': {'English': 'Assigned', 'Telugu': 'కేటాయించబడింది'},
+  'completed': {'English': 'Completed', 'Telugu': 'పూర్తయింది'},
+  'pending_label': {'English': 'Pending', 'Telugu': 'పెండింగ్'},
+  'est_collection': {'English': 'Est. Collection', 'Telugu': 'అంచనా వసూలు'},
+  'village_customer_order_note': {
+    'English': 'Village and customer order are set by your Owner — this route cannot be reordered.',
+    'Telugu': 'గ్రామం మరియు కస్టమర్ క్రమాన్ని మీ యజమాని నిర్ణయిస్తారు — ఈ మార్గాన్ని తిరిగి క్రమబద్ధీకరించలేరు.',
+  },
+  'no_route_assigned': {
+    'English': 'No route assigned for the enabled areas in this session.',
+    'Telugu': 'ఈ సెషన్‌లో ప్రారంభించిన ప్రాంతాలకు ఏ మార్గం కేటాయించలేదు.',
+  },
+  'visit_percent': {'English': 'Visit {percent}%', 'Telugu': 'సందర్శన {percent}%'},
+  'collection_percent': {'English': 'Collection {percent}%', 'Telugu': 'వసూలు {percent}%'},
+  'remaining_percent': {'English': 'Remaining {percent}%', 'Telugu': 'మిగిలిన {percent}%'},
+  'partial': {'English': 'Partial', 'Telugu': 'పాక్షికం'},
+  'house_locked': {'English': 'House Locked', 'Telugu': 'ఇల్లు లాక్ చేయబడింది'},
+  'shifted_village': {'English': 'Shifted Village', 'Telugu': 'గ్రామం మారింది'},
+  'extension_requested': {'English': 'Extension Requested', 'Telugu': 'పొడిగింపు అభ్యర్థించారు'},
+  'closed': {'English': 'Closed', 'Telugu': 'మూసివేయబడింది'},
+  'visit_outcome': {'English': 'Visit Outcome', 'Telugu': 'సందర్శన ఫలితం'},
+  'customers_left_to_visit': {
+    'English': '{count} customer(s) left to visit.',
+    'Telugu': '{count} కస్టమర్(లు) సందర్శించాల్సి ఉంది.',
+  },
+  'route_complete_return_to_dashboard': {
+    'English': 'Route Complete — Return to Dashboard',
+    'Telugu': 'మార్గం పూర్తయింది — డాష్‌బోర్డ్‌కు తిరిగి వెళ్లండి',
+  },
 };

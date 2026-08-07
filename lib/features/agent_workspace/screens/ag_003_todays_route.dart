@@ -6,6 +6,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../../owner_workspace/state/collection_mode_state.dart' show collectionModeProvider, CollectionDueRow;
 import '../../owner_workspace/screens/ow_006_collection_mode.dart' show CollectionEntryScreen;
 import '../state/todays_route_state.dart';
@@ -95,10 +96,10 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText("today's route"),
+        title: ManaText.raw(ref.t('todays_route')),
         actions: [
           IconButton(
-            tooltip: 'Dashboard',
+            tooltip: ref.t('dashboard'),
             icon: const Icon(Icons.home_outlined),
             onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
           ),
@@ -122,7 +123,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
                         _RouteProgress(state: state),
                         const SizedBox(height: ManaSpacing.xs),
                         ManaText.raw(
-                          'Village and customer order are set by your Owner — this route cannot be reordered.',
+                          ref.t('village_customer_order_note'),
                           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                         ),
                         const SizedBox(height: ManaSpacing.md),
@@ -130,7 +131,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                             child: Center(
-                              child: ManaText.raw('No route assigned for the enabled areas in this session.',
+                              child: ManaText.raw(ref.t('no_route_assigned'),
                                   style: TextStyle(color: ManaColors.textSecondary)),
                             ),
                           )
@@ -138,7 +139,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
                           for (final village in state.orderedVillages) ...[
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
-                              child: ManaText(village, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                              child: ManaText.raw(village, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                             ),
                             ...state.byVillage[village]!.map((stop) => _RouteStopRow(
                                   stop: stop,
@@ -166,22 +167,23 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
   }
 }
 
-class _ErrorState extends StatelessWidget {
+class _ErrorState extends ConsumerWidget {
   final String message;
   final Future<void> Function() onRetry;
   const _ErrorState({required this.message, required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ManaText.raw('Could not load today\'s route.\n$message', textAlign: TextAlign.center),
+            ManaText.raw(ref.t('could_not_load_todays_route').replaceAll('{message}', message),
+                textAlign: TextAlign.center),
             const SizedBox(height: ManaSpacing.md),
-            ElevatedButton(onPressed: onRetry, child: const ManaText('retry')),
+            ElevatedButton(onPressed: onRetry, child: ManaText.raw(ref.t('retry'))),
           ],
         ),
       ),
@@ -191,19 +193,19 @@ class _ErrorState extends StatelessWidget {
 
 /// ROUTE SUMMARY: Route Name, Villages, Customers Assigned, Customers
 /// Completed, Customers Pending, Estimated Collection, Collected Amount.
-class _RouteSummaryCard extends StatelessWidget {
+class _RouteSummaryCard extends ConsumerWidget {
   final TodaysRouteState state;
   const _RouteSummaryCard({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final stats = <(String, String, ManaStatus)>[
-      ('Villages', '${state.orderedVillages.length}', ManaStatus.neutral),
-      ('Assigned', '${state.customersAssigned}', ManaStatus.neutral),
-      ('Completed', '${state.customersCompleted}', ManaStatus.good),
-      ('Pending', '${state.customersPending}', ManaStatus.warn),
-      ('Est. Collection', _currency.format(state.estimatedCollection), ManaStatus.neutral),
-      ('Collected', _currency.format(state.collectedAmount), ManaStatus.good),
+      (ref.t('villages'), '${state.orderedVillages.length}', ManaStatus.neutral),
+      (ref.t('assigned'), '${state.customersAssigned}', ManaStatus.neutral),
+      (ref.t('completed'), '${state.customersCompleted}', ManaStatus.good),
+      (ref.t('pending_label'), '${state.customersPending}', ManaStatus.warn),
+      (ref.t('est_collection'), _currency.format(state.estimatedCollection), ManaStatus.neutral),
+      (ref.t('collected'), _currency.format(state.collectedAmount), ManaStatus.good),
     ];
     return ManaStatStrip(
       valueFontSize: 16,
@@ -217,12 +219,12 @@ class _RouteSummaryCard extends StatelessWidget {
 
 /// ROUTE PROGRESS: Progress Bar, Completed %, Remaining %, Collection %,
 /// Visit % — all computed client-side from Route Summary counts.
-class _RouteProgress extends StatelessWidget {
+class _RouteProgress extends ConsumerWidget {
   final TodaysRouteState state;
   const _RouteProgress({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
@@ -243,11 +245,18 @@ class _RouteProgress extends StatelessWidget {
               spacing: ManaSpacing.md,
               runSpacing: ManaSpacing.xs,
               children: [
-                ManaText.raw('Visit ${(state.visitPercent * 100).toStringAsFixed(0)}%',
+                ManaText.raw(
+                    ref.t('visit_percent').replaceAll('{percent}', (state.visitPercent * 100).toStringAsFixed(0)),
                     style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                ManaText.raw('Collection ${(state.collectionPercent * 100).toStringAsFixed(0)}%',
+                ManaText.raw(
+                    ref
+                        .t('collection_percent')
+                        .replaceAll('{percent}', (state.collectionPercent * 100).toStringAsFixed(0)),
                     style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                ManaText.raw('Remaining ${(state.remainingPercent * 100).toStringAsFixed(0)}%',
+                ManaText.raw(
+                    ref
+                        .t('remaining_percent')
+                        .replaceAll('{percent}', (state.remainingPercent * 100).toStringAsFixed(0)),
                     style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ],
             ),
@@ -258,65 +267,65 @@ class _RouteProgress extends StatelessWidget {
   }
 }
 
-class _RouteStopRow extends StatelessWidget {
+class _RouteStopRow extends ConsumerWidget {
   final RouteStop stop;
   final VoidCallback onTap;
   final VoidCallback onOpenProfile;
   const _RouteStopRow({required this.stop, required this.onTap, required this.onOpenProfile});
 
-  ({IconData icon, Color color, ManaStatus pillStatus, String label}) get _visual => switch (stop.derivedStatus) {
+  ({IconData icon, Color color, ManaStatus pillStatus, String labelKey}) get _visual => switch (stop.derivedStatus) {
         CustomerVisitStatus.collected => (
             icon: Icons.check_circle,
             color: ManaColors.statusGood,
             pillStatus: ManaStatus.good,
-            label: 'Collected',
+            labelKey: 'collected',
           ),
         CustomerVisitStatus.partial => (
             icon: Icons.adjust,
             color: ManaColors.statusWarn,
             pillStatus: ManaStatus.warn,
-            label: 'Partial',
+            labelKey: 'partial',
           ),
         CustomerVisitStatus.skipped => (
             icon: Icons.remove_circle_outline,
             color: ManaColors.textSecondary,
             pillStatus: ManaStatus.neutral,
-            label: 'Skipped',
+            labelKey: 'skipped',
           ),
         CustomerVisitStatus.houseLocked => (
             icon: Icons.lock_outline,
             color: ManaColors.textSecondary,
             pillStatus: ManaStatus.neutral,
-            label: 'House Locked',
+            labelKey: 'house_locked',
           ),
         CustomerVisitStatus.shiftedVillage => (
             icon: Icons.directions_walk_outlined,
             color: ManaColors.textSecondary,
             pillStatus: ManaStatus.neutral,
-            label: 'Shifted Village',
+            labelKey: 'shifted_village',
           ),
         CustomerVisitStatus.extensionRequested => (
             icon: Icons.event_available_outlined,
             color: ManaColors.statusWarn,
             pillStatus: ManaStatus.warn,
-            label: 'Extension Requested',
+            labelKey: 'extension_requested',
           ),
         CustomerVisitStatus.closed => (
             icon: Icons.lock_clock_outlined,
             color: ManaColors.textSecondary,
             pillStatus: ManaStatus.neutral,
-            label: 'Closed',
+            labelKey: 'closed',
           ),
         CustomerVisitStatus.pending => (
             icon: Icons.radio_button_unchecked,
             color: ManaColors.textSecondary,
             pillStatus: ManaStatus.neutral,
-            label: 'Pending',
+            labelKey: 'pending_label',
           ),
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final v = _visual;
     final tappable = stop.derivedStatus == CustomerVisitStatus.pending;
     // Same ListTile bug/fix as OW-006/AG-002's due-row: fixed-height,
@@ -355,7 +364,7 @@ class _RouteStopRow extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Flexible(child: ManaStatusPill(label: v.label, status: v.pillStatus)),
+                        Flexible(child: ManaStatusPill(label: ref.t(v.labelKey), status: v.pillStatus)),
                         const SizedBox(width: ManaSpacing.sm),
                         Flexible(
                           child: ManaText.raw(_currency.format(stop.todaysDue),
@@ -379,12 +388,12 @@ class _RouteStopRow extends StatelessWidget {
 
 /// VISIT OUTCOME picker — the full spec vocabulary. Not built with
 /// Radio/RadioListTile per convention; a plain tappable list instead.
-class _VisitOutcomeSheet extends StatelessWidget {
+class _VisitOutcomeSheet extends ConsumerWidget {
   final RouteStop stop;
   const _VisitOutcomeSheet({required this.stop});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -393,7 +402,7 @@ class _VisitOutcomeSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(stop.customerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ManaText('visit outcome', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            ManaText.raw(ref.t('visit_outcome'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             const SizedBox(height: ManaSpacing.md),
             for (final outcome in VisitOutcome.values)
               ListTile(
@@ -418,16 +427,16 @@ class _VisitOutcomeSheet extends StatelessWidget {
 
 /// END ROUTE: All Customers Visited? YES → Route Complete (back to AG-001,
 /// Today Summary refreshed). NO → Continue Visits (stay on AG-003).
-class _EndRouteBar extends StatelessWidget {
+class _EndRouteBar extends ConsumerWidget {
   final TodaysRouteState state;
   const _EndRouteBar({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (!state.isRouteComplete) {
       return Center(
         child: ManaText.raw(
-          '${state.customersPending} customer${state.customersPending == 1 ? '' : 's'} left to visit.',
+          ref.t('customers_left_to_visit').replaceAll('{count}', '${state.customersPending}'),
           style: TextStyle(color: ManaColors.textSecondary),
         ),
       );
@@ -436,7 +445,7 @@ class _EndRouteBar extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton.icon(
         icon: const Icon(Icons.check_circle_outline),
-        label: const ManaText('route complete — return to dashboard'),
+        label: ManaText.raw(ref.t('route_complete_return_to_dashboard')),
         onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
       ),
     );

@@ -442,7 +442,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
     if (mounted) {
       final wasExisting = result['was_existing'] as bool? ?? false;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(wasExisting ? 'That village already existed — selected it.' : 'Village added and selected.')),
+        SnackBar(content: ManaText.raw(wasExisting ? 'That village already existed — selected it.' : 'Village added and selected.')),
       );
     }
   }
@@ -593,8 +593,8 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           initialValue: _gender,
           decoration: const InputDecoration(labelText: 'Gender *'),
           items: const [
-            DropdownMenuItem(value: '1', child: Text('Male')),
-            DropdownMenuItem(value: '0', child: Text('Female')),
+            DropdownMenuItem(value: '1', child: ManaText.raw('Male')),
+            DropdownMenuItem(value: '0', child: ManaText.raw('Female')),
           ],
           onChanged: (v) => setState(() => _gender = v),
         ),
@@ -681,7 +681,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
                 _manualVillageName.text = _villageSearch.text.trim();
                 _manualPinCode.text = _pinCode.text.trim();
               }),
-              child: Text('"${_villageSearch.text.trim()}" not found — add it'),
+              child: ManaText.raw('"${_villageSearch.text.trim()}" not found — add it'),
             ),
           ),
         if (_manualVillageEntry)
@@ -715,8 +715,8 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
                   initialValue: _manualAreaType,
                   decoration: const InputDecoration(labelText: 'Area Type *'),
                   items: const [
-                    DropdownMenuItem(value: 'Village', child: Text('Village')),
-                    DropdownMenuItem(value: 'Town', child: Text('Town')),
+                    DropdownMenuItem(value: 'Village', child: ManaText.raw('Village')),
+                    DropdownMenuItem(value: 'Town', child: ManaText.raw('Town')),
                   ],
                   onChanged: (v) => setState(() => _manualAreaType = v ?? 'Village'),
                 ),

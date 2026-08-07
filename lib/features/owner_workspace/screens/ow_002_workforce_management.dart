@@ -298,7 +298,7 @@ class _RegisterNewAgentSheetState
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text(
+            content: ManaText.raw(
                 'Agent registered — invitation sent, status Pending Invitation.')),
       );
     }
@@ -346,8 +346,8 @@ class _RegisterNewAgentSheetState
                 initialValue: _gender,
                 decoration: const InputDecoration(labelText: 'Gender *'),
                 items: const [
-                  DropdownMenuItem(value: '1', child: Text('Male')),
-                  DropdownMenuItem(value: '0', child: Text('Female')),
+                  DropdownMenuItem(value: '1', child: ManaText.raw('Male')),
+                  DropdownMenuItem(value: '0', child: ManaText.raw('Female')),
                 ],
                 onChanged: (v) => setState(() => _gender = v),
               ),
@@ -433,7 +433,7 @@ class _AddExistingAgentSheetState
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Invitation sent — status Pending Invitation.')),
+            content: ManaText.raw('Invitation sent — status Pending Invitation.')),
       );
     }
   }
@@ -1031,9 +1031,9 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
           initialValue: _cycle,
           decoration: const InputDecoration(labelText: 'Salary Cycle'),
           items: const [
-            DropdownMenuItem(value: 'Monthly', child: Text('Monthly')),
+            DropdownMenuItem(value: 'Monthly', child: ManaText.raw('Monthly')),
             DropdownMenuItem(
-                value: 'Custom', child: Text('Custom (Owner Defined)')),
+                value: 'Custom', child: ManaText.raw('Custom (Owner Defined)')),
           ],
           onChanged: (v) => setState(() => _cycle = v ?? 'Monthly'),
         ),

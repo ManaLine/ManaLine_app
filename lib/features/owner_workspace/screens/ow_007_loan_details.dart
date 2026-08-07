@@ -276,7 +276,7 @@ class _ActionsSection extends ConsumerWidget {
     });
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agent transferred — new agent notified.')),
+        const SnackBar(content: ManaText.raw('Agent transferred — new agent notified.')),
       );
     }
   }
@@ -366,7 +366,7 @@ class _ActionsSection extends ConsumerWidget {
     // actually did rather than what the button was labelled.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(result.recognisedPenalty
+        content: ManaText.raw(result.recognisedPenalty
             ? 'Loan closed. ${_currency.format(result.penaltyRecognised)} penalty recorded as collected today.'
             : result.writtenOff
                 ? 'Loan written off. No penalty recorded as collected.'
@@ -390,9 +390,9 @@ class _ActionsSection extends ConsumerWidget {
                 initialValue: option,
                 decoration: const InputDecoration(labelText: 'Penalty Option'),
                 items: const [
-                  DropdownMenuItem(value: 'Flat Amount', child: Text('Flat Amount')),
-                  DropdownMenuItem(value: '% of Overdue Installment', child: Text('% of Overdue Installment')),
-                  DropdownMenuItem(value: '% of Remaining Balance', child: Text('% of Remaining Balance')),
+                  DropdownMenuItem(value: 'Flat Amount', child: ManaText.raw('Flat Amount')),
+                  DropdownMenuItem(value: '% of Overdue Installment', child: ManaText.raw('% of Overdue Installment')),
+                  DropdownMenuItem(value: '% of Remaining Balance', child: ManaText.raw('% of Remaining Balance')),
                 ],
                 onChanged: (v) => setState(() => option = v ?? 'Flat Amount'),
               ),
@@ -423,7 +423,7 @@ class _ActionsSection extends ConsumerWidget {
     });
     if (applied == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Penalty applied — customer notified.')),
+        const SnackBar(content: ManaText.raw('Penalty applied — customer notified.')),
       );
     }
   }
@@ -553,7 +553,7 @@ class _PenaltySection extends ConsumerWidget {
     });
     if (reversed != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('₹$reversed reversed off the outstanding balance.')),
+        SnackBar(content: ManaText.raw('₹$reversed reversed off the outstanding balance.')),
       );
     }
   }

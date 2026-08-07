@@ -3,8 +3,8 @@
 A field lending app for rural India. Owners run a lending line,
 agents collects Door to Door, customers and investors see their own position.
 
-Flutter + Supabase (Postgres, RLS, Edge Functions). Five languages:
-English, Telugu, Hindi, Tamil, Kannada. Latter Multi Language.
+Flutter + Supabase (Postgres, RLS, Edge Functions). Two languages:
+English and Telugu.
 
 **Money correctness is a safety property here.** A confidently wrong number
 on a collection screen is worse than a crash, because nobody notices it.
@@ -40,7 +40,6 @@ Workspaces: `login_registration`, `owner_workspace`, `agent_workspace`,
 - **Fonts are runtime-fetched.** `allowRuntimeFetching = true` in
   `main.dart`. For an app whose whole point is poor connectivity, first
   paint should not depend on a font CDN — bundle the files before shipping.
-- **No dark theme.** `ManaTheme.light()` only; not specified anywhere.
 
 ---
 

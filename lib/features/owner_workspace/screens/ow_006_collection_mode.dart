@@ -445,8 +445,8 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           initialValue: _payerType,
           decoration: const InputDecoration(labelText: 'Payer'),
           items: const [
-            DropdownMenuItem(value: 'Customer', child: Text('Customer')),
-            DropdownMenuItem(value: 'Guarantor', child: Text('Guarantor')),
+            DropdownMenuItem(value: 'Customer', child: ManaText.raw('Customer')),
+            DropdownMenuItem(value: 'Guarantor', child: ManaText.raw('Guarantor')),
           ],
           onChanged: (v) => setState(() => _payerType = v ?? 'Customer'),
         ),
@@ -496,9 +496,9 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
             initialValue: _excessDisposition,
             decoration: const InputDecoration(labelText: 'Excess Disposition *'),
             items: const [
-              DropdownMenuItem(value: 'Advance', child: Text('Advance')),
-              DropdownMenuItem(value: 'Refund', child: Text('Refund')),
-              DropdownMenuItem(value: 'Next Installment', child: Text('Next Installment')),
+              DropdownMenuItem(value: 'Advance', child: ManaText.raw('Advance')),
+              DropdownMenuItem(value: 'Refund', child: ManaText.raw('Refund')),
+              DropdownMenuItem(value: 'Next Installment', child: ManaText.raw('Next Installment')),
             ],
             onChanged: (v) => setState(() => _excessDisposition = v),
           ),
@@ -562,7 +562,7 @@ class _NoCollectionFormState extends ConsumerState<_NoCollectionForm> {
         DropdownButtonFormField<String>(
           initialValue: _reason,
           decoration: const InputDecoration(labelText: 'Visit Reason *'),
-          items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+          items: _reasons.map((r) => DropdownMenuItem(value: r, child: ManaText.raw(r))).toList(),
           onChanged: (v) => setState(() => _reason = v),
         ),
         const SizedBox(height: ManaSpacing.lg),
@@ -613,7 +613,7 @@ class _ExtensionFormState extends ConsumerState<_ExtensionForm> {
     setState(() => _submitting = false);
     if (ok == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(approve ? 'Extension approved.' : 'Extension rejected.')),
+        SnackBar(content: ManaText.raw(approve ? 'Extension approved.' : 'Extension rejected.')),
       );
       Navigator.of(context).pop();
     }

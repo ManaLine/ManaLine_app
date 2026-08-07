@@ -166,7 +166,7 @@ class _PreCheckBlocked extends StatelessWidget {
       children: [
         Icon(Icons.block, color: ManaColors.statusBad, size: 40),
         const SizedBox(height: ManaSpacing.sm),
-        Text('Day Closure Cannot Start',
+        ManaText('Day Closure Cannot Start',
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
@@ -245,7 +245,7 @@ class _CashVerificationState extends ConsumerState<_CashVerification> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        Text('Cash Verification',
+        ManaText('Cash Verification',
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
@@ -319,7 +319,7 @@ class _ExpectedRow extends StatelessWidget {
         children: [
           ManaText.raw(label,
               style: TextStyle(color: ManaColors.textSecondary)),
-          Text(_currency.format(value),
+          ManaText.raw(_currency.format(value),
               style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
@@ -368,10 +368,10 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
       children: [
         Icon(Icons.sync_problem, color: ManaColors.statusWarn, size: 36),
         const SizedBox(height: ManaSpacing.sm),
-        Text('Difference Found',
+        ManaText('Difference Found',
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        Text(
+        ManaText.raw(
           'Overall Difference: ${_currency.format(state.difference)}',
           style: Theme.of(context)
               .textTheme
@@ -385,9 +385,9 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
         ...state.differenceLines.map((l) => Card(
               child: ListTile(
                 title: ManaText.raw(l.method),
-                subtitle: Text(
+                subtitle: ManaText.raw(
                     'Expected ${_currency.format(l.expected)} · Actual ${_currency.format(l.actual)}'),
-                trailing: Text(
+                trailing: ManaText.raw(
                   _currency.format(l.delta),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -417,8 +417,8 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
                       ? ManaColors.statusBad
                       : ManaColors.statusWarn,
                 ),
-                title:
-                    Text('${a.adjustmentType} · ${_currency.format(a.amount)}'),
+                title: ManaText.raw(
+                    '${a.adjustmentType} · ${_currency.format(a.amount)}'),
                 subtitle: ManaText.raw(a.appliedTo),
               )),
         ],
@@ -609,7 +609,7 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
     if (ok != true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Difference is no longer zero — recheck required.')),
+            content: ManaText.raw('Difference is no longer zero — recheck required.')),
       );
     }
   }
@@ -622,7 +622,7 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        Text('Final Review', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText('Final Review', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.lg),
         const _SummaryRow(
             label: 'Opening Balance',
@@ -681,7 +681,7 @@ class _SummaryRow extends StatelessWidget {
           ManaText(label,
               style:
                   bold ? const TextStyle(fontWeight: FontWeight.bold) : null),
-          Text(_currency.format(value),
+          ManaText.raw(_currency.format(value),
               style: bold
                   ? Theme.of(context).textTheme.titleMedium
                   : Theme.of(context).textTheme.bodyMedium),
@@ -709,7 +709,7 @@ class _ClosedReceipt extends ConsumerWidget {
       children: [
         Icon(Icons.lock, color: ManaColors.statusGood, size: 36),
         const SizedBox(height: ManaSpacing.sm),
-        Text('Business Day Closed',
+        ManaText('Business Day Closed',
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
@@ -817,7 +817,7 @@ class _ReopenedAwaitingCloseAgain extends ConsumerWidget {
       children: [
         Icon(Icons.lock_open, color: ManaColors.statusWarn, size: 36),
         const SizedBox(height: ManaSpacing.sm),
-        Text('Day Reopened', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText('Day Reopened', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
           'Only new adjustment entries dated to this business day are permitted. '

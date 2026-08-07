@@ -464,12 +464,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const _SectionHeader('appearance'),
             _SettingsTile(
               icon: Icons.palette_outlined,
-              // Subtitle says text size only — it used to promise "Light, dark
-              // and font size", and dark mode is not built. Advertising it
-              // here and not delivering it inside is how a settings screen
-              // stops being trusted.
               title: 'Appearance',
-              subtitle: 'Text size.',
+              subtitle: 'Light, dark and text size.',
               onTap: () => context.push('/appearance'),
             ),
             const SizedBox(height: ManaSpacing.lg),

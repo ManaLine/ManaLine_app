@@ -921,4 +921,105 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
     'English': 'Route Complete — Return to Dashboard',
     'Telugu': 'మార్గం పూర్తయింది — డాష్‌బోర్డ్‌కు తిరిగి వెళ్లండి',
   },
+
+  // --- CW-004 My Loans phase-1 wiring (migration 20260807174508) —
+  // English/Telugu only.
+  'could_not_load_loans': {'English': 'Could Not Load Loans', 'Telugu': 'రుణాలు లోడ్ కాలేదు'},
+  'no_loans_yet': {'English': 'No Loans Yet', 'Telugu': 'ఇంకా రుణాలు లేవు'},
+  'no_loans_in_business_note': {
+    'English': 'You have no loans in this Business yet.',
+    'Telugu': 'ఈ వ్యాపారంలో మీకు ఇంకా రుణాలు లేవు.',
+  },
+  'request_a_new_loan': {'English': 'Request A New Loan', 'Telugu': 'కొత్త రుణం అభ్యర్థించండి'},
+  'loan_detail': {'English': 'Loan Detail', 'Telugu': 'రుణ వివరాలు'},
+  'could_not_load_loan': {'English': 'Could Not Load Loan', 'Telugu': 'రుణం లోడ్ కాలేదు'},
+  'principal_amount': {'English': 'Principal Amount', 'Telugu': 'అసలు మొత్తం'},
+  'repayment_type': {'English': 'Repayment Type', 'Telugu': 'తిరిగి చెల్లింపు రకం'},
+  'installment_amount': {'English': 'Installment Amount', 'Telugu': 'వాయిదా మొత్తం'},
+  'effective_date': {'English': 'Effective Date', 'Telugu': 'అమలు తేదీ'},
+  'repayment_schedule': {'English': 'Repayment Schedule', 'Telugu': 'తిరిగి చెల్లింపు షెడ్యూల్'},
+  'no_schedule_available': {'English': 'No schedule available.', 'Telugu': 'షెడ్యూల్ అందుబాటులో లేదు.'},
+  'payment_history': {'English': 'Payment History', 'Telugu': 'చెల్లింపు చరిత్ర'},
+  'no_confirmed_payments_yet': {'English': 'No confirmed payments yet.', 'Telugu': 'ఇంకా నిర్ధారించిన చెల్లింపులు లేవు.'},
+  'awaiting_owner_agent_confirmation': {
+    'English': 'Awaiting Owner/Agent confirmation.',
+    'Telugu': 'యజమాని/ఏజెంట్ నిర్ధారణ కోసం వేచి ఉంది.',
+  },
+  'grace_period_end_date': {'English': 'Grace Period End Date', 'Telugu': 'గ్రేస్ పీరియడ్ ముగింపు తేదీ'},
+  'download_statement': {'English': 'Download Statement', 'Telugu': 'స్టేట్‌మెంట్ డౌన్‌లోడ్ చేయండి'},
+  'outstanding_of_principal_note': {
+    'English': 'Outstanding {outstanding} of {principal}',
+    'Telugu': '{principal}లో {outstanding} బాకీ',
+  },
+  'next_due_note': {'English': 'Next due {amount} on {date}', 'Telugu': 'తదుపరి బకాయి {amount}, {date}న'},
+
+  // --- IW-003 My Investments phase-1 wiring (migration 20260807175039) —
+  // English/Telugu only.
+  'investment_detail': {'English': 'Investment Detail', 'Telugu': 'పెట్టుబడి వివరాలు'},
+  'view_statement': {'English': 'View Statement', 'Telugu': 'స్టేట్‌మెంట్ చూడండి'},
+  'could_not_load_investment_detail': {
+    'English': 'Could Not Load Investment Detail',
+    'Telugu': 'పెట్టుబడి వివరాలు లోడ్ కాలేదు',
+  },
+  'statement': {'English': 'Statement', 'Telugu': 'స్టేట్‌మెంట్'},
+  'interest_ledger': {'English': 'Interest Ledger', 'Telugu': 'వడ్డీ లెడ్జర్'},
+  'distributions': {'English': 'Distributions', 'Telugu': 'పంపిణీలు'},
+  'no_entries_yet': {'English': 'No entries yet.', 'Telugu': 'ఇంకా ఎంట్రీలు లేవు.'},
+  'could_not_read_statement': {'English': 'Could Not Read This Statement.', 'Telugu': 'ఈ స్టేట్‌మెంట్ చదవలేకపోయింది.'},
+  'no_investments_recorded_yet': {'English': 'No Investments Recorded Yet', 'Telugu': 'ఇంకా పెట్టుబడులు నమోదు కాలేదు'},
+  'no_investments_note': {
+    'English':
+        'Your Business Membership is active. The Owner records the actual investment (Amount, ROI, Interest Method) after receiving funds offline — it will appear here once entered.',
+    'Telugu':
+        'మీ వ్యాపార సభ్యత్వం యాక్టివ్‌గా ఉంది. యజమాని ఆఫ్‌లైన్‌లో నిధులు అందుకున్న తర్వాత అసలు పెట్టుబడిని (మొత్తం, ROI, వడ్డీ పద్ధతి) నమోదు చేస్తారు — నమోదైన తర్వాత ఇక్కడ కనిపిస్తుంది.',
+  },
+  'could_not_load_investments': {'English': 'Could Not Load Investments', 'Telugu': 'పెట్టుబడులు లోడ్ కాలేదు'},
+  'agreement_snapshot': {'English': 'Agreement Snapshot', 'Telugu': 'ఒప్పంద స్నాప్‌షాట్'},
+  'frozen_terms_note': {
+    'English': 'Frozen terms at time of investment — never live-recalculated.',
+    'Telugu': 'పెట్టుబడి సమయంలో స్థిరపడిన నిబంధనలు — ఎప్పుడూ లైవ్‌గా తిరిగి లెక్కించబడవు.',
+  },
+  'original_principal_amount': {'English': 'Original Principal Amount', 'Telugu': 'అసలు మూల మొత్తం'},
+  'roi_rate': {'English': 'ROI Rate', 'Telugu': 'ROI రేటు'},
+  'yearly_equivalent': {'English': 'Yearly Equivalent', 'Telugu': 'వార్షిక సమానం'},
+  'interest_type': {'English': 'Interest Type', 'Telugu': 'వడ్డీ రకం'},
+  'profit_share_percent': {'English': 'Profit Share %', 'Telugu': 'లాభ వాటా %'},
+  'no_interest_ledger_entries_yet': {
+    'English': 'No interest ledger entries yet.',
+    'Telugu': 'ఇంకా వడ్డీ లెడ్జర్ ఎంట్రీలు లేవు.',
+  },
+  'owner_verified': {'English': 'Owner Verified', 'Telugu': 'యజమాని ధృవీకరించారు'},
+  'not_verified': {'English': 'Not Verified', 'Telugu': 'ధృవీకరించలేదు'},
+  'withdrawal_history': {'English': 'Withdrawal History', 'Telugu': 'ఉపసంహరణ చరిత్ర'},
+  'no_withdrawals_recorded_yet': {'English': 'No withdrawals recorded yet.', 'Telugu': 'ఇంకా ఉపసంహరణలు నమోదు కాలేదు.'},
+  'approved_by_note': {'English': '{date} · Approved by {by}', 'Telugu': '{date} · {by} ఆమోదించారు'},
+  'distribution_history': {'English': 'Distribution History', 'Telugu': 'పంపిణీ చరిత్ర'},
+  'profit_share_note': {
+    'English':
+        'Profit Share — Declaration and Payment are recorded separately; a row may show Declared with no Paid data yet.',
+    'Telugu': 'లాభ వాటా — ప్రకటన మరియు చెల్లింపు వేర్వేరుగా నమోదు చేయబడతాయి; ఒక వరుసలో చెల్లింపు డేటా లేకుండా ప్రకటన మాత్రమే కనిపించవచ్చు.',
+  },
+  'no_profit_share_declarations_yet': {
+    'English': 'No profit share declarations yet.',
+    'Telugu': 'ఇంకా లాభ వాటా ప్రకటనలు లేవు.',
+  },
+  'declared_note': {'English': 'Declared: {amount}', 'Telugu': 'ప్రకటించినది: {amount}'},
+  'paid_note': {'English': 'Paid: {amount} on {date}', 'Telugu': 'చెల్లించినది: {amount}, {date}న'},
+  'paid_interest_extra': {
+    'English': ' (+ {amount} interest on unpaid gap)',
+    'Telugu': ' (+ చెల్లించని వ్యవధిపై {amount} వడ్డీ)',
+  },
+  'accrued_this_year_note': {
+    'English': 'Accrued this year: {amount} · Total earned: {total}',
+    'Telugu': 'ఈ సంవత్సరం పోగుపడింది: {amount} · మొత్తం సంపాదించింది: {total}',
+  },
+  'accrued_note': {
+    'English': 'Accrued: {amount} · Total earned: {total}',
+    'Telugu': 'పోగుపడింది: {amount} · మొత్తం సంపాదించింది: {total}',
+  },
+  'paid_short_note': {'English': 'Paid: {amount}', 'Telugu': 'చెల్లించినది: {amount}'},
+  'investment_meta_note': {
+    'English': '{id} · {roi} · {method} · since {date}',
+    'Telugu': '{id} · {roi} · {method} · {date} నుండి',
+  },
 };

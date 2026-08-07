@@ -1,0 +1,20 @@
+INSERT INTO ui_translations (translation_key, english, telugu) VALUES
+('could_not_load_loans', 'Could Not Load Loans', 'రుణాలు లోడ్ కాలేదు'),
+('no_loans_yet', 'No Loans Yet', 'ఇంకా రుణాలు లేవు'),
+('no_loans_in_business_note', 'You have no loans in this Business yet.', 'ఈ వ్యాపారంలో మీకు ఇంకా రుణాలు లేవు.'),
+('request_a_new_loan', 'Request A New Loan', 'కొత్త రుణం అభ్యర్థించండి'),
+('loan_detail', 'Loan Detail', 'రుణ వివరాలు'),
+('could_not_load_loan', 'Could Not Load Loan', 'రుణం లోడ్ కాలేదు'),
+('principal_amount', 'Principal Amount', 'అసలు మొత్తం'),
+('repayment_type', 'Repayment Type', 'తిరిగి చెల్లింపు రకం'),
+('effective_date', 'Effective Date', 'అమలు తేదీ'),
+('repayment_schedule', 'Repayment Schedule', 'తిరిగి చెల్లింపు షెడ్యూల్'),
+('no_schedule_available', 'No schedule available.', 'షెడ్యూల్ అందుబాటులో లేదు.'),
+('payment_history', 'Payment History', 'చెల్లింపు చరిత్ర'),
+('no_confirmed_payments_yet', 'No confirmed payments yet.', 'ఇంకా నిర్ధారించిన చెల్లింపులు లేవు.'),
+('awaiting_owner_agent_confirmation', 'Awaiting Owner/Agent confirmation.', 'యజమాని/ఏజెంట్ నిర్ధారణ కోసం వేచి ఉంది.'),
+('grace_period_end_date', 'Grace Period End Date', 'గ్రేస్ పీరియడ్ ముగింపు తేదీ'),
+('download_statement', 'Download Statement', 'స్టేట్‌మెంట్ డౌన్‌లోడ్ చేయండి'),
+('outstanding_of_principal_note', 'Outstanding {outstanding} of {principal}', '{principal}లో {outstanding} బాకీ'),
+('next_due_note', 'Next due {amount} on {date}', 'తదుపరి బకాయి {amount}, {date}న')
+ON CONFLICT (translation_key) DO NOTHING;

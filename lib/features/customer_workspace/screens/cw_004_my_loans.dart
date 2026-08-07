@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../shared/translation_service.dart';
 import '../state/customer_loans_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -43,7 +44,7 @@ class _MyLoansScreenState extends ConsumerState<MyLoansScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('my loans'),
+        title: ManaText.raw(ref.t('my_loans')),
         leading: BackButton(onPressed: () => context.go('/cw-001', extra: widget.businessId)),
       ),
       body: SafeArea(
@@ -83,9 +84,9 @@ class _MyLoansScreenState extends ConsumerState<MyLoansScreen> {
           children: [
             Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('could not load loans'),
+            ManaText.raw(ref.t('could_not_load_loans')),
             const SizedBox(height: ManaSpacing.sm),
-            ElevatedButton(onPressed: _refresh, child: const ManaText('retry')),
+            ElevatedButton(onPressed: _refresh, child: ManaText.raw(ref.t('retry'))),
           ],
         ),
       ),
@@ -95,7 +96,7 @@ class _MyLoansScreenState extends ConsumerState<MyLoansScreen> {
 
 // --- S1 Loan List ------------------------------------------------------------
 
-class _LoanCard extends StatelessWidget {
+class _LoanCard extends ConsumerWidget {
   final CustomerLoanSummary loan;
   final VoidCallback onTap;
   const _LoanCard({required this.loan, required this.onTap});
@@ -109,7 +110,7 @@ class _LoanCard extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: ListTile(
         title: Row(
@@ -129,12 +130,18 @@ class _LoanCard extends StatelessWidget {
               if (loan.templateName != null)
                 ManaText.raw(loan.templateName!, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
               ManaText.raw(
-                'Outstanding ${_currency.format(loan.outstandingBalance)} of ${_currency.format(loan.principalAmount)}',
+                ref
+                    .t('outstanding_of_principal_note')
+                    .replaceAll('{outstanding}', _currency.format(loan.outstandingBalance))
+                    .replaceAll('{principal}', _currency.format(loan.principalAmount)),
                 style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
               ),
               if (loan.nextDueDate != null)
                 ManaText.raw(
-                  'Next due ${_currency.format(loan.nextDueAmount ?? 0)} on ${_dateFmt.format(loan.nextDueDate!)}',
+                  ref
+                      .t('next_due_note')
+                      .replaceAll('{amount}', _currency.format(loan.nextDueAmount ?? 0))
+                      .replaceAll('{date}', _dateFmt.format(loan.nextDueDate!)),
                   style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
                 ),
             ],
@@ -150,12 +157,12 @@ class _LoanCard extends StatelessWidget {
 
 // --- S3 Empty ------------------------------------------------------------------
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   final String businessId;
   const _EmptyState({required this.businessId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
@@ -164,10 +171,10 @@ class _EmptyState extends StatelessWidget {
           children: [
             Icon(Icons.account_balance_wallet_outlined, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('no loans yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('no_loans_yet'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
-              'You have no loans in this Business yet.',
+              ref.t('no_loans_in_business_note'),
               textAlign: TextAlign.center,
               style: TextStyle(color: ManaColors.textSecondary),
             ),
@@ -180,7 +187,7 @@ class _EmptyState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: () => context.push('/cw-003', extra: businessId),
               icon: const Icon(Icons.request_page_outlined),
-              label: const ManaText('request a new loan'),
+              label: ManaText.raw(ref.t('request_a_new_loan')),
             ),
           ],
         ),
@@ -219,7 +226,7 @@ class _LoanDetailScreenState extends ConsumerState<LoanDetailScreen> {
     final state = ref.watch(loanDetailProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('loan detail')),
+      appBar: AppBar(title: ManaText.raw(ref.t('loan_detail'))),
       body: SafeArea(
         child: state.loading && state.detail == null
             ? const Center(child: CircularProgressIndicator())
@@ -232,11 +239,11 @@ class _LoanDetailScreenState extends ConsumerState<LoanDetailScreen> {
                         children: [
                           Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
                           const SizedBox(height: ManaSpacing.md),
-                          const ManaText('could not load loan'),
+                          ManaText.raw(ref.t('could_not_load_loan')),
                           const SizedBox(height: ManaSpacing.sm),
                           ElevatedButton(
                             onPressed: () => ref.read(loanDetailProvider.notifier).load(widget.loanId),
-                            child: const ManaText('retry'),
+                            child: ManaText.raw(ref.t('retry')),
                           ),
                         ],
                       ),
@@ -267,12 +274,12 @@ class _LoanDetailScreenState extends ConsumerState<LoanDetailScreen> {
   }
 }
 
-class _AgreementSummaryCard extends StatelessWidget {
+class _AgreementSummaryCard extends ConsumerWidget {
   final CustomerLoanDetail detail;
   const _AgreementSummaryCard({required this.detail});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = detail.summary;
     return Card(
       child: Padding(
@@ -296,11 +303,11 @@ class _AgreementSummaryCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
-            _row('Principal Amount', _currency.format(s.principalAmount)),
-            _row('Outstanding Balance', _currency.format(s.outstandingBalance)),
-            _row('Repayment Type', '${detail.durationValue} × ${detail.repaymentType}'),
-            _row('Installment Amount', _currency.format(detail.installmentAmount)),
-            _row('Effective Date', _dateFmt.format(detail.effectiveDate)),
+            _row(ref.t('principal_amount'), _currency.format(s.principalAmount)),
+            _row(ref.t('outstanding_balance'), _currency.format(s.outstandingBalance)),
+            _row(ref.t('repayment_type'), '${detail.durationValue} × ${detail.repaymentType}'),
+            _row(ref.t('installment_amount'), _currency.format(detail.installmentAmount)),
+            _row(ref.t('effective_date'), _dateFmt.format(detail.effectiveDate)),
           ],
         ),
       ),
@@ -312,29 +319,29 @@ class _AgreementSummaryCard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            ManaText.raw(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             ManaText.raw(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ],
         ),
       );
 }
 
-class _ScheduleCard extends StatelessWidget {
+class _ScheduleCard extends ConsumerWidget {
   final List<LoanScheduleEntry> schedule;
   const _ScheduleCard({required this.schedule});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('repayment schedule', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ManaText.raw(ref.t('repayment_schedule'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: ManaSpacing.sm),
             if (schedule.isEmpty)
-              ManaText.raw('No schedule available.', style: TextStyle(color: ManaColors.textSecondary))
+              ManaText.raw(ref.t('no_schedule_available'), style: TextStyle(color: ManaColors.textSecondary))
             else
               ...schedule.map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -373,20 +380,20 @@ class _ScheduleCard extends StatelessWidget {
 /// CollectionDueRow labels where the schema overlaps (amount, receipt/
 /// loan reference), read-only here since Customer can view but never
 /// edit any financial field.
-class _PaymentHistoryCard extends StatelessWidget {
+class _PaymentHistoryCard extends ConsumerWidget {
   final bool loading;
   final List<LoanPaymentHistoryEntry> history;
   const _PaymentHistoryCard({required this.loading, required this.history});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('payment history', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ManaText.raw(ref.t('payment_history'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: ManaSpacing.sm),
             if (loading)
               const Padding(
@@ -394,7 +401,7 @@ class _PaymentHistoryCard extends StatelessWidget {
                 child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
               )
             else if (history.isEmpty)
-              ManaText.raw('No confirmed payments yet.', style: TextStyle(color: ManaColors.textSecondary))
+              ManaText.raw(ref.t('no_confirmed_payments_yet'), style: TextStyle(color: ManaColors.textSecondary))
             else
               ...history.map((h) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -424,12 +431,12 @@ class _PaymentHistoryCard extends StatelessWidget {
   }
 }
 
-class _PendingOnlinePaymentsCard extends StatelessWidget {
+class _PendingOnlinePaymentsCard extends ConsumerWidget {
   final List<PendingOnlinePayment> pending;
   const _PendingOnlinePaymentsCard({required this.pending});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       color: ManaColors.statusWarnFaint,
       child: Padding(
@@ -437,9 +444,9 @@ class _PendingOnlinePaymentsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('pending online payments', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ManaText.raw(ref.t('pending_online_payments'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw('Awaiting Owner/Agent confirmation.',
+            ManaText.raw(ref.t('awaiting_owner_agent_confirmation'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             ...pending.map((p) => Padding(
@@ -459,12 +466,12 @@ class _PendingOnlinePaymentsCard extends StatelessWidget {
   }
 }
 
-class _PenaltyGraceCard extends StatelessWidget {
+class _PenaltyGraceCard extends ConsumerWidget {
   final CustomerLoanDetail detail;
   const _PenaltyGraceCard({required this.detail});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -475,7 +482,7 @@ class _PenaltyGraceCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  ManaText('penalty', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                  ManaText.raw(ref.t('penalty'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                   ManaText.raw(_currency.format(detail.penaltyAmount!),
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ManaColors.statusBad)),
                 ],
@@ -486,7 +493,7 @@ class _PenaltyGraceCard extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ManaText('grace period end date', style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                    ManaText.raw(ref.t('grace_period_end_date'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                     ManaText.raw(_dateFmt.format(detail.gracePeriodEndDate!), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   ],
                 ),
@@ -501,19 +508,19 @@ class _PenaltyGraceCard extends StatelessWidget {
 /// Make A Payment / Download Statement — stubbed as named destinations
 /// per this chat's brief; CW-005 (not built by this chat) owns actual
 /// payment entry.
-class _ActionsRow extends StatelessWidget {
+class _ActionsRow extends ConsumerWidget {
   final String loanId;
   const _ActionsRow({required this.loanId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () => context.push('/cw-005', extra: loanId),
             icon: const Icon(Icons.payments_outlined),
-            label: const ManaText('make a payment'),
+            label: ManaText.raw(ref.t('make_a_payment')),
           ),
         ),
         const SizedBox(width: ManaSpacing.sm),
@@ -526,7 +533,7 @@ class _ActionsRow extends StatelessWidget {
               // source; flagged for master chat).
             },
             icon: const Icon(Icons.download_outlined),
-            label: const ManaText('download statement'),
+            label: ManaText.raw(ref.t('download_statement')),
           ),
         ),
       ],

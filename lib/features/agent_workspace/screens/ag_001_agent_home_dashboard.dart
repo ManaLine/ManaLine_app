@@ -100,7 +100,7 @@ class _AgentHomeDashboardScreenState
       actions: [
         ManaHeaderAction(
           icon: Icons.notifications_outlined,
-          label: 'Notifications',
+          label: ref.t('notifications'),
           onPressed: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => Ag008NotificationsScreen(
@@ -110,7 +110,7 @@ class _AgentHomeDashboardScreenState
         ),
         ManaHeaderAction(
           icon: Icons.person_outline,
-          label: 'Profile',
+          label: ref.t('profile'),
           onPressed: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => Ag009ProfileScreen(
@@ -128,29 +128,29 @@ class _AgentHomeDashboardScreenState
           labelKey: 'customers',
           actions: [
             ManaDrawerAction(
-              labelKey: 'customer management',
+              labelKey: 'customer_management',
               onTap: () => context.push('/ag-004', extra: widget.businessId),
             ),
             ManaDrawerAction(
-              labelKey: "today's route",
+              labelKey: 'todays_route',
               onTap: () => context.push('/ag-003', extra: widget.businessId),
             ),
           ],
         ),
         ManaDrawerSection(
           icon: Icons.work_outline,
-          labelKey: 'my work',
+          labelKey: 'my_work',
           actions: [
             ManaDrawerAction(
-              labelKey: 'draft transactions',
+              labelKey: 'draft_transactions',
               onTap: () => context.push('/ag-005', extra: widget.businessId),
             ),
             ManaDrawerAction(
-              labelKey: 'transaction history',
+              labelKey: 'transaction_history',
               onTap: () => context.push('/ag-010', extra: widget.businessId),
             ),
             ManaDrawerAction(
-              labelKey: 'change area',
+              labelKey: 'change_area',
               // Null while the session is not running: the add/remove-area
               // RPCs only apply to a running session, so offering it earlier
               // would open a sheet that cannot act.
@@ -166,7 +166,7 @@ class _AgentHomeDashboardScreenState
                       ),
             ),
             ManaDrawerAction(
-              labelKey: 'create new business',
+              labelKey: 'create_new_business',
               // Same OW-000 flow LR-012's S0 uses for a person's first
               // business — this Agent already has an account and at least one
               // membership, so it is an *additional* business.
@@ -319,15 +319,14 @@ class _BfGateState extends ConsumerState<_BfGate> {
                 Icon(Icons.account_balance_wallet_outlined,
                     size: 40, color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.md),
-                const ManaText('opening bf for this session'),
+                ManaText.raw(ref.t('opening_bf_for_session')),
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw(_currency.format(bf.openingBf),
                     style: const TextStyle(
                         fontSize: 28, fontWeight: FontWeight.bold)),
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw(
-                  'Confirm this figure to proceed, or Update if it looks wrong — '
-                  'you will be blocked from the workspace until the Owner corrects it.',
+                  ref.t('confirm_bf_or_update_warning'),
                   textAlign: TextAlign.center,
                   style:
                       TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -338,7 +337,7 @@ class _BfGateState extends ConsumerState<_BfGate> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: _submitting ? null : _update,
-                        child: const ManaText('update'),
+                        child: ManaText.raw(ref.t('update')),
                       ),
                     ),
                     const SizedBox(width: ManaSpacing.md),
@@ -352,7 +351,7 @@ class _BfGateState extends ConsumerState<_BfGate> {
                                 height: 20,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2))
-                            : const ManaText('confirm'),
+                            : ManaText.raw(ref.t('confirm')),
                       ),
                     ),
                   ],
@@ -366,10 +365,10 @@ class _BfGateState extends ConsumerState<_BfGate> {
   }
 }
 
-class _BfNotGrantedBlock extends StatelessWidget {
+class _BfNotGrantedBlock extends ConsumerWidget {
   const _BfNotGrantedBlock();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
@@ -379,11 +378,10 @@ class _BfNotGrantedBlock extends StatelessWidget {
             Icon(Icons.lock_clock_outlined,
                 size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('access not yet granted'),
+            ManaText.raw(ref.t('access_not_yet_granted')),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
-              'Owner has not assigned an Opening BF for this session yet. '
-              'Please contact your Owner.',
+              ref.t('owner_not_assigned_bf'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
@@ -394,10 +392,10 @@ class _BfNotGrantedBlock extends StatelessWidget {
   }
 }
 
-class _BfUpdateRequestedBlock extends StatelessWidget {
+class _BfUpdateRequestedBlock extends ConsumerWidget {
   const _BfUpdateRequestedBlock();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
@@ -407,11 +405,10 @@ class _BfUpdateRequestedBlock extends StatelessWidget {
             Icon(Icons.hourglass_top_outlined,
                 size: 40, color: ManaColors.statusWarn),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('waiting on owner'),
+            ManaText.raw(ref.t('waiting_on_owner')),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
-              'Your Opening BF dispute has been sent to the Owner. You will be '
-              're-prompted with the corrected figure once they resolve it.',
+              ref.t('bf_dispute_sent'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
@@ -449,8 +446,7 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
     if (mounted) setState(() => _starting = false);
     if (ok != true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Select at least one enabled area to start.')),
+        SnackBar(content: ManaText.raw(ref.t('select_at_least_one_area'))),
       );
     }
   }
@@ -461,10 +457,10 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText('select operating area(s)'),
+        ManaText.raw(ref.t('select_operating_areas')),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-          'Only areas enabled by your Owner are shown. Select one or more to start today\'s Business Session.',
+          ref.t('only_areas_enabled'),
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
@@ -473,7 +469,7 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
             child: Center(
               child: ManaText.raw(
-                  'No areas enabled for you yet. Contact your Owner.',
+                  ref.t('no_areas_enabled'),
                   style: TextStyle(color: ManaColors.textSecondary)),
             ),
           )
@@ -497,7 +493,7 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('start business session'),
+              : ManaText.raw(ref.t('start_business_session')),
         ),
       ],
     );
@@ -534,9 +530,7 @@ class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
     setState(() => _pendingAreaId = null);
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Could not change area — save or clear pending unsaved transactions first.')),
+        SnackBar(content: ManaText.raw(ref.t('could_not_change_area'))),
       );
     }
   }
@@ -551,11 +545,11 @@ class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('change area',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('change_area'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
-              'Adding an area starts working it immediately; removing one stops new collections there for today (its Account Period keeps running to its own end date).',
+              ref.t('adding_area_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -610,36 +604,36 @@ class _RunningDashboard extends ConsumerWidget {
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             _SectionCard(
-              title: 'business status',
+              title: ref.t('business_status'),
               rows: [
-                ('Business Date', _date.format(d.businessDate)),
-                ('Assigned Route', d.assignedRoute),
-                ('Pending Drafts', '${d.pendingDraftsCount}'),
-                ('Pending Settlement', d.pendingSettlement ? 'Yes' : 'No'),
-                ("Today's Target", _currency.format(d.todaysTarget)),
+                (ref.t('business_date'), _date.format(d.businessDate)),
+                (ref.t('assigned_route'), d.assignedRoute),
+                (ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
+                (ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
+                (ref.t('todays_target'), _currency.format(d.todaysTarget)),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
             _SectionCard(
-              title: 'today summary',
+              title: ref.t('today_summary'),
               rows: [
-                ('Customers Assigned', '${d.customersAssigned}'),
-                ('Customers Visited', '${d.customersVisited}'),
-                ('Customers Remaining', '${d.customersRemaining}'),
-                ('Cash', _currency.format(d.collectionsCash)),
-                ('UPI', _currency.format(d.collectionsUpi)),
-                ('Bank', _currency.format(d.collectionsBank)),
-                ('Cheque', _currency.format(d.collectionsCheque)),
-                ('Mixed', _currency.format(d.collectionsMixed)),
+                (ref.t('customers_assigned'), '${d.customersAssigned}'),
+                (ref.t('customers_visited'), '${d.customersVisited}'),
+                (ref.t('customers_remaining'), '${d.customersRemaining}'),
+                (ref.t('cash'), _currency.format(d.collectionsCash)),
+                (ref.t('upi'), _currency.format(d.collectionsUpi)),
+                (ref.t('bank'), _currency.format(d.collectionsBank)),
+                (ref.t('cheque'), _currency.format(d.collectionsCheque)),
+                (ref.t('mixed'), _currency.format(d.collectionsMixed)),
                 (
-                  "Today's Collections Total",
+                  ref.t('todays_collections_total'),
                   _currency.format(d.todaysCollectionsTotal)
                 ),
-                ('Loans Issued', '${d.loansIssued}'),
-                ('Pending Collections', '${d.pendingCollections}'),
-                ('Skipped Customers', '${d.skippedCustomers}'),
-                ('Short', _currency.format(d.shortAmount)),
-                ('Excess', _currency.format(d.excessAmount)),
+                (ref.t('loans_issued'), '${d.loansIssued}'),
+                (ref.t('pending_collections'), '${d.pendingCollections}'),
+                (ref.t('skipped_customers'), '${d.skippedCustomers}'),
+                (ref.t('short'), _currency.format(d.shortAmount)),
+                (ref.t('excess'), _currency.format(d.excessAmount)),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -655,17 +649,17 @@ class _RunningDashboard extends ConsumerWidget {
                         d.pendingMessages >
                     0)
               _SectionCard(
-                title: 'attention required',
+                title: ref.t('attention_required'),
                 rows: [
-                  ('Pending Drafts', '${d.pendingDraftsCount}'),
-                  ('Pending Settlement', d.pendingSettlement ? 'Yes' : 'No'),
-                  ('Pending Customer Requests', '${d.pendingCustomerRequests}'),
+                  (ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
+                  (ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
+                  (ref.t('pending_customer_requests'), '${d.pendingCustomerRequests}'),
                   (
-                    'Pending Extension Requests',
+                    ref.t('pending_extension_requests'),
                     '${d.pendingExtensionRequests}'
                   ),
-                  ('Pending Route Changes', '${d.pendingRouteChanges}'),
-                  ('Pending Messages', '${d.pendingMessages}'),
+                  (ref.t('pending_route_changes'), '${d.pendingRouteChanges}'),
+                  (ref.t('pending_messages'), '${d.pendingMessages}'),
                 ],
                 accent: ManaColors.statusWarn,
               ),
@@ -675,13 +669,13 @@ class _RunningDashboard extends ConsumerWidget {
             _CompensationSection(key: compensationKey, d: d),
             const SizedBox(height: ManaSpacing.md),
             _SectionCard(
-              title: 'workspace information',
+              title: ref.t('workspace_information'),
               rows: [
-                ('Business Name', d.businessName),
-                ('Owner', d.ownerName),
-                ('Membership Status', d.membershipStatus),
-                ('Permission Profile', d.permissionProfile),
-                ('Last Sync', _time.format(d.lastSync)),
+                (ref.t('business_name'), d.businessName),
+                (ref.t('owner'), d.ownerName),
+                (ref.t('membership_status'), d.membershipStatus),
+                (ref.t('permission_profile'), d.permissionProfile),
+                (ref.t('last_sync'), _time.format(d.lastSync)),
               ],
             ),
           ],
@@ -705,7 +699,7 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText(title,
+            ManaText.raw(title,
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: accent ?? ManaColors.textPrimary)),
@@ -752,37 +746,37 @@ class _SectionCard extends StatelessWidget {
 /// Shorts Deducted, Pending Salary, Salary History. This is the single
 /// authoritative display AG-009 Profile links out to rather than
 /// duplicating — no second live copy should ever be built elsewhere.
-class _CompensationSection extends StatelessWidget {
+class _CompensationSection extends ConsumerWidget {
   final AgentDashboardData d;
   const _CompensationSection({super.key, required this.d});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('my compensation',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            ManaText.raw(ref.t('my_compensation'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw('Read-only, set by Owner.',
+            ManaText.raw(ref.t('read_only_set_by_owner'),
                 style:
                     TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.sm),
             ...[
-              ('Fixed Salary', _currency.format(d.fixedSalary)),
+              (ref.t('fixed_salary'), _currency.format(d.fixedSalary)),
               (
-                'Salary Cycle',
+                ref.t('salary_cycle'),
                 d.salaryCycleStatus.isEmpty ? '—' : d.salaryCycleStatus
               ),
-              ('Daily Allowance', _currency.format(d.dailyAllowance)),
+              (ref.t('daily_allowance'), _currency.format(d.dailyAllowance)),
               if (d.profitSharePercent != null)
-                ('Profit Share', '${d.profitSharePercent}%'),
-              ('Advances Deducted', _currency.format(d.advancesDeducted)),
-              ('Shorts Deducted', _currency.format(d.shortsDeducted)),
-              ('Pending Salary', _currency.format(d.pendingSalary)),
+                (ref.t('profit_share'), '${d.profitSharePercent}%'),
+              (ref.t('advances_deducted'), _currency.format(d.advancesDeducted)),
+              (ref.t('shorts_deducted'), _currency.format(d.shortsDeducted)),
+              (ref.t('pending_salary'), _currency.format(d.pendingSalary)),
             ].map((r) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
@@ -799,8 +793,8 @@ class _CompensationSection extends StatelessWidget {
                 )),
             if (d.salaryHistory.isNotEmpty) ...[
               const SizedBox(height: ManaSpacing.sm),
-              const ManaText.raw('Salary History',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              ManaText.raw(ref.t('salary_history'),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: ManaSpacing.xs),
               ...d.salaryHistory.take(6).map((h) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -823,7 +817,7 @@ class _CompensationSection extends StatelessWidget {
   }
 }
 
-class _QuickActions extends StatelessWidget {
+class _QuickActions extends ConsumerWidget {
   final Set<String> visible;
   final String businessId;
   final String agentId;
@@ -831,20 +825,26 @@ class _QuickActions extends StatelessWidget {
       {required this.visible, required this.businessId, required this.agentId});
 
   // Hidden modules remain fully absent — not shown greyed-out — per
-  // OW-001's Quick Actions pattern that this screen mirrors.
+  // OW-001's Quick Actions pattern that this screen mirrors. `$1` is the
+  // STABLE dispatch key — matched against `visible` (built from
+  // agent_dashboard_state.dart's `tilePermissionColumns`, which is keyed on
+  // these exact English strings) and against the switch below. It must
+  // never be swapped for translated text, or this reintroduces the exact
+  // vocabulary-mismatch bug that file's own comment documents fixing.
+  // `$3` is the translation key for what's actually shown on screen.
   static const _all = [
-    ('Collection Mode', Icons.payments_outlined),
-    ('Area Work Session', Icons.route_outlined),
-    ('Customer List', Icons.people_outline),
-    ('Loan Distribution', Icons.request_page_outlined),
-    ('Draft Transactions', Icons.drafts_outlined),
-    ('Settlement', Icons.receipt_long_outlined),
-    ('Notifications', Icons.notifications_outlined),
-    ('Universal Search', Icons.search),
+    ('Collection Mode', Icons.payments_outlined, 'collection_mode'),
+    ('Area Work Session', Icons.route_outlined, 'area_work_session'),
+    ('Customer List', Icons.people_outline, 'customer_list'),
+    ('Loan Distribution', Icons.request_page_outlined, 'loan_distribution'),
+    ('Draft Transactions', Icons.drafts_outlined, 'draft_transactions'),
+    ('Settlement', Icons.receipt_long_outlined, 'settlement'),
+    ('Notifications', Icons.notifications_outlined, 'notifications'),
+    ('Universal Search', Icons.search, 'universal_search'),
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final items = _all.where((a) => visible.contains(a.$1)).toList();
     if (items.isEmpty) return const SizedBox.shrink();
     return Card(
@@ -853,8 +853,8 @@ class _QuickActions extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('quick actions',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            ManaText.raw(ref.t('quick_actions'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             GridView.count(
               crossAxisCount: 3,
@@ -865,7 +865,7 @@ class _QuickActions extends StatelessWidget {
               childAspectRatio: 0.95,
               children: items
                   .map((a) => _QuickActionTile(
-                        label: a.$1,
+                        label: ref.t(a.$3),
                         icon: a.$2,
                         onTap: () {
                           switch (a.$1) {
@@ -996,7 +996,7 @@ class _QuickActionTile extends StatelessWidget {
           children: [
             Icon(icon, color: ManaColors.ink),
             const SizedBox(height: ManaSpacing.xs),
-            ManaText(label,
+            ManaText.raw(label,
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13)),
           ],
@@ -1006,23 +1006,23 @@ class _QuickActionTile extends StatelessWidget {
   }
 }
 
-class _LiveActivity extends StatelessWidget {
+class _LiveActivity extends ConsumerWidget {
   final List<AgentLiveActivityEntry> entries;
   const _LiveActivity({required this.entries});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('live activity',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            ManaText.raw(ref.t('live_activity'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
-              ManaText.raw('Nothing yet today.',
+              ManaText.raw(ref.t('nothing_yet_today'),
                   style:
                       TextStyle(fontSize: 13, color: ManaColors.textSecondary))
             else

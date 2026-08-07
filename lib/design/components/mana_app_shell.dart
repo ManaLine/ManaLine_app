@@ -31,9 +31,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../tokens/colors.dart';
 import '../tokens/spacing.dart';
 import '../../shared/mana_time.dart';
+import '../../shared/translation_service.dart';
 import 'mana_text.dart';
 import 'mana_header.dart' show kManaMinTapTarget;
 
@@ -339,7 +341,7 @@ class _ShellIcon extends StatelessWidget {
   }
 }
 
-class _ManaDrawer extends StatelessWidget {
+class _ManaDrawer extends ConsumerWidget {
   final String userName;
   final String? businessName;
   final List<ManaDrawerSection> sections;
@@ -351,7 +353,7 @@ class _ManaDrawer extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Drawer(
       child: SafeArea(
         child: ListView(
@@ -392,7 +394,7 @@ class _ManaDrawer extends StatelessWidget {
             for (final s in sections)
               ExpansionTile(
                 leading: Icon(s.icon, color: ManaColors.brandDeep),
-                title: ManaText(s.labelKey),
+                title: ManaText(ref.t(s.labelKey)),
                 // Every child is a full-width tile rather than an indented
                 // label, so the tap target stays the row.
                 children: [
@@ -404,7 +406,7 @@ class _ManaDrawer extends StatelessWidget {
                         left: ManaSpacing.xl,
                         right: ManaSpacing.lg,
                       ),
-                      title: ManaText(a.labelKey),
+                      title: ManaText(ref.t(a.labelKey)),
                       enabled: a.onTap != null,
                       onTap: a.onTap == null
                           ? null

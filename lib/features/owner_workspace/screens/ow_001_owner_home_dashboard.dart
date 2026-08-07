@@ -41,15 +41,15 @@ List<ManaDrawerSection> _ownerDrawerSections(
       labelKey: 'customers',
       actions: [
         ManaDrawerAction(
-          labelKey: 'customer management',
+          labelKey: 'customer_management',
           onTap: () => context.push('/ow-004', extra: businessId),
         ),
         ManaDrawerAction(
-          labelKey: 'new loan',
+          labelKey: 'new_loan',
           onTap: () => context.push('/ow-005', extra: businessId),
         ),
         ManaDrawerAction(
-          labelKey: 'group loan management',
+          labelKey: 'group_loan_management',
           onTap: () => context.push('/ow-015', extra: businessId),
         ),
       ],
@@ -59,11 +59,11 @@ List<ManaDrawerSection> _ownerDrawerSections(
       labelKey: 'workforce',
       actions: [
         ManaDrawerAction(
-          labelKey: 'workforce management',
+          labelKey: 'workforce_management',
           onTap: () => context.push('/ow-002', extra: businessId),
         ),
         ManaDrawerAction(
-          labelKey: 'account review',
+          labelKey: 'account_review',
           onTap: () => context.push('/ow-013', extra: businessId),
         ),
       ],
@@ -73,7 +73,7 @@ List<ManaDrawerSection> _ownerDrawerSections(
       labelKey: 'investors',
       actions: [
         ManaDrawerAction(
-          labelKey: 'investor management',
+          labelKey: 'investor_management',
           onTap: () => context.push('/ow-003', extra: businessId),
         ),
       ],

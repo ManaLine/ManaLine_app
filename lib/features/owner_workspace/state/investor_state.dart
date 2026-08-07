@@ -35,6 +35,18 @@ class InvestorApiService {
             (r['business_members'] as Map<String, dynamic>)['membership_status'] == status)
         .toList();
 
+    // Register New Investor is Investor-initiated (OW-003's own LOCKED
+    // CORRECTION, at the top of the screen file): a request lives ONLY as
+    // a `membership_requests` row (written by IW-002) until the Owner
+    // approves it — approval is what first creates the `investors` /
+    // `business_members` rows queried above. So a genuinely pending
+    // request never appears in the query above; without this second
+    // fetch, _PendingRequestCard on the screen never had anything to
+    // render and the C4 approve/reject queue was dead code.
+    final pending = (status == null || status == 'Pending Acceptance')
+        ? await _fetchPendingRequests(businessId)
+        : <InvestorSummary>[];
+
     // Interest Due is live per CALC BR-234, so it needs one snapshot RPC
     // per investment. Every investment across every investor in one
     // Future.wait — a list screen must not fan out into serial round
@@ -47,23 +59,57 @@ class InvestorApiService {
     ];
     final accruedById = await _accruedFor(ids);
 
-    return investors.map((r) {
+    return [
+      ...pending,
+      ...investors.map((r) {
+        final person = r['persons'] as Map<String, dynamic>;
+        final investments = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
+        final balance =
+            investments.fold<int>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toInt() ?? 0));
+        final roi = investments.isEmpty ? 0.0 : (investments.first['roi_rate'] as num).toDouble();
+        return InvestorSummary(
+          investorId: r['investor_id'] as String,
+          fullName: titleCaseName(person['full_name'] as String? ?? ''),
+          mlid: person['mlid'] as String? ?? '',
+          phoneNumber: person['mobile_number'] as String? ?? '',
+          investmentBalance: balance,
+          roi: roi,
+          interestDue: investments.fold<int>(
+              0, (sum, i) => sum + (accruedById[i['investment_id'] as String] ?? 0)),
+          membershipStatus: (r['business_members'] as Map<String, dynamic>)['membership_status'] as String,
+          lastTransaction: null,
+        );
+      }),
+    ];
+  }
+
+  /// Pending Investor `membership_requests` rows for this business —
+  /// see the note above this method's call site for why these can't come
+  /// from the `investors` table. `persons!membership_requests_person_id_
+  /// fkey` names the FK explicitly: `membership_requests` has a second FK
+  /// to `persons` (`reviewed_by_person_id`), and an unqualified
+  /// `persons!inner(...)` embed is ambiguous between the two (PGRST201).
+  Future<List<InvestorSummary>> _fetchPendingRequests(String businessId) async {
+    final rows = await _db
+        .from('membership_requests')
+        .select('request_id, person_id, proposed_investment_amount, '
+            'persons!membership_requests_person_id_fkey(full_name, mlid, mobile_number)')
+        .eq('business_id', businessId)
+        .eq('requested_role', 'Investor')
+        .eq('status', 'Pending');
+    return (rows as List).cast<Map<String, dynamic>>().map((r) {
       final person = r['persons'] as Map<String, dynamic>;
-      final investments = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
-      final balance =
-          investments.fold<int>(0, (sum, i) => sum + ((i['principal_amount'] as num?)?.toInt() ?? 0));
-      final roi = investments.isEmpty ? 0.0 : (investments.first['roi_rate'] as num).toDouble();
       return InvestorSummary(
-        investorId: r['investor_id'] as String,
+        investorId: '', // not yet a member — approval is what creates the investors/business_members rows
+        requestId: r['request_id'] as String,
+        personId: r['person_id']?.toString(),
         fullName: titleCaseName(person['full_name'] as String? ?? ''),
         mlid: person['mlid'] as String? ?? '',
         phoneNumber: person['mobile_number'] as String? ?? '',
-        investmentBalance: balance,
-        roi: roi,
-        interestDue: investments.fold<int>(
-            0, (sum, i) => sum + (accruedById[i['investment_id'] as String] ?? 0)),
-        membershipStatus: (r['business_members'] as Map<String, dynamic>)['membership_status'] as String,
-        lastTransaction: null,
+        investmentBalance: (r['proposed_investment_amount'] as num?)?.toInt() ?? 0,
+        roi: 0,
+        interestDue: 0,
+        membershipStatus: 'Pending Acceptance',
       );
     }).toList();
   }
@@ -555,6 +601,7 @@ class WithdrawalRequestSummary {
 class InvestorSummary {
   final String investorId;
   final String? personId; // populated for pre-membership search results; investorId is empty in that case
+  final String? requestId; // membership_requests.request_id — populated only for a Pending Acceptance row
   final String fullName;
   final String mlid;
   final String phoneNumber;
@@ -567,6 +614,7 @@ class InvestorSummary {
   InvestorSummary({
     required this.investorId,
     this.personId,
+    this.requestId,
     required this.fullName,
     required this.mlid,
     required this.phoneNumber,

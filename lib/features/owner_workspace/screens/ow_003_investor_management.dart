@@ -139,15 +139,23 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                         ),
                       )
                     else
-                      ...state.filtered.map((i) => _InvestorRow(
-                            investor: i,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    InvestorProfileScreen(businessId: widget.businessId, investor: i),
-                              ),
-                            ),
-                          )),
+                      // Pending Acceptance rows are excluded here — they
+                      // aren't real members yet (no investor_id, so this
+                      // row's onTap into InvestorProfileScreen would have
+                      // nothing to load), and the card loop above already
+                      // surfaces them with the correct approve/reject
+                      // actions.
+                      ...state.filtered
+                          .where((i) => i.membershipStatus != 'Pending Acceptance')
+                          .map((i) => _InvestorRow(
+                                investor: i,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        InvestorProfileScreen(businessId: widget.businessId, investor: i),
+                                  ),
+                                ),
+                              )),
                   ],
                 ),
         ),
@@ -253,7 +261,7 @@ class _PendingRequestCard extends ConsumerWidget {
                     onPressed: () => NetworkErrorHandler.run(context, () async {
                       return ref
                           .read(investorWorkforceProvider.notifier)
-                          .rejectRequest(businessId, investor.investorId);
+                          .rejectRequest(businessId, investor.requestId!);
                     }),
                     child: ManaText.raw(ref.t('reject')),
                   ),
@@ -264,7 +272,7 @@ class _PendingRequestCard extends ConsumerWidget {
                     onPressed: () => NetworkErrorHandler.run(context, () async {
                       return ref
                           .read(investorWorkforceProvider.notifier)
-                          .approveRequest(businessId, investor.investorId);
+                          .approveRequest(businessId, investor.requestId!);
                     }),
                     child: ManaText.raw(ref.t('approve')),
                   ),

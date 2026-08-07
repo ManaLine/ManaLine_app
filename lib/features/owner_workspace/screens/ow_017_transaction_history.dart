@@ -155,42 +155,51 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                 ? Center(child: ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad)))
                 : RefreshIndicator(
                     onRefresh: _load,
-                    child: ListView(
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(ManaSpacing.lg),
-                          color: ManaColors.surfaceSunken,
-                          child: Column(
-                            children: [
-                              ManaText('net change (this view)',
-                                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                              const SizedBox(height: 4),
-                              ManaText.raw(
-                                _currency.format(netChange),
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: netChange >= 0 ? ManaColors.statusGood : ManaColors.statusBad,
+                    // PERF: builder — this business's whole loan/collection/
+                    // adjustment history, fetched with no limit, is genuinely
+                    // unbounded over the life of the business. Index 0 is the
+                    // fixed net-change header; the rest are transaction rows.
+                    child: ListView.builder(
+                      itemCount: 1 + (_transactions.isEmpty ? 1 : _transactions.length),
+                      itemBuilder: (context, i) {
+                        if (i == 0) {
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(ManaSpacing.lg),
+                            color: ManaColors.surfaceSunken,
+                            child: Column(
+                              children: [
+                                ManaText('net change (this view)',
+                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                const SizedBox(height: 4),
+                                ManaText.raw(
+                                  _currency.format(netChange),
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: netChange >= 0 ? ManaColors.statusGood : ManaColors.statusBad,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (_transactions.isEmpty)
-                          Padding(
+                              ],
+                            ),
+                          );
+                        }
+                        if (_transactions.isEmpty) {
+                          return Padding(
                             padding: const EdgeInsets.all(ManaSpacing.xl),
                             child: Center(
-                              child: ManaText.raw('No transactions yet.', style: TextStyle(color: ManaColors.textSecondary)),
+                              child: ManaText.raw('No transactions yet.',
+                                  style: TextStyle(color: ManaColors.textSecondary)),
                             ),
-                          )
-                        else
-                          ..._transactions.map((t) => _TxnTile(
-                                txn: t,
-                                runningBalance: _runningBalanceById[t.id] ?? 0,
-                                onTap: () => _showDetail(context, t),
-                              )),
-                      ],
+                          );
+                        }
+                        final t = _transactions[i - 1];
+                        return _TxnTile(
+                          txn: t,
+                          runningBalance: _runningBalanceById[t.id] ?? 0,
+                          onTap: () => _showDetail(context, t),
+                        );
+                      },
                     ),
                   ),
       ),

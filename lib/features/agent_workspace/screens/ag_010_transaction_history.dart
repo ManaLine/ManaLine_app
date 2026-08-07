@@ -67,34 +67,38 @@ class _Ag010TransactionHistoryScreenState extends ConsumerState<Ag010Transaction
                         ),
                       ),
                     )
-                  : ListView(
+                  : ListView.builder(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
-                      children: [
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(ManaSpacing.md),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                ManaText('total collected (last 100)', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                                ManaText.raw(_currency.format(state.totalCollected),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              ],
+                      itemCount: 2 + (state.entries.isEmpty ? 1 : state.entries.length),
+                      itemBuilder: (context, i) {
+                        if (i == 0) {
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(ManaSpacing.md),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  ManaText('total collected (last 100)',
+                                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                  ManaText.raw(_currency.format(state.totalCollected),
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: ManaSpacing.md),
-                        if (state.entries.isEmpty)
-                          Padding(
+                          );
+                        }
+                        if (i == 1) return const SizedBox(height: ManaSpacing.md);
+                        if (state.entries.isEmpty) {
+                          return Padding(
                             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                             child: Center(
                               child: ManaText.raw('No transactions recorded yet.',
                                   style: TextStyle(color: ManaColors.textSecondary)),
                             ),
-                          )
-                        else
-                          ...state.entries.map((e) => _HistoryRow(entry: e)),
-                      ],
+                          );
+                        }
+                        return _HistoryRow(entry: state.entries[i - 2]);
+                      },
                     ),
         ),
       ),

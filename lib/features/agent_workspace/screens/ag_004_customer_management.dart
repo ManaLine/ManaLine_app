@@ -87,50 +87,76 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _reload,
-          child: state.loading && state.customers.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(ManaSpacing.lg),
-                  children: [
-                    TextField(
-                      controller: _search,
-                      decoration: const InputDecoration(
-                        hintText: 'Search by name, MLID, or phone',
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                      onChanged: (v) => ref.read(agentCustomerListProvider.notifier).setSearchQuery(v),
-                    ),
-                    const SizedBox(height: ManaSpacing.sm),
-                    _FilterChips(state: state),
-                    const SizedBox(height: ManaSpacing.md),
-                    if (state.filtered.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          child: ManaText.raw('No assigned customers match this view.',
-                              style: TextStyle(color: ManaColors.textSecondary)),
+        child: state.loading && state.customers.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        ManaSpacing.lg, ManaSpacing.lg, ManaSpacing.lg, 0),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _search,
+                          decoration: const InputDecoration(
+                            hintText: 'Search by name, MLID, or phone',
+                            prefixIcon: Icon(Icons.search),
+                          ),
+                          onChanged: (v) =>
+                              ref.read(agentCustomerListProvider.notifier).setSearchQuery(v),
                         ),
-                      )
-                    else
-                      ...state.filtered.map((c) => _CustomerRow(
-                            customer: c,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => AgentCustomerProfileScreen(
-                                  businessId: widget.businessId,
-                                  agentMembershipId: widget.agentMembershipId,
-                                  customerId: c.customerId,
-                                  customerName: c.fullName,
-                                  permissions: state.permissions,
+                        const SizedBox(height: ManaSpacing.sm),
+                        _FilterChips(state: state),
+                        const SizedBox(height: ManaSpacing.md),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _reload,
+                      // PERF: builder, not a literal children list — this list is
+                      // every customer assigned to this agent, which grows
+                      // unbounded over the life of a route; the old eager form
+                      // built every row on every rebuild regardless of scroll
+                      // position.
+                      child: state.filtered.isEmpty
+                          ? ListView(
+                              padding: const EdgeInsets.all(ManaSpacing.lg),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                                  child: Center(
+                                    child: ManaText.raw('No assigned customers match this view.',
+                                        style: TextStyle(color: ManaColors.textSecondary)),
+                                  ),
                                 ),
-                              ),
+                              ],
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(ManaSpacing.lg),
+                              itemCount: state.filtered.length,
+                              itemBuilder: (context, i) {
+                                final c = state.filtered[i];
+                                return _CustomerRow(
+                                  customer: c,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => AgentCustomerProfileScreen(
+                                        businessId: widget.businessId,
+                                        agentMembershipId: widget.agentMembershipId,
+                                        customerId: c.customerId,
+                                        customerName: c.fullName,
+                                        permissions: state.permissions,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          )),
-                  ],
-                ),
-        ),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

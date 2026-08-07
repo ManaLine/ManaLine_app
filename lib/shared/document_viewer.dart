@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'widgets/confirm_delete_dialog.dart';
@@ -145,13 +146,15 @@ class _DocumentViewerScreen extends StatelessWidget {
       appBar: AppBar(title: ManaText.raw(title)),
       backgroundColor: Colors.black,
       body: Center(
+        // PERF: cached — re-opening the same document (e.g. after backing out
+        // of this viewer) previously re-downloaded it every time.
         child: InteractiveViewer(
-          child: Image.network(
-            url,
+          child: CachedNetworkImage(
+            imageUrl: url,
             fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) =>
-                progress == null ? child : const Center(child: CircularProgressIndicator(color: Colors.white)),
-            errorBuilder: (context, error, stackTrace) => Padding(
+            progressIndicatorBuilder: (context, child, progress) =>
+                const Center(child: CircularProgressIndicator(color: Colors.white)),
+            errorWidget: (context, error, stackTrace) => Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw(
                 "Couldn't preview this file — it may not be an image. URL:\n$url",

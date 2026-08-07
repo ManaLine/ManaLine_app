@@ -132,15 +132,25 @@ class MyInvestmentsApiService {
         .eq('investment_id', investmentId)
         .order('business_date', ascending: false);
 
+    // PERF: one batched lookup for every distinct approver instead of one
+    // query per withdrawal row (was N+1 — a customer with 40 withdrawals
+    // meant 40 round trips just to resolve names).
+    final withdrawalList = (withdrawalRows as List).cast<Map<String, dynamic>>();
+    final approverIds = <dynamic>{
+      for (final r in withdrawalList)
+        if (r['approved_by_person_id'] != null) r['approved_by_person_id'],
+    }.toList();
+    final approverRows = approverIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : await _db.from('persons').select('person_id, full_name').inFilter('person_id', approverIds);
+    final approverNameById = {
+      for (final p in approverRows) p['person_id']: p['full_name'] as String? ?? '',
+    };
+
     final withdrawalHistory = <InvestmentWithdrawalHistoryEntry>[];
-    for (final r in (withdrawalRows as List).cast<Map<String, dynamic>>()) {
-      String approvedBy = '';
+    for (final r in withdrawalList) {
       final approverId = r['approved_by_person_id'];
-      if (approverId != null) {
-        final approver =
-            await _db.from('persons').select('full_name').eq('person_id', approverId).maybeSingle();
-        approvedBy = approver?['full_name'] as String? ?? '';
-      }
+      final approvedBy = approverId != null ? (approverNameById[approverId] ?? '') : '';
       withdrawalHistory.add(InvestmentWithdrawalHistoryEntry(
         withdrawalType: r['withdrawal_type'] as String,
         amount: (r['amount'] as num).toInt(),

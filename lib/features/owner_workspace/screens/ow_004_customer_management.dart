@@ -102,53 +102,78 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => ref.read(customerListProvider.notifier).load(widget.businessId),
-          child: state.loading && state.customers.isEmpty
-              ? const ManaSkeletonList(itemHeight: 96)
-              : ListView(
-                  padding: const EdgeInsets.all(ManaSpacing.lg),
-                  children: [
-                    TextField(
-                      controller: _search,
-                      focusNode: _searchFocus,
-                      decoration: const InputDecoration(
-                        hintText: 'Search by name, MLID, or phone',
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                      onChanged: (v) => ref.read(customerListProvider.notifier).setSearchQuery(v),
-                    ),
-                    const SizedBox(height: ManaSpacing.sm),
-                    _StatusFilterChips(state: state),
-                    const SizedBox(height: ManaSpacing.sm),
-                    _VillageFilterDropdown(state: state),
-                    const SizedBox(height: ManaSpacing.xs),
-                    ManaText.raw(
-                      'Sorted by: highest outstanding → penalty → grace period → today\'s due → village → name',
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
-                    ),
-                    const SizedBox(height: ManaSpacing.md),
-                    if (state.filtered.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          child:
-                              ManaText.raw('No customers match this view.', style: TextStyle(color: ManaColors.textSecondary)),
+        child: state.loading && state.customers.isEmpty
+            ? const ManaSkeletonList(itemHeight: 96)
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        ManaSpacing.lg, ManaSpacing.lg, ManaSpacing.lg, 0),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _search,
+                          focusNode: _searchFocus,
+                          decoration: const InputDecoration(
+                            hintText: 'Search by name, MLID, or phone',
+                            prefixIcon: Icon(Icons.search),
+                          ),
+                          onChanged: (v) => ref.read(customerListProvider.notifier).setSearchQuery(v),
                         ),
-                      )
-                    else
-                      ...state.filtered.map((c) => _CustomerRow(
-                            customer: c,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    CustomerProfileScreen(businessId: widget.businessId, customer: c),
-                              ),
+                        const SizedBox(height: ManaSpacing.sm),
+                        _StatusFilterChips(state: state),
+                        const SizedBox(height: ManaSpacing.sm),
+                        _VillageFilterDropdown(state: state),
+                        const SizedBox(height: ManaSpacing.xs),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ManaText.raw(
+                            'Sorted by: highest outstanding → penalty → grace period → today\'s due → village → name',
+                            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                          ),
+                        ),
+                        const SizedBox(height: ManaSpacing.md),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () => ref.read(customerListProvider.notifier).load(widget.businessId),
+                      // PERF: builder — this business's full customer roster,
+                      // unbounded, was previously built eagerly on every rebuild.
+                      child: state.filtered.isEmpty
+                          ? ListView(
+                              padding: const EdgeInsets.all(ManaSpacing.lg),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
+                                  child: Center(
+                                    child: ManaText.raw('No customers match this view.',
+                                        style: TextStyle(color: ManaColors.textSecondary)),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(ManaSpacing.lg),
+                              itemCount: state.filtered.length,
+                              itemBuilder: (context, i) {
+                                final c = state.filtered[i];
+                                return _CustomerRow(
+                                  customer: c,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          CustomerProfileScreen(businessId: widget.businessId, customer: c),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          )),
-                  ],
-                ),
-        ),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

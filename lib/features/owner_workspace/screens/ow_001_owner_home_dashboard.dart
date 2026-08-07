@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -384,13 +385,16 @@ class _Header extends ConsumerWidget {
         color: ManaColors.brandFaint,
         child: logoUrl == null
             ? Icon(Icons.storefront, color: ManaColors.brandDeep)
-            : Image.network(
-                logoUrl!,
+            // PERF: cached — this header rebuilds on every dashboard visit,
+            // and the logo doesn't change between visits, so re-fetching it
+            // every time was pure waste. Disk+memory cached by URL.
+            : CachedNetworkImage(
+                imageUrl: logoUrl!,
                 fit: BoxFit.cover,
                 // A signed storage URL can expire or 404. Falling back to
                 // the placeholder is right; showing a broken-image glyph in
                 // the header of every screen is not.
-                errorBuilder: (_, __, ___) =>
+                errorWidget: (_, __, ___) =>
                     Icon(Icons.storefront, color: ManaColors.brandDeep),
               ),
       ),

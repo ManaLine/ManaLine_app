@@ -121,35 +121,90 @@ class _DueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = _statusIcon;
+    // NOT a ListTile — its leading/title/trailing layout clamps content to
+    // a fixed height (~56dp), which a two-line trailing column (amount +
+    // LRI) does not fit inside once text scale grows, AND its fixed-width
+    // trailing slot squeezes the title's available width down as the
+    // trailing text widens — both fire only at larger text scales, which
+    // is why this shipped unnoticed.
+    //
+    // The amount is deliberately NOT beside the name in a Row anymore
+    // either. Two side-by-side Flexible texts still overflowed even with
+    // ellipsis on both: a long unbroken name (a single word wider than
+    // its half of the row) forces width beyond what its Flexible share
+    // was ever going to get, since Flexible cannot shrink a child past
+    // its own minimum intrinsic content width. Stacking the amount BELOW
+    // the name/village instead means neither one is ever competing for
+    // horizontal room with the other — each gets the full row width to
+    // itself.
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: ListTile(
-        leading: Icon(s.icon, color: s.color),
-        title: Row(
-          children: [
-            Flexible(child: ManaText.raw(row.customerName, style: const TextStyle(fontWeight: FontWeight.w600))),
-            if (row.penaltyEligible) ...[
-              const SizedBox(width: ManaSpacing.xs),
-              const ManaStatusPill(label: 'Penalty', status: ManaStatus.bad),
-            ] else if (row.gracePeriod) ...[
-              const SizedBox(width: ManaSpacing.xs),
-              const ManaStatusPill(label: 'Grace', status: ManaStatus.warn),
-            ],
-          ],
-        ),
-        subtitle: ManaText.raw('${row.village} · ${row.loanNumber}',
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            ManaText.raw(_currency.format(row.installmentDue),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ManaText.raw('LRI ${row.lineRepaymentIndex}',
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-          ],
-        ),
+      child: InkWell(
         onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(ManaSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(s.icon, color: s.color),
+              const SizedBox(width: ManaSpacing.md),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: ManaText.raw(row.customerName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        if (row.penaltyEligible) ...[
+                          const SizedBox(width: ManaSpacing.xs),
+                          const ManaStatusPill(label: 'Penalty', status: ManaStatus.bad),
+                        ] else if (row.gracePeriod) ...[
+                          const SizedBox(width: ManaSpacing.xs),
+                          const ManaStatusPill(label: 'Grace', status: ManaStatus.warn),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    // maxLines/overflow required, not optional: the loan
+                    // number is one unbroken token with no space for the
+                    // line-breaker to wrap at, so without this it forces
+                    // its own width regardless of what's available and
+                    // overflows the row rather than wrapping.
+                    ManaText.raw('${row.village} · ${row.loanNumber}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    const SizedBox(height: ManaSpacing.xs),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: ManaText.raw('LRI ${row.lineRepaymentIndex}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        ),
+                        const SizedBox(width: ManaSpacing.sm),
+                        Flexible(
+                          child: ManaText.raw(_currency.format(row.installmentDue),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

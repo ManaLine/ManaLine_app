@@ -710,17 +710,33 @@ class _SectionCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: accent ?? ManaColors.textPrimary)),
             const SizedBox(height: ManaSpacing.sm),
+            // Neither side was flexible — a long real value (business name,
+            // assigned route, owner name) overflowed the Row outright, not
+            // just at a scaled-up text size, and a first fix that only made
+            // the value flexible still overflowed on long LABELS
+            // ("Pending Customer Requests") at larger text scales. Both
+            // sides now Flexible: the label may wrap to a second line, the
+            // value stays single-line with an ellipsis safety net.
             ...rows.map((r) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ManaText.raw(r.$1,
-                          style: TextStyle(
-                              fontSize: 13, color: ManaColors.textSecondary)),
-                      ManaText.raw(r.$2,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)),
+                      Flexible(
+                        child: ManaText.raw(r.$1,
+                            style: TextStyle(
+                                fontSize: 13, color: ManaColors.textSecondary)),
+                      ),
+                      const SizedBox(width: ManaSpacing.sm),
+                      Flexible(
+                        child: ManaText.raw(r.$2,
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
+                      ),
                     ],
                   ),
                 )),

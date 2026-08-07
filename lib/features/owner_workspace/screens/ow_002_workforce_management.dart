@@ -8,6 +8,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/business_management_state.dart' show businessManagementApiServiceProvider, OperatingAreaSummary;
@@ -44,22 +45,22 @@ class _WorkforceManagementScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('workforce management'),
+        title: ManaText.raw(ref.t('workforce_management')),
         actions: [
           IconButton(
-            tooltip: 'Register Agent',
+            tooltip: ref.t('register_agent'),
             icon: const Icon(Icons.person_add_alt_1_outlined),
             onPressed: () => _openRegisterNewAgent(context),
           ),
           IconButton(
-            tooltip: 'Add Existing Agent',
+            tooltip: ref.t('add_existing_agent'),
             icon: const Icon(Icons.badge_outlined),
             onPressed: () => _openAddExistingAgent(context),
           ),
           // OW-014 Global Workflow — an agent who already worked for this
           // business before it joined MANA LINE, so has no MANA LINE ID yet.
           IconButton(
-            tooltip: 'Pre-Existing Agent',
+            tooltip: ref.t('pre_existing_agent'),
             icon: const Icon(Icons.history_edu_outlined),
             onPressed: () => context
                 .push('/ow-014?type=agent', extra: widget.businessId)
@@ -80,9 +81,9 @@ class _WorkforceManagementScreenState
                     const SizedBox(height: ManaSpacing.lg),
                     TextField(
                       controller: _search,
-                      decoration: const InputDecoration(
-                        hintText: 'Search by name or MLID',
-                        prefixIcon: Icon(Icons.search),
+                      decoration: InputDecoration(
+                        hintText: ref.t('search_by_name_or_mlid'),
+                        prefixIcon: const Icon(Icons.search),
                       ),
                       onChanged: (v) => ref
                           .read(workforceProvider.notifier)
@@ -99,7 +100,7 @@ class _WorkforceManagementScreenState
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
-                          child: ManaText.raw('Could not load agents.\n${state.error}',
+                          child: ManaText.raw(ref.t('could_not_load_agents').replaceAll('{error}', '${state.error}'),
                               textAlign: TextAlign.center,
                               style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                         ),
@@ -109,7 +110,7 @@ class _WorkforceManagementScreenState
                         padding:
                             const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
-                          child: ManaText.raw('No agents match this view.',
+                          child: ManaText.raw(ref.t('no_agents_match_view'),
                               style:
                                   TextStyle(color: ManaColors.textSecondary)),
                         ),
@@ -154,19 +155,19 @@ class _WorkforceManagementScreenState
 
 // --- C2 Dashboard summary strip ------------------------------------------
 
-class _DashboardStrip extends StatelessWidget {
+class _DashboardStrip extends ConsumerWidget {
   final WorkforceState state;
   const _DashboardStrip({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final stats = <(String, int, ManaStatus)>[
-      ('Active', state.totalActive, ManaStatus.good),
-      ('Pending Invitations', state.pendingInvitations, ManaStatus.warn),
-      ('Pending Acceptance', state.pendingAcceptance, ManaStatus.warn),
-      ('Disabled', state.disabled, ManaStatus.neutral),
-      ('Suspended', state.suspended, ManaStatus.bad),
-      ('Removed', state.removed, ManaStatus.neutral),
+      (ref.t('active'), state.totalActive, ManaStatus.good),
+      (ref.t('pending_invitation_status'), state.pendingInvitations, ManaStatus.warn),
+      (ref.t('pending_acceptance_status'), state.pendingAcceptance, ManaStatus.warn),
+      (ref.t('disabled'), state.disabled, ManaStatus.neutral),
+      (ref.t('suspended'), state.suspended, ManaStatus.bad),
+      (ref.t('removed'), state.removed, ManaStatus.neutral),
     ];
     return ManaStatStrip(
       valueFontSize: 20,
@@ -190,6 +191,14 @@ class _StatusFilterChips extends ConsumerWidget {
     'Suspended',
     'Removed',
   ];
+  static const _statusKeys = {
+    'Active': 'active',
+    'Pending Invitation': 'pending_invitation_status',
+    'Pending Acceptance': 'pending_acceptance_status',
+    'Temporarily Disabled': 'temporarily_disabled',
+    'Suspended': 'suspended',
+    'Removed': 'removed',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -197,13 +206,13 @@ class _StatusFilterChips extends ConsumerWidget {
       spacing: ManaSpacing.xs,
       children: [
         ChoiceChip(
-          label: const ManaText('all'),
+          label: ManaText.raw(ref.t('all')),
           selected: state.statusFilter == null,
           onSelected: (_) =>
               ref.read(workforceProvider.notifier).setStatusFilter(null),
         ),
         ..._statuses.map((s) => ChoiceChip(
-              label: ManaText(s),
+              label: ManaText.raw(ref.t(_statusKeys[s]!)),
               selected: state.statusFilter == s,
               onSelected: (_) =>
                   ref.read(workforceProvider.notifier).setStatusFilter(s),
@@ -297,9 +306,7 @@ class _RegisterNewAgentSheetState
     if (ok == true && mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: ManaText.raw(
-                'Agent registered — invitation sent, status Pending Invitation.')),
+        SnackBar(content: ManaText.raw(ref.t('agent_registered_note'))),
       );
     }
   }
@@ -318,19 +325,18 @@ class _RegisterNewAgentSheetState
           child: ListView(
             controller: scrollController,
             children: [
-              const ManaText('register new agent',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ManaText.raw(ref.t('register_new_agent'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
-                'For an agent who does not yet have a MANA LINE ID. Reuses the same '
-                'Identity Registration fields as account registration.',
+                ref.t('register_new_agent_note'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: ManaSpacing.lg),
               TextField(
                 controller: _fullName,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Full Name *'),
+                decoration: InputDecoration(labelText: '${ref.t("full_name")} *'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -338,16 +344,16 @@ class _RegisterNewAgentSheetState
                 controller: _fatherHusband,
                 textCapitalization: TextCapitalization.words,
                 decoration:
-                    const InputDecoration(labelText: 'Father / Husband Name *'),
+                    InputDecoration(labelText: '${ref.t("father_husband_name")} *'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.md),
               DropdownButtonFormField<String>(
                 initialValue: _gender,
-                decoration: const InputDecoration(labelText: 'Gender *'),
-                items: const [
-                  DropdownMenuItem(value: '1', child: ManaText.raw('Male')),
-                  DropdownMenuItem(value: '0', child: ManaText.raw('Female')),
+                decoration: InputDecoration(labelText: '${ref.t("gender")} *'),
+                items: [
+                  DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
+                  DropdownMenuItem(value: '0', child: ManaText.raw(ref.t('female'))),
                 ],
                 onChanged: (v) => setState(() => _gender = v),
               ),
@@ -356,7 +362,7 @@ class _RegisterNewAgentSheetState
                 controller: _mobile,
                 keyboardType: TextInputType.phone,
                 maxLength: 10,
-                decoration: const InputDecoration(labelText: 'Mobile Number *'),
+                decoration: InputDecoration(labelText: '${ref.t("mobile_number")} *'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -365,7 +371,7 @@ class _RegisterNewAgentSheetState
                 keyboardType: TextInputType.number,
                 maxLength: 12,
                 decoration:
-                    const InputDecoration(labelText: 'Aadhaar Number *'),
+                    InputDecoration(labelText: '${ref.t("aadhaar_number")} *'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.lg),
@@ -376,7 +382,7 @@ class _RegisterNewAgentSheetState
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('register & send invitation'),
+                    : ManaText.raw(ref.t('register_and_send_invitation')),
               ),
             ],
           ),
@@ -432,8 +438,7 @@ class _AddExistingAgentSheetState
     if (ok == true && mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: ManaText.raw('Invitation sent — status Pending Invitation.')),
+        SnackBar(content: ManaText.raw(ref.t('invitation_sent_note'))),
       );
     }
   }
@@ -448,11 +453,11 @@ class _AddExistingAgentSheetState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('add existing agent',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('add_existing_agent'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
-              'For an agent who already has a MANA LINE ID (MLID/MLPI/MLTI).',
+              ref.t('add_existing_agent_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
@@ -461,7 +466,7 @@ class _AddExistingAgentSheetState
                 Expanded(
                   child: TextField(
                     controller: _mlid,
-                    decoration: const InputDecoration(labelText: 'Enter MLID'),
+                    decoration: InputDecoration(labelText: ref.t('enter_mlid')),
                     onChanged: (_) => setState(() => _found = null),
                   ),
                 ),
@@ -475,7 +480,7 @@ class _AddExistingAgentSheetState
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const ManaText('search'),
+                      : ManaText.raw(ref.t('search')),
                 ),
               ],
             ),
@@ -494,13 +499,13 @@ class _AddExistingAgentSheetState
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const ManaText('add'),
+                        : ManaText.raw(ref.t('add')),
                   ),
                 ),
               )
             else if (_mlid.text.trim().isNotEmpty && !_searching)
               ManaText.raw(
-                  'No match found yet — search to look up this MLID.',
+                  ref.t('no_match_found_note'),
                   style:
                       TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ],
@@ -527,26 +532,26 @@ class AgentProfileScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: ManaText.raw(agent.fullName),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             tabs: [
-              Tab(text: 'Overview'),
-              Tab(text: 'Permissions'),
-              Tab(text: 'Compensation'),
-              Tab(text: 'Areas'),
-              Tab(text: 'Documents'),
-              Tab(text: 'Audit'),
+              Tab(text: ref.t('overview')),
+              Tab(text: ref.t('permissions')),
+              Tab(text: ref.t('compensation')),
+              Tab(text: ref.t('areas')),
+              Tab(text: ref.t('documents')),
+              Tab(text: ref.t('audit')),
             ],
           ),
           actions: [
             PopupMenuButton<String>(
               onSelected: (status) => _changeStatus(context, ref, status),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'Active', child: ManaText('reactivate')),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'Active', child: ManaText.raw(ref.t('reactivate'))),
                 PopupMenuItem(
-                    value: 'Temporarily Disabled', child: ManaText('disable')),
-                PopupMenuItem(value: 'Suspended', child: ManaText('suspend')),
-                PopupMenuItem(value: 'Removed', child: ManaText('remove')),
+                    value: 'Temporarily Disabled', child: ManaText.raw(ref.t('disable'))),
+                PopupMenuItem(value: 'Suspended', child: ManaText.raw(ref.t('suspend'))),
+                PopupMenuItem(value: 'Removed', child: ManaText.raw(ref.t('remove'))),
               ],
             ),
           ],
@@ -556,7 +561,7 @@ class AgentProfileScreen extends ConsumerWidget {
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw('Could not load profile.\n$e',
+              child: ManaText.raw(ref.t('could_not_load_profile').replaceAll('{error}', '$e'),
                   textAlign: TextAlign.center),
             ),
           ),
@@ -581,16 +586,16 @@ class AgentProfileScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: ManaText('confirm: ${status.toLowerCase()}'),
+        title: ManaText.raw(ref.t('confirm_status_change_title').replaceAll('{status}', status)),
         content: ManaText.raw(
-            'Change ${agent.fullName}\'s membership status to "$status"?'),
+            ref.t('change_status_note').replaceAll('{name}', agent.fullName).replaceAll('{status}', status)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const ManaText('cancel')),
+              child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const ManaText('confirm')),
+              child: ManaText.raw(ref.t('confirm'))),
         ],
       ),
     );
@@ -663,11 +668,11 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
     }
   }
 
-  String get _bfLabel {
+  String _bfLabel(WidgetRef ref) {
     if (_loadingBf) return '…';
-    if (_bfError != null) return 'Could not read';
+    if (_bfError != null) return ref.t('could_not_read');
     if (agent.membershipId == null) return '—';
-    if (_bf == null) return 'No BF granted yet';
+    if (_bf == null) return ref.t('no_bf_granted_yet');
     return '₹${_bf!}';
   }
 
@@ -686,11 +691,11 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
             child: ManaText.raw(agent.mlid,
                 style: TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
-        _infoRow('Phone Number', agent.phoneNumber),
-        _infoRow('Status', agent.status),
-        _infoRow('Business Access', agent.businessAccess),
-        _infoRow('Current Route', agent.currentRoute ?? '—'),
-        _infoRow('Cash In Hand (BF)', _bfLabel),
+        _infoRow(ref.t('phone_number'), agent.phoneNumber),
+        _infoRow(ref.t('status'), agent.status),
+        _infoRow(ref.t('business_access'), agent.businessAccess),
+        _infoRow(ref.t('current_route'), agent.currentRoute ?? '—'),
+        _infoRow(ref.t('cash_in_hand_bf'), _bfLabel(ref)),
         // The agent cannot be lent against without a float, and
         // create_loan_with_bf_check refuses with INSUFFICIENT_FLOAT until
         // the Owner tops them up. This is where that happens.
@@ -702,25 +707,25 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
               child: OutlinedButton.icon(
                 onPressed: _openTopUpSheet,
                 icon: const Icon(Icons.add, size: 18),
-                label: const ManaText('add bf'),
+                label: ManaText.raw(ref.t('add_bf')),
               ),
             ),
           ),
-        _infoRow("Today's Collections",
+        _infoRow(ref.t('todays_collections_label'),
             '₹${agent.todaysCollections.toStringAsFixed(0)}'),
-        _infoRow("Today's Loans", '₹${agent.todaysLoans.toStringAsFixed(0)}'),
+        _infoRow(ref.t('todays_loans'), '₹${agent.todaysLoans.toStringAsFixed(0)}'),
         _infoRow(
-            'Joined Date', DateFormat('d MMM yyyy').format(agent.joinedDate)),
+            ref.t('joined_date'), DateFormat('d MMM yyyy').format(agent.joinedDate)),
         // "Never" is only truthful for your OWN record — devices is
         // self-only under RLS, so for any other agent the Owner simply
         // cannot see it. Saying "Never" there asserts something false.
         _infoRow(
-            'Last Login',
+            ref.t('last_login'),
             agent.lastLogin != null
                 ? DateFormat('d MMM yyyy, hh:mm a').format(agent.lastLogin!)
                 : agent.lastLoginVisible
-                    ? 'Never'
-                    : 'Not visible'),
+                    ? ref.t('never')
+                    : ref.t('not_visible')),
       ],
     );
   }
@@ -733,13 +738,13 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         String? error;
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) => AlertDialog(
-            title: const ManaText('add bf'),
+            title: ManaText.raw(ref.t('add_bf')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ManaText.raw(
-                    'Move cash from your own balance into ${agent.fullName}\'s float.',
+                    ref.t('move_cash_to_float_note').replaceAll('{name}', agent.fullName),
                     style: TextStyle(
                         color: ManaColors.textSecondary, fontSize: 13)),
                 const SizedBox(height: ManaSpacing.md),
@@ -749,7 +754,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
                   autofocus: true,
                   decoration: InputDecoration(
                     prefixText: '₹ ',
-                    labelText: 'Amount',
+                    labelText: ref.t('amount'),
                     errorText: error,
                   ),
                 ),
@@ -758,19 +763,19 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const ManaText('cancel')),
+                  child: ManaText.raw(ref.t('cancel'))),
               ElevatedButton(
                 onPressed: () {
                   // Whole rupees only — every money column is numeric(_,0),
                   // so paise cannot be stored and must not be accepted.
                   final amount = int.tryParse(controller.text.trim());
                   if (amount == null || amount <= 0) {
-                    setDialogState(() => error = 'Enter a whole rupee amount above zero');
+                    setDialogState(() => error = ref.t('enter_whole_rupee_amount'));
                     return;
                   }
                   Navigator.pop(dialogContext, amount);
                 },
-                child: const ManaText('add'),
+                child: ManaText.raw(ref.t('add')),
               ),
             ],
           ),
@@ -795,8 +800,11 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
     setState(() => _bf = newFloat);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: ManaText.raw(
-              '₹$granted added. ${agent.fullName} now holds ₹$newFloat.')),
+          content: ManaText.raw(ref
+              .t('bf_added_note')
+              .replaceAll('{granted}', '$granted')
+              .replaceAll('{name}', agent.fullName)
+              .replaceAll('{newFloat}', '$newFloat'))),
     );
   }
 
@@ -805,7 +813,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         child: Row(
           children: [
             Expanded(
-                child: ManaText(label,
+                child: ManaText.raw(label,
                     style: TextStyle(
                         color: ManaColors.textSecondary, fontSize: 13))),
             Flexible(
@@ -843,46 +851,55 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
   // Owner decides first: can they work at all, then what can they touch.
   static const _groups = <String, Map<String, String>>{
     'daily work': {
-      'can_view_dashboard': 'Can Open Work Session',
-      'can_access_collection_mode': 'Can Use Collection Mode',
-      'can_collect_payments': 'Can Collect Payments',
-      'can_perform_day_settlement': 'Can Submit Settlement',
+      'can_view_dashboard': 'perm_can_view_dashboard',
+      'can_access_collection_mode': 'perm_can_access_collection_mode',
+      'can_collect_payments': 'perm_can_collect_payments',
+      'can_perform_day_settlement': 'perm_can_perform_day_settlement',
     },
     'customers & loans': {
-      'can_view_customers': 'Can View Customers',
-      'can_create_customer': 'Can Register Customers',
-      'can_edit_customer_contact': 'Can Edit Customer Contact',
-      'can_issue_loans': 'Can Issue Loans',
-      'can_apply_penalty': 'Can Apply Penalty',
+      'can_view_customers': 'perm_can_view_customers',
+      'can_create_customer': 'perm_can_create_customer',
+      'can_edit_customer_contact': 'perm_can_edit_customer_contact',
+      'can_issue_loans': 'perm_can_issue_loans',
+      'can_apply_penalty': 'perm_can_apply_penalty',
     },
     'money & records': {
-      'can_record_expenses': 'Can Record Expenses',
-      'can_record_cheti': 'Can Record Cheti Instalments',
-      'can_transfer_collections': 'Can Transfer Cash to Another Agent',
-      'can_create_drafts': 'Can Create Drafts',
-      'can_edit_own_drafts': 'Can Edit Own Drafts',
-      'can_cancel_own_drafts': 'Can Cancel Own Drafts',
-      'can_upload_documents': 'Can Upload Documents',
-      'can_add_remarks': 'Can Add Remarks',
+      'can_record_expenses': 'perm_can_record_expenses',
+      'can_record_cheti': 'perm_can_record_cheti',
+      'can_transfer_collections': 'perm_can_transfer_collections',
+      'can_create_drafts': 'perm_can_create_drafts',
+      'can_edit_own_drafts': 'perm_can_edit_own_drafts',
+      'can_cancel_own_drafts': 'perm_can_cancel_own_drafts',
+      'can_upload_documents': 'perm_can_upload_documents',
+      'can_add_remarks': 'perm_can_add_remarks',
     },
     'pre-existing records': {
       // Deliberately its own group and its own column, not folded into
       // can_issue_loans: entering a pre-existing loan restates the opening
       // cash position, which is a heavier power than lending today.
-      'can_migrate_records': 'Can Enter Pre-Existing Records',
+      'can_migrate_records': 'perm_can_migrate_records',
     },
     'deleting': {
       // Its own group, and last, because it is the heaviest thing an agent
       // can be given: deleting a ledger record rewrites a past day's
       // closing balance and every day after it. Recoverable for 30 days,
       // then not. OFF by default like every other flag here.
-      'can_delete_records': 'Can Delete Records',
+      'can_delete_records': 'perm_can_delete_records',
     },
     'visibility': {
-      'can_view_reports': 'Can View Reports',
-      'can_export_reports': 'Can Export Reports',
-      'can_view_investor_info': 'Can View Investor Info',
+      'can_view_reports': 'perm_can_view_reports',
+      'can_export_reports': 'perm_can_export_reports',
+      'can_view_investor_info': 'perm_can_view_investor_info',
     },
+  };
+
+  static const _groupKeys = {
+    'daily work': 'group_daily_work',
+    'customers & loans': 'group_customers_loans',
+    'money & records': 'group_money_records',
+    'pre-existing records': 'group_pre_existing_records',
+    'deleting': 'group_deleting',
+    'visibility': 'group_visibility',
   };
 
   /// The working copy the switches render from. May hold unsaved edits.
@@ -944,18 +961,17 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         ManaText.raw(
-          'An agent sees only what is switched on here. With everything off '
-          'their home screen has no actions at all.',
+          ref.t('permissions_note'),
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         for (final group in _groups.entries) ...[
-          ManaText(group.key,
+          ManaText.raw(ref.t(_groupKeys[group.key]!),
               style: TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
           ...group.value.entries.map((e) => SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: ManaText(e.value),
+                title: ManaText.raw(ref.t(e.value)),
                 value: _permissions[e.key] ?? false,
                 onChanged: (v) => setState(() => _permissions[e.key] = v),
               )),
@@ -963,7 +979,7 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
         ],
         const SizedBox(height: ManaSpacing.sm),
         ElevatedButton(
-            onPressed: _save, child: const ManaText('save permissions')),
+            onPressed: _save, child: ManaText.raw(ref.t('save_permissions'))),
       ],
     );
   }
@@ -1018,22 +1034,22 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText('compensation structure',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('compensation_structure'),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _salary,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Fixed Salary Amount *'),
+          decoration: InputDecoration(labelText: ref.t('fixed_salary_amount_field')),
         ),
         const SizedBox(height: ManaSpacing.md),
         DropdownButtonFormField<String>(
           initialValue: _cycle,
-          decoration: const InputDecoration(labelText: 'Salary Cycle'),
-          items: const [
-            DropdownMenuItem(value: 'Monthly', child: ManaText.raw('Monthly')),
+          decoration: InputDecoration(labelText: ref.t('salary_cycle_field')),
+          items: [
+            DropdownMenuItem(value: 'Monthly', child: ManaText.raw(ref.t('monthly'))),
             DropdownMenuItem(
-                value: 'Custom', child: ManaText.raw('Custom (Owner Defined)')),
+                value: 'Custom', child: ManaText.raw(ref.t('custom_owner_defined'))),
           ],
           onChanged: (v) => setState(() => _cycle = v ?? 'Monthly'),
         ),
@@ -1042,7 +1058,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
           controller: _allowance,
           keyboardType: TextInputType.number,
           decoration:
-              const InputDecoration(labelText: 'Daily Allowance (optional)'),
+              InputDecoration(labelText: ref.t('daily_allowance_optional')),
         ),
         const SizedBox(height: ManaSpacing.xs),
         // CORRECTED: this used to read "reduced from final salary (BR-046)",
@@ -1052,25 +1068,23 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
         // old wording would have told the Owner the opposite of what the
         // salary engine now does.
         ManaText.raw(
-            'Paid same-day in cash. Does NOT reduce payable salary — tracked '
-            'for your visibility only (CALC BR-068, supersedes BR-046).',
+            ref.t('daily_allowance_note'),
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _profitShare,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-              labelText: 'Profit Share % (optional, tentative)'),
+          decoration: InputDecoration(
+              labelText: ref.t('profit_share_percent_optional')),
         ),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-            'Reference only — the system never multiplies this against any '
-            'figure. Distribute the actual amount below (BR-232).',
+            ref.t('profit_share_reference_note'),
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
             onPressed: _save,
-            child: const ManaText('save — creates new history entry')),
+            child: ManaText.raw(ref.t('save_creates_new_history_entry'))),
         const Divider(height: ManaSpacing.xxl),
         // BR-232 requires this action on the Agent Profile as well as the
         // Investor Profile. Only the Investor side had it, so an Agent's
@@ -1080,11 +1094,11 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
             businessId: widget.businessId,
             profile: widget.profile),
         const Divider(height: ManaSpacing.xxl),
-        const ManaText('compensation history',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('compensation_history'),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         if (widget.profile.compensationHistory.isEmpty)
-          ManaText.raw('No history yet.',
+          ManaText.raw(ref.t('no_history_yet'),
               style: TextStyle(color: ManaColors.textSecondary))
         else
           ...widget.profile.compensationHistory.map((c) => ListTile(
@@ -1092,7 +1106,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
                 title: ManaText.raw(
                     '₹${c.fixedSalary.toStringAsFixed(0)} · ${c.salaryCycle}'),
                 subtitle: ManaText.raw(
-                    'Effective ${DateFormat('d MMM yyyy').format(c.effectiveDate)}'),
+                    ref.t('effective_note').replaceAll('{date}', DateFormat('d MMM yyyy').format(c.effectiveDate))),
               )),
       ],
     );
@@ -1154,39 +1168,37 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
-          title: const ManaText('distribute profit share'),
+          title: ManaText.raw(ref.t('distribute_profit_share')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ManaText.raw(
-                'Enter the actual amount being distributed. Nothing is '
-                'calculated from the Profit Share % — that figure is your '
-                'own reference (BR-232).',
+                ref.t('distribute_profit_share_note'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: ManaSpacing.md),
               TextField(
                 controller: amount,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Amount *'),
+                decoration: InputDecoration(labelText: '${ref.t("amount")} *'),
                 onChanged: (_) => setLocal(() {}),
               ),
               const SizedBox(height: ManaSpacing.md),
               TextField(
                 controller: remarks,
-                decoration: const InputDecoration(labelText: 'Remarks'),
+                decoration: InputDecoration(labelText: ref.t('remarks')),
               ),
             ],
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const ManaText('cancel')),
+                child: ManaText.raw(ref.t('cancel'))),
             FilledButton(
               onPressed: double.tryParse(amount.text.trim()) != null
                   ? () => Navigator.pop(dialogContext, true)
                   : null,
-              child: const ManaText('declare'),
+              child: ManaText.raw(ref.t('declare')),
             ),
           ],
         ),
@@ -1219,15 +1231,15 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText('profit share distribution',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('profit_share_distribution'),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         Align(
           alignment: Alignment.centerLeft,
           child: FilledButton.tonalIcon(
             onPressed: _declare,
             icon: const Icon(Icons.add, size: 18),
-            label: const ManaText('distribute profit share'),
+            label: ManaText.raw(ref.t('distribute_profit_share')),
           ),
         ),
         const SizedBox(height: ManaSpacing.md),
@@ -1237,7 +1249,7 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
             child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
           ))
         else if (_declarations.isEmpty)
-          ManaText.raw('Nothing distributed yet.',
+          ManaText.raw(ref.t('nothing_distributed_yet'),
               style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
         else
           ..._declarations.map((d) => Card(
@@ -1250,9 +1262,9 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
                   trailing: d.status == 'Declared'
                       ? FilledButton(
                           onPressed: () => _markPaid(d),
-                          child: const ManaText('mark paid'),
+                          child: ManaText.raw(ref.t('mark_paid')),
                         )
-                      : const ManaStatusPill(label: 'Paid', status: ManaStatus.good),
+                      : ManaStatusPill(label: ref.t('paid'), status: ManaStatus.good),
                 ),
               )),
       ],
@@ -1300,13 +1312,12 @@ class _AreasTab extends ConsumerWidget {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         ManaText.raw(
-          'Agent cannot choose areas outside those assigned here — Agent-side area '
-          'selection (e.g. Collection Mode) is restricted to this set.',
+          ref.t('areas_note'),
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         if (profile.assignedAreas.isEmpty)
-          ManaText.raw('No areas assigned yet.',
+          ManaText.raw(ref.t('no_areas_assigned_yet'),
               style: TextStyle(color: ManaColors.textSecondary))
         else
           ...profile.assignedAreas.map((a) => Card(
@@ -1320,30 +1331,30 @@ class _AreasTab extends ConsumerWidget {
         OutlinedButton.icon(
             onPressed: () => _addVillage(context, ref),
             icon: const Icon(Icons.add),
-            label: const ManaText('add village')),
+            label: ManaText.raw(ref.t('add_village'))),
       ],
     );
   }
 }
 
-class _VillagePickerSheet extends StatelessWidget {
+class _VillagePickerSheet extends ConsumerWidget {
   final List<OperatingAreaSummary> areas;
   const _VillagePickerSheet({required this.areas});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(ManaSpacing.lg),
-            child: ManaText('select village', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Padding(
+            padding: const EdgeInsets.all(ManaSpacing.lg),
+            child: ManaText.raw(ref.t('select_village'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
           if (areas.isEmpty)
             Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw('No Operating Areas exist yet for this business — add one from Business Management first.',
+              child: ManaText.raw(ref.t('no_operating_areas_note'),
                   style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             )
           else
@@ -1352,7 +1363,7 @@ class _VillagePickerSheet extends StatelessWidget {
                   title: ManaText.raw(a.name),
                   subtitle: ManaText.raw(
                       '${a.villagesLabel}\n'
-                      '${a.isUnassigned ? 'No agent assigned' : 'Agents: ${a.assignedAgentsLabel}'}',
+                      '${a.isUnassigned ? ref.t('no_agent_assigned') : ref.t('agents_label_note').replaceAll('{names}', a.assignedAgentsLabel)}',
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   isThreeLine: true,
                   onTap: () => Navigator.of(context).pop(a),
@@ -1381,17 +1392,16 @@ class _DocumentsTab extends ConsumerWidget {
   }
 }
 
-class _AuditTab extends StatelessWidget {
+class _AuditTab extends ConsumerWidget {
   const _AuditTab();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.lg),
         child: ManaText.raw(
-          'Membership/permission/compensation changes are logged here per BR-158 — '
-          'no entries yet.',
+          ref.t('audit_note'),
           textAlign: TextAlign.center,
           style: TextStyle(color: ManaColors.textSecondary),
         ),

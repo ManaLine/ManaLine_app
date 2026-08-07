@@ -191,18 +191,24 @@ void main() {
 
   group('the vendored translation fixture', () {
     test('covers every row captured from ui_translations', () {
-      // 87 rows at capture time. A drop here means the fixture was edited
-      // down, and screens would start falling back to raw keys — narrow ASCII
-      // that quietly weakens every width assertion.
-      expect(manaTranslationsFixture.length, 87);
+      // 87 rows at capture time, extended as screens get wired to real keys
+      // (120 as of the OW-001 phase-1 wiring, migrations 20260807161236/
+      // 20260807161408/20260807161614). A DROP here means the fixture was
+      // edited down, and screens would start falling back to raw keys —
+      // narrow ASCII that quietly weakens every width assertion. Growth is
+      // fine; shrinkage is the bug this guards against.
+      expect(manaTranslationsFixture.length, greaterThanOrEqualTo(120));
     });
 
-    test('has all five languages for every key', () {
+    test('has at least English and Telugu for every key', () {
+      // ManaLanguage was cut down to English/Telugu only (commit 5ef453a) —
+      // older rows still carry Hindi/Tamil/Kannada from before that cut,
+      // which is harmless, but new rows are not required to.
       for (final entry in manaTranslationsFixture.entries) {
         expect(
-          entry.value.keys.toSet(),
-          {'English', 'Telugu', 'Hindi', 'Tamil', 'Kannada'},
-          reason: '${entry.key} is missing a language',
+          entry.value.keys,
+          containsAll({'English', 'Telugu'}),
+          reason: '${entry.key} is missing English or Telugu',
         );
       }
     });

@@ -8,6 +8,7 @@ import '../../../shared/auto_refresh.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_info_popup.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_header.dart';
 import '../../../design/components/mana_app_shell.dart';
@@ -179,20 +180,20 @@ class _OwnerHomeDashboardScreenState
                   // under reduce-motion.
                   for (final (i, section) in <Widget>[
                     _SectionCard(
-                      title: "today's business summary",
+                      title: ref.t('todays_business_summary'),
                       child: _BfRow(data: data),
                     ),
                     _SectionCard(
-                      title: 'quick actions',
+                      title: ref.t('quick_actions'),
                       child: _QuickActions(businessId: widget.businessId),
                     ),
                     _SectionCard(
-                      title: 'live business activity',
+                      title: ref.t('live_business_activity'),
                       onSeeAll: data.liveActivity.isEmpty ? null : () {},
                       child: _LiveActivity(items: data.liveActivity),
                     ),
                     _SectionCard(
-                      title: 'attention required',
+                      title: ref.t('attention_required'),
                       child: _AttentionRequired(
                           businessId: widget.businessId,
                           cards: data.attentionRequired),
@@ -223,8 +224,8 @@ class _OwnerHomeDashboardScreenState
             Icon(expired ? Icons.lock_clock : Icons.cloud_off,
                 size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            ManaText(
-                expired ? 'session timed out' : 'could not load dashboard'),
+            ManaText.raw(
+                expired ? ref.t('session_timed_out') : ref.t('could_not_load_dashboard')),
             const SizedBox(height: ManaSpacing.sm),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
@@ -244,10 +245,10 @@ class _OwnerHomeDashboardScreenState
             expired
                 ? ElevatedButton(
                     onPressed: () => context.go('/lr-009'),
-                    child: const ManaText('enter pin'),
+                    child: ManaText.raw(ref.t('enter_pin')),
                   )
                 : ElevatedButton(
-                    onPressed: _refresh, child: const ManaText('retry')),
+                    onPressed: _refresh, child: ManaText.raw(ref.t('retry'))),
           ],
         ),
       ),
@@ -423,11 +424,12 @@ class _Header extends ConsumerWidget {
   /// menu rather than performing an action, so it needs Flutter's own anchor
   /// and dismissal behaviour. Sized and labelled to the same floor by hand.
   Widget _overflowMenu(BuildContext context, WidgetRef ref) {
+    final moreOptions = ref.t('more_options');
     return Semantics(
       button: true,
-      label: 'More options',
+      label: moreOptions,
       child: PopupMenuButton<String>(
-        tooltip: 'More options',
+        tooltip: moreOptions,
         iconSize: 24,
         constraints: const BoxConstraints(minWidth: kManaMinTapTarget),
         icon: Icon(Icons.more_vert, color: ManaColors.textOnDark),
@@ -451,19 +453,19 @@ class _Header extends ConsumerWidget {
           }
         },
         itemBuilder: (context) => [
-          const PopupMenuItem(value: 'profile', child: ManaText('profile')),
-          const PopupMenuItem(
+          PopupMenuItem(value: 'profile', child: ManaText.raw(ref.t('profile'))),
+          PopupMenuItem(
               value: 'business_management',
-              child: ManaText('business management')),
-          const PopupMenuItem(
-              value: 'report_hub', child: ManaText('report hub')),
-          const PopupMenuItem(
-              value: 'switch_business', child: ManaText('switch workspace')),
-          const PopupMenuItem(
-              value: 'switch_role', child: ManaText('switch role')),
-          const PopupMenuItem(value: 'settings', child: ManaText('settings')),
+              child: ManaText.raw(ref.t('business_management'))),
+          PopupMenuItem(
+              value: 'report_hub', child: ManaText.raw(ref.t('report_hub'))),
+          PopupMenuItem(
+              value: 'switch_business', child: ManaText.raw(ref.t('switch_workspace'))),
+          PopupMenuItem(
+              value: 'switch_role', child: ManaText.raw(ref.t('switch_role'))),
+          PopupMenuItem(value: 'settings', child: ManaText.raw(ref.t('settings'))),
           const PopupMenuDivider(),
-          const PopupMenuItem(value: 'logout', child: ManaText('logout')),
+          PopupMenuItem(value: 'logout', child: ManaText.raw(ref.t('logout'))),
         ],
       ),
     );
@@ -492,7 +494,7 @@ class _Header extends ConsumerWidget {
   }
 }
 
-class _NotificationsSheet extends StatelessWidget {
+class _NotificationsSheet extends ConsumerWidget {
   final String businessId;
   final List<NotificationItem> notifications;
   final int pendingInvitations;
@@ -513,7 +515,7 @@ class _NotificationsSheet extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
       expand: false,
@@ -522,8 +524,8 @@ class _NotificationsSheet extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('notifications',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('notifications'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.md),
             if (pendingInvitations > 0)
               _MembershipRow(
@@ -544,8 +546,8 @@ class _NotificationsSheet extends StatelessWidget {
                   ? Center(
                       child: ManaText.raw(
                         pendingInvitations > 0 || pendingAcceptances > 0
-                            ? 'Nothing else to report.'
-                            : 'No notifications yet.',
+                            ? ref.t('nothing_else_to_report')
+                            : ref.t('no_notifications_yet'),
                         style: TextStyle(color: ManaColors.textSecondary),
                       ),
                     )
@@ -681,11 +683,11 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('search',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('search'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
-                'Search by Phone, MANA LINE ID, Aadhaar, or Name.',
+                ref.t('search_by_phone_mlid_aadhaar_name'),
                 style:
                     TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
@@ -694,7 +696,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                 Expanded(
                   child: TextField(
                     controller: _query,
-                    decoration: const InputDecoration(labelText: 'Search'),
+                    decoration: InputDecoration(labelText: ref.t('search')),
                     onSubmitted: (_) => _search(),
                   ),
                 ),
@@ -706,7 +708,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const ManaText('search'),
+                      : ManaText.raw(ref.t('search')),
                 ),
               ],
             ),
@@ -728,7 +730,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
                             ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
-                        child: ManaText.raw('Not a member of this business.',
+                        child: ManaText.raw(ref.t('not_a_member_of_business'),
                             style: TextStyle(
                                 color: ManaColors.textSecondary, fontSize: 13)),
                       )
@@ -807,14 +809,14 @@ class _MembershipRow extends StatelessWidget {
 
 // --- Shared section wrapper ------------------------------------------------
 
-class _SectionCard extends StatelessWidget {
+class _SectionCard extends ConsumerWidget {
   final String title;
   final Widget child;
   final VoidCallback? onSeeAll;
   const _SectionCard({required this.title, required this.child, this.onSeeAll});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, 0),
@@ -824,11 +826,11 @@ class _SectionCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                  child: ManaText(title,
+                  child: ManaText.raw(title,
                       style: Theme.of(context).textTheme.titleMedium)),
               if (onSeeAll != null)
                 TextButton(
-                    onPressed: onSeeAll, child: const ManaText('see all')),
+                    onPressed: onSeeAll, child: ManaText.raw(ref.t('see_all'))),
             ],
           ),
           const SizedBox(height: ManaSpacing.sm),
@@ -849,11 +851,11 @@ class _SectionCard extends StatelessWidget {
 /// sunlight, aiming at a ₹ figure is a miss waiting to happen. 48dp floor,
 /// and the label carries the action for a screen reader rather than leaving
 /// "₹0" as an unexplained tappable.
-class _BfRow extends StatelessWidget {
+class _BfRow extends ConsumerWidget {
   final OwnerDashboardData data;
   const _BfRow({required this.data});
 
-  void _openSheet(BuildContext context) {
+  void _openSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -864,8 +866,8 @@ class _BfRow extends StatelessWidget {
           controller: scrollController,
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            const ManaText("today's business summary",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('todays_business_summary'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.md),
             _TodaysSummary(data: data),
           ],
@@ -875,7 +877,7 @@ class _BfRow extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // excludeSemantics so the row is announced once, as one control, rather
     // than as a button plus a stray "₹0" — the amount is folded into the
     // label instead.
@@ -885,7 +887,7 @@ class _BfRow extends StatelessWidget {
       label: 'Brought forward, ${_currency.format(data.openingBalance)}. '
           "Opens today's business summary",
       child: ManaPressable(
-        onTap: () => _openSheet(context),
+        onTap: () => _openSheet(context, ref),
         borderRadius: BorderRadius.circular(ManaRadius.md),
         child: Card(
           margin: EdgeInsets.zero,
@@ -896,8 +898,9 @@ class _BfRow extends StatelessWidget {
                   horizontal: ManaSpacing.md, vertical: ManaSpacing.sm),
               child: Row(
                 children: [
-                  const ManaText.raw('BF',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  ManaInfoWord(ref.t('brought_forward'),
+                      infoKey: 'bf',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: ManaSpacing.sm),
                   ManaText.raw('=',
                       style: TextStyle(color: ManaColors.textSecondary)),
@@ -917,21 +920,21 @@ class _BfRow extends StatelessWidget {
   }
 }
 
-class _TodaysSummary extends StatelessWidget {
+class _TodaysSummary extends ConsumerWidget {
   final OwnerDashboardData data;
   const _TodaysSummary({required this.data});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final rows = <(String, int, bool)>[
-      ('Opening Balance', data.openingBalance, false),
-      ("Today's Collections", data.todaysCollections, false),
-      ("Today's Loan Distribution", data.todaysLoanDistribution, false),
-      ("Today's Investments", data.todaysInvestments, false),
-      ("Today's Withdrawals", data.todaysWithdrawals, false),
-      ("Today's Expenses", data.todaysExpenses, false),
-      ("Today's Outstanding", data.todaysOutstanding, false),
-      ("Today's Difference", data.todaysDifference, true),
+      (ref.t('opening_balance'), data.openingBalance, false),
+      (ref.t('todays_collections'), data.todaysCollections, false),
+      (ref.t('todays_loan_distribution'), data.todaysLoanDistribution, false),
+      (ref.t('todays_investments'), data.todaysInvestments, false),
+      (ref.t('todays_withdrawals'), data.todaysWithdrawals, false),
+      (ref.t('todays_expenses'), data.todaysExpenses, false),
+      (ref.t('todays_outstanding'), data.todaysOutstanding, false),
+      (ref.t('todays_difference'), data.todaysDifference, true),
     ];
     return Card(
       child: Padding(
@@ -968,9 +971,9 @@ class _TodaysSummary extends StatelessWidget {
             const Divider(height: ManaSpacing.lg),
             Row(
               children: [
-                const Expanded(
-                  child: ManaText('live closing balance',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: ManaText.raw(ref.t('closing_balance'),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 // The figure this card exists to deliver, so it gets the
                 // larger size rather than matching the rows above it.
@@ -1007,71 +1010,71 @@ class _TodaysSummary extends StatelessWidget {
 // investment requires picking the investor first (Investor Profile's own
 // "record investment" action) — folded into "Investor Management" rather
 // than a fake shortcut with nowhere distinct to land.
-class _QuickActions extends StatelessWidget {
+class _QuickActions extends ConsumerWidget {
   final String businessId;
   const _QuickActions({required this.businessId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _QuickActionGroup(
-          title: 'customers',
+          title: ref.t('customers'),
           businessId: businessId,
-          actions: const [
-            (Icons.request_quote_outlined, 'New Loan', '/ow-005', null),
-            (Icons.point_of_sale_outlined, 'Collections', '/ow-006', null),
+          actions: [
+            (Icons.request_quote_outlined, ref.t('new_loan'), '/ow-005', null),
+            (Icons.point_of_sale_outlined, ref.t('collections'), '/ow-006', null),
             // 'Search Customers' removed (item 4.1) — the header's Universal
             // Search covers it, and OW-004 has its own search field.
-            (Icons.people_outline, 'Customer Management', '/ow-004', null),
-            (Icons.inbox_outlined, 'Loan Requests', '/ow-loan-requests', null),
+            (Icons.people_outline, ref.t('customer_management'), '/ow-004', null),
+            (Icons.inbox_outlined, ref.t('loan_requests'), '/ow-loan-requests', null),
             // BUG FIXED this pass: OW-015 was a real, fully-built screen
             // with zero links from anywhere in the app.
-            (Icons.groups_2_outlined, 'Group Loans', '/ow-015', null),
+            (Icons.groups_2_outlined, ref.t('group_loans'), '/ow-015', null),
           ],
         ),
         const SizedBox(height: ManaSpacing.md),
         _QuickActionGroup(
-          title: 'workforce',
+          title: ref.t('workforce'),
           businessId: businessId,
-          actions: const [
+          actions: [
             // 'Register New Agent' and 'Add Existing Agent' removed (item
             // 5.1) — both already exist as header actions inside Workforce
             // Management, which this tile opens.
-            (Icons.groups_outlined, 'Workforce Management', '/ow-002', null),
-            (Icons.lock_clock_outlined, 'Day Closure', '/ow-011', null),
-            (Icons.menu_book_outlined, 'Daily Record Book', '/ow-009', null),
-            (Icons.bar_chart_outlined, 'Reports', '/ow-010', null),
+            (Icons.groups_outlined, ref.t('workforce_management'), '/ow-002', null),
+            (Icons.lock_clock_outlined, ref.t('day_closure'), '/ow-011', null),
+            (Icons.menu_book_outlined, ref.t('daily_record_book'), '/ow-009', null),
+            (Icons.bar_chart_outlined, ref.t('reports'), '/ow-010', null),
             // BUG FIXED this pass: OW-013 was a real, fully-built screen
             // with zero links from anywhere in the app.
-            (Icons.fact_check_outlined, 'Account Review', '/ow-013', null),
+            (Icons.fact_check_outlined, ref.t('account_review'), '/ow-013', null),
           ],
         ),
         const SizedBox(height: ManaSpacing.md),
         _QuickActionGroup(
-          title: 'investor',
+          title: ref.t('investor'),
           businessId: businessId,
-          actions: const [
+          actions: [
             (
               Icons.person_add_alt_1_outlined,
-              'Add Existing Investor',
+              ref.t('add_existing_investor'),
               '/ow-003',
               'open=existing'
             ),
             (
               Icons.inbox_outlined,
-              'Investor Requests',
+              ref.t('investor_requests'),
               '/ow-003',
               'filter=Pending%20Acceptance'
             ),
-            (Icons.savings_outlined, 'Investor Management', '/ow-003', null),
+            (Icons.savings_outlined, ref.t('investor_management'), '/ow-003', null),
             // BUG FIXED this pass: investment_withdrawal_requests had a
             // real INSERT path with no reachable Owner review screen at
             // all — requests sat Pending forever.
             (
               Icons.payments_outlined,
-              'Withdrawal Requests',
+              ref.t('withdrawal_requests'),
               '/ow-withdrawal-requests',
               null
             ),
@@ -1094,7 +1097,7 @@ class _QuickActionGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText(title,
+        ManaText.raw(title,
             style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -1127,17 +1130,17 @@ class _QuickActionGroup extends StatelessWidget {
 
 // --- C5 Live Business Activity --------------------------------------------
 
-class _LiveActivity extends StatelessWidget {
+class _LiveActivity extends ConsumerWidget {
   final List<ActivityItem> items;
   const _LiveActivity({required this.items});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: ManaText.raw('No activity yet today.',
+          child: ManaText.raw(ref.t('no_activity_today'),
               style: TextStyle(color: ManaColors.textSecondary)),
         ),
       );
@@ -1164,7 +1167,7 @@ class _LiveActivity extends StatelessWidget {
 
 // --- C6 Attention Required --------------------------------------------
 
-class _AttentionRequired extends StatelessWidget {
+class _AttentionRequired extends ConsumerWidget {
   final String businessId;
   final List<AttentionCard> cards;
   const _AttentionRequired({required this.businessId, required this.cards});
@@ -1186,12 +1189,12 @@ class _AttentionRequired extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (cards.isEmpty) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: ManaText.raw('Nothing needs attention right now.',
+          child: ManaText.raw(ref.t('nothing_needs_attention'),
               style: TextStyle(color: ManaColors.textSecondary)),
         ),
       );

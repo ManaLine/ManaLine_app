@@ -7,6 +7,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/document_viewer.dart';
+import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart' show customerApiServiceProvider;
 import '../state/loan_details_state.dart';
 
@@ -24,14 +25,15 @@ class LoanDetailsScreen extends ConsumerWidget {
     final async = ref.watch(loanDetailsProvider(loanId));
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('loan details')),
+      appBar: AppBar(title: ManaText.raw(ref.t('loan_details'))),
       body: SafeArea(
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw('Could not load loan.\n$e', textAlign: TextAlign.center),
+              child: ManaText.raw(ref.t('could_not_load_loan_note').replaceAll('{error}', '$e'),
+                  textAlign: TextAlign.center),
             ),
           ),
           data: (loan) => RefreshIndicator(
@@ -59,7 +61,7 @@ class LoanDetailsScreen extends ConsumerWidget {
   }
 }
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   final LoanDetail loan;
   const _Header({required this.loan});
 
@@ -72,58 +74,64 @@ class _Header extends StatelessWidget {
         LoanStatus.draft => ManaStatus.neutral,
       };
 
-  String get _statusLabel => switch (loan.status) {
-        LoanStatus.draft => 'Draft',
-        LoanStatus.active => 'Active',
-        LoanStatus.gracePeriod => 'Grace Period',
-        LoanStatus.penaltyEligible => 'Penalty Eligible',
-        LoanStatus.penalty => 'Penalty',
-        LoanStatus.closed => 'Closed',
-        LoanStatus.cancelled => 'Cancelled',
-        LoanStatus.defaulted => 'Defaulted',
+  String get _statusKey => switch (loan.status) {
+        LoanStatus.draft => 'draft',
+        LoanStatus.active => 'active',
+        LoanStatus.gracePeriod => 'grace_period',
+        LoanStatus.penaltyEligible => 'penalty_eligible',
+        LoanStatus.penalty => 'penalty',
+        LoanStatus.closed => 'closed',
+        LoanStatus.cancelled => 'cancelled',
+        LoanStatus.defaulted => 'defaulted',
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
+        Flexible(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText.raw(loan.loanNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ManaText.raw(loan.customerName, style: TextStyle(color: ManaColors.textSecondary)),
+              ManaText.raw(loan.loanNumber,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ManaText.raw(loan.customerName,
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: ManaColors.textSecondary)),
             ],
           ),
         ),
-        ManaStatusPill(label: _statusLabel, status: _statusKind),
+        const SizedBox(width: ManaSpacing.xs),
+        Flexible(child: ManaStatusPill(label: ref.t(_statusKey), status: _statusKind)),
       ],
     );
   }
 }
 
-class _SummaryCard extends StatelessWidget {
+class _SummaryCard extends ConsumerWidget {
   final LoanDetail loan;
   const _SummaryCard({required this.loan});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Column(
           children: [
-            _row('Repayment Type', loan.repaymentType),
-            _row('Installment Amount', _currency.format(loan.installmentAmount)),
-            _row('Loan Amount', _currency.format(loan.loanAmount)),
-            _row('Amount Given (locked)', _currency.format(loan.amountGiven)),
-            _row('Outstanding Balance', _currency.format(loan.outstandingBalance)),
-            _row("Today's Due", _currency.format(loan.todaysDue)),
-            _row('Completed Installments', '${loan.completedInstallments}'),
-            _row('Remaining Installments', '${loan.remainingInstallments}'),
-            _row('Grace Status', loan.inGracePeriod ? 'In Grace Period' : 'Normal'),
-            _row('Penalty Status', loan.penaltyEligible ? 'Penalty Eligible' : 'None'),
-            _row('Collection Agent', loan.collectionAgentName),
+            _row(ref.t('repayment_type'), loan.repaymentType),
+            _row(ref.t('installment_amount'), _currency.format(loan.installmentAmount)),
+            _row(ref.t('loan_amount'), _currency.format(loan.loanAmount)),
+            _row(ref.t('amount_given_locked'), _currency.format(loan.amountGiven)),
+            _row(ref.t('outstanding_balance'), _currency.format(loan.outstandingBalance)),
+            _row(ref.t('todays_due'), _currency.format(loan.todaysDue)),
+            _row(ref.t('completed_installments'), '${loan.completedInstallments}'),
+            _row(ref.t('remaining_installments'), '${loan.remainingInstallments}'),
+            _row(ref.t('grace_status'), ref.t(loan.inGracePeriod ? 'in_grace_period' : 'normal')),
+            _row(ref.t('penalty_status'), ref.t(loan.penaltyEligible ? 'penalty_eligible' : 'none')),
+            _row(ref.t('collection_agent'), loan.collectionAgentName),
           ],
         ),
       ),
@@ -134,23 +142,35 @@ class _SummaryCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            Expanded(
+              child: ManaText.raw(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            ),
+            const SizedBox(width: ManaSpacing.xs),
+            Flexible(
+              child: ManaText.raw(value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            ),
           ],
         ),
       );
 }
 
-class _GuarantorSection extends StatelessWidget {
+class _GuarantorSection extends ConsumerWidget {
   final GuarantorDetail? guarantor;
   const _GuarantorSection({required this.guarantor});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText('guarantor', style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('guarantor'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         // Always renders the container, even with no guarantor, so the
         // Owner can see at a glance one was never added rather than
@@ -159,7 +179,7 @@ class _GuarantorSection extends StatelessWidget {
           child: guarantor == null
               ? Padding(
                   padding: const EdgeInsets.all(ManaSpacing.md),
-                  child: ManaText.raw('No Guarantor', style: TextStyle(color: ManaColors.textSecondary)),
+                  child: ManaText.raw(ref.t('no_guarantor'), style: TextStyle(color: ManaColors.textSecondary)),
                 )
               : Padding(
                   padding: const EdgeInsets.all(ManaSpacing.md),
@@ -192,7 +212,7 @@ class _ActionsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText('available actions', style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('available_actions'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         Wrap(
           spacing: ManaSpacing.sm,
@@ -203,22 +223,22 @@ class _ActionsSection extends ConsumerWidget {
                   ? () => context.push('/ow-006', extra: loan.loanId)
                   : null,
               icon: const Icon(Icons.point_of_sale_outlined, size: 18),
-              label: const ManaText('collect payment'),
+              label: ManaText.raw(ref.t('collect_payment')),
             ),
             OutlinedButton.icon(
               onPressed: loan.canTransferAgent ? () => _showTransferAgentDialog(context, ref) : null,
               icon: const Icon(Icons.swap_horiz, size: 18),
-              label: const ManaText('transfer agent'),
+              label: ManaText.raw(ref.t('transfer_agent')),
             ),
             OutlinedButton.icon(
               onPressed: loan.canEditAllowedFields ? () => _showEditFieldsDialog(context, ref) : null,
               icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const ManaText('edit allowed fields'),
+              label: ManaText.raw(ref.t('edit_allowed_fields')),
             ),
             OutlinedButton.icon(
               onPressed: () => _showAddRemarkDialog(context, ref),
               icon: const Icon(Icons.comment_outlined, size: 18),
-              label: const ManaText('add remarks'),
+              label: ManaText.raw(ref.t('add_remarks')),
             ),
             OutlinedButton.icon(
               // BUG FIXED this pass: was onPressed: () {} — a loan has no
@@ -230,7 +250,7 @@ class _ActionsSection extends ConsumerWidget {
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => Scaffold(
-                    appBar: AppBar(title: ManaText.raw('${loan.customerName} — documents')),
+                    appBar: AppBar(title: ManaText.raw('${loan.customerName} — ${ref.t('documents')}')),
                     body: DocumentsListView(
                       expectedTypes: const [
                         'Aadhaar',
@@ -248,19 +268,19 @@ class _ActionsSection extends ConsumerWidget {
                 ),
               ),
               icon: const Icon(Icons.description_outlined, size: 18),
-              label: const ManaText('view documents'),
+              label: ManaText.raw(ref.t('view_documents')),
             ),
             if (loan.canCloseLoan)
               OutlinedButton.icon(
                 onPressed: () => _confirmCloseLoan(context, ref),
                 icon: const Icon(Icons.lock_outline, size: 18),
-                label: ManaText(loan.status == LoanStatus.defaulted ? 'close (write-off)' : 'close loan'),
+                label: ManaText.raw(ref.t(loan.status == LoanStatus.defaulted ? 'close_write_off' : 'close_loan')),
               ),
             if (loan.canApplyPenalty)
               FilledButton.tonalIcon(
                 onPressed: () => _showApplyPenaltyDialog(context, ref),
                 icon: const Icon(Icons.report_gmailerrorred, size: 18),
-                label: const ManaText('apply penalty'),
+                label: ManaText.raw(ref.t('apply_penalty')),
               ),
           ],
         ),
@@ -276,7 +296,7 @@ class _ActionsSection extends ConsumerWidget {
     });
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: ManaText.raw('Agent transferred — new agent notified.')),
+        SnackBar(content: ManaText.raw(ref.t('agent_transferred_note'))),
       );
     }
   }
@@ -287,26 +307,23 @@ class _ActionsSection extends ConsumerWidget {
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const ManaText('edit allowed fields'),
+        title: ManaText.raw(ref.t('edit_allowed_fields')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ManaText.raw(
-              'Owner may edit: Collection Agent, Remarks, Future Effective '
-              'Information only. Loan Amount, Amount Given, Interest, '
-              'Processing Fee, Historical Collections, and Business Date are '
-              'permanently locked (BR-016/169).',
+              ref.t('edit_allowed_fields_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
-            TextField(controller: remarks, decoration: const InputDecoration(labelText: 'Remarks')),
+            TextField(controller: remarks, decoration: InputDecoration(labelText: ref.t('remarks'))),
             const SizedBox(height: ManaSpacing.md),
-            TextField(controller: futureInfo, decoration: const InputDecoration(labelText: 'Future Effective Information')),
+            TextField(controller: futureInfo, decoration: InputDecoration(labelText: ref.t('future_effective_information'))),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const ManaText('save')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: ManaText.raw(ref.t('save'))),
         ],
       ),
     );
@@ -324,11 +341,11 @@ class _ActionsSection extends ConsumerWidget {
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const ManaText('add remark'),
-        content: TextField(controller: remark, decoration: const InputDecoration(hintText: 'Append-only')),
+        title: ManaText.raw(ref.t('add_remark')),
+        content: TextField(controller: remark, decoration: InputDecoration(hintText: ref.t('append_only'))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const ManaText('save')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: ManaText.raw(ref.t('save'))),
         ],
       ),
     );
@@ -343,16 +360,15 @@ class _ActionsSection extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: ManaText(isWriteOff ? 'confirm write-off' : 'confirm close loan'),
+        title: ManaText.raw(ref.t(isWriteOff ? 'confirm_write_off' : 'confirm_close_loan')),
         content: ManaText.raw(
-          isWriteOff
-              ? 'This closes a Defaulted loan and writes off the remaining balance of '
-                  '${_currency.format(loan.outstandingBalance)}. Owner-only action.'
-              : 'Close this loan? Outstanding balance is ${_currency.format(loan.outstandingBalance)}.',
+          ref
+              .t(isWriteOff ? 'write_off_note' : 'close_loan_confirm_note')
+              .replaceAll('{amount}', _currency.format(loan.outstandingBalance)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const ManaText('confirm')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: ManaText.raw(ref.t('confirm'))),
         ],
       ),
     );
@@ -367,10 +383,8 @@ class _ActionsSection extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: ManaText.raw(result.recognisedPenalty
-            ? 'Loan closed. ${_currency.format(result.penaltyRecognised)} penalty recorded as collected today.'
-            : result.writtenOff
-                ? 'Loan written off. No penalty recorded as collected.'
-                : 'Loan closed.'),
+            ? ref.t('penalty_recognised_note').replaceAll('{amount}', _currency.format(result.penaltyRecognised))
+            : ref.t(result.writtenOff ? 'written_off_note' : 'loan_closed_note')),
       ),
     );
   }
@@ -382,30 +396,30 @@ class _ActionsSection extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const ManaText('apply penalty'),
+          title: ManaText.raw(ref.t('apply_penalty')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
                 initialValue: option,
-                decoration: const InputDecoration(labelText: 'Penalty Option'),
-                items: const [
-                  DropdownMenuItem(value: 'Flat Amount', child: ManaText.raw('Flat Amount')),
-                  DropdownMenuItem(value: '% of Overdue Installment', child: ManaText.raw('% of Overdue Installment')),
-                  DropdownMenuItem(value: '% of Remaining Balance', child: ManaText.raw('% of Remaining Balance')),
+                decoration: InputDecoration(labelText: ref.t('penalty_option')),
+                items: [
+                  DropdownMenuItem(value: 'Flat Amount', child: ManaText.raw(ref.t('flat_amount'))),
+                  DropdownMenuItem(value: '% of Overdue Installment', child: ManaText.raw(ref.t('percent_overdue_installment'))),
+                  DropdownMenuItem(value: '% of Remaining Balance', child: ManaText.raw(ref.t('percent_remaining_balance'))),
                 ],
                 onChanged: (v) => setState(() => option = v ?? 'Flat Amount'),
               ),
               TextField(
                 controller: amount,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Penalty Amount *'),
+                decoration: InputDecoration(labelText: '${ref.t('penalty_amount')} *'),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const ManaText('save')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
+            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: ManaText.raw(ref.t('save'))),
           ],
         ),
       ),
@@ -423,25 +437,25 @@ class _ActionsSection extends ConsumerWidget {
     });
     if (applied == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: ManaText.raw('Penalty applied — customer notified.')),
+        SnackBar(content: ManaText.raw(ref.t('penalty_applied_note'))),
       );
     }
   }
 }
 
-class _PaymentHistorySection extends StatelessWidget {
+class _PaymentHistorySection extends ConsumerWidget {
   final LoanDetail loan;
   const _PaymentHistorySection({required this.loan});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText('payment history', style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('payment_history'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         if (loan.paymentHistory.isEmpty)
-          ManaText.raw('No payments yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_payments_yet'), style: TextStyle(color: ManaColors.textSecondary))
         else
           ...loan.paymentHistory.map((p) => Card(
                 child: ListTile(
@@ -468,7 +482,7 @@ class _PenaltySection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText('penalty entries', style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('penalty_entries'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         ...loan.penaltyEntries.map((p) => Card(
               child: ListTile(
@@ -478,13 +492,13 @@ class _PenaltySection extends ConsumerWidget {
                 ),
                 title: ManaText.raw('${_currency.format(p.penaltyAmount)} · ${p.penaltyOption}'),
                 subtitle: ManaText.raw(
-                  '${DateFormat('d MMM yyyy').format(p.appliedDate)}${p.isWaivedOrReduced ? ' · Waived/Reduced' : ''}',
+                  '${DateFormat('d MMM yyyy').format(p.appliedDate)}${p.isWaivedOrReduced ? ' · ${ref.t('waived_reduced')}' : ''}',
                   style: const TextStyle(fontSize: 16),
                 ),
                 trailing: (!p.isWaivedOrReduced && loan.canWaivePenalty)
                     ? TextButton(
                         onPressed: () => _showWaiveDialog(context, ref, p),
-                        child: const ManaText('waive/reduce'),
+                        child: ManaText.raw(ref.t('waive_reduce')),
                       )
                     : null,
               ),
@@ -500,14 +514,13 @@ class _PenaltySection extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const ManaText('waive / reduce penalty'),
+          title: ManaText.raw(ref.t('waive_reduce_penalty')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ManaText.raw(
-                'Owner-only action — a higher-trust concession than applying '
-                'the penalty in the first place.',
+                ref.t('waive_note'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               ListTile(
@@ -516,7 +529,7 @@ class _PenaltySection extends ConsumerWidget {
                   waiveFully ? Icons.check_circle : Icons.radio_button_unchecked,
                   color: waiveFully ? ManaColors.statusGood : ManaColors.textSecondary,
                 ),
-                title: const ManaText('waive fully'),
+                title: ManaText.raw(ref.t('waive_fully')),
                 onTap: () => setState(() => waiveFully = true),
               ),
               ListTile(
@@ -525,20 +538,20 @@ class _PenaltySection extends ConsumerWidget {
                   !waiveFully ? Icons.check_circle : Icons.radio_button_unchecked,
                   color: !waiveFully ? ManaColors.statusGood : ManaColors.textSecondary,
                 ),
-                title: const ManaText('reduce to amount'),
+                title: ManaText.raw(ref.t('reduce_to_amount')),
                 onTap: () => setState(() => waiveFully = false),
               ),
               if (!waiveFully)
                 TextField(
                   controller: reduced,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'New Penalty Amount'),
+                  decoration: InputDecoration(labelText: ref.t('new_penalty_amount')),
                 ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const ManaText('confirm')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
+            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: ManaText.raw(ref.t('confirm'))),
           ],
         ),
       ),
@@ -553,7 +566,7 @@ class _PenaltySection extends ConsumerWidget {
     });
     if (reversed != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: ManaText.raw('₹$reversed reversed off the outstanding balance.')),
+        SnackBar(content: ManaText.raw(ref.t('reversed_off_balance_note').replaceAll('{amount}', '$reversed'))),
       );
     }
   }

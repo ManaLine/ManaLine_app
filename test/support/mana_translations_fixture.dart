@@ -769,4 +769,37 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'universal_search': {'English': 'Universal Search', 'Telugu': 'యూనివర్సల్ శోధన'},
   'live_activity': {'English': 'Live Activity', 'Telugu': 'ప్రత్యక్ష కార్యకలాపం'},
   'nothing_yet_today': {'English': 'Nothing yet today.', 'Telugu': 'ఈరోజు ఇంకా ఏమీ లేదు.'},
+
+  // --- CW-001 Customer Home Dashboard phase-1 wiring (migration
+  // 20260807171600) — English/Telugu only.
+  'my_account': {'English': 'My Account', 'Telugu': 'నా ఖాతా'},
+  'my_profile': {'English': 'My Profile', 'Telugu': 'నా ప్రొఫైల్'},
+  'my_summary': {'English': 'My Summary', 'Telugu': 'నా సారాంశం'},
+  'active_loans': {'English': 'Active Loans', 'Telugu': 'యాక్టివ్ రుణాలు'},
+  'total_outstanding': {'English': 'Total Outstanding', 'Telugu': 'మొత్తం బాకీ'},
+  'next_payment_due': {'English': 'Next Payment Due', 'Telugu': 'తదుపరి చెల్లింపు గడువు'},
+  'pending_loan_requests': {'English': 'Pending Loan Requests', 'Telugu': 'పెండింగ్ రుణ అభ్యర్థనలు'},
+  'pending_online_payments': {'English': 'Pending Online Payments', 'Telugu': 'పెండింగ్ ఆన్‌లైన్ చెల్లింపులు'},
+  'no_business_memberships_yet': {'English': 'No Business Memberships Yet', 'Telugu': 'ఇంకా వ్యాపార సభ్యత్వాలు లేవు'},
+  'find_business_membership_note': {
+    'English': 'Find a Business to request Customer membership. Once the Owner or Agent approves, it will appear here.',
+    'Telugu': 'కస్టమర్ సభ్యత్వం కోసం అభ్యర్థించడానికి ఒక వ్యాపారాన్ని కనుగొనండి. యజమాని లేదా ఏజెంట్ ఆమోదించిన తర్వాత, అది ఇక్కడ కనిపిస్తుంది.',
+  },
+  'switch_business': {'English': 'Switch Business', 'Telugu': 'వ్యాపారం మార్చండి'},
+
+  // --- IW-001 Investor Home Dashboard phase-1 wiring (migration
+  // 20260807172001) — English/Telugu only.
+  'total_investment_balance': {'English': 'Total Investment Balance', 'Telugu': 'మొత్తం పెట్టుబడి నిల్వ'},
+  'active_investments': {'English': 'Active Investments', 'Telugu': 'యాక్టివ్ పెట్టుబడులు'},
+  'interest_accrued': {'English': 'Interest Accrued', 'Telugu': 'పోగుపడిన వడ్డీ'},
+  'interest_paid_to_date': {'English': 'Interest Paid to Date', 'Telugu': 'ఇప్పటివరకు చెల్లించిన వడ్డీ'},
+  'pending_withdrawal_requests': {'English': 'Pending Withdrawal Requests', 'Telugu': 'పెండింగ్ ఉపసంహరణ అభ్యర్థనలు'},
+  'pending_interest_payment_requests': {
+    'English': 'Pending Interest Payment Requests',
+    'Telugu': 'పెండింగ్ వడ్డీ చెల్లింపు అభ్యర్థనలు',
+  },
+  'find_investor_membership_note': {
+    'English': 'Find a Business to request Investor membership. Once the Owner approves, it will appear here.',
+    'Telugu': 'ఇన్వెస్టర్ సభ్యత్వం కోసం అభ్యర్థించడానికి ఒక వ్యాపారాన్ని కనుగొనండి. యజమాని ఆమోదించిన తర్వాత, అది ఇక్కడ కనిపిస్తుంది.',
+  },
 };

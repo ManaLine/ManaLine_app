@@ -52,28 +52,28 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
       sections: [
         ManaDrawerSection(
           icon: Icons.savings_outlined,
-          labelKey: 'my investments',
+          labelKey: 'my_investments',
           actions: [
             ManaDrawerAction(
-              labelKey: 'my investments',
+              labelKey: 'my_investments',
               onTap: () => context.push('/iw-003', extra: widget.businessId),
             ),
             ManaDrawerAction(
-              labelKey: 'request withdrawal',
+              labelKey: 'request_withdrawal',
               onTap: () => context.push('/iw-004', extra: widget.businessId),
             ),
           ],
         ),
         ManaDrawerSection(
           icon: Icons.person_outline,
-          labelKey: 'my account',
+          labelKey: 'my_account',
           actions: [
             ManaDrawerAction(
-              labelKey: 'my profile',
+              labelKey: 'my_profile',
               onTap: () => context.push('/iw-005', extra: widget.businessId),
             ),
             ManaDrawerAction(
-              labelKey: 'find a business',
+              labelKey: 'find_a_business',
               onTap: () => context.push('/iw-002'),
             ),
           ],
@@ -128,7 +128,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
           children: [
             Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('could not load dashboard'),
+            ManaText.raw(ref.t('could_not_load_dashboard')),
             const SizedBox(height: ManaSpacing.sm),
             // Was completely swallowed before — the real exception (e)
             // was passed in but never actually shown, meaning every
@@ -143,7 +143,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
-            ElevatedButton(onPressed: _refresh, child: const ManaText('retry')),
+            ElevatedButton(onPressed: _refresh, child: ManaText.raw(ref.t('retry'))),
           ],
         ),
       ),
@@ -153,7 +153,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
 
 // --- HEADER --------------------------------------------------------------
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   final String businessName;
   final String investorName;
   final bool verified;
@@ -166,7 +166,7 @@ class _Header extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         ManaVerificationRing(isVerified: verified, size: 48),
@@ -181,7 +181,7 @@ class _Header extends StatelessWidget {
           ),
         ),
         IconButton(
-          tooltip: 'Notifications',
+          tooltip: ref.t('notifications'),
           icon: const Icon(Icons.notifications_outlined),
           onPressed: () => showModalBottomSheet(
             context: context,
@@ -190,7 +190,7 @@ class _Header extends StatelessWidget {
           ),
         ),
         IconButton(
-          tooltip: 'Switch Business',
+          tooltip: ref.t('switch_business'),
           icon: const Icon(Icons.swap_horiz),
           onPressed: () => context.go('/lr-012'),
         ),
@@ -199,12 +199,12 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _NotificationsSheet extends StatelessWidget {
+class _NotificationsSheet extends ConsumerWidget {
   final List<InvestorNotification> notifications;
   const _NotificationsSheet({required this.notifications});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
       expand: false,
@@ -213,12 +213,12 @@ class _NotificationsSheet extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('notifications'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.md),
             Expanded(
               child: notifications.isEmpty
                   ? Center(
-                      child: ManaText.raw('No notifications yet.', style: TextStyle(color: ManaColors.textSecondary)),
+                      child: ManaText.raw(ref.t('no_notifications_yet'), style: TextStyle(color: ManaColors.textSecondary)),
                     )
                   : ListView.separated(
                       controller: scrollController,
@@ -249,19 +249,19 @@ class _NotificationsSheet extends StatelessWidget {
 
 // --- MY SUMMARY ------------------------------------------------------------
 
-class _MySummary extends StatelessWidget {
+class _MySummary extends ConsumerWidget {
   final InvestorDashboardData data;
   const _MySummary({required this.data});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final stats = <(String, String, ManaStatus)>[
-      ('Total Investment Balance', _currency.format(data.totalInvestmentBalance), ManaStatus.neutral),
-      ('Active Investments', '${data.activeInvestmentCount}', ManaStatus.good),
-      ('Interest Accrued', _currency.format(data.totalInterestAccrued), ManaStatus.neutral),
-      ('Interest Paid to Date', _currency.format(data.interestPaidToDate), ManaStatus.good),
-      ('Pending Withdrawal Requests', '${data.pendingWithdrawalRequests}', ManaStatus.warn),
-      ('Pending Interest Payment Requests', '${data.pendingInterestPaymentRequests}', ManaStatus.warn),
+      (ref.t('total_investment_balance'), _currency.format(data.totalInvestmentBalance), ManaStatus.neutral),
+      (ref.t('active_investments'), '${data.activeInvestmentCount}', ManaStatus.good),
+      (ref.t('interest_accrued'), _currency.format(data.totalInterestAccrued), ManaStatus.neutral),
+      (ref.t('interest_paid_to_date'), _currency.format(data.interestPaidToDate), ManaStatus.good),
+      (ref.t('pending_withdrawal_requests'), '${data.pendingWithdrawalRequests}', ManaStatus.warn),
+      (ref.t('pending_interest_payment_requests'), '${data.pendingInterestPaymentRequests}', ManaStatus.warn),
     ];
     return Card(
       child: Padding(
@@ -269,7 +269,7 @@ class _MySummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('my summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('my_summary'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
               spacing: ManaSpacing.lg,
@@ -305,8 +305,8 @@ class _QuickActions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final personId = ref.watch(authFlowProvider).personId;
     final actions = <(String, IconData, String, String)>[
-      ('Find A Business', Icons.search, '/iw-002', businessId),
-      ('My Investments', Icons.pie_chart_outline, '/iw-003', businessId),
+      (ref.t('find_a_business'), Icons.search, '/iw-002', businessId),
+      (ref.t('my_investments'), Icons.pie_chart_outline, '/iw-003', businessId),
       // BUG FIXED this pass: this used to push straight to '/iw-004' with
       // `businessId` as `extra`, but IW-004 requires a specific
       // `investmentId` (router.dart builds
@@ -316,10 +316,10 @@ class _QuickActions extends ConsumerWidget {
       // investment picked first (which investment IW-003's own working
       // "request withdrawal" button already does correctly) — routing
       // here to My Investments instead of a dead IW-004 hit.
-      ('Request Withdrawal', Icons.request_page_outlined, '/iw-003', businessId),
+      (ref.t('request_withdrawal'), Icons.request_page_outlined, '/iw-003', businessId),
       // My Profile/Memberships is scoped by personId, not businessId — it
       // shows every membership across every business for this person.
-      ('My Profile / Memberships', Icons.badge_outlined, '/iw-005', personId ?? businessId),
+      (ref.t('my_profile_memberships'), Icons.badge_outlined, '/iw-005', personId ?? businessId),
     ];
     return Card(
       child: Padding(
@@ -327,12 +327,12 @@ class _QuickActions extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('quick actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('quick_actions'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             ...actions.map((a) => ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(a.$2, color: ManaColors.brand),
-                  title: ManaText(a.$1),
+                  title: ManaText.raw(a.$1),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () => context.push(a.$3, extra: a.$4),
                 )),
@@ -345,12 +345,12 @@ class _QuickActions extends ConsumerWidget {
 
 // --- S3 No Memberships --------------------------------------------------
 
-class _NoMembershipsState extends StatelessWidget {
+class _NoMembershipsState extends ConsumerWidget {
   final String businessId;
   const _NoMembershipsState({required this.businessId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
@@ -359,11 +359,10 @@ class _NoMembershipsState extends StatelessWidget {
           children: [
             Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('no business memberships yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('no_business_memberships_yet'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
-              'Find a Business to request Investor membership. Once the '
-              'Owner approves, it will appear here.',
+              ref.t('find_investor_membership_note'),
               textAlign: TextAlign.center,
               style: TextStyle(color: ManaColors.textSecondary),
             ),
@@ -371,7 +370,7 @@ class _NoMembershipsState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: () => context.push('/iw-002', extra: businessId),
               icon: const Icon(Icons.search),
-              label: const ManaText('find a business'),
+              label: ManaText.raw(ref.t('find_a_business')),
             ),
           ],
         ),

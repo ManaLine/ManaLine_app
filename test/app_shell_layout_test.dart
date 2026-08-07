@@ -116,7 +116,7 @@ void main() {
       tester,
       buildShell(),
       textScale: 1.6,
-      language: ManaLanguage.kannada,
+      language: ManaLanguage.telugu,
     );
     await tester.tap(find.byTooltip('Menu'));
     await tester.pumpAndSettle();

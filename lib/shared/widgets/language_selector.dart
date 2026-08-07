@@ -3,14 +3,13 @@ import '../../design/tokens/colors.dart';
 import '../../design/components/mana_text.dart';
 
 /// GC-001 Runtime Language Selector (per LR-002 spec).
-/// Fixed V1 list of five — no admin-configurable language table this
-/// release, per the locked schema's `preferred_language_enum`.
+/// Cut down to English + Telugu — the other three (Hindi/Tamil/Kannada)
+/// are no longer offered in the UI. `preferred_language_enum` in the
+/// database still has all five values; existing rows are untouched, this
+/// only changes what a person can newly pick.
 enum ManaLanguage {
   english('English', 'English'),
-  telugu('Telugu', 'తెలుగు'),
-  hindi('Hindi', 'हिन्दी'),
-  tamil('Tamil', 'தமிழ்'),
-  kannada('Kannada', 'ಕನ್ನಡ');
+  telugu('Telugu', 'తెలుగు');
 
   final String enumValue; // exact value stored in persons.preferred_language
   final String nativeLabel;

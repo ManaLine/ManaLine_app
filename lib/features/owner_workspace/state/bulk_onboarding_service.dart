@@ -21,12 +21,13 @@ import 'collection_mode_state.dart';
 /// only, same discipline as ImportService: the server is the one authority on
 /// whether a row is valid.
 ///
-/// LOCALISATION: column headers are shown in the Owner's own language, but
-/// parsing accepts ANY of the five — a template downloaded in Telugu and one
-/// downloaded in English describe the same columns, so [normalise] is checked
-/// against every language's label, not just the active one. `ui_translations`
-/// is not used here: these are spreadsheet column headers, not screen copy,
-/// and there is no live network dependency for opening a downloaded file.
+/// LOCALISATION: column headers are shown in the Owner's own language
+/// (English or Telugu — the only two the app offers), but parsing accepts
+/// either — a template downloaded in Telugu and one downloaded in English
+/// describe the same columns, so [normalise] is checked against both
+/// languages' labels, not just the active one. `ui_translations` is not
+/// used here: these are spreadsheet column headers, not screen copy, and
+/// there is no live network dependency for opening a downloaded file.
 class BulkOnboardingService {
   BulkOnboardingService(this._db, this._ref);
 
@@ -46,37 +47,28 @@ class BulkOnboardingService {
 
   static const _identityLabels = <String, Map<String, String>>{
     'aadhaar_number': {
-      'English': 'Aadhaar Number', 'Telugu': 'ఆధార్ నంబర్', 'Hindi': 'आधार नंबर',
-      'Tamil': 'ஆதார் எண்', 'Kannada': 'ಆಧಾರ್ ಸಂಖ್ಯೆ',
+      'English': 'Aadhaar Number', 'Telugu': 'ఆధార్ నంబర్',
     },
     'gender_digit': {
-      'English': 'Gender (M/F/O)*', 'Telugu': 'లింగం (M/F/O)*', 'Hindi': 'लिंग (M/F/O)*',
-      'Tamil': 'பாலினம் (M/F/O)*', 'Kannada': 'ಲಿಂಗ (M/F/O)*',
+      'English': 'Gender (M/F/O)*', 'Telugu': 'లింగం (M/F/O)*',
     },
     'full_name': {
-      'English': 'Name*', 'Telugu': 'పేరు*', 'Hindi': 'नाम*',
-      'Tamil': 'பெயர்*', 'Kannada': 'ಹೆಸರು*',
+      'English': 'Name*', 'Telugu': 'పేరు*',
     },
     'father_husband_name': {
-      'English': 'C/O Name*', 'Telugu': 'తండ్రి/భర్త పేరు*', 'Hindi': 'पिता/पति का नाम*',
-      'Tamil': 'தந்தை/கணவர் பெயர்*', 'Kannada': 'ತಂದೆ/ಗಂಡನ ಹೆಸರು*',
+      'English': 'C/O Name*', 'Telugu': 'తండ్రి/భర్త పేరు*',
     },
     'user_type': {
       'English': 'User Type (Agent/Customer/Investor)*', 'Telugu': 'యూజర్ రకం (Agent/Customer/Investor)*',
-      'Hindi': 'यूज़र प्रकार (Agent/Customer/Investor)*', 'Tamil': 'பயனர் வகை (Agent/Customer/Investor)*',
-      'Kannada': 'ಬಳಕೆದಾರರ ಪ್ರಕಾರ (Agent/Customer/Investor)*',
     },
     'mobile_number': {
-      'English': 'Phone', 'Telugu': 'ఫోన్', 'Hindi': 'फ़ोन',
-      'Tamil': 'தொலைபேசி', 'Kannada': 'ಫೋನ್',
+      'English': 'Phone', 'Telugu': 'ఫోన్',
     },
     'door_no': {
-      'English': 'Door No', 'Telugu': 'డోర్ నంబర్', 'Hindi': 'दरवाज़ा नंबर',
-      'Tamil': 'கதவு எண்', 'Kannada': 'ಮನೆ ಸಂಖ್ಯೆ',
+      'English': 'Door No', 'Telugu': 'డోర్ నంబర్',
     },
     'pin_code': {
-      'English': 'Pin Code*', 'Telugu': 'పిన్ కోడ్*', 'Hindi': 'पिन कोड*',
-      'Tamil': 'பின் குறியீடு*', 'Kannada': 'ಪಿನ್ ಕೋಡ್*',
+      'English': 'Pin Code*', 'Telugu': 'పిన్ కోడ్*',
     },
   };
 
@@ -205,30 +197,30 @@ class BulkOnboardingService {
   // ---------------------------------------------------------------------
 
   static const _investorLabels = <String, Map<String, String>>{
-    'invested_amount': {'English': 'Invested Amount*', 'Telugu': 'పెట్టుబడి మొత్తం*', 'Hindi': 'निवेश राशि*', 'Tamil': 'முதலீட்டுத் தொகை*', 'Kannada': 'ಹೂಡಿಕೆ ಮೊತ್ತ*'},
-    'roi': {'English': 'ROI (₹ per ₹100/month)*', 'Telugu': 'ROI*', 'Hindi': 'ROI*', 'Tamil': 'ROI*', 'Kannada': 'ROI*'},
-    'interest_type': {'English': 'Interest Type (Simple/Yearly Compound)*', 'Telugu': 'వడ్డీ రకం*', 'Hindi': 'ब्याज प्रकार*', 'Tamil': 'வட்டி வகை*', 'Kannada': 'ಬಡ್ಡಿ ಪ್ರಕಾರ*'},
-    'invested_date': {'English': 'Invested Date* (yyyy-mm-dd)', 'Telugu': 'పెట్టుబడి తేదీ*', 'Hindi': 'निवेश तिथि*', 'Tamil': 'முதலீட்டு தேதி*', 'Kannada': 'ಹೂಡಿಕೆ ದಿನಾಂಕ*'},
-    'profit_percent': {'English': 'Profit %*', 'Telugu': 'లాభం %*', 'Hindi': 'लाभ %*', 'Tamil': 'லாபம் %*', 'Kannada': 'ಲಾಭ %*'},
+    'invested_amount': {'English': 'Invested Amount*', 'Telugu': 'పెట్టుబడి మొత్తం*'},
+    'roi': {'English': 'ROI (₹ per ₹100/month)*', 'Telugu': 'ROI*'},
+    'interest_type': {'English': 'Interest Type (Simple/Yearly Compound)*', 'Telugu': 'వడ్డీ రకం*'},
+    'invested_date': {'English': 'Invested Date* (yyyy-mm-dd)', 'Telugu': 'పెట్టుబడి తేదీ*'},
+    'profit_percent': {'English': 'Profit %*', 'Telugu': 'లాభం %*'},
   };
 
   static const _customerLoanLabels = <String, Map<String, String>>{
-    'amount_given': {'English': 'Amount Given*', 'Telugu': 'ఇచ్చిన మొత్తం*', 'Hindi': 'दी गई राशि*', 'Tamil': 'கொடுத்த தொகை*', 'Kannada': 'ಕೊಟ್ಟ ಮೊತ್ತ*'},
-    'repayment_amount': {'English': 'Repayment Amount*', 'Telugu': 'తిరిగి చెల్లించాల్సిన మొత్తం*', 'Hindi': 'चुकौती राशि*', 'Tamil': 'திருப்பிச் செலுத்தும் தொகை*', 'Kannada': 'ಮರುಪಾವತಿ ಮೊತ್ತ*'},
-    'remaining_balance': {'English': 'Remaining Balance*', 'Telugu': 'మిగిలిన బ్యాలెన్స్*', 'Hindi': 'शेष राशि*', 'Tamil': 'மீதமுள்ள இருப்பு*', 'Kannada': 'ಉಳಿದ ಬಾಕಿ*'},
-    'effective_date': {'English': 'Issued Date* (yyyy-mm-dd)', 'Telugu': 'జారీ తేదీ*', 'Hindi': 'जारी करने की तिथि*', 'Tamil': 'வழங்கிய தேதி*', 'Kannada': 'ನೀಡಿದ ದಿನಾಂಕ*'},
-    'repayment_type': {'English': 'Repayment Frequency (Daily/Weekly/Monthly)*', 'Telugu': 'తిరిగి చెల్లింపు వ్యవధి*', 'Hindi': 'चुकौती आवृत्ति*', 'Tamil': 'திருப்பிச் செலுத்தும் அதிர்வெண்*', 'Kannada': 'ಮರುಪಾವತಿ ಆವರ್ತನ*'},
-    'installment_amount': {'English': 'Instalment Amount*', 'Telugu': 'వాయిదా మొత్తం*', 'Hindi': 'किस्त राशि*', 'Tamil': 'தவணைத் தொகை*', 'Kannada': 'ಕಂತಿನ ಮೊತ್ತ*'},
-    'grace_period_end_date': {'English': 'Grace Period End Date (yyyy-mm-dd)', 'Telugu': 'గ్రేస్ పీరియడ్ ముగింపు తేదీ', 'Hindi': 'छूट अवधि समाप्ति तिथि', 'Tamil': 'சலுகைக் காலம் முடிவு தேதி', 'Kannada': 'ಗ್ರೇಸ್ ಅವಧಿ ಮುಕ್ತಾಯ ದಿನಾಂಕ'},
-    'loan_end_date': {'English': 'Loan End Date (informational only, yyyy-mm-dd)', 'Telugu': 'రుణం ముగింపు తేదీ (సమాచారం మాత్రమే)', 'Hindi': 'ऋण समाप्ति तिथि (केवल जानकारी हेतु)', 'Tamil': 'கடன் முடிவு தேதி (தகவலுக்கு மட்டும்)', 'Kannada': 'ಸಾಲ ಮುಕ್ತಾಯ ದಿನಾಂಕ (ಮಾಹಿತಿಗಾಗಿ ಮಾತ್ರ)'},
-    'processing_fee': {'English': 'Processing Fee', 'Telugu': 'ప్రాసెసింగ్ ఫీజు', 'Hindi': 'प्रोसेसिंग शुल्क', 'Tamil': 'செயலாக்கக் கட்டணம்', 'Kannada': 'ಸಂಸ್ಕರಣಾ ಶುಲ್ಕ'},
+    'amount_given': {'English': 'Amount Given*', 'Telugu': 'ఇచ్చిన మొత్తం*'},
+    'repayment_amount': {'English': 'Repayment Amount*', 'Telugu': 'తిరిగి చెల్లించాల్సిన మొత్తం*'},
+    'remaining_balance': {'English': 'Remaining Balance*', 'Telugu': 'మిగిలిన బ్యాలెన్స్*'},
+    'effective_date': {'English': 'Issued Date* (yyyy-mm-dd)', 'Telugu': 'జారీ తేదీ*'},
+    'repayment_type': {'English': 'Repayment Frequency (Daily/Weekly/Monthly)*', 'Telugu': 'తిరిగి చెల్లింపు వ్యవధి*'},
+    'installment_amount': {'English': 'Instalment Amount*', 'Telugu': 'వాయిదా మొత్తం*'},
+    'grace_period_end_date': {'English': 'Grace Period End Date (yyyy-mm-dd)', 'Telugu': 'గ్రేస్ పీరియడ్ ముగింపు తేదీ'},
+    'loan_end_date': {'English': 'Loan End Date (informational only, yyyy-mm-dd)', 'Telugu': 'రుణం ముగింపు తేదీ (సమాచారం మాత్రమే)'},
+    'processing_fee': {'English': 'Processing Fee', 'Telugu': 'ప్రాసెసింగ్ ఫీజు'},
   };
 
   static const _prefillLabels = <String, Map<String, String>>{
-    'mlid': {'English': 'MLID', 'Telugu': 'MLID', 'Hindi': 'MLID', 'Tamil': 'MLID', 'Kannada': 'MLID'},
-    'full_name': {'English': 'Name', 'Telugu': 'పేరు', 'Hindi': 'नाम', 'Tamil': 'பெயர்', 'Kannada': 'ಹೆಸರು'},
-    'user_type': {'English': 'Type', 'Telugu': 'రకం', 'Hindi': 'प्रकार', 'Tamil': 'வகை', 'Kannada': 'ಪ್ರಕಾರ'},
-    'village': {'English': 'Village', 'Telugu': 'గ్రామం', 'Hindi': 'गाँव', 'Tamil': 'கிராமம்', 'Kannada': 'ಗ್ರಾಮ'},
+    'mlid': {'English': 'MLID', 'Telugu': 'MLID'},
+    'full_name': {'English': 'Name', 'Telugu': 'పేరు'},
+    'user_type': {'English': 'Type', 'Telugu': 'రకం'},
+    'village': {'English': 'Village', 'Telugu': 'గ్రామం'},
   };
 
   static const investorRequired = ['invested_amount', 'roi', 'interest_type', 'invested_date', 'profit_percent'];

@@ -150,7 +150,7 @@ void main() {
         tester,
         const FirstLoginScreen(stepDownFromFailedPin: true),
         textScale: 2.0,
-        language: ManaLanguage.kannada,
+        language: ManaLanguage.telugu,
         storage: rememberedDeviceStorage(),
       );
 
@@ -206,7 +206,7 @@ void main() {
       await pumpManaScreen(
         tester,
         const BusinessSelectorScreen(),
-        language: ManaLanguage.kannada,
+        language: ManaLanguage.telugu,
         textScale: 2.0,
         authState: seeded,
       );

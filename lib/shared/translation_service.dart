@@ -19,17 +19,17 @@ class TranslationCache {
       // future never completed and every screen rendered raw keys forever
       // with no error anywhere. A timeout turns an invisible hang into a
       // recorded failure that the next screen's load() can retry.
+      // Only English/Telugu are ever looked up now (ManaLanguage was cut
+      // down to those two) — the other three columns still exist in the
+      // table but there's nothing left in the app that can select them.
       final rows = await Supabase.instance.client
           .from('ui_translations')
-          .select('translation_key, english, telugu, hindi, tamil, kannada')
+          .select('translation_key, english, telugu')
           .timeout(const Duration(seconds: 10));
       for (final r in (rows as List).cast<Map<String, dynamic>>()) {
         _rows[r['translation_key'] as String] = {
           'English': r['english'] as String?,
           'Telugu': r['telugu'] as String?,
-          'Hindi': r['hindi'] as String?,
-          'Tamil': r['tamil'] as String?,
-          'Kannada': r['kannada'] as String?,
         };
       }
       _loaded = true;

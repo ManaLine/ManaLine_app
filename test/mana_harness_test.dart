@@ -74,19 +74,19 @@ void main() {
       // TranslationCache.load() touches Supabase.instance directly, which
       // throws in a test process. Reaching a real translated string proves the
       // fake is installed rather than the real cache silently erroring.
-      String? kannada;
+      String? telugu;
       await pumpManaScreen(
         tester,
         Consumer(builder: (context, ref, _) {
           ref.watch(translationLoaderProvider);
-          kannada = ref.t('login_with_password');
+          telugu = ref.t('login_with_password');
           return const SizedBox.shrink();
         }),
-        language: ManaLanguage.kannada,
+        language: ManaLanguage.telugu,
       );
 
-      expect(kannada, 'ಪಾಸ್‌ವರ್ಡ್‌ನೊಂದಿಗೆ ಲಾಗಿನ್');
-      expect(kannada, isNot('login_with_password'),
+      expect(telugu, 'పాస్‌వర్డ్‌తో లాగిన్ చేయండి');
+      expect(telugu, isNot('login_with_password'),
           reason: 'a raw key here means the fake cache was not installed, and '
               'every language test would be measuring ASCII width');
     });
@@ -118,10 +118,10 @@ void main() {
           }
           return const SizedBox.shrink();
         }),
-        language: ManaLanguage.tamil,
+        language: ManaLanguage.telugu,
       );
 
-      expect(languageAtFirstBuild, ManaLanguage.tamil);
+      expect(languageAtFirstBuild, ManaLanguage.telugu);
     });
 
     testWidgets('memberships can be seeded for the selector screens',

@@ -127,27 +127,66 @@ class _CustomerDueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = _statusIcon;
+    // Same bug, same fix as OW-006's _DueRow (this widget is a near-verbatim
+    // duplicate of it): ListTile's fixed-height/fixed-width trailing slot
+    // overflows at larger text scales, and putting the amount beside the
+    // name in a Row overflows too even with Flexible+ellipsis on both —
+    // Flexible cannot shrink a child below its own minimum intrinsic width,
+    // and an unbroken long name or loan number is exactly that case. The
+    // amount goes on its own line below instead, never competing with the
+    // name for horizontal space.
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: ListTile(
-        leading: Icon(s.icon, color: s.color),
-        title: Row(
-          children: [
-            Flexible(child: ManaText.raw(row.customerName, style: const TextStyle(fontWeight: FontWeight.w600))),
-            if (row.penaltyEligible) ...[
-              const SizedBox(width: ManaSpacing.xs),
-              const ManaStatusPill(label: 'Penalty', status: ManaStatus.bad),
-            ] else if (row.gracePeriod) ...[
-              const SizedBox(width: ManaSpacing.xs),
-              const ManaStatusPill(label: 'Grace', status: ManaStatus.warn),
-            ],
-          ],
-        ),
-        subtitle: ManaText.raw('${row.village} · ${row.loanNumber} · LRI ${row.lineRepaymentIndex}',
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-        trailing: ManaText.raw(_currency.format(row.installmentDue),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      child: InkWell(
         onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(ManaSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(s.icon, color: s.color),
+              const SizedBox(width: ManaSpacing.md),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: ManaText.raw(row.customerName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        if (row.penaltyEligible) ...[
+                          const SizedBox(width: ManaSpacing.xs),
+                          const ManaStatusPill(label: 'Penalty', status: ManaStatus.bad),
+                        ] else if (row.gracePeriod) ...[
+                          const SizedBox(width: ManaSpacing.xs),
+                          const ManaStatusPill(label: 'Grace', status: ManaStatus.warn),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    ManaText.raw('${row.village} · ${row.loanNumber} · LRI ${row.lineRepaymentIndex}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    const SizedBox(height: ManaSpacing.xs),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ManaText.raw(_currency.format(row.installmentDue),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

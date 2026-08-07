@@ -177,10 +177,16 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const ManaText('outstanding balance'),
-                    ManaText.raw(
-                      _moneyFormat.format(snapshot?.outstandingBalance ?? 0),
-                      style: ManaTypography.amount(),
+                    const Flexible(child: ManaText('outstanding balance')),
+                    const SizedBox(width: ManaSpacing.sm),
+                    Flexible(
+                      child: ManaText.raw(
+                        _moneyFormat.format(snapshot?.outstandingBalance ?? 0),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: ManaTypography.amount(),
+                      ),
                     ),
                   ],
                 ),

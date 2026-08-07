@@ -319,26 +319,59 @@ class _RouteStopRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final v = _visual;
     final tappable = stop.derivedStatus == CustomerVisitStatus.pending;
+    // Same ListTile bug/fix as OW-006/AG-002's due-row: fixed-height,
+    // fixed-width trailing slot overflows a two-line amount+pill column at
+    // larger text scales. Amount+pill go on their own line below the name
+    // instead of sharing the row with it.
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: ListTile(
-        leading: Icon(v.icon, color: v.color),
-        title: ManaText.raw(stop.customerName, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: ManaText.raw(
-          '${stop.loanNumber} · LRI ${stop.lineRepaymentIndex}',
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            ManaText.raw(_currency.format(stop.todaysDue), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 2),
-            ManaStatusPill(label: v.label, status: v.pillStatus),
-          ],
-        ),
+      child: InkWell(
         onTap: tappable ? onTap : onOpenProfile,
         onLongPress: onOpenProfile,
+        child: Padding(
+          padding: const EdgeInsets.all(ManaSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(v.icon, color: v.color),
+              const SizedBox(width: ManaSpacing.md),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ManaText.raw(stop.customerName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    ManaText.raw(
+                      '${stop.loanNumber} · LRI ${stop.lineRepaymentIndex}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                    ),
+                    const SizedBox(height: ManaSpacing.xs),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(child: ManaStatusPill(label: v.label, status: v.pillStatus)),
+                        const SizedBox(width: ManaSpacing.sm),
+                        Flexible(
+                          child: ManaText.raw(_currency.format(stop.todaysDue),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

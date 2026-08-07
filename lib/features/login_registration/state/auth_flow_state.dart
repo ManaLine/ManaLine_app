@@ -28,7 +28,6 @@ import '../../../shared/widgets/language_selector.dart';
 class AuthFlowState {
   final String? personId;
   final String? mlid;
-  final bool isPlatformAdmin;
   final String? mlidType;
   final bool? pinExists;
   final String? token;
@@ -58,7 +57,6 @@ class AuthFlowState {
   const AuthFlowState({
     this.personId,
     this.mlid,
-    this.isPlatformAdmin = false,
     this.mlidType,
     this.pinExists,
     this.token,
@@ -73,7 +71,6 @@ class AuthFlowState {
   AuthFlowState copyWith({
     String? personId,
     String? mlid,
-    bool? isPlatformAdmin,
     String? mlidType,
     bool? pinExists,
     String? token,
@@ -89,7 +86,6 @@ class AuthFlowState {
     return AuthFlowState(
       personId: personId ?? this.personId,
       mlid: mlid ?? this.mlid,
-      isPlatformAdmin: isPlatformAdmin ?? this.isPlatformAdmin,
       mlidType: mlidType ?? this.mlidType,
       pinExists: pinExists ?? this.pinExists,
       token: token ?? this.token,
@@ -181,17 +177,6 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
       memberships: memberships,
     );
     await ManaSession.instance.setSession(accessToken: token, personId: personId);
-
-    // Check Platform Admin status now that a real session exists — used
-    // to conditionally show the Admin menu entry across workspace
-    // headers. Non-fatal on failure; just means the Admin item won't
-    // show, not a login blocker.
-    try {
-      final isAdmin = await Supabase.instance.client.schema('app').rpc('is_platform_admin');
-      state = state.copyWith(isPlatformAdmin: isAdmin as bool? ?? false);
-    } catch (_) {
-      // Leave isPlatformAdmin at its current/default value.
-    }
   }
 
   void setMemberships(List<Membership> memberships) {
@@ -376,6 +361,19 @@ class ManaSession {
     _personId = personId;
     await _storage.write(key: _kAccessToken, value: accessToken);
     await _storage.write(key: _kPersonId, value: personId);
+  }
+
+  /// Admin login's counterpart to setSession — there is no personId for an
+  /// admin session (admin_accounts is deliberately separate from persons),
+  /// so this only ever sets the token. Reuses the same storage slot: a
+  /// person session and an admin session are mutually exclusive on one
+  /// device (the JWT itself carries exactly one of person_id/admin_id,
+  /// never both), so there's nothing to keep distinct.
+  Future<void> setAdminSession({required String accessToken}) async {
+    _accessToken = accessToken;
+    _personId = null;
+    await _storage.write(key: _kAccessToken, value: accessToken);
+    await _storage.delete(key: _kPersonId);
   }
 
   /// Fire-and-forget by design (called from route builders, which can't

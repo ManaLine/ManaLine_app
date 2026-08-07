@@ -111,3 +111,30 @@ export function extractBearerToken(req: Request): string | null {
   if (!header?.startsWith("Bearer ")) return null;
   return header.slice("Bearer ".length).trim();
 }
+
+// ---------------------------------------------------------------------------
+// Admin JWT — same signing key and shape as mintPersonJwt, but carries an
+// `admin_id` claim instead of `person_id`. app.is_platform_admin()
+// (20260807125210_admin_own_identity_system.sql) checks for THIS claim's
+// presence, nothing else — a person JWT and an admin JWT are mutually
+// exclusive, never both on one token. Shorter TTL than the person token:
+// an admin session is a standing "can delete anything" capability, not a
+// field worker's whole working day.
+const ADMIN_ACCESS_TOKEN_TTL_SECONDS = 60 * 60 * 2; // 2 hours
+
+export async function mintAdminJwt(adminId: string): Promise<string> {
+  const key = await getSigningKey();
+  const now = Math.floor(Date.now() / 1000);
+  return await djwt.create(
+    { alg: "HS256", typ: "JWT" },
+    {
+      role: "authenticated",
+      aud: "authenticated",
+      sub: adminId,
+      admin_id: adminId,
+      iat: now,
+      exp: now + ADMIN_ACCESS_TOKEN_TTL_SECONDS,
+    },
+    key,
+  );
+}

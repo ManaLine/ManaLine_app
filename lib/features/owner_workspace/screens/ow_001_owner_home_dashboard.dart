@@ -441,8 +441,6 @@ class _Header extends ConsumerWidget {
               context.push('/ow-010', extra: businessId);
             case 'settings':
               context.push('/ow-settings', extra: businessId);
-            case 'admin_panel':
-              context.push('/admin-panel');
             case 'logout':
               ref.read(authFlowProvider.notifier).reset();
               context.go('/lr-003');
@@ -460,16 +458,6 @@ class _Header extends ConsumerWidget {
           const PopupMenuItem(
               value: 'switch_role', child: ManaText('switch role')),
           const PopupMenuItem(value: 'settings', child: ManaText('settings')),
-          if (ref.watch(authFlowProvider).isPlatformAdmin) ...[
-            const PopupMenuDivider(),
-            PopupMenuItem(
-              value: 'admin_panel',
-              child: ManaText.raw('admin panel',
-                  style: TextStyle(
-                      color: ManaColors.statusBad,
-                      fontWeight: FontWeight.bold)),
-            ),
-          ],
           const PopupMenuDivider(),
           const PopupMenuItem(value: 'logout', child: ManaText('logout')),
         ],

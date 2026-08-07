@@ -67,6 +67,8 @@ import '../features/customer_workspace/screens/cw_006_my_profile_memberships.dar
 import '../features/investor_workspace/screens/iw_001_investor_home_dashboard.dart';
 import '../features/support_admin/screens/sp_001_aadhaar_dispute_resolution.dart';
 import '../features/admin/admin_panel_screen.dart';
+import '../features/admin/screens/admin_login_screen.dart';
+import '../features/admin/screens/admin_forgot_password_screen.dart';
 import '../features/investor_workspace/screens/iw_002_find_a_business.dart';
 import '../features/investor_workspace/screens/iw_003_my_investments.dart';
 import '../features/investor_workspace/screens/iw_004_request_withdrawal.dart';
@@ -490,6 +492,11 @@ final manaRouter = GoRouter(
       builder: (c, s) => const Sp001AadhaarDisputeResolutionScreen(),
     ),
     GoRoute(path: '/admin-panel', builder: (c, s) => const AdminPanelScreen()),
+    // Platform Admin's own login — separate identity system from every
+    // other route above (admin_accounts, not persons). Not linked from any
+    // regular Owner/Agent/Customer/Investor screen.
+    GoRoute(path: '/admin-login', builder: (c, s) => const AdminLoginScreen()),
+    GoRoute(path: '/admin-forgot-password', builder: (c, s) => const AdminForgotPasswordScreen()),
     GoRoute(path: '/business-suspended', builder: (c, s) => const BusinessSuspendedScreen()),
   ],
 );

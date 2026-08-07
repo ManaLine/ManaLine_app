@@ -1022,4 +1022,34 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
     'English': '{id} · {roi} · {method} · since {date}',
     'Telugu': '{id} · {roi} · {method} · {date} నుండి',
   },
+
+  // --- CW-005 Make A Payment phase-1 wiring (migration 20260807175901) —
+  // English/Telugu only.
+  'selected_loan': {'English': 'Selected Loan', 'Telugu': 'ఎంచుకున్న రుణం'},
+  'payment_amount': {'English': 'Payment Amount', 'Telugu': 'చెల్లింపు మొత్తం'},
+  'payment_amount_field': {'English': 'Payment Amount *', 'Telugu': 'చెల్లింపు మొత్తం *'},
+  'enter_a_valid_amount': {'English': 'Enter A Valid Amount', 'Telugu': 'సరైన మొత్తం నమోదు చేయండి'},
+  'waiting_for_upi_app': {'English': 'Waiting for UPI app…', 'Telugu': 'UPI యాప్ కోసం వేచి ఉంది…'},
+  'pay_via_upi': {'English': 'Pay Via UPI', 'Telugu': 'UPI ద్వారా చెల్లించండి'},
+  'payment_submitted': {'English': 'Payment Submitted', 'Telugu': 'చెల్లింపు సమర్పించబడింది'},
+  'amount_submitted_note': {'English': '{amount} submitted {date}', 'Telugu': '{amount} {date}న సమర్పించారు'},
+  'submitted_status_note': {
+    'English':
+        'Status: Submitted By Customer — Pending Owner/Agent Confirmation. You will be notified once it is confirmed.',
+    'Telugu': 'స్థితి: కస్టమర్ సమర్పించారు — యజమాని/ఏజెంట్ నిర్ధారణ పెండింగ్‌లో ఉంది. నిర్ధారించిన తర్వాత మీకు తెలియజేయబడుతుంది.',
+  },
+  'check_status': {'English': 'Check Status', 'Telugu': 'స్థితి తనిఖీ చేయండి'},
+  'back_to_loan_detail': {'English': 'Back To Loan Detail', 'Telugu': 'రుణ వివరాలకు తిరిగి వెళ్లండి'},
+  'payment_confirmed': {'English': 'Payment Confirmed', 'Telugu': 'చెల్లింపు నిర్ధారించబడింది'},
+  'posted_to_loan_note': {'English': '{amount} posted to this loan.', 'Telugu': '{amount} ఈ రుణానికి పోస్ట్ చేయబడింది.'},
+  'view_loan': {'English': 'View Loan', 'Telugu': 'రుణం చూడండి'},
+  'payment_could_not_be_confirmed': {
+    'English': 'Payment Could Not Be Confirmed',
+    'Telugu': 'చెల్లింపు నిర్ధారించలేకపోయింది',
+  },
+  'contact_business_note': {
+    'English': 'Please contact the Business directly to resolve this payment.',
+    'Telugu': 'ఈ చెల్లింపును పరిష్కరించడానికి దయచేసి నేరుగా వ్యాపారాన్ని సంప్రదించండి.',
+  },
+  'back_to_my_loans': {'English': 'Back To My Loans', 'Telugu': 'నా రుణాలకు తిరిగి వెళ్లండి'},
 };

@@ -7,6 +7,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../state/customer_loans_state.dart' show CustomerLoanSummary;
 import '../state/online_payment_state.dart';
 
@@ -64,7 +65,7 @@ class _MakeAPaymentScreenState extends ConsumerState<MakeAPaymentScreen> {
     final state = ref.watch(onlinePaymentProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('make a payment')),
+      appBar: AppBar(title: ManaText.raw(ref.t('make_a_payment'))),
       body: SafeArea(
         child: switch (state.phase) {
           PaymentFlowPhase.entry || PaymentFlowPhase.upiInProgress => _PaymentEntryForm(
@@ -117,7 +118,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
       if (_amountController.text.trim().isEmpty) {
         _amountError = null;
       } else if (a == null || a <= 0) {
-        _amountError = 'Enter a valid amount';
+        _amountError = ref.t('enter_a_valid_amount');
       } else {
         _amountError = null;
       }
@@ -164,7 +165,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ManaText('selected loan', style: Theme.of(context).textTheme.labelMedium),
+                ManaText.raw(ref.t('selected_loan'), style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: ManaSpacing.xs),
                 // Display, locked — per CW-005's own PAYMENT ENTRY
                 // section, the loan is never editable/re-selectable
@@ -177,7 +178,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Flexible(child: ManaText('outstanding balance')),
+                    Flexible(child: ManaText.raw(ref.t('outstanding_balance'))),
                     const SizedBox(width: ManaSpacing.sm),
                     Flexible(
                       child: ManaText.raw(
@@ -195,7 +196,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
           ),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText('payment amount', style: Theme.of(context).textTheme.titleMedium),
+        ManaText.raw(ref.t('payment_amount'), style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _amountController,
@@ -203,7 +204,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             prefixText: '₹ ',
-            labelText: 'Payment Amount *',
+            labelText: ref.t('payment_amount_field'),
             errorText: _amountError,
           ),
           onChanged: (_) => _validate(),
@@ -217,7 +218,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: ManaSpacing.md),
-                  ManaText.raw('Waiting for UPI app…', style: TextStyle(color: ManaColors.textSecondary)),
+                  ManaText.raw(ref.t('waiting_for_upi_app'), style: TextStyle(color: ManaColors.textSecondary)),
                 ],
               ),
             ),
@@ -227,7 +228,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
             onPressed: (_canProceed && !submitting) ? _payViaUpi : null,
             child: submitting
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const ManaText('pay via upi'),
+                : ManaText.raw(ref.t('pay_via_upi')),
           ),
       ],
     );
@@ -252,32 +253,34 @@ class _SubmittedState extends ConsumerWidget {
           children: [
             Icon(Icons.hourglass_top, size: 56, color: ManaColors.statusWarn),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('payment submitted', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('payment_submitted'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.sm),
             if (record != null)
               ManaText.raw(
-                '${_moneyFormat.format(record.amount)} submitted ${_dateFmt.format(record.submittedAt.toLocal())}',
+                ref
+                    .t('amount_submitted_note')
+                    .replaceAll('{amount}', _moneyFormat.format(record.amount))
+                    .replaceAll('{date}', _dateFmt.format(record.submittedAt.toLocal())),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: ManaColors.textSecondary),
               ),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
-              'Status: Submitted By Customer — Pending Owner/Agent Confirmation. '
-              'You will be notified once it is confirmed.',
+              ref.t('submitted_status_note'),
               textAlign: TextAlign.center,
               style: TextStyle(color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
             OutlinedButton(
               onPressed: () => ref.read(onlinePaymentProvider.notifier).refreshStatus(loanId: loanId),
-              child: const ManaText('check status'),
+              child: ManaText.raw(ref.t('check_status')),
             ),
             const SizedBox(height: ManaSpacing.sm),
             ElevatedButton(
               // Returns to CW-004 Loan Detail View (Pending Online
               // Payments) per CW-005's own NAVIGATION.
               onPressed: () => context.canPop() ? context.pop() : context.go('/cw-004'),
-              child: const ManaText('back to loan detail'),
+              child: ManaText.raw(ref.t('back_to_loan_detail')),
             ),
           ],
         ),
@@ -288,13 +291,13 @@ class _SubmittedState extends ConsumerWidget {
 
 // --- S4 Confirmed --------------------------------------------------------------
 
-class _ConfirmedState extends StatelessWidget {
+class _ConfirmedState extends ConsumerWidget {
   final OnlinePaymentState state;
   final String loanId;
   const _ConfirmedState({required this.state, required this.loanId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final record = state.lastSubmission;
     return Center(
       child: Padding(
@@ -304,18 +307,18 @@ class _ConfirmedState extends StatelessWidget {
           children: [
             Icon(Icons.check_circle, size: 56, color: ManaColors.statusGood),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('payment confirmed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('payment_confirmed'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.sm),
             if (record != null)
               ManaText.raw(
-                '${_moneyFormat.format(record.amount)} posted to this loan.',
+                ref.t('posted_to_loan_note').replaceAll('{amount}', _moneyFormat.format(record.amount)),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: ManaColors.textSecondary),
               ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
               onPressed: () => context.go('/cw-004'),
-              child: const ManaText('view loan'),
+              child: ManaText.raw(ref.t('view_loan')),
             ),
           ],
         ),
@@ -326,13 +329,13 @@ class _ConfirmedState extends StatelessWidget {
 
 // --- S5 Disputed --------------------------------------------------------------
 
-class _DisputedState extends StatelessWidget {
+class _DisputedState extends ConsumerWidget {
   final OnlinePaymentState state;
   final String loanId;
   const _DisputedState({required this.state, required this.loanId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
@@ -341,21 +344,21 @@ class _DisputedState extends StatelessWidget {
           children: [
             Icon(Icons.error_outline, size: 56, color: ManaColors.statusBad),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('payment could not be confirmed',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('payment_could_not_be_confirmed'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.sm),
             // No Customer-side retry/resubmit action exists for a
             // Disputed payment per CW-005's own rule — stays open
             // until resolved manually, outside the app.
             ManaText.raw(
-              'Please contact the Business directly to resolve this payment.',
+              ref.t('contact_business_note'),
               textAlign: TextAlign.center,
               style: TextStyle(color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
               onPressed: () => context.go('/cw-004'),
-              child: const ManaText('back to my loans'),
+              child: ManaText.raw(ref.t('back_to_my_loans')),
             ),
           ],
         ),

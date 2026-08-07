@@ -38,6 +38,7 @@ import '../features/owner_workspace/screens/ow_016_profile.dart';
 import '../features/owner_workspace/screens/ow_017_transaction_history.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/ow_019_cheti_management.dart';
+import '../features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart';
 import '../features/owner_workspace/screens/backup_screen.dart';
 import '../features/owner_workspace/screens/import_screen.dart';
 import '../features/owner_workspace/screens/subscription_screen.dart';
@@ -286,6 +287,12 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ow-019',
       builder: (c, s) => ChetiManagementScreen(businessId: _resolveBusinessId(s)),
+    ),
+    // Not a spec screen ID: reached from OW-018 (Business Migration) the same
+    // way /import is reached from Settings.
+    GoRoute(
+      path: '/ow-bulk-onboarding',
+      builder: (c, s) => BulkOnboardingWizardScreen(businessId: _resolveBusinessId(s)),
     ),
     // Not a spec screen ID: Backup is reached from Settings, which is itself
     // shared across all four workspaces, so it has no OW-nnn of its own.

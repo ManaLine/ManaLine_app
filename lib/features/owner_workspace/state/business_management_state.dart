@@ -586,6 +586,28 @@ class BusinessManagementApiService {
     await _db.schema('app').rpc('lock_migration', params: {'p_business_id': businessId});
   }
 
+  /// What the business currently owes back to investors — principal still
+  /// standing plus interest not yet paid or compounded away. Deliberately
+  /// NOT the same figure as BF: an investor's money already lent out to
+  /// customers is still owed to the investor even though it is not sitting
+  /// in the till. See app.business_investor_payable_balance.
+  Future<int> fetchInvestorPayableBalance({required String businessId}) async {
+    final res = await _db.schema('app').rpc('business_investor_payable_balance', params: {
+      'p_business_id': businessId,
+    });
+    return ((res as num?) ?? 0).round();
+  }
+
+  /// Interest + fee income minus expenses minus the lifetime interest cost
+  /// of investor capital. Separate from BF and from Line Balance — see
+  /// app.business_profit.
+  Future<int> fetchBusinessProfit({required String businessId}) async {
+    final res = await _db.schema('app').rpc('business_profit', params: {
+      'p_business_id': businessId,
+    });
+    return ((res as num?) ?? 0).round();
+  }
+
   Future<void> migrateLoan({
     required String businessId,
     required String customerId,

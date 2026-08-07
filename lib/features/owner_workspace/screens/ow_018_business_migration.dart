@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -36,6 +37,8 @@ class BusinessMigrationScreen extends ConsumerStatefulWidget {
 
 class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScreen> {
   MigrationSummary? _summary;
+  int? _investorPayableBalance;
+  int? _businessProfit;
   bool _loading = true;
   String? _error;
 
@@ -51,12 +54,17 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
       _error = null;
     });
     try {
-      final s = await ref
-          .read(businessManagementApiServiceProvider)
-          .fetchMigrationSummary(businessId: widget.businessId);
+      final api = ref.read(businessManagementApiServiceProvider);
+      final s = await api.fetchMigrationSummary(businessId: widget.businessId);
+      // Independent of BF and Line Balance above — see the two RPCs' own
+      // doc comments in the P3 migration for why these are separate figures.
+      final payable = await api.fetchInvestorPayableBalance(businessId: widget.businessId);
+      final profit = await api.fetchBusinessProfit(businessId: widget.businessId);
       if (!mounted) return;
       setState(() {
         _summary = s;
+        _investorPayableBalance = payable;
+        _businessProfit = profit;
         _loading = false;
       });
     } catch (e) {
@@ -66,6 +74,11 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
         _loading = false;
       });
     }
+  }
+
+  Future<void> _openBulkOnboarding() async {
+    await context.push('/ow-bulk-onboarding', extra: widget.businessId);
+    await _load();
   }
 
   Future<void> _reopen() async {
@@ -181,6 +194,16 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                         const SizedBox(height: ManaSpacing.lg),
                         _bfCard(s),
                         const SizedBox(height: ManaSpacing.lg),
+                        _profitCard(),
+                        const SizedBox(height: ManaSpacing.lg),
+                        if (!s.migrationLocked) ...[
+                          OutlinedButton.icon(
+                            onPressed: _openBulkOnboarding,
+                            icon: const Icon(Icons.upload_file_outlined),
+                            label: const ManaText('bulk onboarding wizard'),
+                          ),
+                          const SizedBox(height: ManaSpacing.md),
+                        ],
                         if (!s.migrationLocked)
                           OutlinedButton(
                             onPressed: _lock,
@@ -379,6 +402,48 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     );
   }
 
+
+  /// Two figures that are NOT BF and NOT Line Balance:
+  ///   Investor Payable — what the business owes back to investors (principal
+  ///   still standing plus interest not yet paid or compounded away).
+  ///   Business Profit — interest+fee income minus expenses minus the
+  ///   lifetime interest cost of investor capital.
+  /// Kept as a separate card so neither is mistaken for cash in hand.
+  Widget _profitCard() {
+    final payable = _investorPayableBalance;
+    final profit = _businessProfit;
+    if (payable == null && profit == null) return const SizedBox.shrink();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ManaText('profit & investor payable', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: ManaSpacing.sm),
+            if (payable != null)
+              Row(
+                children: [
+                  const Expanded(child: ManaText.raw('Owed back to investors')),
+                  ManaAmount(payable, size: ManaAmountSize.compact),
+                ],
+              ),
+            if (profit != null) ...[
+              const SizedBox(height: ManaSpacing.xs),
+              Row(
+                children: [
+                  const Expanded(child: ManaText.raw('Business profit')),
+                  ManaAmount(profit,
+                      size: ManaAmountSize.compact,
+                      tone: profit < 0 ? ManaAmountTone.negative : ManaAmountTone.positive),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ============================================================================

@@ -103,3 +103,18 @@ String manaClock12([DateTime? when]) {
   final h12 = t.hour % 12 == 0 ? 12 : t.hour % 12;
   return '$h12:${t.minute.toString().padLeft(2, '0')} $suffix';
 }
+
+/// The same clock with seconds — `h:mm:ss AM/PM`.
+///
+/// Only for the drawer, which ticks once a second while it is open. Every
+/// other clock in the app deliberately stops at minutes: a seconds field
+/// that does not move looks broken, and one that does move costs a rebuild
+/// per second on a screen nobody is reading the seconds off.
+String manaClock12WithSeconds([DateTime? when]) {
+  final t = when ?? manaNowIst();
+  final suffix = t.hour < 12 ? 'AM' : 'PM';
+  final h12 = t.hour % 12 == 0 ? 12 : t.hour % 12;
+  final mm = t.minute.toString().padLeft(2, '0');
+  final ss = t.second.toString().padLeft(2, '0');
+  return '$h12:$mm:$ss $suffix';
+}

@@ -6,24 +6,25 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../state/report_hub_state.dart';
 
 final _currency =
     NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _shortDateFmt = DateFormat('dd MMM');
-final _monthNames = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
+const _monthKeys = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
 ];
 
 /// OW-010 — Report Hub (Digital Record Book). One row per CLOSED
@@ -59,7 +60,7 @@ class _ReportHubScreenState extends ConsumerState<ReportHubScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('report hub'),
+        title: ManaText.raw(ref.t('report_hub')),
         leading: BackButton(
             onPressed: () =>
                 context.canPop() ? context.pop() : context.go('/ow-001')),
@@ -92,7 +93,7 @@ class _ReportHubScreenState extends ConsumerState<ReportHubScreen> {
                                   vertical: ManaSpacing.xxl),
                               child: Center(
                                 child: ManaText.raw(
-                                  'No closed business-day-accounts this month yet.',
+                                  ref.t('no_closed_accounts_this_month'),
                                   style: TextStyle(
                                       color: ManaColors.textSecondary),
                                 ),
@@ -137,7 +138,7 @@ class _ReportHubScreenState extends ConsumerState<ReportHubScreen> {
 
 /// Annual archive navigation — Year → Month, permanently browsable per
 /// OW-010's "Annual archive" section (nothing is ever deleted).
-class _MonthSelector extends StatelessWidget {
+class _MonthSelector extends ConsumerWidget {
   final int year;
   final int month;
   final void Function(int year, int month) onChanged;
@@ -145,7 +146,7 @@ class _MonthSelector extends StatelessWidget {
       {required this.year, required this.month, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentYear = DateTime.now().year;
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -161,22 +162,27 @@ class _MonthSelector extends StatelessWidget {
             },
           ),
           Expanded(
-            child: Center(
-              child: DropdownButtonHideUnderline(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DropdownButton<int>(
+            child: DropdownButtonHideUnderline(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: DropdownButton<int>(
+                      isExpanded: true,
                       value: month,
                       items: List.generate(
                         12,
                         (i) => DropdownMenuItem(
-                            value: i + 1, child: ManaText(_monthNames[i])),
+                            value: i + 1,
+                            child: ManaText.raw(ref.t(_monthKeys[i]),
+                                maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ),
                       onChanged: (m) => m != null ? onChanged(year, m) : null,
                     ),
-                    const SizedBox(width: ManaSpacing.sm),
-                    DropdownButton<int>(
+                  ),
+                  const SizedBox(width: ManaSpacing.sm),
+                  Flexible(
+                    child: DropdownButton<int>(
+                      isExpanded: true,
                       value: year,
                       items: List.generate(
                         6,
@@ -186,8 +192,8 @@ class _MonthSelector extends StatelessWidget {
                       ),
                       onChanged: (y) => y != null ? onChanged(y, month) : null,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -205,12 +211,12 @@ class _MonthSelector extends StatelessWidget {
   }
 }
 
-class _MonthlySummaryCard extends StatelessWidget {
+class _MonthlySummaryCard extends ConsumerWidget {
   final MonthlySummary summary;
   const _MonthlySummaryCard({required this.summary});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(ManaSpacing.md),
       decoration: BoxDecoration(
@@ -220,17 +226,16 @@ class _MonthlySummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw('📅 ${_monthNames[summary.month - 1]} ${summary.year}',
+          ManaText.raw('📅 ${ref.t(_monthKeys[summary.month - 1])} ${summary.year}',
               style:
                   const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           const SizedBox(height: ManaSpacing.sm),
-          _line('Business-Day-Accounts', '${summary.businessDayAccounts}'),
-          _line(
-              'Total Collections', _currency.format(summary.totalCollections)),
-          _line('Total Loans Given', _currency.format(summary.totalLoansGiven)),
-          _line('Total Expenses', _currency.format(summary.totalExpenses)),
-          _line('Pending Customers', '${summary.pendingCustomers}'),
-          _line('Outstanding Amount',
+          _line(ref.t('business_day_accounts'), '${summary.businessDayAccounts}'),
+          _line(ref.t('total_collections'), _currency.format(summary.totalCollections)),
+          _line(ref.t('total_loans_given'), _currency.format(summary.totalLoansGiven)),
+          _line(ref.t('total_expenses'), _currency.format(summary.totalExpenses)),
+          _line(ref.t('pending_customers'), '${summary.pendingCustomers}'),
+          _line(ref.t('outstanding_amount'),
               _currency.format(summary.outstandingAmount)),
         ],
       ),
@@ -242,7 +247,8 @@ class _MonthlySummaryCard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            ManaText(label),
+            Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(value,
                 style: const TextStyle(fontWeight: FontWeight.w600))
           ],
@@ -250,12 +256,12 @@ class _MonthlySummaryCard extends StatelessWidget {
       );
 }
 
-class _MonthlyClosingCard extends StatelessWidget {
+class _MonthlyClosingCard extends ConsumerWidget {
   final MonthlyClosing closing;
   const _MonthlyClosingCard({required this.closing});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(ManaSpacing.md),
       decoration: BoxDecoration(
@@ -267,15 +273,15 @@ class _MonthlyClosingCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(
-            'MONTHLY CLOSING — ${_monthNames[closing.month - 1].toUpperCase()} ${closing.year}',
+            '${ref.t('monthly_closing').toUpperCase()} — ${ref.t(_monthKeys[closing.month - 1]).toUpperCase()} ${closing.year}',
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
           ),
           const SizedBox(height: ManaSpacing.sm),
-          _line('Business-Day-Accounts', '${closing.businessDayAccounts}'),
-          _line('Collections', _currency.format(closing.collections)),
-          _line('Loans Given', _currency.format(closing.loansGiven)),
-          _line('Expenses', _currency.format(closing.expenses)),
-          _line('Net Cash Movement', _currency.format(closing.netCashMovement)),
+          _line(ref.t('business_day_accounts'), '${closing.businessDayAccounts}'),
+          _line(ref.t('collections'), _currency.format(closing.collections)),
+          _line(ref.t('loans_given'), _currency.format(closing.loansGiven)),
+          _line(ref.t('expenses'), _currency.format(closing.expenses)),
+          _line(ref.t('net_cash_movement'), _currency.format(closing.netCashMovement)),
         ],
       ),
     );
@@ -286,7 +292,8 @@ class _MonthlyClosingCard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            ManaText(label),
+            Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(value,
                 style: const TextStyle(fontWeight: FontWeight.w600))
           ],
@@ -294,7 +301,7 @@ class _MonthlyClosingCard extends StatelessWidget {
       );
 }
 
-class _RecordBookRowCard extends StatelessWidget {
+class _RecordBookRowCard extends ConsumerWidget {
   final RecordBookRow row;
   final VoidCallback onTap;
   const _RecordBookRowCard({required this.row, required this.onTap});
@@ -307,9 +314,12 @@ class _RecordBookRowCard extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dateLabel = row.spansMultipleDays
-        ? 'From: ${_shortDateFmt.format(row.dateFrom)}  To: ${_shortDateFmt.format(row.dateTo)}'
+        ? ref
+            .t('from_to_date_range_note')
+            .replaceAll('{from}', _shortDateFmt.format(row.dateFrom))
+            .replaceAll('{to}', _shortDateFmt.format(row.dateTo))
         : _shortDateFmt.format(row.dateFrom);
 
     return Card(
@@ -325,13 +335,19 @@ class _RecordBookRowCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: ManaText.raw(dateLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
-                  ManaStatusPill(
-                      label: row.agentBalanceStatus, status: _balanceStatus),
+                  const SizedBox(width: ManaSpacing.xs),
+                  Flexible(
+                    child: ManaStatusPill(
+                        label: row.agentBalanceStatus, status: _balanceStatus),
+                  ),
                 ],
               ),
               const SizedBox(height: ManaSpacing.sm),
@@ -339,12 +355,11 @@ class _RecordBookRowCard extends StatelessWidget {
                 spacing: ManaSpacing.lg,
                 runSpacing: ManaSpacing.xs,
                 children: [
-                  _figure(
-                      'Collections', _currency.format(row.collectionsTotal)),
-                  _figure('Loans Given', _currency.format(row.loansGivenTotal)),
-                  _figure('Expenses', _currency.format(row.expensesTotal)),
-                  _figure('Closing Cash', _currency.format(row.closingCash)),
-                  _figure('Pending Customers', '${row.pendingCustomersCount}'),
+                  _figure(ref.t('collections'), _currency.format(row.collectionsTotal)),
+                  _figure(ref.t('loans_given'), _currency.format(row.loansGivenTotal)),
+                  _figure(ref.t('expenses'), _currency.format(row.expensesTotal)),
+                  _figure(ref.t('closing_cash'), _currency.format(row.closingCash)),
+                  _figure(ref.t('pending_customers'), '${row.pendingCustomersCount}'),
                 ],
               ),
               if (row.remarks != null && row.remarks!.isNotEmpty) ...[
@@ -363,7 +378,7 @@ class _RecordBookRowCard extends StatelessWidget {
   Widget _figure(String label, String value) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText(label,
+          ManaText.raw(label,
               style: TextStyle(
                   fontSize: 13, color: ManaColors.textSecondary)),
           ManaText.raw(value,
@@ -419,28 +434,31 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
                           children: [
                             ManaText.raw(
                               widget.row.spansMultipleDays
-                                  ? 'From: ${_shortDateFmt.format(widget.row.dateFrom)}  To: ${_shortDateFmt.format(widget.row.dateTo)}'
+                                  ? ref
+                                      .t('from_to_date_range_note')
+                                      .replaceAll('{from}', _shortDateFmt.format(widget.row.dateFrom))
+                                      .replaceAll('{to}', _shortDateFmt.format(widget.row.dateTo))
                                   : _shortDateFmt.format(widget.row.dateFrom),
                               style: const TextStyle(
                                   fontSize: 18, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: ManaSpacing.md),
-                            _section('Collections', detail.collections),
-                            _section('Loans', detail.loans),
-                            _section('Expenses', detail.expenses),
+                            _section(ref.t('collections'), detail.collections),
+                            _section(ref.t('loans'), detail.loans),
+                            _section(ref.t('expenses'), detail.expenses),
                             const SizedBox(height: ManaSpacing.sm),
-                            const ManaText('agent summary',
-                                style: TextStyle(fontWeight: FontWeight.w700)),
+                            ManaText.raw(ref.t('agent_summary'),
+                                style: const TextStyle(fontWeight: FontWeight.w700)),
                             ManaText.raw(detail.agentSummary.isEmpty
                                 ? '—'
                                 : detail.agentSummary),
                             const SizedBox(height: ManaSpacing.md),
                             _section(
-                                'Pending Customers', detail.pendingCustomers),
-                            _section('Corrections', detail.corrections),
+                                ref.t('pending_customers'), detail.pendingCustomers),
+                            _section(ref.t('corrections'), detail.corrections),
                             const SizedBox(height: ManaSpacing.sm),
-                            const ManaText('day closure details',
-                                style: TextStyle(fontWeight: FontWeight.w700)),
+                            ManaText.raw(ref.t('day_closure_details'),
+                                style: const TextStyle(fontWeight: FontWeight.w700)),
                             ManaText.raw(detail.dayClosureDetails.isEmpty
                                 ? '—'
                                 : detail.dayClosureDetails),
@@ -451,35 +469,35 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
                                   child: TextField(
                                     controller: _remarksController
                                       ..text = widget.row.remarks ?? '',
-                                    decoration: const InputDecoration(
-                                      labelText:
-                                          'Remarks (optional, freeform — BR-097)',
-                                      border: OutlineInputBorder(),
+                                    decoration: InputDecoration(
+                                      labelText: ref.t('remarks_optional_freeform_note'),
+                                      border: const OutlineInputBorder(),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: ManaSpacing.sm),
-                                FilledButton(
-                                  style: FilledButton.styleFrom(
-                                      backgroundColor: ManaColors.accent),
-                                  onPressed: () async {
-                                    final ok = await NetworkErrorHandler.run(
-                                        context, () async {
-                                      return ref
-                                          .read(reportHubProvider.notifier)
-                                          .updateRemarks(
-                                            widget.businessId,
-                                            widget.row.businessDayAccountId,
-                                            _remarksController.text,
-                                          );
-                                    });
-                                    if (ok == true && context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
-                                              content: Text('Remarks saved.')));
-                                    }
-                                  },
-                                  child: const ManaText('save'),
+                                Flexible(
+                                  child: FilledButton(
+                                    style: FilledButton.styleFrom(
+                                        backgroundColor: ManaColors.accent),
+                                    onPressed: () async {
+                                      final ok = await NetworkErrorHandler.run(
+                                          context, () async {
+                                        return ref
+                                            .read(reportHubProvider.notifier)
+                                            .updateRemarks(
+                                              widget.businessId,
+                                              widget.row.businessDayAccountId,
+                                              _remarksController.text,
+                                            );
+                                      });
+                                      if (ok == true && context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: ManaText.raw(ref.t('remarks_saved_note'))));
+                                      }
+                                    },
+                                    child: ManaText.raw(ref.t('save')),
+                                  ),
                                 ),
                               ],
                             ),
@@ -497,7 +515,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText(title,
+            ManaText.raw(title,
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             ManaText.raw('—',
                 style: TextStyle(color: ManaColors.textSecondary)),
@@ -510,7 +528,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ManaText.raw(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           ...items.map((e) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(

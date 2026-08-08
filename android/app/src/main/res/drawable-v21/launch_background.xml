@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Circular logo on system background splash (API 21+). -->
+<!-- API 21+ variant. Same reasoning as drawable/launch_background.xml: no
+     logo here, and a fixed colour rather than ?android:colorBackground —
+     the system background follows the handset's light/dark setting, but
+     LR-001 is dark navy either way, so deferring to the system produced a
+     white flash on every light-mode device. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/logo_splash" />
-    </item>
+    <item android:drawable="@color/splash_background" />
 </layer-list>

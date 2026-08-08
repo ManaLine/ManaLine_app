@@ -603,8 +603,7 @@ Loan, etc.) remain and continue to return only a pass/fail result plus a
 short reason category — never a detailed dump of the customer's financial
 history — to whichever role is creating the loan.
 
-### BR-236 — No Renewal Linking (supersedes OW-008 in full — see §13 Rejected
-Register)
+### BR-236 — No Renewal Linking
 Loan Renewal as a distinct feature is removed. When an existing loan's
 remaining balance reaches ₹0, it closes normally. Any subsequent loan for
 that customer is a standalone New Loan with no system-level link

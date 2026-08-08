@@ -8,6 +8,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/soft_delete_service.dart';
+import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/record_book_state.dart';
 
@@ -45,22 +46,22 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('daily record book'),
+        title: ManaText.raw(ref.t('daily_record_book')),
         actions: [
           PopupMenuButton<String?>(
-            tooltip: 'Filter by status',
+            tooltip: ref.t('filter_by_status'),
             onSelected: (status) => ref
                 .read(recordBookProvider.notifier)
                 .load(widget.businessId, status: status),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: null, child: ManaText('all')),
-              PopupMenuItem(value: 'Open', child: ManaText('open')),
-              PopupMenuItem(value: 'Closed', child: ManaText('closed')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: null, child: ManaText.raw(ref.t('all'))),
+              PopupMenuItem(value: 'Open', child: ManaText.raw(ref.t('open'))),
+              PopupMenuItem(value: 'Closed', child: ManaText.raw(ref.t('closed'))),
             ],
             icon: const Icon(Icons.filter_list),
           ),
           IconButton(
-            tooltip: 'Recent Deletes',
+            tooltip: ref.t('recent_deletes'),
             icon: const Icon(Icons.restore_from_trash),
             onPressed: () => context.push('/recent-deletes?businessId=${widget.businessId}'),
           ),
@@ -81,7 +82,7 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                           child: Center(
-                            child: ManaText.raw('No business days recorded yet.',
+                            child: ManaText.raw(ref.t('no_business_days_yet'),
                                 style: TextStyle(color: ManaColors.textSecondary)),
                           ),
                         ),
@@ -113,13 +114,13 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
   }
 }
 
-class _LedgerRowCard extends StatelessWidget {
+class _LedgerRowCard extends ConsumerWidget {
   final DayLedgerRow row;
   final VoidCallback onTap;
   const _LedgerRowCard({required this.row, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       elevation: 0,
       color: ManaColors.surfaceMuted,
@@ -133,16 +134,22 @@ class _LedgerRowCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: ManaText.raw(
                       _dateFmt.format(row.businessDate),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  ManaStatusPill(
-                    label: row.status,
-                    status: row.isClosed ? ManaStatus.neutral : ManaStatus.good,
+                  const SizedBox(width: ManaSpacing.xs),
+                  Flexible(
+                    child: ManaStatusPill(
+                      label: row.status,
+                      status: row.isClosed ? ManaStatus.neutral : ManaStatus.good,
+                    ),
                   ),
                 ],
               ),
@@ -151,28 +158,28 @@ class _LedgerRowCard extends StatelessWidget {
                 spacing: ManaSpacing.lg,
                 runSpacing: ManaSpacing.xs,
                 children: [
-                  _figure('Opening (BF)', row.openingBalance),
-                  _figure('Collections', row.totalCollections),
+                  _figure(ref, ref.t('opening_bf'), row.openingBalance),
+                  _figure(ref, ref.t('collections'), row.totalCollections),
                   // Sits beside Collections, not inside it — these rupees
                   // arrived as part of ordinary collections and are already
                   // counted there and in Closing. This line classifies them
                   // as penalty income; it is not a separate inflow.
-                  _figure('Penalty Collected', row.penaltyCollected),
-                  _figure('Loan Dist.', row.totalLoanDistribution),
-                  _figure('Investor Dep.', row.investorDeposits),
-                  _figure('Investor W/D', row.investorWithdrawals),
-                  _figure('Expenses', row.totalExpenses),
+                  _figure(ref, ref.t('penalty_collected'), row.penaltyCollected),
+                  _figure(ref, ref.t('loan_dist'), row.totalLoanDistribution),
+                  _figure(ref, ref.t('investor_dep'), row.investorDeposits),
+                  _figure(ref, ref.t('investor_wd'), row.investorWithdrawals),
+                  _figure(ref, ref.t('expenses'), row.totalExpenses),
                   // Cash moved into and out of chetis. Kept separate from
                   // Expenses on purpose: a cheti instalment is recoverable
                   // (it comes back as the availed lumpsum), so it is an asset
                   // movement, not a cost. Folding it into Expenses would sink
                   // line profit every period and then show one phantom gain.
-                  _figure('Cheti Paid', row.chetiPaid),
-                  _figure('Cheti Received', row.chetiReceived),
-                  _figure('Short', row.shortAmount, warn: row.shortAmount > 0),
-                  _figure('Excess', row.excessAmount, warn: row.excessAmount > 0),
-                  _figure('Difference', row.difference),
-                  _figure('Closing', row.closingBalance),
+                  _figure(ref, ref.t('cheti_paid'), row.chetiPaid),
+                  _figure(ref, ref.t('cheti_received'), row.chetiReceived),
+                  _figure(ref, ref.t('short'), row.shortAmount, warn: row.shortAmount > 0),
+                  _figure(ref, ref.t('excess'), row.excessAmount, warn: row.excessAmount > 0),
+                  _figure(ref, ref.t('difference'), row.difference),
+                  _figure(ref, ref.t('closing'), row.closingBalance),
                 ],
               ),
               if (row.remarks != null && row.remarks!.isNotEmpty) ...[
@@ -187,11 +194,11 @@ class _LedgerRowCard extends StatelessWidget {
     );
   }
 
-  Widget _figure(String label, int amount, {bool warn = false}) {
+  Widget _figure(WidgetRef ref, String label, int amount, {bool warn = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+        ManaText.raw(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         ManaText.raw(
           _currency.format(amount),
           style: TextStyle(
@@ -245,16 +252,22 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.lg),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: ManaText.raw(
                         _dateFmt.format(widget.row.businessDate),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                       ),
                     ),
-                    ManaStatusPill(
-                      label: widget.row.status,
-                      status: widget.row.isClosed ? ManaStatus.neutral : ManaStatus.good,
+                    const SizedBox(width: ManaSpacing.xs),
+                    Flexible(
+                      child: ManaStatusPill(
+                        label: widget.row.status,
+                        status: widget.row.isClosed ? ManaStatus.neutral : ManaStatus.good,
+                      ),
                     ),
                   ],
                 ),
@@ -265,8 +278,7 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: ManaText.raw(
-                      'Read-only — this day is closed. Corrections still go through '
-                      'each entry type\'s own screen as a new offsetting entry.',
+                      ref.t('read_only_day_closed_note'),
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                   ),
@@ -274,15 +286,15 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
               TabBar(
                 controller: _tabs,
                 isScrollable: true,
-                tabs: const [
-                  Tab(text: 'Collections'),
-                  Tab(text: 'Loans'),
-                  Tab(text: 'Expenses'),
-                  Tab(text: 'Deposits'),
-                  Tab(text: 'Withdrawals'),
-                  Tab(text: 'Adjustments'),
-                  Tab(text: 'Audit'),
-                  Tab(text: 'Timeline'),
+                tabs: [
+                  Tab(text: ref.t('collections')),
+                  Tab(text: ref.t('loans')),
+                  Tab(text: ref.t('expenses')),
+                  Tab(text: ref.t('deposits')),
+                  Tab(text: ref.t('withdrawals')),
+                  Tab(text: ref.t('adjustments')),
+                  Tab(text: ref.t('audit')),
+                  Tab(text: ref.t('timeline')),
                 ],
               ),
               Expanded(
@@ -300,43 +312,43 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                                 children: [
                                   _EntryList(
                                     entries: detail.collections,
-                                    emptyLabel: 'No collections this day.',
+                                    emptyLabel: ref.t('no_collections_this_day'),
                                     onOpenSource: (loanId) => _goTo(context, '/ow-006', loanId),
                                     deletableAs: DeletableEntity.collection,
                                     businessId: widget.businessId,
                                   ),
                                   _EntryList(
                                     entries: detail.loans,
-                                    emptyLabel: 'No loans distributed this day.',
+                                    emptyLabel: ref.t('no_loans_distributed_this_day'),
                                     onOpenSource: (loanId) => _goTo(context, '/ow-007', loanId),
                                     deletableAs: DeletableEntity.loan,
                                     businessId: widget.businessId,
                                   ),
                                   _EntryList(
                                       entries: detail.expenses,
-                                      emptyLabel: 'No expenses this day.',
+                                      emptyLabel: ref.t('no_expenses_this_day'),
                                       deletableAs: DeletableEntity.expense,
                                       businessId: widget.businessId),
                                   _EntryList(
                                       entries: detail.deposits,
-                                      emptyLabel: 'No investor deposits this day.',
+                                      emptyLabel: ref.t('no_investor_deposits_this_day'),
                                       deletableAs: DeletableEntity.investment,
                                       businessId: widget.businessId),
                                   _EntryList(
                                       entries: detail.withdrawals,
-                                      emptyLabel: 'No investor withdrawals this day.',
+                                      emptyLabel: ref.t('no_investor_withdrawals_this_day'),
                                       deletableAs: DeletableEntity.investmentWithdrawal,
                                       businessId: widget.businessId),
                                   _EntryList(
                                     entries: detail.adjustments,
-                                    emptyLabel: 'No corrections/adjustments this day.',
+                                    emptyLabel: ref.t('no_corrections_adjustments_this_day'),
                                     deletableAs: DeletableEntity.settlementAdjustment,
                                     businessId: widget.businessId,
                                   ),
                                   _AuditList(entries: detail.auditLog),
                                   _EntryList(
                                     entries: detail.timeline,
-                                    emptyLabel: 'Nothing recorded this day yet.',
+                                    emptyLabel: ref.t('nothing_recorded_this_day_yet'),
                                   ),
                                 ],
                               ),
@@ -348,30 +360,32 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                     Expanded(
                       child: TextField(
                         controller: _remarksController..text = widget.row.remarks ?? '',
-                        decoration: const InputDecoration(
-                          labelText: 'Remarks (optional, freeform — BR-097)',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: ref.t('remarks_optional_freeform_note'),
+                          border: const OutlineInputBorder(),
                         ),
                         maxLength: 500,
                       ),
                     ),
                     const SizedBox(width: ManaSpacing.sm),
-                    FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: ManaColors.accent),
-                      onPressed: () async {
-                        final ok = await NetworkErrorHandler.run(context, () async {
-                          return ref.read(recordBookProvider.notifier).updateRemarks(
-                                widget.businessId,
-                                widget.row.businessDate,
-                                _remarksController.text,
-                              );
-                        });
-                        if (ok == true && context.mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(content: Text('Remarks saved.')));
-                        }
-                      },
-                      child: const ManaText('save'),
+                    Flexible(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: ManaColors.accent),
+                        onPressed: () async {
+                          final ok = await NetworkErrorHandler.run(context, () async {
+                            return ref.read(recordBookProvider.notifier).updateRemarks(
+                                  widget.businessId,
+                                  widget.row.businessDate,
+                                  _remarksController.text,
+                                );
+                          });
+                          if (ok == true && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: ManaText.raw(ref.t('remarks_saved_note'))));
+                          }
+                        },
+                        child: ManaText.raw(ref.t('save')),
+                      ),
                     ),
                   ],
                 ),
@@ -443,7 +457,7 @@ class _EntryList extends ConsumerWidget {
               ManaText.raw(_currency.format(e.amount),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               if (e.isCorrection)
-                const ManaStatusPill(label: 'Correction', status: ManaStatus.warn),
+                ManaStatusPill(label: ref.t('correction'), status: ManaStatus.warn),
             ],
           ),
           trailing: Row(
@@ -458,7 +472,7 @@ class _EntryList extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.delete_outline, size: 18),
                   color: ManaColors.statusBad,
-                  tooltip: 'Delete',
+                  tooltip: ref.t('delete'),
                   onPressed: () => _delete(context, ref, e),
                 ),
             ],
@@ -486,15 +500,15 @@ class _EntryList extends ConsumerWidget {
 /// Day Reopen, a Loan/Collection Correction record, a permission change,
 /// etc. Routine collections/loans/expenses do NOT appear here (they're
 /// already the "Collections"/"Loans"/etc. tabs above).
-class _AuditList extends StatelessWidget {
+class _AuditList extends ConsumerWidget {
   final List<AuditLogEntry> entries;
   const _AuditList({required this.entries});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (entries.isEmpty) {
       return Center(
-        child: ManaText.raw('No administrative/security events this day.',
+        child: ManaText.raw(ref.t('no_admin_security_events_this_day'),
             style: TextStyle(color: ManaColors.textSecondary)),
       );
     }

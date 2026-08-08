@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/login_registration/screens/lr_003_login_registration_choice.dart';
 import 'package:mana_line/features/login_registration/screens/lr_007_first_login.dart';
@@ -41,9 +42,12 @@ void main() {
       });
     }
 
-    // The footer here is four TextButtons whose labels come from
+    // The footer here is a Wrap of TextButtons whose labels come from
     // ui_translations. It overflowed as a Row and is now a Wrap; this is the
     // regression guard for that fix, in every language it has to survive.
+    // (Down to two buttons since Login-with-Password became the back arrow
+    // and Register moved to LR-007 — the Wrap stays, because a single
+    // Kannada label can still be wider than half the screen.)
     for (final language in ManaLanguage.values) {
       testWidgets('renders in ${language.enumValue} without overflowing',
           (tester) async {
@@ -74,20 +78,30 @@ void main() {
       });
     }
 
-    testWidgets('shows the PIN pad once the remembered length is read',
+    testWidgets('shows the PIN field once the remembered length is read',
         (tester) async {
       // Guards the harness itself as much as the screen: if secure storage
       // were not seeded, the screen would bail to /lr-001 and every test above
       // would be asserting "an empty error page did not overflow".
+      //
+      // Used to assert the drawn keypad's '1'/'0'/'⌫' keys. The keypad is
+      // gone — the PIN is typed on the handset's own numeric keyboard now —
+      // so the equivalent proof is the offstage field that replaced it,
+      // configured for digits and obscured.
       await pumpManaScreen(
         tester,
         const DailyLoginScreen(),
         storage: storage,
       );
 
-      expect(find.text('1'), findsOneWidget);
-      expect(find.text('0'), findsOneWidget);
-      expect(find.text('⌫'), findsOneWidget);
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.obscureText, isTrue);
+      expect(field.keyboardType, TextInputType.number);
+      expect(field.maxLength, isNotNull,
+          reason: 'the field must be capped at the remembered PIN length');
+
+      // The old keypad must not come back by accident.
+      expect(find.text('⌫'), findsNothing);
     });
   });
 

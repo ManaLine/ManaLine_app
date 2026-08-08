@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/record_expense_sheet.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/day_closure_state.dart';
@@ -66,13 +67,13 @@ class _DayClosureScreenState extends ConsumerState<DayClosureScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('day closure'),
+        title: ManaText.raw(ref.t('day_closure')),
         actions: [
           if (dayStillOpen)
             TextButton.icon(
               onPressed: _recordExpense,
               icon: const Icon(Icons.receipt_long, size: 18),
-              label: const ManaText('expense'),
+              label: ManaText.raw(ref.t('expense')),
             ),
         ],
       ),
@@ -134,7 +135,7 @@ class _DayClosureScreenState extends ConsumerState<DayClosureScreen> {
 // S1 — Pre-Check Blocked
 // ============================================================================
 
-class _PreCheckBlocked extends StatelessWidget {
+class _PreCheckBlocked extends ConsumerWidget {
   final DayClosureState state;
   const _PreCheckBlocked({required this.state});
 
@@ -160,38 +161,61 @@ class _PreCheckBlocked extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         Icon(Icons.block, color: ManaColors.statusBad, size: 40),
         const SizedBox(height: ManaSpacing.sm),
-        ManaText('Day Closure Cannot Start',
+        ManaText.raw(ref.t('day_closure_cannot_start'),
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-          'The following items must be resolved before Cash Verification can open.',
+          ref.t('items_must_be_resolved_note'),
           style: TextStyle(color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
+        // A ListTile's trailing slot has a hard width assertion — a
+        // translated "Resolve" button plus a translated subtitle at large
+        // scale exceeded it outright (not just a visual overflow, a thrown
+        // layout error). Built from a plain Row instead, same reasoning
+        // OW-009's entry tiles already applied to this exact shape.
         ...state.blockingIssues.map((issue) => Card(
-              child: ListTile(
-                leading: Icon(Icons.error_outline,
-                    color: ManaColors.statusBad),
-                title: ManaText.raw(issue.type),
-                subtitle: ManaText.raw('${issue.count} item(s) outstanding'),
-                trailing: _routeFor(issue.type) != null
-                    ? FilledButton(
-                        onPressed: () => context.push(_routeFor(issue.type)!),
-                        child: const ManaText('resolve'),
-                      )
-                    : null,
+              child: Padding(
+                padding: const EdgeInsets.all(ManaSpacing.md),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, color: ManaColors.statusBad),
+                    const SizedBox(width: ManaSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ManaText.raw(issue.type),
+                          ManaText.raw(
+                              ref.t('items_outstanding_note').replaceAll('{count}', '${issue.count}'),
+                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        ],
+                      ),
+                    ),
+                    if (_routeFor(issue.type) != null) ...[
+                      const SizedBox(width: ManaSpacing.sm),
+                      Flexible(
+                        child: FilledButton(
+                          onPressed: () => context.push(_routeFor(issue.type)!),
+                          child: ManaText.raw(ref.t('resolve')),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             )),
         if (state.warnings.isNotEmpty) ...[
           const SizedBox(height: ManaSpacing.lg),
-          const ManaText('warnings (may proceed)',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          ManaText.raw(ref.t('warnings_may_proceed'),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.xs),
           ...state.warnings.map((w) => Card(
                 color: ManaColors.statusWarnFaint,
@@ -199,7 +223,8 @@ class _PreCheckBlocked extends StatelessWidget {
                   leading: Icon(Icons.warning_amber,
                       color: ManaColors.statusWarn),
                   title: ManaText.raw(w.type),
-                  subtitle: ManaText.raw('${w.count} item(s)'),
+                  subtitle: ManaText.raw(
+                      ref.t('items_count_note').replaceAll('{count}', '${w.count}')),
                 ),
               )),
         ],
@@ -245,39 +270,39 @@ class _CashVerificationState extends ConsumerState<_CashVerification> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('Cash Verification',
+        ManaText.raw(ref.t('cash_verification'),
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-          'Enter the physical count — actual on-hand — for each payment method.',
+          ref.t('enter_physical_count_note'),
           style: TextStyle(color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         _AmountField(
-            label: 'Physical Cash', controller: _cash, onChanged: _onChanged),
+            label: ref.t('physical_cash'), controller: _cash, onChanged: _onChanged),
         _AmountField(
-            label: 'UPI Balance', controller: _upi, onChanged: _onChanged),
+            label: ref.t('upi_balance'), controller: _upi, onChanged: _onChanged),
         _AmountField(
-            label: 'Bank Balance', controller: _bank, onChanged: _onChanged),
+            label: ref.t('bank_balance'), controller: _bank, onChanged: _onChanged),
         _AmountField(
-            label: 'Cheque Balance',
+            label: ref.t('cheque_balance'),
             controller: _cheque,
             onChanged: _onChanged),
         const SizedBox(height: ManaSpacing.lg),
         if (expected != null) ...[
-          const ManaText('system expected (computed)',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          ManaText.raw(ref.t('system_expected_computed'),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.sm),
-          _ExpectedRow(label: 'Expected Cash', value: expected.expectedCash),
-          _ExpectedRow(label: 'Expected UPI', value: expected.expectedUpi),
-          _ExpectedRow(label: 'Expected Bank', value: expected.expectedBank),
+          _ExpectedRow(label: ref.t('expected_cash'), value: expected.expectedCash),
+          _ExpectedRow(label: ref.t('expected_upi'), value: expected.expectedUpi),
+          _ExpectedRow(label: ref.t('expected_bank'), value: expected.expectedBank),
           _ExpectedRow(
-              label: 'Expected Cheque', value: expected.expectedCheque),
+              label: ref.t('expected_cheque'), value: expected.expectedCheque),
         ],
         const SizedBox(height: ManaSpacing.xxl),
         FilledButton(
           onPressed: () => ref.read(dayClosureProvider.notifier).recalculate(),
-          child: const ManaText('recalculate'),
+          child: ManaText.raw(ref.t('recalculate')),
         ),
       ],
     );
@@ -317,8 +342,13 @@ class _ExpectedRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ManaText.raw(label,
-              style: TextStyle(color: ManaColors.textSecondary)),
+          Expanded(
+            child: ManaText.raw(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: ManaColors.textSecondary)),
+          ),
+          const SizedBox(width: ManaSpacing.xs),
           ManaText.raw(_currency.format(value),
               style: Theme.of(context).textTheme.bodyMedium),
         ],
@@ -368,25 +398,27 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
       children: [
         Icon(Icons.sync_problem, color: ManaColors.statusWarn, size: 36),
         const SizedBox(height: ManaSpacing.sm),
-        ManaText('Difference Found',
+        ManaText.raw(ref.t('difference_found'),
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-          'Overall Difference: ${_currency.format(state.difference)}',
+          ref.t('overall_difference_note').replaceAll('{amount}', _currency.format(state.difference)),
           style: Theme.of(context)
               .textTheme
               .titleLarge
               ?.copyWith(color: ManaColors.statusBad),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        const ManaText('difference details',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('difference_details'),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         ...state.differenceLines.map((l) => Card(
               child: ListTile(
                 title: ManaText.raw(l.method),
-                subtitle: ManaText.raw(
-                    'Expected ${_currency.format(l.expected)} · Actual ${_currency.format(l.actual)}'),
+                subtitle: ManaText.raw(ref
+                    .t('expected_actual_note')
+                    .replaceAll('{expected}', _currency.format(l.expected))
+                    .replaceAll('{actual}', _currency.format(l.actual))),
                 trailing: ManaText.raw(
                   _currency.format(l.delta),
                   style: TextStyle(
@@ -400,14 +432,13 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
             )),
         const SizedBox(height: ManaSpacing.lg),
         ManaText.raw(
-          'Owner must resolve — correct a mis-entered Actual figure above, or '
-          'record a Short/Excess adjustment, then Recalculate.',
+          ref.t('owner_must_resolve_note'),
           style: TextStyle(color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
         if (state.recordedAdjustments.isNotEmpty) ...[
-          const ManaText('adjustments recorded this session',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          ManaText.raw(ref.t('adjustments_recorded_session'),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           ...state.recordedAdjustments.map((a) => ListTile(
                 leading: Icon(
                   a.adjustmentType == 'Short'
@@ -428,7 +459,7 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
             Expanded(
               child: OutlinedButton(
                 onPressed: _openAdjustmentDialog,
-                child: const ManaText('record short / excess'),
+                child: ManaText.raw(ref.t('record_short_excess')),
               ),
             ),
             const SizedBox(width: ManaSpacing.sm),
@@ -436,7 +467,7 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
               child: FilledButton(
                 onPressed: () =>
                     ref.read(dayClosureProvider.notifier).recalculate(),
-                child: const ManaText('recalculate'),
+                child: ManaText.raw(ref.t('recalculate')),
               ),
             ),
           ],
@@ -461,15 +492,15 @@ class _AdjustmentInput {
   });
 }
 
-class _RecordAdjustmentDialog extends StatefulWidget {
+class _RecordAdjustmentDialog extends ConsumerStatefulWidget {
   const _RecordAdjustmentDialog();
 
   @override
-  State<_RecordAdjustmentDialog> createState() =>
+  ConsumerState<_RecordAdjustmentDialog> createState() =>
       _RecordAdjustmentDialogState();
 }
 
-class _RecordAdjustmentDialogState extends State<_RecordAdjustmentDialog> {
+class _RecordAdjustmentDialogState extends ConsumerState<_RecordAdjustmentDialog> {
   String _type = 'Short';
   String _appliedTo = 'Agent Salary Deduction';
   final _amount = TextEditingController();
@@ -482,6 +513,12 @@ class _RecordAdjustmentDialogState extends State<_RecordAdjustmentDialog> {
     'Excess Ledger-Unresolved',
   ];
 
+  static const _appliedToKeys = {
+    'Agent Salary Deduction': 'agent_salary_deduction',
+    'Customer Pending Settlement': 'customer_pending_settlement',
+    'Excess Ledger-Unresolved': 'excess_ledger_unresolved',
+  };
+
   @override
   Widget build(BuildContext context) {
     final amount = int.tryParse(_amount.text.trim()) ?? 0;
@@ -490,16 +527,16 @@ class _RecordAdjustmentDialogState extends State<_RecordAdjustmentDialog> {
         (!needsCustomer || _targetCustomerId.text.trim().isNotEmpty);
 
     return AlertDialog(
-      title: const ManaText('record short / excess'),
+      title: ManaText.raw(ref.t('record_short_excess')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'Short', label: ManaText.raw('Short')),
-                ButtonSegment(value: 'Excess', label: ManaText.raw('Excess')),
+              segments: [
+                ButtonSegment(value: 'Short', label: ManaText.raw(ref.t('short'))),
+                ButtonSegment(value: 'Excess', label: ManaText.raw(ref.t('excess'))),
               ],
               selected: {_type},
               onSelectionChanged: (s) => setState(() => _type = s.first),
@@ -510,16 +547,16 @@ class _RecordAdjustmentDialogState extends State<_RecordAdjustmentDialog> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration:
-                  const InputDecoration(labelText: 'Amount', prefixText: '₹ '),
+                  InputDecoration(labelText: ref.t('amount'), prefixText: '₹ '),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ManaSpacing.md),
             DropdownButtonFormField<String>(
               initialValue: _appliedTo,
-              decoration: const InputDecoration(labelText: 'Applied To'),
+              decoration: InputDecoration(labelText: ref.t('applied_to')),
               items: _appliedToOptions
-                  .map(
-                      (o) => DropdownMenuItem(value: o, child: ManaText.raw(o)))
+                  .map((o) => DropdownMenuItem(
+                      value: o, child: ManaText.raw(ref.t(_appliedToKeys[o]!))))
                   .toList(),
               onChanged: (v) => setState(() => _appliedTo = v ?? _appliedTo),
             ),
@@ -528,14 +565,14 @@ class _RecordAdjustmentDialogState extends State<_RecordAdjustmentDialog> {
               TextField(
                 controller: _targetCustomerId,
                 decoration:
-                    const InputDecoration(labelText: 'Target Customer ID'),
+                    InputDecoration(labelText: ref.t('target_customer_id')),
                 onChanged: (_) => setState(() {}),
               ),
             ],
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _note,
-              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              decoration: InputDecoration(labelText: ref.t('note_optional')),
               maxLines: 2,
             ),
           ],
@@ -544,7 +581,7 @@ class _RecordAdjustmentDialogState extends State<_RecordAdjustmentDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const ManaText('cancel')),
+            child: ManaText.raw(ref.t('cancel'))),
         FilledButton(
           onPressed: valid
               ? () => Navigator.of(context).pop(_AdjustmentInput(
@@ -556,7 +593,7 @@ class _RecordAdjustmentDialogState extends State<_RecordAdjustmentDialog> {
                     note: _note.text.trim().isEmpty ? null : _note.text.trim(),
                   ))
               : null,
-          child: const ManaText('save'),
+          child: ManaText.raw(ref.t('save')),
         ),
       ],
     );
@@ -582,19 +619,15 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('close business day?'),
-        content: const ManaText.raw(
-          'This locks the Business Date, generates the Daily Summary, and '
-          'prepares the next Business Date. This action cannot be undone '
-          'without an Owner Reopen.',
-        ),
+        title: ManaText.raw(ref.t('close_business_day_question')),
+        content: ManaText.raw(ref.t('close_business_day_note')),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const ManaText('cancel')),
+              child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const ManaText('confirm close')),
+              child: ManaText.raw(ref.t('confirm_close'))),
         ],
       ),
     );
@@ -608,8 +641,8 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
     });
     if (ok != true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: ManaText.raw('Difference is no longer zero — recheck required.')),
+        SnackBar(
+            content: ManaText.raw(ref.t('difference_no_longer_zero_note'))),
       );
     }
   }
@@ -622,31 +655,34 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('Final Review', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('final_review'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.lg),
-        const _SummaryRow(
-            label: 'Opening Balance',
+        _SummaryRow(
+            label: ref.t('opening_balance'),
             value: 0), // TODO: from day_ledger, deferred to API pass
         if (expected != null)
-          _SummaryRow(label: 'Collections', value: expected.expectedCash),
+          _SummaryRow(label: ref.t('collections'), value: expected.expectedCash),
         _SummaryRow(
-            label: 'Adjustments',
+            label: ref.t('adjustments'),
             value: state.recordedAdjustments.fold(0, (a, b) => a + b.amount)),
         const Divider(),
         _SummaryRow(
-            label: 'Closing Balance', value: state.actualTotal, bold: true),
-        const Row(
+            label: ref.t('closing_balance_label'), value: state.actualTotal, bold: true),
+        Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            ManaText('Difference',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            ManaStatusPill(label: '₹0.00 — Balanced', status: ManaStatus.good),
+            ManaText.raw(ref.t('difference'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: ManaSpacing.xs),
+            Flexible(
+              child: ManaStatusPill(label: '₹0.00 — ${ref.t('balanced')}', status: ManaStatus.good),
+            ),
           ],
         ),
         const SizedBox(height: ManaSpacing.lg),
         TextField(
           controller: _remarks,
-          decoration: const InputDecoration(labelText: 'Remarks (optional)'),
+          decoration: InputDecoration(labelText: ref.t('remarks_optional')),
           maxLines: 3,
         ),
         const SizedBox(height: ManaSpacing.xxl),
@@ -657,7 +693,7 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('confirm — close business day'),
+              : ManaText.raw(ref.t('confirm_close_business_day')),
         ),
       ],
     );
@@ -678,9 +714,13 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ManaText(label,
-              style:
-                  bold ? const TextStyle(fontWeight: FontWeight.bold) : null),
+          Expanded(
+            child: ManaText.raw(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: bold ? const TextStyle(fontWeight: FontWeight.bold) : null),
+          ),
+          const SizedBox(width: ManaSpacing.xs),
           ManaText.raw(_currency.format(value),
               style: bold
                   ? Theme.of(context).textTheme.titleMedium
@@ -709,28 +749,31 @@ class _ClosedReceipt extends ConsumerWidget {
       children: [
         Icon(Icons.lock, color: ManaColors.statusGood, size: 36),
         const SizedBox(height: ManaSpacing.sm),
-        ManaText('Business Day Closed',
+        ManaText.raw(ref.t('business_day_closed'),
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-            '${detail.businessDate} · Closed by ${detail.closedByName}',
+            ref
+                .t('closed_by_note')
+                .replaceAll('{date}', detail.businessDate)
+                .replaceAll('{name}', detail.closedByName),
             style: TextStyle(color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
-        _SummaryRow(label: 'Opening Balance', value: detail.openingBalance),
-        _SummaryRow(label: 'Collections', value: detail.collections),
-        _SummaryRow(label: 'Loans Issued', value: detail.loansIssued),
-        _SummaryRow(label: 'Expenses', value: detail.expenses),
+        _SummaryRow(label: ref.t('opening_balance'), value: detail.openingBalance),
+        _SummaryRow(label: ref.t('collections'), value: detail.collections),
+        _SummaryRow(label: ref.t('loans_issued'), value: detail.loansIssued),
+        _SummaryRow(label: ref.t('expenses'), value: detail.expenses),
         _SummaryRow(
-            label: 'Deposits (Investor)', value: detail.depositsInvestor),
+            label: ref.t('deposits_investor'), value: detail.depositsInvestor),
         _SummaryRow(
-            label: 'Withdrawals (Investor)', value: detail.withdrawalsInvestor),
-        _SummaryRow(label: 'Adjustments', value: detail.adjustments),
+            label: ref.t('withdrawals_investor'), value: detail.withdrawalsInvestor),
+        _SummaryRow(label: ref.t('adjustments'), value: detail.adjustments),
         const Divider(),
         _SummaryRow(
-            label: 'Closing Balance', value: detail.closingBalance, bold: true),
+            label: ref.t('closing_balance_label'), value: detail.closingBalance, bold: true),
         if (detail.remarks != null) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw('Remarks: ${detail.remarks}',
+          ManaText.raw(ref.t('remarks_colon_note').replaceAll('{remarks}', detail.remarks!),
               style: TextStyle(color: ManaColors.textSecondary)),
         ],
         if (detail.isReopened) ...[
@@ -740,7 +783,10 @@ class _ClosedReceipt extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(ManaSpacing.md),
               child: ManaText.raw(
-                'Reopened ${detail.reopenedAt} — Reason: ${detail.reopenReason}',
+                ref
+                    .t('reopened_reason_note')
+                    .replaceAll('{at}', '${detail.reopenedAt}')
+                    .replaceAll('{reason}', '${detail.reopenReason}'),
                 style: TextStyle(color: ManaColors.statusWarn),
               ),
             ),
@@ -749,7 +795,7 @@ class _ClosedReceipt extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.xxl),
         OutlinedButton(
           onPressed: () => _openReopenDialog(context, ref),
-          child: const ManaText('reopen closed day'),
+          child: ManaText.raw(ref.t('reopen_closed_day')),
         ),
       ],
     );
@@ -760,21 +806,19 @@ class _ClosedReceipt extends ConsumerWidget {
     final reason = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('reopen closed day'),
+        title: ManaText.raw(ref.t('reopen_closed_day')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(
-              'Reason is mandatory and this action always writes an audit entry. '
-              'Reopening unlocks new adjustment entries only — existing entries '
-              'for this date cannot be edited.',
+              ref.t('reopen_note'),
               style: TextStyle(color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: reasonController,
-              decoration: const InputDecoration(labelText: 'Reason *'),
+              decoration: InputDecoration(labelText: ref.t('reason_required')),
               maxLines: 2,
               autofocus: true,
             ),
@@ -783,11 +827,11 @@ class _ClosedReceipt extends ConsumerWidget {
         actions: [
           TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const ManaText('cancel')),
+              child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
             onPressed: () =>
                 Navigator.of(context).pop(reasonController.text.trim()),
-            child: const ManaText('reopen'),
+            child: ManaText.raw(ref.t('reopen')),
           ),
         ],
       ),
@@ -817,12 +861,10 @@ class _ReopenedAwaitingCloseAgain extends ConsumerWidget {
       children: [
         Icon(Icons.lock_open, color: ManaColors.statusWarn, size: 36),
         const SizedBox(height: ManaSpacing.sm),
-        ManaText('Day Reopened', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('day_reopened'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-          'Only new adjustment entries dated to this business day are permitted. '
-          'Existing Collections, Loans, and Expenses for this date cannot be '
-          'edited. Once adjustments are entered, run Close Again to re-close.',
+          ref.t('reopened_awaiting_note'),
           style: TextStyle(color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.xxl),
@@ -830,7 +872,7 @@ class _ReopenedAwaitingCloseAgain extends ConsumerWidget {
           onPressed: () => ref
               .read(dayClosureProvider.notifier)
               .closeAgain(businessId: businessId),
-          child: const ManaText('close again'),
+          child: ManaText.raw(ref.t('close_again')),
         ),
       ],
     );

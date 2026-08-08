@@ -57,13 +57,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Each workspace's own profile screen. Settings is shared across all four,
   /// so the destination is derived from whichever home route was passed in
   /// rather than duplicating this screen per role.
+  ///
+  /// The `_` arm is reached from LR-012, which sits above role selection and
+  /// so has no home route to derive from. It used to return null, which hid
+  /// the Profile row entirely — and LR-012's profile photo now points here,
+  /// so that would have been a tap that led nowhere. It falls back to the
+  /// last role this device actually used instead. Still null on a genuinely
+  /// first-ever login, where there is no prior role and no profile to show
+  /// yet; the row renders disabled rather than vanishing.
   String? get _profileRoute => switch (widget.homeRoute) {
         '/ow-001' => '/ow-016',
         '/ag-001' => '/ag-009',
         '/cw-001' => '/cw-006',
         '/iw-001' => '/iw-005',
-        _ => null, // reached from the business selector, before a role exists
+        _ => _lastUsedProfileRoute,
       };
+
+  /// Resolved from the entity ids ManaSession caches when LR-013 last
+  /// resolved a membership. Checked most-specific first: an Owner has no
+  /// agent/customer/investor row, so a remembered businessId with none of
+  /// those set is the Owner case.
+  String? get _lastUsedProfileRoute {
+    final session = ManaSession.instance;
+    if (session.lastAgentId != null) return '/ag-009';
+    if (session.lastCustomerId != null) return '/cw-006';
+    if (session.lastInvestorId != null) return '/iw-005';
+    if (session.lastBusinessId != null) return '/ow-016';
+    return null;
+  }
   /// Opens the system share sheet. No app store link yet — MANA LINE is not
   /// published — so the message says what the app is rather than pointing at a
   /// download that would 404. Add the store URL here when there is one.

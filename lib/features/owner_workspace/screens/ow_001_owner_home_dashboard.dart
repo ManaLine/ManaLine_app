@@ -78,6 +78,31 @@ List<ManaDrawerSection> _ownerDrawerSections(
         ),
       ],
     ),
+    // --- Everything below was the header's overflow (kebab) menu ---------
+    //
+    // That menu is gone. It duplicated the drawer's job — two different
+    // navigation surfaces on the same screen, one of which was invisible
+    // until you knew to press it — and it lived in a header that has since
+    // been cut to one row. These are the same seven destinations, in the
+    // same order, as drawer rows.
+    //
+    // All seven are plain rows rather than expandable groups: none of them
+    // has a separately routable sub-screen today. OW-012's tabs only exist
+    // inside a business that has already been picked, and OW-010 is a single
+    // route. A chevron opening a list of one is two taps to do one thing.
+    // Business Management and Report Hub are Owner-only, so they sit here
+    // rather than in manaGlobalDrawerSections, which the other three
+    // workspaces share.
+    ManaDrawerSection(
+      icon: Icons.storefront_outlined,
+      labelKey: 'business_management',
+      onTap: () => context.push('/ow-012', extra: businessId),
+    ),
+    ManaDrawerSection(
+      icon: Icons.assessment_outlined,
+      labelKey: 'report_hub',
+      onTap: () => context.push('/ow-010', extra: businessId),
+    ),
   ];
 }
 
@@ -132,14 +157,20 @@ class _OwnerHomeDashboardScreenState
     return ManaAppShell(
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: async.valueOrNull?.businessName,
-      sections: _ownerDrawerSections(context, widget.businessId),
-      onSettings: () =>
-          context.push('/ow-settings', extra: widget.businessId),
-      onSwitch: () => context.go('/lr-013', extra: widget.businessId),
-      onLogout: () {
-        ref.read(authFlowProvider.notifier).reset();
-        context.go('/lr-003');
-      },
+      sections: [
+        ..._ownerDrawerSections(context, widget.businessId),
+        ...manaGlobalDrawerSections(
+          onProfile: () => context.push('/ow-016'),
+          onSwitchWorkspace: () => context.go('/lr-012'),
+          onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),
+          onSettings: () =>
+              context.push('/ow-settings', extra: widget.businessId),
+          onLogout: () {
+            ref.read(authFlowProvider.notifier).reset();
+            context.go('/lr-003');
+          },
+        ),
+      ],
       bottomNavigationBar: _FooterNav(businessId: widget.businessId),
       body: SafeArea(
         top: false,
@@ -411,63 +442,11 @@ class _Header extends ConsumerWidget {
           label: 'Universal Search',
           onPressed: () => _openUniversalSearch(context),
         ),
-        _overflowMenu(context, ref),
       ],
       // The status pills stay on the light body below, not inside the header:
       // ManaStatusPill uses faint tinted backgrounds that are designed to sit
       // on white and would lose their contrast on brandDeep. Putting them
       // there would mean restyling the whole status vocabulary for one screen.
-    );
-  }
-
-  /// Kept as a PopupMenuButton rather than a ManaHeaderAction: this opens a
-  /// menu rather than performing an action, so it needs Flutter's own anchor
-  /// and dismissal behaviour. Sized and labelled to the same floor by hand.
-  Widget _overflowMenu(BuildContext context, WidgetRef ref) {
-    final moreOptions = ref.t('more_options');
-    return Semantics(
-      button: true,
-      label: moreOptions,
-      child: PopupMenuButton<String>(
-        tooltip: moreOptions,
-        iconSize: 24,
-        constraints: const BoxConstraints(minWidth: kManaMinTapTarget),
-        icon: Icon(Icons.more_vert, color: ManaColors.textOnDark),
-        onSelected: (v) {
-          switch (v) {
-            case 'switch_business':
-              context.go('/lr-012');
-            case 'switch_role':
-              context.go('/lr-013');
-            case 'profile':
-              context.push('/ow-016');
-            case 'business_management':
-              context.push('/ow-012', extra: businessId);
-            case 'report_hub':
-              context.push('/ow-010', extra: businessId);
-            case 'settings':
-              context.push('/ow-settings', extra: businessId);
-            case 'logout':
-              ref.read(authFlowProvider.notifier).reset();
-              context.go('/lr-003');
-          }
-        },
-        itemBuilder: (context) => [
-          PopupMenuItem(value: 'profile', child: ManaText.raw(ref.t('profile'))),
-          PopupMenuItem(
-              value: 'business_management',
-              child: ManaText.raw(ref.t('business_management'))),
-          PopupMenuItem(
-              value: 'report_hub', child: ManaText.raw(ref.t('report_hub'))),
-          PopupMenuItem(
-              value: 'switch_business', child: ManaText.raw(ref.t('switch_workspace'))),
-          PopupMenuItem(
-              value: 'switch_role', child: ManaText.raw(ref.t('switch_role'))),
-          PopupMenuItem(value: 'settings', child: ManaText.raw(ref.t('settings'))),
-          const PopupMenuDivider(),
-          PopupMenuItem(value: 'logout', child: ManaText.raw(ref.t('logout'))),
-        ],
-      ),
     );
   }
 
@@ -1010,19 +989,34 @@ class _TodaysSummary extends ConsumerWidget {
 // investment requires picking the investor first (Investor Profile's own
 // "record investment" action) — folded into "Investor Management" rather
 // than a fake shortcut with nowhere distinct to land.
-class _QuickActions extends ConsumerWidget {
+//
+// PRESENTATION (changed this pass): the three groups used to render one
+// under another, all expanded. That is 14 tiles stacked before the rest of
+// the dashboard, so Investors was below the fold on a 640dp phone and the
+// live-activity feed under it was effectively unreachable without a long
+// scroll. They are now behind a row of category chips — one group visible
+// at a time, the others one tap away. Same tiles, same destinations, a
+// third of the height. Chips rather than an accordion or tabs because this
+// screen already uses ChoiceChip for filtering elsewhere (OW-003/OW-004),
+// so the affordance is one the Owner has already learned.
+class _QuickActions extends ConsumerStatefulWidget {
   final String businessId;
   const _QuickActions({required this.businessId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _QuickActionGroup(
-          title: ref.t('customers'),
-          businessId: businessId,
-          actions: [
+  ConsumerState<_QuickActions> createState() => _QuickActionsState();
+}
+
+class _QuickActionsState extends ConsumerState<_QuickActions> {
+  int _selected = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final businessId = widget.businessId;
+    final groups = <(String, List<(IconData, String, String, String?)>)>[
+      (
+        ref.t('customers'),
+        [
             (Icons.request_quote_outlined, ref.t('new_loan'), '/ow-005', null),
             (Icons.point_of_sale_outlined, ref.t('collections'), '/ow-006', null),
             // 'Search Customers' removed (item 4.1) — the header's Universal
@@ -1031,14 +1025,12 @@ class _QuickActions extends ConsumerWidget {
             (Icons.inbox_outlined, ref.t('loan_requests'), '/ow-loan-requests', null),
             // BUG FIXED this pass: OW-015 was a real, fully-built screen
             // with zero links from anywhere in the app.
-            (Icons.groups_2_outlined, ref.t('group_loans'), '/ow-015', null),
-          ],
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        _QuickActionGroup(
-          title: ref.t('workforce'),
-          businessId: businessId,
-          actions: [
+          (Icons.groups_2_outlined, ref.t('group_loans'), '/ow-015', null),
+        ],
+      ),
+      (
+        ref.t('workforce'),
+        [
             // 'Register New Agent' and 'Add Existing Agent' removed (item
             // 5.1) — both already exist as header actions inside Workforce
             // Management, which this tile opens.
@@ -1048,37 +1040,68 @@ class _QuickActions extends ConsumerWidget {
             (Icons.bar_chart_outlined, ref.t('reports'), '/ow-010', null),
             // BUG FIXED this pass: OW-013 was a real, fully-built screen
             // with zero links from anywhere in the app.
-            (Icons.fact_check_outlined, ref.t('account_review'), '/ow-013', null),
+          (Icons.fact_check_outlined, ref.t('account_review'), '/ow-013', null),
+        ],
+      ),
+      (
+        ref.t('investor'),
+        [
+          (
+            Icons.person_add_alt_1_outlined,
+            ref.t('add_existing_investor'),
+            '/ow-003',
+            'open=existing'
+          ),
+          (
+            Icons.inbox_outlined,
+            ref.t('investor_requests'),
+            '/ow-003',
+            'filter=Pending%20Acceptance'
+          ),
+          (Icons.savings_outlined, ref.t('investor_management'), '/ow-003', null),
+          // BUG FIXED this pass: investment_withdrawal_requests had a
+          // real INSERT path with no reachable Owner review screen at
+          // all — requests sat Pending forever.
+          (
+            Icons.payments_outlined,
+            ref.t('withdrawal_requests'),
+            '/ow-withdrawal-requests',
+            null
+          ),
+        ],
+      ),
+    ];
+
+    // Defensive: a group list that shrinks (a permission change, a future
+    // role split) must not leave _selected pointing past the end.
+    final index = _selected.clamp(0, groups.length - 1);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Wrap, not a Row or a scrolling strip: these are translated labels,
+        // so their width is data. In Kannada at 2.0x three chips do not fit
+        // on one line, and a Row would overflow — the exact bug class this
+        // codebase has shipped five times.
+        Wrap(
+          spacing: ManaSpacing.xs,
+          runSpacing: ManaSpacing.xs,
+          children: [
+            for (final (i, (title, _)) in groups.indexed)
+              ChoiceChip(
+                label: ManaText.raw(title),
+                selected: index == i,
+                // onSelected fires for a tap on the already-selected chip
+                // too; ignoring deselection keeps one group always showing,
+                // rather than collapsing to an empty panel.
+                onSelected: (_) => setState(() => _selected = i),
+              ),
           ],
         ),
-        const SizedBox(height: ManaSpacing.md),
+        const SizedBox(height: ManaSpacing.sm),
         _QuickActionGroup(
-          title: ref.t('investor'),
           businessId: businessId,
-          actions: [
-            (
-              Icons.person_add_alt_1_outlined,
-              ref.t('add_existing_investor'),
-              '/ow-003',
-              'open=existing'
-            ),
-            (
-              Icons.inbox_outlined,
-              ref.t('investor_requests'),
-              '/ow-003',
-              'filter=Pending%20Acceptance'
-            ),
-            (Icons.savings_outlined, ref.t('investor_management'), '/ow-003', null),
-            // BUG FIXED this pass: investment_withdrawal_requests had a
-            // real INSERT path with no reachable Owner review screen at
-            // all — requests sat Pending forever.
-            (
-              Icons.payments_outlined,
-              ref.t('withdrawal_requests'),
-              '/ow-withdrawal-requests',
-              null
-            ),
-          ],
+          actions: groups[index].$2,
         ),
       ],
     );
@@ -1086,23 +1109,20 @@ class _QuickActions extends ConsumerWidget {
 }
 
 class _QuickActionGroup extends StatelessWidget {
-  final String title;
   final String businessId;
   final List<(IconData, String, String, String?)> actions;
   const _QuickActionGroup(
-      {required this.title, required this.businessId, required this.actions});
+      {required this.businessId, required this.actions});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText.raw(title,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: ManaColors.textSecondary)),
-        const SizedBox(height: ManaSpacing.xs),
+        // The group's own title heading is gone — the selected chip above
+        // already names the group, and repeating it directly underneath was
+        // two labels saying the same thing.
+        //
         // Was a GridView with crossAxisCount: 3 and childAspectRatio: 0.95 —
         // a fixed aspect ratio wrapping up-to-2-line labels, i.e. the same
         // latent overflow shape that broke the five stat strips. A user raising

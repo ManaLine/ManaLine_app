@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/title_case_formatter.dart';
 import '../../../shared/translation_service.dart';
+import '../../../shared/mana_location.dart';
 import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/widgets/language_selector.dart';
 import '../../../design/tokens/colors.dart';
@@ -51,6 +52,10 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
   final _pinCode = TextEditingController();
+
+  /// Set only when "Use My Location" actually got a fix. Null means the
+  /// address was typed without one — see the register() call below.
+  ManaFix? _gps;
 
   final _doorNo = TextEditingController();
   final _aadhaar = TextEditingController();
@@ -197,18 +202,19 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               mobileNumber: _mobile.text.trim(),
               password: _password.text,
               aadhaarNumber: _aadhaar.text.trim(),
-              // NOTE: no gps_* here, deliberately. This screen registers
-              // through the auth-register Edge Function, whose `address`
-              // contract has no coordinate fields — sending them would be
-              // silently dropped, which is worse than not sending them.
-              // "Use My Location" on this form therefore only fills the PIN
-              // and village. The Owner-side doorstep path (OW-004) goes
-              // through app.register_new_customer, which does take
-              // coordinates, and does store them.
               address: {
                 'door_no': _doorNo.text.trim(),
                 'pin_code': _pinCode.text.trim(),
                 'village_id': _villageId,
+                // Only when "Use My Location" actually got a fix. Absent
+                // means the address was typed without one, which
+                // person_addresses records as NULL rather than pretending
+                // to a position it never had.
+                if (_gps != null && _gps!.hasPosition) ...{
+                  'gps_latitude': _gps!.latitude,
+                  'gps_longitude': _gps!.longitude,
+                  'gps_accuracy_m': _gps!.accuracyM,
+                },
               },
               registrationSource: 'System',
               customerType: 'New',
@@ -439,6 +445,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               UseMyLocationButton(
                 onCaptured: (place) {
                   setState(() {
+                    _gps = place.fix;
                     if (place.pinCode != null) _pinCode.text = place.pinCode!;
                     if (place.village != null) {
                       _villageSearch.text = place.village!;

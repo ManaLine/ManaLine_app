@@ -4,6 +4,12 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Mana Line needs camera access to capture your live photo (required for registration and loan issuance, per fraud-prevention policy — gallery photos are never accepted).</string>
+	<!-- Required before geolocator may ask for permission at all: iOS
+	     terminates the app on the request if this key is absent. WhenInUse
+	     only — MANA LINE never reads location in the background, which is
+	     what the consent prompt at first login promises. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Mana Line notes where you are when you register an address or visit a customer, so the visit can be confirmed against that address. It is only read while you are using the app, never in the background, and you can say no — nothing in the app stops working either way.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

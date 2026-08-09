@@ -33,7 +33,7 @@ import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { buildMlpi, buildMltiCandidate, genderDigitOf } from "../_shared/mlid.ts";
 import { hashSecret } from "../_shared/hashing.ts";
-import { istDate } from "../_shared/time.ts";
+import { istDate, istNow } from "../_shared/time.ts";
 
 interface RegisterBody {
   full_name: string;
@@ -50,6 +50,15 @@ interface RegisterBody {
     village_id: string;
     from_date?: string;
     reason?: string | null;
+    // Where the person was standing when they entered this address, from
+    // LR-004's "Use My Location". All three optional together: an address
+    // typed indoors has no pin, and person_addresses records that as NULL
+    // rather than inventing a position. Never required, never validated
+    // against the village — GPS annotates an address here, it does not
+    // decide one.
+    gps_latitude?: number | null;
+    gps_longitude?: number | null;
+    gps_accuracy_m?: number | null;
   };
   registration_source: "Owner" | "Agent" | "Migration" | "System";
   customer_type: "New" | "Migrated";
@@ -105,6 +114,25 @@ Deno.serve(async (req: Request) => {
     errors.push("address.pin_code must be exactly 6 digits");
   }
   if (!body.address?.village_id) errors.push("address.village_id is required");
+  // GPS is optional, but a value that IS sent must be real — a NaN or an
+  // out-of-range latitude would be written straight into a numeric(9,6)
+  // column and fail the insert with a message about the wrong thing.
+  const lat = body.address?.gps_latitude;
+  const lng = body.address?.gps_longitude;
+  const acc = body.address?.gps_accuracy_m;
+  const bothOrNeither = (lat === null || lat === undefined) === (lng === null || lng === undefined);
+  if (!bothOrNeither) {
+    errors.push("address.gps_latitude and address.gps_longitude must be sent together");
+  }
+  if (lat !== null && lat !== undefined && (!Number.isFinite(lat) || lat < -90 || lat > 90)) {
+    errors.push("address.gps_latitude must be between -90 and 90");
+  }
+  if (lng !== null && lng !== undefined && (!Number.isFinite(lng) || lng < -180 || lng > 180)) {
+    errors.push("address.gps_longitude must be between -180 and 180");
+  }
+  if (acc !== null && acc !== undefined && (!Number.isFinite(acc) || acc < 0)) {
+    errors.push("address.gps_accuracy_m must be zero or greater");
+  }
   if (!["Owner", "Agent", "Migration", "System"].includes(body.registration_source)) {
     errors.push("registration_source is invalid");
   }
@@ -290,6 +318,19 @@ Deno.serve(async (req: Request) => {
     from_date: body.address.from_date ?? istDate(),
     reason: body.address.reason ?? null,
     is_current: true,
+    // `?? null` rather than omitting the keys: an explicit NULL is the
+    // documented "not captured" value for these columns, and being explicit
+    // keeps the row shape identical whether or not a fix arrived.
+    gps_latitude: body.address.gps_latitude ?? null,
+    gps_longitude: body.address.gps_longitude ?? null,
+    gps_accuracy_m: body.address.gps_accuracy_m ?? null,
+    // istNow(), not new Date() — every timestamp column in this schema is
+    // naive and MEANS IST. Stamped only when there is actually a position
+    // to stamp.
+    gps_captured_at:
+      body.address.gps_latitude === null || body.address.gps_latitude === undefined
+        ? null
+        : istNow(),
   });
   if (addressError) {
     console.error("auth-register address insert failed", addressError);

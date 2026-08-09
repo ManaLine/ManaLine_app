@@ -169,13 +169,22 @@ class ManaAppShell extends StatelessWidget {
   /// leaves it null and reads the IST wall clock.
   final DateTime? now;
 
+  /// Second line under the business name — the day and date. Lives in the
+  /// header rather than in a second block below it; see [_ShellHeader].
+  final String? subtitle;
+
+  /// Tapping the logo. Null leaves it inert.
+  final VoidCallback? onLeadingTap;
+
   const ManaAppShell({
     super.key,
     required this.userName,
     required this.body,
     this.businessName,
+    this.subtitle,
     this.sections = const [],
     this.leading,
+    this.onLeadingTap,
     this.actions = const [],
     this.bottomNavigationBar,
     this.floatingActionButton,
@@ -196,7 +205,9 @@ class ManaAppShell extends StatelessWidget {
           _ShellHeader(
             businessName: businessName,
             userName: userName,
+            subtitle: subtitle,
             leading: leading,
+            onLeadingTap: onLeadingTap,
             actions: actions,
           ),
           Expanded(child: body),
@@ -208,18 +219,30 @@ class ManaAppShell extends StatelessWidget {
   }
 }
 
+/// THE header. Not "the top one of two".
+///
+/// Screens used to draw their own ManaHeaderBlock immediately under this
+/// bar, so the business name, the logo and the date appeared twice, one
+/// row apart, in two different colours — see the OW-001 screenshots that
+/// prompted this. Everything those blocks carried now lives here:
+/// [leading] takes the business logo, [subtitle] the day and date, and
+/// [actions] the notification and search buttons. One bar, one truth.
 class _ShellHeader extends StatelessWidget {
-  /// The header's single line. Falls back to [userName] before a business is
+  /// The header's title line. Falls back to [userName] before a business is
   /// chosen, so the bar is never anonymous.
   final String? businessName;
   final String userName;
+  final String? subtitle;
   final Widget? leading;
+  final VoidCallback? onLeadingTap;
   final List<Widget> actions;
 
   const _ShellHeader({
     required this.businessName,
     required this.userName,
+    required this.subtitle,
     required this.leading,
+    required this.onLeadingTap,
     required this.actions,
   });
 
@@ -249,9 +272,17 @@ class _ShellHeader extends StatelessWidget {
             ),
           ),
           if (leading != null) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(ManaRadius.ring),
-              child: SizedBox(width: 32, height: 32, child: leading),
+            Semantics(
+              button: onLeadingTap != null,
+              label: onLeadingTap != null ? 'Business Profile' : null,
+              child: InkWell(
+                onTap: onLeadingTap,
+                borderRadius: BorderRadius.circular(ManaRadius.ring),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(ManaRadius.ring),
+                  child: SizedBox(width: 32, height: 32, child: leading),
+                ),
+              ),
             ),
             const SizedBox(width: ManaSpacing.sm),
           ],
@@ -259,20 +290,36 @@ class _ShellHeader extends StatelessWidget {
           // pushing them off the edge — an unflexible child beside flexible
           // siblings is the exact shape that has overflowed here five times.
           Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(
-                (businessName != null && businessName!.isNotEmpty)
-                    ? businessName!
-                    : userName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: ManaColors.textOnDark,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(
+                    (businessName != null && businessName!.isNotEmpty)
+                        ? businessName!
+                        : userName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: ManaColors.textOnDark,
+                    ),
+                  ),
                 ),
-              ),
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: ManaColors.textOnDark,
+                    ),
+                  ),
+              ],
             ),
           ),
           ...actions,
@@ -416,7 +463,7 @@ class _ManaDrawerState extends ConsumerState<_ManaDrawer> {
                   // timer in initState.
                   const SizedBox(height: ManaSpacing.xs),
                   Text(
-                    '${manaDisplayDate(widget.now)}  •  '
+                    '${manaDisplayDateWithWeekday(widget.now)}  •  '
                     '${manaClock12WithSeconds(widget.now)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

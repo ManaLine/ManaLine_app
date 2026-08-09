@@ -21,6 +21,7 @@ import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/mana_time.dart';
 
 final _currency =
     NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -148,15 +149,67 @@ class _OwnerHomeDashboardScreenState
   Widget build(BuildContext context) {
     final async = ref.watch(ownerDashboardProvider);
 
-    // The shell owns the Scaffold, the drawer and the identity/clock header;
-    // this screen keeps its own content header (logo, notifications badge,
-    // search) as the row of workspace actions inside it. The shell's own
-    // SafeArea handling lives in its header, which is why the body below no
-    // longer sets `top: false` — there is no longer a coloured block here to
-    // bleed under the status bar.
+    // The shell owns the Scaffold, the drawer and the one header bar.
+    // Everything the old in-body header block carried now rides on the
+    // shell's own bar. There were two headers before, one directly under
+    // the other, both showing the business name and both showing the date
+    // — see the screenshots that prompted this. One bar now.
+    final data = async.valueOrNull;
+    final unreadCount = data == null
+        ? 0
+        : data.notifications.where((n) => !n.read).length +
+            data.pendingInvitations +
+            data.pendingAcceptances;
+
     return ManaAppShell(
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: async.valueOrNull?.businessName,
+      subtitle: '${manaWeekday()}, ${manaDisplayDate()}',
+      leading: Container(
+        color: ManaColors.brandFaint,
+        child: data?.logoUrl == null
+            ? Icon(Icons.storefront, color: ManaColors.brandDeep)
+            // PERF: cached — this header rebuilds on every dashboard visit
+            // and the logo does not change between them.
+            : CachedNetworkImage(
+                imageUrl: data!.logoUrl!,
+                fit: BoxFit.cover,
+                // A signed storage URL can expire or 404. Falling back to the
+                // placeholder is right; a broken-image glyph in the header of
+                // every screen is not.
+                errorWidget: (_, __, ___) =>
+                    Icon(Icons.storefront, color: ManaColors.brandDeep),
+              ),
+      ),
+      onLeadingTap: () => context.push('/ow-012', extra: widget.businessId),
+      actions: [
+        ManaHeaderAction(
+          icon: Icons.notifications_outlined,
+          label: 'Notifications',
+          badgeCount: unreadCount,
+          onPressed: data == null
+              ? null
+              : () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (_) => _NotificationsSheet(
+                      businessId: widget.businessId,
+                      notifications: data.notifications,
+                      pendingInvitations: data.pendingInvitations,
+                      pendingAcceptances: data.pendingAcceptances,
+                    ),
+                  ),
+        ),
+        ManaHeaderAction(
+          icon: Icons.search,
+          label: 'Universal Search',
+          onPressed: () => showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => _UniversalSearchSheet(businessId: widget.businessId),
+          ),
+        ),
+      ],
       sections: [
         ..._ownerDrawerSections(context, widget.businessId),
         ...manaGlobalDrawerSections(
@@ -190,18 +243,8 @@ class _OwnerHomeDashboardScreenState
               child: ListView(
                 padding: const EdgeInsets.only(bottom: ManaSpacing.xxl),
                 children: [
-                  // The header is deliberately NOT wrapped in ManaAppear: fading
-                  // in the thing that identifies the screen reads as hesitation.
-                  // Identity lands immediately; the content below it arrives.
-                  _Header(
-                    businessId: widget.businessId,
-                    businessName: data.businessName,
-                    logoUrl: data.logoUrl,
-                    businessOpen: data.businessOpen,
-                    notifications: data.notifications,
-                    pendingInvitations: data.pendingInvitations,
-                    pendingAcceptances: data.pendingAcceptances,
-                  ),
+                  // No header here any more — identity, date, notifications
+                  // and search all live on the shell's single bar above.
                   const SizedBox(height: ManaSpacing.md),
                   // Staggered entrance so sections resolve in reading order
                   // rather than the whole page popping in at once. 30ms apart and
@@ -367,108 +410,6 @@ class _SkeletonSection extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Header extends ConsumerWidget {
-  final String businessId;
-  final String businessName;
-
-  /// The business logo. It was fetched into OwnerDashboardData all along
-  /// and never rendered — the header hardcoded a storefront icon, so a
-  /// business that had uploaded a logo still showed the placeholder.
-  final String? logoUrl;
-  final bool businessOpen;
-  final List<NotificationItem> notifications;
-  // Item 2: the Invitations/Acceptances pills that used to live in
-  // _BusinessStatusBar below the header now ride in the notifications
-  // sheet — they are notifications, not status, and the strip was costing
-  // a full row of above-the-fold height for two counts that are usually 0.
-  final int pendingInvitations;
-  final int pendingAcceptances;
-  const _Header({
-    required this.businessId,
-    required this.businessName,
-    required this.logoUrl,
-    required this.businessOpen,
-    required this.notifications,
-    required this.pendingInvitations,
-    required this.pendingAcceptances,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final now = DateTime.now();
-    // The badge counts the pending memberships too, otherwise removing the
-    // strip would hide them behind an unbadged icon.
-    final unread = notifications.where((n) => !n.read).length +
-        pendingInvitations +
-        pendingAcceptances;
-
-    // Was a white Container with a hand-rolled Row. Now the shared coloured
-    // header block: identity on brandDeep, actions forced to the 48dp floor
-    // with real accessible names, and the unread count surfaced as a badge
-    // instead of being invisible until the sheet is opened.
-    return ManaHeaderBlock(
-      title: businessName.isEmpty ? 'Business' : businessName,
-      subtitle: DateFormat('EEE, d MMM').format(now),
-      leading: Container(
-        color: ManaColors.brandFaint,
-        child: logoUrl == null
-            ? Icon(Icons.storefront, color: ManaColors.brandDeep)
-            // PERF: cached — this header rebuilds on every dashboard visit,
-            // and the logo doesn't change between visits, so re-fetching it
-            // every time was pure waste. Disk+memory cached by URL.
-            : CachedNetworkImage(
-                imageUrl: logoUrl!,
-                fit: BoxFit.cover,
-                // A signed storage URL can expire or 404. Falling back to
-                // the placeholder is right; showing a broken-image glyph in
-                // the header of every screen is not.
-                errorWidget: (_, __, ___) =>
-                    Icon(Icons.storefront, color: ManaColors.brandDeep),
-              ),
-      ),
-      actions: [
-        ManaHeaderAction(
-          icon: Icons.notifications_outlined,
-          label: 'Notifications',
-          badgeCount: unread,
-          onPressed: () => _openNotifications(context),
-        ),
-        ManaHeaderAction(
-          icon: Icons.search,
-          label: 'Universal Search',
-          onPressed: () => _openUniversalSearch(context),
-        ),
-      ],
-      // The status pills stay on the light body below, not inside the header:
-      // ManaStatusPill uses faint tinted backgrounds that are designed to sit
-      // on white and would lose their contrast on brandDeep. Putting them
-      // there would mean restyling the whole status vocabulary for one screen.
-    );
-  }
-
-  // Both header icons were previously no-op `onPressed: () {}` placeholders.
-  void _openNotifications(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _NotificationsSheet(
-        businessId: businessId,
-        notifications: notifications,
-        pendingInvitations: pendingInvitations,
-        pendingAcceptances: pendingAcceptances,
-      ),
-    );
-  }
-
-  void _openUniversalSearch(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _UniversalSearchSheet(businessId: businessId),
     );
   }
 }

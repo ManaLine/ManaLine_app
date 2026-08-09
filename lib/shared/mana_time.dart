@@ -90,6 +90,22 @@ String manaDisplayDate([DateTime? when]) {
   return '$d-$m-${t.year.toString().padLeft(4, '0')}';
 }
 
+/// Short IST weekday — `Sun`, `Mon`, …
+///
+/// Hand-built from [DateTime.weekday] rather than taken from `DateFormat`,
+/// for the same reason as everything else in this file: it has to describe
+/// the IST day, and DateFormat would describe the handset's.
+const _manaWeekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+String manaWeekday([DateTime? when]) =>
+    _manaWeekdayNames[(when ?? manaNowIst()).weekday - 1];
+
+/// `Sun, 09-08-2026` — the weekday in front of the date.
+String manaDisplayDateWithWeekday([DateTime? when]) {
+  final t = when ?? manaNowIst();
+  return '${manaWeekday(t)}, ${manaDisplayDate(t)}';
+}
+
 /// The IST wall clock as 12-hour `h:mm AM/PM`, for display only.
 ///
 /// Built from [manaNowIst] rather than `TimeOfDay.format` or `DateTime.now`,

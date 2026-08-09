@@ -1,4 +1,8 @@
-package com.example.mana_line
+// `in` is escaped because it is a hard keyword in Kotlin. The applicationId
+// is in.manaline.app (reverse DNS of manaline.in) and the namespace matches
+// it, so the package declaration has to spell it this way; Java has no such
+// restriction, which is why the generated R class needs no escaping.
+package `in`.manaline.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

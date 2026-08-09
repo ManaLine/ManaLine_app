@@ -106,6 +106,20 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
     'Tamil': 'வெளியேறு',
     'Telugu': 'నిష్క్రమించండి',
   },
+  'use_my_location': {
+    'English': 'Use My Location',
+    'Hindi': 'मेरा स्थान उपयोग करें',
+    'Kannada': 'ನನ್ನ ಸ್ಥಳ ಬಳಸಿ',
+    'Tamil': 'என் இருப்பிடத்தைப் பயன்படுத்து',
+    'Telugu': 'నా స్థానాన్ని ఉపయోగించండి',
+  },
+  'register_customer': {
+    'English': 'Register Customer',
+    'Hindi': 'ग्राहक पंजीकृत करें',
+    'Kannada': 'ಗ್ರಾಹಕರನ್ನು ನೋಂದಾಯಿಸಿ',
+    'Tamil': 'வாடிக்கையாளரைப் பதிவு செய்',
+    'Telugu': 'కస్టమర్‌ను నమోదు చేయండి',
+  },
   'change_user': {
     'English': 'Change User',
     'Hindi': 'उपयोगकर्ता बदलें',

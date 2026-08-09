@@ -9,6 +9,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../shared/document_viewer.dart';
@@ -22,7 +23,17 @@ final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalD
 /// context menu); "Add Customer" is a header action (C4 sub-flow).
 class CustomerManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const CustomerManagementScreen({super.key, required this.businessId});
+  /// 'register' opens the Add Customer sheet straight away, so the
+  /// dashboard's Register Customer tile lands on the form rather than on a
+  /// list the person then has to find a button in. Registration on the
+  /// doorstep is a two-tap job or it does not get done.
+  final String? initialAction;
+
+  const CustomerManagementScreen({
+    super.key,
+    required this.businessId,
+    this.initialAction,
+  });
 
   @override
   ConsumerState<CustomerManagementScreen> createState() => _CustomerManagementScreenState();
@@ -37,6 +48,13 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(customerListProvider.notifier).load(widget.businessId);
+      if (widget.initialAction == 'register') {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => _AddCustomerSheet(businessId: widget.businessId),
+        ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId));
+      }
     });
   }
 
@@ -659,6 +677,24 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
+        // Fills PIN and village from where the Owner is standing — which,
+        // for this sheet, is the customer's doorstep. It does NOT capture
+        // the coordinates: createNew already takes its own fix at save
+        // time, and taking a second one here would record whichever was
+        // earlier rather than where the address was actually confirmed.
+        UseMyLocationButton(
+          onCaptured: (place) {
+            setState(() {
+              if (place.pinCode != null) _pinCode.text = place.pinCode!;
+              if (place.village != null) {
+                _villageSearch.text = place.village!;
+                _villageId = null;
+                _selectedVillageLabel = null;
+              }
+            });
+            if (_pinCode.text.trim().length == 6) _searchVillages(_villageSearch.text);
+          },
+        ),
         TextField(
           controller: _pinCode,
           keyboardType: TextInputType.number,

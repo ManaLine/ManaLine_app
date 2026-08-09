@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/title_case_formatter.dart';
 import '../../../shared/translation_service.dart';
+import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/widgets/language_selector.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -50,6 +51,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
   final _pinCode = TextEditingController();
+
   final _doorNo = TextEditingController();
   final _aadhaar = TextEditingController();
   final _confirmAadhaar = TextEditingController();
@@ -195,6 +197,14 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               mobileNumber: _mobile.text.trim(),
               password: _password.text,
               aadhaarNumber: _aadhaar.text.trim(),
+              // NOTE: no gps_* here, deliberately. This screen registers
+              // through the auth-register Edge Function, whose `address`
+              // contract has no coordinate fields — sending them would be
+              // silently dropped, which is worse than not sending them.
+              // "Use My Location" on this form therefore only fills the PIN
+              // and village. The Owner-side doorstep path (OW-004) goes
+              // through app.register_new_customer, which does take
+              // coordinates, and does store them.
               address: {
                 'door_no': _doorNo.text.trim(),
                 'pin_code': _pinCode.text.trim(),
@@ -422,6 +432,26 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               const SizedBox(height: ManaSpacing.xl),
 
               const _SectionLabel('address'),
+              // Fills PIN and village from where the person is standing, and
+              // keeps the coordinates. Everything it writes stays editable —
+              // the geocoder is often vague in a village, so it is a
+              // shortcut, never the final word. See UseMyLocationButton.
+              UseMyLocationButton(
+                onCaptured: (place) {
+                  setState(() {
+                    if (place.pinCode != null) _pinCode.text = place.pinCode!;
+                    if (place.village != null) {
+                      _villageSearch.text = place.village!;
+                      // A typed village id no longer matches the new name.
+                      _villageId = null;
+                      _selectedVillageLabel = null;
+                    }
+                  });
+                  if (_pinCode.text.trim().length == 6) {
+                    _searchVillages(_villageSearch.text);
+                  }
+                },
+              ),
               TextFormField(
                 controller: _doorNo,
                 decoration: const InputDecoration(labelText: 'Door / House No *'),

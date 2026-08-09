@@ -283,7 +283,8 @@ class _MembershipTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: ListTile(
         title: ManaText.raw(membership.businessName),
-        subtitle: const ManaText('agent'),
+        // Was a hardcoded const ManaText('agent') — see fetchMemberships.
+        subtitle: ManaText.raw(membership.rolesLabel),
         trailing: ManaStatusPill(label: membership.membershipStatus, status: _pillStatus),
         onTap: () => context.push('/ag-001', extra: membership.businessId),
       ),

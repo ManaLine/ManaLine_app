@@ -180,7 +180,10 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ow-004',
-      builder: (c, s) => CustomerManagementScreen(businessId: _resolveBusinessId(s)),
+      builder: (c, s) => CustomerManagementScreen(
+        businessId: _resolveBusinessId(s),
+        initialAction: s.uri.queryParameters['action'],
+      ),
     ),
     GoRoute(
       path: '/ow-005',

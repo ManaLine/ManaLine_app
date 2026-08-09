@@ -38,12 +38,25 @@ class FirstLoginScreen extends ConsumerStatefulWidget {
   /// lr-012/lr-008 destination.
   final String? redirectAfterSuccess;
 
+  /// True when this screen is rendered as the password half of the merged
+  /// login screen (LR-009) rather than as a route of its own.
+  ///
+  /// PIN and password are two ways to answer the same question, so they are
+  /// now one screen with a switch instead of two screens the person has to
+  /// navigate between. The host owns the Scaffold, the AppBar and the
+  /// language selector; this widget contributes only the password form, so
+  /// nothing is drawn twice. Every other behaviour — step-down banner,
+  /// lockout, redirect, photo upload, location consent — is identical in
+  /// both modes because it is the same code either way.
+  final bool embedded;
+
   const FirstLoginScreen({
     super.key,
     this.stepDownFromFailedPin = false,
     this.prefilledMobile,
     this.successToast,
     this.redirectAfterSuccess,
+    this.embedded = false,
   });
 
   @override
@@ -268,6 +281,8 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     final lang = ref.watch(authFlowProvider).language;
     final canSubmit = _mobile.text.length == 10 && _password.text.isNotEmpty;
 
+    if (widget.embedded) return _form(lang, canSubmit);
+
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
@@ -279,10 +294,19 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
         // none of them.
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: Column(
+          child: _form(lang, canSubmit),
+        ),
+      ),
+    );
+  }
+
+  /// The password form itself, without a Scaffold — so the merged login
+  /// screen can host it directly.
+  Widget _form(ManaLanguage lang, bool canSubmit) {
+    return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: ManaSpacing.xxl),
+              SizedBox(height: widget.embedded ? ManaSpacing.md : ManaSpacing.xxl),
               if (widget.stepDownFromFailedPin)
                 Container(
                   padding: const EdgeInsets.all(ManaSpacing.md),
@@ -361,18 +385,19 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                         width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : ManaText.raw(ref.t('login_button')),
               ),
-              const SizedBox(height: ManaSpacing.xl),
-              Align(
-                alignment: Alignment.center,
-                child: ManaLanguageSelector(
-                  current: lang,
-                  onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
+              // The host draws the language selector in embedded mode, so
+              // drawing it here too would put two on the same screen.
+              if (!widget.embedded) ...[
+                const SizedBox(height: ManaSpacing.xl),
+                Align(
+                  alignment: Alignment.center,
+                  child: ManaLanguageSelector(
+                    current: lang,
+                    onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
+                  ),
                 ),
-              ),
+              ],
             ],
-          ),
-        ),
-      ),
     );
   }
 }

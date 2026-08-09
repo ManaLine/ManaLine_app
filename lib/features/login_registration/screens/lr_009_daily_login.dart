@@ -16,6 +16,7 @@ import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import 'lr_005_otp_verification.dart';
+import 'lr_007_first_login.dart';
 
 /// LR-009 — fast re-authentication for a returning person on an
 /// already-trusted device. PIN pad is primary (F1); biometric (F2)
@@ -28,14 +29,48 @@ import 'lr_005_otp_verification.dart';
 /// predates the pin_length column), they're routed through LR-008 in
 /// upgrade mode before reaching their workspace, instead of straight to
 /// LR-012.
+///
+/// MERGED this batch: this screen now hosts BOTH credentials. PIN and
+/// password answer the same question — "is this you?" — so making them
+/// two destinations meant a person who could not remember one had to
+/// navigate to reach the other, on the screen where they are least able
+/// to. There is now one screen and a switch. `/lr-007` still resolves and
+/// still carries every argument it always did; it simply opens this
+/// screen already switched to password, so the locked screen IDs, the
+/// BR-201 step-down and every existing push keep working unchanged.
 class DailyLoginScreen extends ConsumerStatefulWidget {
-  const DailyLoginScreen({super.key});
+  /// True when opened as `/lr-007` — start on the password form.
+  final bool startInPasswordMode;
+
+  /// Passed straight through to the password form. See [FirstLoginScreen].
+  final bool stepDownFromFailedPin;
+  final String? prefilledMobile;
+  final String? successToast;
+  final String? redirectAfterSuccess;
+
+  const DailyLoginScreen({
+    super.key,
+    this.startInPasswordMode = false,
+    this.stepDownFromFailedPin = false,
+    this.prefilledMobile,
+    this.successToast,
+    this.redirectAfterSuccess,
+  });
 
   @override
   ConsumerState<DailyLoginScreen> createState() => _DailyLoginScreenState();
 }
 
 class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
+  /// Which credential is on screen. Starts from the route, then follows
+  /// the switch — no navigation, so nothing is pushed and Back never
+  /// walks backwards through credential types.
+  late bool _passwordMode = widget.startInPasswordMode;
+
+  /// Set when the 3rd wrong PIN forced the switch to password (BR-201).
+  /// Kept separate from the constructor argument because the step-down can
+  /// now happen without any navigation.
+  bool _stepDown = false;
   int? _pinLength; // remembered locally from LR-008, per F1
   String _entered = '';
   int _wrongAttempts = 0;
@@ -79,15 +114,17 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
     if (!mounted) return;
 
     if (length == null) {
-      // Prerequisite condition failed (per LR-009 ENTRY POINT: no
-      // pin_hash on this device) — not this screen's concern, route
-      // back to the fresh-device flow.
-      context.go('/lr-001');
+      // No PIN on this device. That used to be an impossible state here,
+      // so it bounced to LR-001; now that this screen is also `/lr-007`,
+      // it is the ordinary case for anyone logging in for the first time.
+      // Fall back to the password form rather than bouncing — bouncing
+      // would send a first-time user in a circle.
+      setState(() => _passwordMode = true);
       return;
     }
 
     setState(() => _pinLength = length);
-    _maybeTriggerBiometric();
+    if (!_passwordMode) _maybeTriggerBiometric();
   }
 
   Future<void> _maybeTriggerBiometric() async {
@@ -180,17 +217,53 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
       showCursor: false,
       cursorColor: Colors.transparent,
       style: const TextStyle(color: Colors.transparent, fontSize: 1),
-      decoration: const InputDecoration(
-        counterText: '',
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        contentPadding: EdgeInsets.zero,
-        isDense: true,
-      ),
+      // collapsed(), not a hand-cleared InputDecoration: collapsed is the
+      // one that also drops the 48px minimum tap-target height and the
+      // counter, which is what made the field impossible to hide cleanly.
+      decoration: const InputDecoration.collapsed(hintText: ''),
       onSubmitted: (_) {
         if (_entered.length == _pinLength && !_submitting) _submit();
       },
+    );
+  }
+
+  /// The dots, with the real (invisible) field behind them.
+  ///
+  /// BUG FIXED: the field used to be a `Positioned.fill` layered OVER a
+  /// Stack whose only other child was the 16px-tall dots Row. Positioned.
+  /// fill forces its child to exactly the Stack's size, so a TextField —
+  /// which will not render below its own minimum height — was crushed into
+  /// 16px and painted a clipped band straight across the dots.
+  ///
+  /// Fixed by sizing the Stack explicitly and putting the field UNDER the
+  /// dots rather than over them, with the dots made hit-transparent so a
+  /// tap still lands on the field and still opens the keyboard.
+  Widget _pinDots() {
+    return SizedBox(
+      height: 56,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(child: _pinField()),
+          IgnorePointer(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_pinLength!, (i) {
+                final filled = i < _entered.length;
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: filled ? ManaColors.brand : ManaColors.surfaceSunken,
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -317,12 +390,22 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
     _wrongAttempts++;
     if (_wrongAttempts >= 3) {
       // S4 / BR-201 — step down to LR-007, password required, NOT
-      // Forgot Password. Local PIN material is cleared inside LR-007
-      // once the password login actually succeeds (see that screen's
-      // diff), not here — a 3rd wrong attempt alone doesn't erase the
-      // PIN, only a confirmed successful password re-auth does.
-      context.go('/lr-007',
-          extra: const LoginStepDownArgs(stepDownFromFailedPin: true));
+      // Forgot Password. Local PIN material is cleared inside the password
+      // form once that login actually succeeds, not here — a 3rd wrong
+      // attempt alone doesn't erase the PIN, only a confirmed successful
+      // password re-auth does.
+      //
+      // Now a switch rather than a `go`: the password form lives on this
+      // same screen, so there is nothing to navigate to. `_stepDown` makes
+      // it show the same "Enter your password to continue" banner the
+      // routed version showed.
+      setState(() {
+        _submitting = false;
+        _stepDown = true;
+        _passwordMode = true;
+        _error = null;
+      });
+      _pinController.clear();
       return;
     }
 
@@ -354,22 +437,67 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
     });
   }
 
+  /// Back, from either the AppBar arrow or the handset's own Back key.
+  ///
+  /// Login is the root of the app: there is nothing above it to return to,
+  /// so Back used to close the app outright on the first press. That reads
+  /// as a crash. It now confirms first — but only when this really is the
+  /// root. When the screen was pushed (e.g. "Forgot PIN?" verifying a
+  /// password first) there is a real destination underneath and Back pops
+  /// to it, as it should.
+  Future<void> _handleBack() async {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const ManaText('exit app'),
+        content: const ManaText('are you sure you want to close mana line?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const ManaText('cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const ManaText('exit'),
+          ),
+        ],
+      ),
+    );
+    if (leave == true) await SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(translationLoaderProvider);
     final lang = ref.watch(authFlowProvider).language;
 
-    if (_pinLength == null) {
+    // Only the PIN pane needs the stored length. In password mode the
+    // screen is usable immediately, so gating on it would show a spinner
+    // to someone who has no PIN at all.
+    if (_pinLength == null && !_passwordMode) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    return PopScope(
+      // canPop false so the handset Back key reaches _handleBack instead of
+      // closing the app under us; _handleBack does the popping itself when
+      // popping is the right answer.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleBack();
+      },
+      child: _scaffold(lang),
+    );
+  }
+
+  Widget _scaffold(ManaLanguage lang) {
     return Scaffold(
-      // Back goes to LR-007 (password login) rather than popping — this
-      // screen is reached by a `go`, so there is usually nothing beneath it
-      // to pop to, and "I can't do the PIN" always means "let me use my
-      // password".
       appBar: AppBar(
-        leading: BackButton(onPressed: () => context.go('/lr-007')),
+        leading: BackButton(onPressed: _handleBack),
       ),
       body: SafeArea(
         // Scrollable, and the Column sizes to its content instead of using
@@ -397,44 +525,46 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: ManaSpacing.xl),
-              // Dots are the display; the invisible field on top of them is
-              // the input, so tapping the dots opens the keyboard.
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_pinLength!, (i) {
-                      final filled = i < _entered.length;
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: filled
-                              ? ManaColors.brand
-                              : ManaColors.surfaceSunken,
-                        ),
-                      );
-                    }),
-                  ),
-                  Positioned.fill(child: _pinField()),
+              if (_passwordMode)
+                FirstLoginScreen(
+                  embedded: true,
+                  stepDownFromFailedPin: _stepDown || widget.stepDownFromFailedPin,
+                  prefilledMobile: widget.prefilledMobile,
+                  successToast: widget.successToast,
+                  redirectAfterSuccess: widget.redirectAfterSuccess,
+                )
+              else ...[
+                _pinDots(),
+                if (_error != null) ...[
+                  const SizedBox(height: ManaSpacing.sm),
+                  ManaText.raw(_error!,
+                      style: TextStyle(color: ManaColors.statusBad)),
                 ],
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: ManaSpacing.sm),
-                ManaText.raw(_error!,
-                    style: TextStyle(color: ManaColors.statusBad)),
+                if (_submitting) ...[
+                  const SizedBox(height: ManaSpacing.lg),
+                  const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                ],
               ],
-              if (_submitting) ...[
-                const SizedBox(height: ManaSpacing.lg),
-                const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2)),
-              ],
-              const SizedBox(height: ManaSpacing.xl),
+              const SizedBox(height: ManaSpacing.lg),
+              // The switch between the two credentials. Offered only when a
+              // PIN actually exists on this device — otherwise "Use PIN"
+              // would lead to a pane with nothing to type into.
+              if (_pinLength != null)
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    _passwordMode = !_passwordMode;
+                    _error = null;
+                    if (!_passwordMode) _pinController.clear();
+                  }),
+                  icon: Icon(_passwordMode ? Icons.pin_outlined : Icons.password_outlined),
+                  label: ManaText.raw(
+                    _passwordMode ? ref.t('login_with_pin') : ref.t('login_with_password'),
+                  ),
+                ),
+              const SizedBox(height: ManaSpacing.md),
               // Wrap, not Row: these labels come from ui_translations, so their
               // width is data, not a constant. Two unconstrained TextButtons in
               // a Row overflowed as soon as the language changed to Kannada.

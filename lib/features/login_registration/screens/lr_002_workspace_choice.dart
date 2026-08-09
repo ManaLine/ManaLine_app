@@ -18,9 +18,20 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        // SCROLLS, and the Column sizes to its content instead of using
+        // Spacer to centre it.
+        //
+        // WHY: this was a fixed-height Column with two Spacers. Spacers
+        // divide up whatever vertical space is LEFT OVER, so the moment the
+        // fixed children (72px logo, heading, two product cards) are taller
+        // than the viewport that leftover goes negative and the layout
+        // overflows — 41px in landscape on a real handset. The identical
+        // fix was already applied to LR-009 for the identical reason; this
+        // screen was simply missed.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: ManaSpacing.xl),
               ClipOval(
@@ -44,7 +55,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                       color: ManaColors.brand,
                     ),
               ),
-              const Spacer(),
+              const SizedBox(height: ManaSpacing.xxl),
               ManaText.raw(ref.t('choose_workspace'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: ManaSpacing.lg),
               _ProductCard(
@@ -61,7 +72,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 badge: ref.t('coming_soon'),
                 onTap: () => _showComingSoon(context),
               ),
-              const Spacer(),
+              const SizedBox(height: ManaSpacing.xxl),
             ],
           ),
         ),

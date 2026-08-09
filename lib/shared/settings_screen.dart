@@ -430,14 +430,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: null,
             ),
             _SettingsTile(
-              icon: Icons.no_accounts_outlined,
-              title: 'Switch Off Or Delete Account',
-              subtitle: 'Both are reversible — switching off keeps everything, '
-                  'and a deletion can be stopped for 90 days.',
-              titleColor: ManaColors.statusBad,
-              onTap: () => context.push('/account-closure'),
-            ),
-            _SettingsTile(
               icon: Icons.fingerprint,
               title: 'Biometric Login',
               trailing: _biometricEnabled == null
@@ -454,6 +446,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ? 'Enabled — your fingerprint signs you in on this device.'
                   : 'Enable to sign in with your fingerprint instead of typing your PIN.',
               onTap: null,
+            ),
+            // Deliberately the LAST row of this section, under both sign-in
+            // toggles. It is the only destructive control on the screen, and
+            // a red row sitting directly above the two switches people
+            // actually come here to flip is a mis-tap waiting to happen.
+            _SettingsTile(
+              icon: Icons.no_accounts_outlined,
+              title: 'Switch Off Or Delete Account',
+              subtitle: 'Both are reversible — switching off keeps everything, '
+                  'and a deletion can be stopped for 90 days.',
+              titleColor: ManaColors.statusBad,
+              onTap: () => context.push('/account-closure'),
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('business transfer'),

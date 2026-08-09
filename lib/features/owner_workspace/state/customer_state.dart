@@ -612,6 +612,47 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
     }
   }
 
+  /// [createNew] but hands back the new customer_id.
+  ///
+  /// The migration form needs it: it registers the person and records their
+  /// existing loan against them in one pass, and cannot look the id up by
+  /// name afterwards without risking the wrong match in a village where
+  /// several people share one.
+  ///
+  /// Rethrows rather than swallowing into a bool — a caller that is about to
+  /// write a loan against this id must not proceed on a failure it cannot
+  /// see. [createNew] keeps its bool contract for the callers that only
+  /// need "did it work".
+  Future<String> createNewReturningId({
+    required String businessId,
+    required String fullName,
+    required String fatherHusbandName,
+    required String genderDigit,
+    required String mobileNumber,
+    String? aadhaarNumber,
+    required String doorNo,
+    String? pinCode,
+    required String villageId,
+  }) async {
+    final fix = await ManaLocation.currentFix();
+    final id = await ref.read(customerApiServiceProvider).createCustomer(
+          businessId: businessId,
+          fullName: fullName,
+          fatherHusbandName: fatherHusbandName,
+          genderDigit: genderDigit,
+          mobileNumber: mobileNumber,
+          aadhaarNumber: aadhaarNumber,
+          doorNo: doorNo,
+          pinCode: pinCode,
+          villageId: villageId,
+          gpsLatitude: fix.latitude,
+          gpsLongitude: fix.longitude,
+          gpsAccuracyM: fix.accuracyM,
+        );
+    await load(businessId);
+    return id;
+  }
+
   Future<bool> createNew({
     required String businessId,
     required String fullName,

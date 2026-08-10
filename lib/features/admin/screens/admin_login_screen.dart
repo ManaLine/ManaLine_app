@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -46,7 +47,15 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = 'Could not reach the server. Check your connection and try again.';
+        // Only claim a connection problem when it actually IS one. This
+        // swallowed every failure into "check your connection", which is
+        // how a client-side envelope bug looked like a dead network while
+        // the server was answering 200 the whole time.
+        _error = e is FunctionException
+            ? 'Server rejected the request (${e.status}). Please try again.'
+            : e is FormatException
+                ? 'Unexpected response from the server. Please report this.'
+                : 'Could not reach the server. Check your connection and try again.';
       });
     }
   }

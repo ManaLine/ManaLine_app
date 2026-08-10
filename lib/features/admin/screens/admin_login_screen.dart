@@ -65,9 +65,15 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     return Scaffold(
       appBar: AppBar(title: const ManaText('admin login')),
       body: SafeArea(
-        child: Padding(
+        // SCROLLS. A non-scrolling Column overflowed by 140px the moment the
+        // keyboard opened over the password field — the same class of fault
+        // as LR-002 and the Request to Join sheet. A login screen is
+        // guaranteed to have the keyboard up, so it is the last place that
+        // can afford a fixed-height layout.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: ManaSpacing.xxl),

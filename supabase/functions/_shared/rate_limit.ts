@@ -17,6 +17,7 @@
 // Cleanup: old rows are deleted on each call so the table stays small.
 
 import { supabaseAdmin } from "./supabaseAdmin.ts";
+import { IST_OFFSET_MS } from "./time.ts";
 
 export async function rateLimit(
   bucketKey: string,
@@ -24,7 +25,22 @@ export async function rateLimit(
   windowMs: number = 5 * 60 * 1000
 ): Promise<boolean> {
   const admin = supabaseAdmin();
-  const cutoff = new Date(Date.now() - windowMs).toISOString();
+
+  // BUG FIXED: the cutoff used to be `new Date(...).toISOString()`, i.e. UTC,
+  // while auth_rate_limits.bucket_ts is `timestamp without time zone`
+  // defaulting to now() — which under this database's TimeZone
+  // (Asia/Kolkata) stores IST wall-clock. The cutoff therefore sat 5.5 hours
+  // BEHIND every stored row, so the prune deleted nothing and the count
+  // matched everything ever recorded. Buckets never drained: after `limit`
+  // attempts EVER, that key was rate-limited permanently. Admin login had
+  // already reached that state, and the person-login bucket was four days
+  // deep and heading the same way.
+  //
+  // Same naive-IST rule as the rest of this schema — see _shared/time.ts.
+  const cutoff = new Date(Date.now() + IST_OFFSET_MS - windowMs)
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
 
   // Prune stale rows for this bucket.
   await admin

@@ -551,14 +551,24 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
       if (!mounted) return;
       setState(() {
         _applying = false;
-        _error = 'Could not send request — you may already have one pending for this role/business.';
+        // The real message, not a guess. This said "you may already have
+        // one pending" for EVERY failure, which was actively misleading
+        // while the RPC itself was throwing 42883 on every call and no
+        // request had ever been created.
+        _error = e is PostgrestException
+            ? e.message
+            : 'Could not send request. Please try again.';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // SCROLLS. Padding alone accounted for the keyboard but the content
+    // could not move, so once the role chips + search field + confirm card +
+    // button were taller than what the keyboard left behind, it overflowed —
+    // 24px on a real handset. Same class of bug as LR-002's Spacers.
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: ManaSpacing.lg,
         right: ManaSpacing.lg,

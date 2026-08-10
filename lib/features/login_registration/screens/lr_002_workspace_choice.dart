@@ -34,7 +34,19 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: ManaSpacing.xl),
-              ClipOval(
+              // Long-press opens the Platform Admin login.
+              //
+              // The admin panel had NO entry point at all: nothing anywhere
+              // in the app linked to /admin-login, so on the web you could
+              // type the URL and on a phone there was simply no way in. It
+              // is deliberately a long-press on the pre-login logo rather
+              // than a visible row — ordinary Owners should never stumble
+              // into it — and the admin username/password screen is still
+              // the real gate, so discoverability is not the security
+              // boundary here.
+              GestureDetector(
+                onLongPress: () => context.push('/admin-login'),
+                child: ClipOval(
                 child: Image.asset(
                   'assets/images/logo.png',
                   // 1254x1254 source rendered at ~96px. cacheWidth decodes at
@@ -45,6 +57,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                   height: 72,
                   width: 72,
                   fit: BoxFit.cover,
+                ),
                 ),
               ),
               const SizedBox(height: ManaSpacing.md),

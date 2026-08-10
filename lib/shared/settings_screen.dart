@@ -54,6 +54,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool? _pinEnabled;
   bool _togglingPin = false;
 
+  /// Wrong-PIN attempts inside this dialog. Capped BELOW the server's own
+  /// lockout threshold so verifying a toggle can never be the thing that
+  /// locks someone out of their account.
+  int _pinAttempts = 0;
+  static const _maxPinAttempts = 2;
+
   /// Each workspace's own profile screen. Settings is shared across all four,
   /// so the destination is derived from whichever home route was passed in
   /// rather than duplicating this screen per role.
@@ -165,23 +171,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final fingerprint = await LocalAuthStore.deviceFingerprint();
     if (!mounted) return;
 
-    final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(authApiServiceProvider).login(
-            identifier: mobile,
-            credential: entered,
-            credentialType: 'pin',
-            deviceFingerprint: fingerprint,
-          );
+    // AccountLockedException is caught HERE rather than left to the generic
+    // handler. Verifying a PIN goes through the real login endpoint, so a
+    // wrong PIN increments the SAME server-side failed_pin_attempts counter
+    // as a real login — three wrong guesses in this dialog locked the
+    // account and dumped the person out to the password screen, from a
+    // screen whose only purpose was flipping a convenience toggle.
+    LoginResult? result;
+    AccountLockedException? locked;
+    final reached = await NetworkErrorHandler.run(context, () async {
+      try {
+        result = await ref.read(authApiServiceProvider).login(
+              identifier: mobile,
+              credential: entered,
+              credentialType: 'pin',
+              deviceFingerprint: fingerprint,
+            );
+      } on AccountLockedException catch (e) {
+        locked = e;
+      }
+      return true;
     });
     if (!mounted) return;
     setState(() => _togglingPin = false);
 
-    if (result == null) return; // network failure — SnackBar already shown
-    if (!result.success) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Incorrect PIN.')));
+    if (reached == null) return; // network failure — SnackBar already shown
+
+    if (locked != null) {
+      _pinAttempts = 0;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(locked!.message),
+        duration: const Duration(seconds: 6),
+      ));
       return;
     }
+
+    if (result == null || !result!.success) {
+      _pinAttempts++;
+      final remaining = _maxPinAttempts - _pinAttempts;
+      if (remaining > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Incorrect PIN. $remaining ${remaining == 1 ? "try" : "tries"} left.'),
+        ));
+        // Straight back into the dialog — the toggle is still off, and
+        // making the person find it again to retry is why this read as
+        // "it just logs me out".
+        await _onPinToggled(true);
+      } else {
+        _pinAttempts = 0;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Incorrect PIN. Stopping here so your account is not locked.'),
+          duration: Duration(seconds: 6),
+        ));
+      }
+      return;
+    }
+    _pinAttempts = 0;
 
     // Only stored after the server confirmed it — never on local guesswork.
     await LocalAuthStore.savePin(

@@ -1,5 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// How long any single Supabase call may hang before it is treated as failed.
+///
+/// PostgREST and the Functions client have NO client-side deadline of their
+/// own, so a request made on a dying connection — the tea-shop captive
+/// portal, a cell that hands over mid-request — never completes and never
+/// errors. The screen that made it spins forever with nothing to cancel.
+/// This is deliberately generous: a village 2G round trip is genuinely slow,
+/// and cutting a working request short would be worse than waiting.
+const Duration kManaQueryTimeout = Duration(seconds: 20);
 
 /// One consistent way to run a network call from any screen and surface
 /// its failure. Every LR screen's submit/verify/send action should route
@@ -28,7 +40,9 @@ class NetworkErrorHandler {
     String genericErrorMessage = 'Something went wrong. Please try again.',
   }) async {
     try {
-      return await action();
+      // Every call routed through here inherits the deadline, so no screen
+      // has to remember to add one.
+      return await action().timeout(kManaQueryTimeout);
     } catch (e) {
       if (!context.mounted) return null;
 
@@ -41,7 +55,9 @@ class NetworkErrorHandler {
       // the bug. Only genuine transport-layer failures (DNS, socket,
       // timeout — thrown before any response is received) get the
       // connectivity-worded message below.
-      final message = _isServerReachedError(e)
+      final message = e is TimeoutException
+          ? 'The server did not respond. Check your connection and try again.'
+          : _isServerReachedError(e)
           ? _serverErrorMessage(e, genericErrorMessage)
           : _looksLikeConnectivityError(e)
               ? 'No internet connection. Please check your network and try again.'

@@ -141,6 +141,9 @@ class _Step1CustomerSelection extends ConsumerStatefulWidget {
 class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection> {
   final _query = TextEditingController();
   CustomerSummary? _found;
+  /// >1 match for the typed name. Shown as a prompt to narrow the search
+  /// rather than silently picking one.
+  int _ambiguousCount = 0;
   bool _searching = false;
 
   Future<void> _search() async {
@@ -166,7 +169,14 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
     if (!mounted) return;
     setState(() {
       _searching = false;
-      _found = result;
+      // searchIdentity returns EVERY match now (a name is not unique).
+      // These two screens pick a single customer for a loan, so an
+      // ambiguous name search deliberately selects nothing rather than
+      // guessing — issuing a loan against the wrong person of the same
+      // name is the failure that matters here.
+      final matches = result ?? const <CustomerSummary>[];
+      _found = matches.length == 1 ? matches.first : null;
+      _ambiguousCount = matches.length > 1 ? matches.length : 0;
     });
   }
 
@@ -210,6 +220,15 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
                 child: ManaText.raw(ref.t('select')),
               ),
             ),
+          )
+        // Several people share the typed name. Say so and make them narrow
+        // it — picking one for the Owner is how a loan lands on the wrong
+        // person of the same name.
+        else if (_ambiguousCount > 0 && !_searching)
+          ManaText.raw(
+            '$_ambiguousCount people match that name. Search by MANA LINE ID, '
+            'Aadhaar or mobile number to pick the right one.',
+            style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
           )
         else if (_query.text.trim().isNotEmpty && !_searching)
           ManaText.raw(ref.t('no_matching_customer_note'),

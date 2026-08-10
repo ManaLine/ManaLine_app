@@ -588,11 +588,22 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                     child: ManaText.raw(ref.t('forgot_pin')),
                   ),
                   TextButton(
-                    onPressed: () {
+                    onPressed: () async {
                       // Clear the remembered identity before leaving, or the
                       // next screen would still be scoped to the old person.
+                      //
+                      // The stored PIN goes too, and that is the actual fix:
+                      // clearing only the session left this device's PIN in
+                      // place, so the very next screen was a PIN pad for the
+                      // person being switched AWAY from. Someone else picking
+                      // up the phone had no way through. With no PIN on the
+                      // device the merged screen opens on the password form,
+                      // which is the only credential a different person has.
+                      await LocalAuthStore.clearPin();
+                      await LocalAuthStore.clearLastMobileNumber();
+                      if (!mounted) return;
                       ref.read(authFlowProvider.notifier).reset();
-                      context.go('/lr-003');
+                      context.go('/lr-007');
                     },
                     child: ManaText.raw(ref.t('change_user')),
                   ),

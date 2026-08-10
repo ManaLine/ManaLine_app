@@ -528,8 +528,10 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
   final _query = TextEditingController();
   bool _searching = false;
   String? _error;
-  CustomerSummary? _found;
-  List<String> _foundRoles = const [];
+  /// All matches, with each one's roles in THIS business. A name is not
+  /// unique, so a search for "sai" legitimately returns several people —
+  /// showing only the first is how the Owner opens the wrong record.
+  List<({CustomerSummary person, List<String> roles})> _found = const [];
 
   Future<void> _search() async {
     final query = _query.text.trim();
@@ -537,8 +539,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
     setState(() {
       _searching = true;
       _error = null;
-      _found = null;
-      _foundRoles = const [];
+      _found = const [];
     });
     final isMlid = RegExp(r'^ML[A-Za-z]{2}\d+$').hasMatch(query);
     final digitsOnly = RegExp(r'^\d+$').hasMatch(query);
@@ -557,20 +558,34 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
       // (person_id, business_id, role), not (person_id, business_id)).
       // .maybeSingle() throws "Results contain N rows" the moment that's
       // true for whoever was searched, instead of just listing them.
-      var roles = <String>[];
-      if (result?.personId != null) {
-        final rows = await Supabase.instance.client
-            .from('business_members')
-            .select('role')
-            .eq('business_id', widget.businessId)
-            .eq('person_id', int.parse(result!.personId!));
-        roles = (rows as List).map((r) => r['role'] as String).toList();
+      // One membership query for ALL matches rather than one per person —
+      // a name search can return 25, and 25 serial round trips on a village
+      // connection is a hang, not a search.
+      final ids = [
+        for (final r in result)
+          if (r.personId != null) int.parse(r.personId!),
+      ];
+      final roleRows = ids.isEmpty
+          ? const <Map<String, dynamic>>[]
+          : ((await Supabase.instance.client
+                  .from('business_members')
+                  .select('person_id, role')
+                  .eq('business_id', widget.businessId)
+                  .inFilter('person_id', ids)) as List)
+              .cast<Map<String, dynamic>>();
+      final rolesByPerson = <String, List<String>>{};
+      for (final row in roleRows) {
+        rolesByPerson
+            .putIfAbsent(row['person_id'].toString(), () => [])
+            .add(row['role'] as String);
       }
       if (!mounted) return;
       setState(() {
         _searching = false;
-        _found = result;
-        _foundRoles = roles;
+        _found = [
+          for (final person in result)
+            (person: person, roles: rolesByPerson[person.personId] ?? const []),
+        ];
       });
     } catch (e) {
       if (!mounted) return;
@@ -637,16 +652,20 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
               ManaText.raw(_error!,
                   style: TextStyle(
                       color: ManaColors.statusBad, fontSize: 13)),
-            if (_found != null)
+            for (final match in _found)
               Card(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ListTile(
-                      title: ManaText.raw(_found!.fullName),
-                      subtitle: ManaText.raw(_found!.mlid),
+                      title: ManaText.raw(match.person.fullName),
+                      subtitle: ManaText.raw([
+                        match.person.mlid,
+                        if (match.person.fatherHusbandName.isNotEmpty)
+                          match.person.fatherHusbandName,
+                      ].join(' · ')),
                     ),
-                    if (_foundRoles.isEmpty)
+                    if (match.roles.isEmpty)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
                             ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
@@ -658,7 +677,7 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                       // A person can hold more than one role in the same
                       // business (e.g. an Owner who is also an Agent) —
                       // one tappable row per role rather than guessing.
-                      ..._foundRoles.map((role) => ListTile(
+                      ...match.roles.map((role) => ListTile(
                             title: ManaText.raw(role),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => _goToRoleScreen(context, role),

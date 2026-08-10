@@ -570,18 +570,6 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   /// registration RPC as OW-004's Add Customer sheet — this is not a second
   /// way to create a person, only a second place to do it from.
   List<Widget> _personFields() => [
-        UseMyLocationButton(
-          onCaptured: (place) {
-            setState(() {
-              if (place.pinCode != null) _pinCode.text = place.pinCode!;
-              if (place.village != null) {
-                _villageSearch.text = place.village!;
-                _villageId = null;
-              }
-            });
-            if (_pinCode.text.trim().length == 6) _searchVillages(_villageSearch.text);
-          },
-        ),
         TextField(
           controller: _fullName,
           textCapitalization: TextCapitalization.words,
@@ -630,6 +618,18 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           controller: _doorNo,
           decoration: const InputDecoration(labelText: 'Door / House No *'),
           onChanged: (_) => setState(() {}),
+        ),
+        UseMyLocationButton(
+          onCaptured: (place) {
+            setState(() {
+              if (place.pinCode != null) _pinCode.text = place.pinCode!;
+              if (place.village != null) {
+                _villageSearch.text = place.village!;
+                _villageId = null;
+              }
+            });
+            if (_pinCode.text.trim().length == 6) _searchVillages(_villageSearch.text);
+          },
         ),
         TextField(
           controller: _pinCode,

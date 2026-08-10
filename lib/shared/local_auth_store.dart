@@ -81,4 +81,13 @@ class LocalAuthStore {
     await _storage.delete(key: _kPinLength);
     await _storage.delete(key: _kBiometricEnabled);
   }
+
+  /// Forgets WHO this device last belonged to.
+  ///
+  /// Separate from [clearPin] because the two are not the same act: a
+  /// BR-201 step-down drops the unlock material but the phone still belongs
+  /// to the same person, whereas "Change User" means someone else is about
+  /// to sign in and the remembered number would otherwise pre-fill theirs.
+  static Future<void> clearLastMobileNumber() =>
+      _storage.delete(key: _kLastMobileNumber);
 }

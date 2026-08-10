@@ -6,6 +6,7 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/document_viewer.dart' show DocumentSummary;
 import '../../../shared/mana_time.dart';
+import '../../../shared/network_error_handler.dart' show kManaQueryTimeout;
 
 /// OW-004 Customer Domain — real Supabase wiring over Module 3
 /// (persons/person_addresses/business_members/customers/customer_remarks).
@@ -90,7 +91,14 @@ class CustomerApiService {
   /// with at all — that's RLS working as intended, not a bug to route
   /// around; Create New Identity is the correct path when this legitimately
   /// finds nothing.
-  Future<CustomerSummary?> searchIdentity({
+  /// EVERY match, not just the first.
+  ///
+  /// Was `Future<CustomerSummary?>` returning `list.first`, on top of an RPC
+  /// that also had LIMIT 1 on every branch — so a business with two people
+  /// called Sai could only ever surface one of them, in both the Add
+  /// Customer sheet and the header's universal search. The unique-identifier
+  /// branches still match at most one row by constraint; a name never did.
+  Future<List<CustomerSummary>> searchIdentity({
     String? phone,
     String? aadhaar,
     String? mlid,
@@ -100,32 +108,40 @@ class CustomerApiService {
         (aadhaar == null || aadhaar.isEmpty) &&
         (phone == null || phone.isEmpty) &&
         (fullName == null || fullName.isEmpty)) {
-      return null;
+      return const [];
     }
-    final rows = await _db.schema('app').rpc('owner_search_person', params: {
-      'p_mlid': mlid,
-      'p_mobile_number': phone,
-      'p_aadhaar_number': aadhaar,
-      'p_full_name': fullName,
-    });
+    // .timeout, because PostgREST has no client-side deadline of its own.
+    // A request that stalls (dead cell, captive portal) otherwise leaves the
+    // caller's spinner turning forever with nothing to cancel it — which is
+    // exactly what the Add Customer sheet did.
+    final rows = await _db
+        .schema('app')
+        .rpc('owner_search_person', params: {
+          'p_mlid': mlid,
+          'p_mobile_number': phone,
+          'p_aadhaar_number': aadhaar,
+          'p_full_name': fullName,
+        })
+        .timeout(kManaQueryTimeout);
     final list = (rows as List).cast<Map<String, dynamic>>();
-    if (list.isEmpty) return null;
-    final row = list.first;
-    return CustomerSummary(
-      customerId: '', // no customers row yet — this is a persons-level search result, not a customer
-      personId: row['person_id']?.toString(),
-      fullName: titleCaseName(row['full_name'] as String? ?? ''),
-      fatherHusbandName: titleCaseName(row['father_husband_name'] as String? ?? ''),
-      village: '',
-      phoneNumber: row['mobile_number'] as String? ?? '',
-      mlid: row['mlid'] as String? ?? '',
-      activeLoanCount: 0,
-      todaysDue: 0,
-      outstandingBalance: 0,
-      lineRepaymentIndex: 0,
-      customerStatus: 'Active',
-      membershipStatus: 'Pending Invitation',
-    );
+    return [
+      for (final row in list)
+        CustomerSummary(
+          customerId: '', // no customers row yet — a persons-level result, not a customer
+          personId: row['person_id']?.toString(),
+          fullName: titleCaseName(row['full_name'] as String? ?? ''),
+          fatherHusbandName: titleCaseName(row['father_husband_name'] as String? ?? ''),
+          village: '',
+          phoneNumber: row['mobile_number'] as String? ?? '',
+          mlid: row['mlid'] as String? ?? '',
+          activeLoanCount: 0,
+          todaysDue: 0,
+          outstandingBalance: 0,
+          lineRepaymentIndex: 0,
+          customerStatus: 'Active',
+          membershipStatus: 'Pending Invitation',
+        ),
+    ];
   }
 
   /// Handles both Link Existing (existingPersonId set) and Create New
@@ -585,7 +601,7 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
   void setCustomerStatusFilter(String? s) => state =
       s == null ? state.copyWith(clearCustomerStatusFilter: true) : state.copyWith(customerStatusFilter: s);
 
-  Future<CustomerSummary?> searchIdentity({
+  Future<List<CustomerSummary>> searchIdentity({
     String? phone,
     String? aadhaar,
     String? mlid,
@@ -597,7 +613,10 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
           .searchIdentity(phone: phone, aadhaar: aadhaar, mlid: mlid, fullName: fullName);
     } catch (e) {
       state = state.copyWith(error: e.toString());
-      return null;
+      // Rethrown, NOT swallowed into an empty list: "no such person" and
+      // "the search failed" must not look identical on screen. The callers
+      // show the message.
+      rethrow;
     }
   }
 

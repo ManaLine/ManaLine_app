@@ -1772,4 +1772,12 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'membership_fixed_note': {'English': r'Membership is fixed permanently at creation — no additions or removals.', 'Telugu': r'సభ్యత్వం సృష్టి సమయంలో శాశ్వతంగా నిర్ణయించబడుతుంది — జోడింపులు లేదా తొలగింపులు లేవు.'},
   'rename_group': {'English': r'Rename Group', 'Telugu': r'గ్రూప్ పేరు మార్చండి'},
   'delete_group_note': {'English': r'Member loans revert to ungrouped individual loans. This does not affect their own history.', 'Telugu': r'సభ్య రుణాలు గ్రూప్ లేని వ్యక్తిగత రుణాలుగా తిరిగి మారతాయి. ఇది వారి స్వంత చరిత్రపై ప్రభావం చూపదు.'},
+  'could_not_load_profile_plain': {'English': r'Could not load profile.', 'Telugu': r'ప్రొఫైల్ లోడ్ కాలేదు.'},
+  'edit': {'English': r'Edit', 'Telugu': r'మార్చండి'},
+  'businesses_owned': {'English': r'Businesses Owned', 'Telugu': r'స్వంత వ్యాపారాలు'},
+  'no_businesses_found': {'English': r'No businesses found.', 'Telugu': r'వ్యాపారాలు కనుగొనబడలేదు.'},
+  'no_address_on_file': {'English': r'No address on file.', 'Telugu': r'ఫైల్‌లో చిరునామా లేదు.'},
+  'add_profile_photo': {'English': r'Add Profile Photo', 'Telugu': r'ప్రొఫైల్ ఫోటో జోడించండి'},
+  'change_profile_photo': {'English': r'Change Profile Photo', 'Telugu': r'ప్రొఫైల్ ఫోటో మార్చండి'},
+  'edit_address': {'English': r'Edit Address', 'Telugu': r'చిరునామా మార్చండి'},
 };

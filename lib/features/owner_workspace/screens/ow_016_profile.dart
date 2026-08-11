@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
@@ -170,7 +171,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('my profile'),
+        title: ManaText.raw(ref.t('my_profile')),
         leading: BackButton(
             onPressed: () =>
                 context.canPop() ? context.pop() : context.go('/ow-001')),
@@ -182,7 +183,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
-                      child: ManaText.raw(_error ?? 'Could not load profile.',
+                      child: ManaText.raw(_error ?? ref.t('could_not_load_profile_plain'),
                           textAlign: TextAlign.center,
                           style: TextStyle(color: ManaColors.statusBad)),
                     ),
@@ -204,27 +205,34 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const ManaText('address',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
-                          TextButton.icon(
-                            onPressed: _editAddress,
-                            icon: const Icon(Icons.edit_outlined, size: 16),
-                            label: const ManaText('edit'),
+                          Expanded(
+                            child: ManaText.raw(ref.t('address'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
+                          ),
+                          const SizedBox(width: ManaSpacing.xs),
+                          Flexible(
+                            child: TextButton.icon(
+                              onPressed: _editAddress,
+                              icon: const Icon(Icons.edit_outlined, size: 16),
+                              label: ManaText.raw(ref.t('edit')),
+                            ),
                           ),
                         ],
                       ),
                       _AddressCard(address: _address),
                       const SizedBox(height: ManaSpacing.xl),
-                      const ManaText('businesses owned',
-                          style: TextStyle(
+                      ManaText.raw(ref.t('businesses_owned'),
+                          style: const TextStyle(
                               fontWeight: FontWeight.bold, fontSize: 16)),
                       const SizedBox(height: ManaSpacing.sm),
                       if (_businesses.isEmpty)
                         Padding(
                           padding:
                               const EdgeInsets.symmetric(vertical: ManaSpacing.lg),
-                          child: ManaText.raw('No businesses found.',
+                          child: ManaText.raw(ref.t('no_businesses_found'),
                               style:
                                   TextStyle(color: ManaColors.textSecondary)),
                         )
@@ -261,7 +269,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
   }
 }
 
-class _IdentityCard extends StatelessWidget {
+class _IdentityCard extends ConsumerWidget {
   final Map<String, dynamic> person;
   final VoidCallback onChangePhoto;
   final bool savingPhoto;
@@ -272,7 +280,7 @@ class _IdentityCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final photoUrl = (person['profile_photo_url'] as String?)?.trim();
 
     return Card(
@@ -296,7 +304,7 @@ class _IdentityCard extends StatelessWidget {
             // ACTION, and sized past the 48dp floor by the badge below.
             Semantics(
               button: true,
-              label: photoUrl == null ? 'Add profile photo' : 'Change profile photo',
+              label: ref.t(photoUrl == null ? 'add_profile_photo' : 'change_profile_photo'),
               excludeSemantics: true,
               child: InkWell(
                 onTap: savingPhoto ? null : onChangePhoto,
@@ -353,16 +361,16 @@ class _IdentityCard extends StatelessWidget {
   }
 }
 
-class _AddressCard extends StatelessWidget {
+class _AddressCard extends ConsumerWidget {
   final Map<String, dynamic>? address;
   const _AddressCard({required this.address});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (address == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.md),
-        child: ManaText.raw('No address on file.',
+        child: ManaText.raw(ref.t('no_address_on_file'),
             style: TextStyle(color: ManaColors.textSecondary)),
       );
     }
@@ -404,14 +412,14 @@ class _AddressEditResult {
 
 /// Address edit dialog — same real search + "add if not found" pattern
 /// already established across LR-004/OW-000/OW-004/CW-006/IW-005.
-class _AddressEditDialog extends StatefulWidget {
+class _AddressEditDialog extends ConsumerStatefulWidget {
   final String? initialPinCode;
   const _AddressEditDialog({this.initialPinCode});
   @override
-  State<_AddressEditDialog> createState() => _AddressEditDialogState();
+  ConsumerState<_AddressEditDialog> createState() => _AddressEditDialogState();
 }
 
-class _AddressEditDialogState extends State<_AddressEditDialog> {
+class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
   late final _doorNo = TextEditingController();
   late final _pinCode =
       TextEditingController(text: widget.initialPinCode ?? '');
@@ -512,7 +520,7 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
         _pinCode.text.trim().length == 6 &&
         _selectedVillage != null;
     return AlertDialog(
-      title: const ManaText('edit address'),
+      title: ManaText.raw(ref.t('edit_address')),
       content: SizedBox(
         width: 360,
         child: SingleChildScrollView(
@@ -522,8 +530,8 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
             children: [
               TextField(
                 controller: _doorNo,
-                decoration: const InputDecoration(
-                    labelText: 'Door / House No *', isDense: true),
+                decoration: InputDecoration(
+                    labelText: ref.t('door_house_no_field'), isDense: true),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 8),
@@ -531,10 +539,10 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                 controller: _pinCode,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                decoration: const InputDecoration(
-                    labelText: 'PIN Code *',
+                decoration: InputDecoration(
+                    labelText: ref.t('pin_code_required_field'),
                     isDense: true,
-                    helperText: 'Villages shown are limited to this PIN'),
+                    helperText: ref.t('villages_limited_to_pin_helper')),
                 onChanged: (_) {
                   setState(() {
                     _selectedVillage = null;
@@ -544,8 +552,8 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
               ),
               TextField(
                 controller: _villageSearch,
-                decoration: const InputDecoration(
-                    labelText: 'Search Village/Town *', isDense: true),
+                decoration: InputDecoration(
+                    labelText: ref.t('search_village_town_field'), isDense: true),
                 onChanged: (v) {
                   setState(() {
                     _selectedVillage = null;
@@ -593,26 +601,27 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                     _manualVillageEntry = true;
                     _manualVillageName.text = _villageSearch.text.trim();
                   }),
-                  child: Text(
-                      '"${_villageSearch.text.trim()}" not found — add it'),
+                  child: ManaText.raw(ref
+                      .t('village_not_found_add_it')
+                      .replaceAll('{query}', _villageSearch.text.trim())),
                 ),
               if (_manualVillageEntry) ...[
                 const SizedBox(height: 6),
                 TextField(
                   controller: _manualVillageName,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                      labelText: 'Village/Town Name *', isDense: true),
+                  decoration: InputDecoration(
+                      labelText: ref.t('village_town_name_field'), isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: _manualAreaType,
-                  decoration: const InputDecoration(
-                      labelText: 'Area Type *', isDense: true),
-                  items: const [
-                    DropdownMenuItem(value: 'Village', child: Text('Village')),
-                    DropdownMenuItem(value: 'Town', child: Text('Town')),
+                  decoration: InputDecoration(
+                      labelText: ref.t('area_type_field'), isDense: true),
+                  items: [
+                    DropdownMenuItem(value: 'Village', child: ManaText.raw(ref.t('village'))),
+                    DropdownMenuItem(value: 'Town', child: ManaText.raw(ref.t('town'))),
                   ],
                   onChanged: (v) =>
                       setState(() => _manualAreaType = v ?? 'Village'),
@@ -621,24 +630,24 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                 TextField(
                   controller: _manualMandal,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                      labelText: 'Mandal *', isDense: true),
+                  decoration: InputDecoration(
+                      labelText: ref.t('mandal_field'), isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _manualDistrict,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                      labelText: 'District *', isDense: true),
+                  decoration: InputDecoration(
+                      labelText: ref.t('district_field'), isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _manualState,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                      labelText: 'State *', isDense: true),
+                  decoration: InputDecoration(
+                      labelText: ref.t('state_field'), isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 6),
@@ -649,7 +658,7 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                       onPressed: _savingManualVillage
                           ? null
                           : () => setState(() => _manualVillageEntry = false),
-                      child: const ManaText('cancel'),
+                      child: ManaText.raw(ref.t('cancel')),
                     ),
                     ElevatedButton(
                       onPressed: (_savingManualVillage ||
@@ -665,7 +674,7 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                               height: 14,
                               width: 14,
                               child: CircularProgressIndicator(strokeWidth: 2))
-                          : const ManaText('save & select'),
+                          : ManaText.raw(ref.t('save_and_select')),
                     ),
                   ],
                 ),
@@ -673,7 +682,8 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
               if (_selectedVillage != null) ...[
                 const SizedBox(height: 6),
                 ManaText.raw(
-                  'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
+                  ref.t('selected_note').replaceAll('{value}',
+                      '${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}'),
                   style: TextStyle(
                       fontSize: 13, color: ManaColors.textSecondary),
                 ),
@@ -685,7 +695,7 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const ManaText('cancel')),
+            child: ManaText.raw(ref.t('cancel'))),
         ElevatedButton(
           onPressed: canSave
               ? () => Navigator.pop(
@@ -700,7 +710,7 @@ class _AddressEditDialogState extends State<_AddressEditDialog> {
                     ),
                   )
               : null,
-          child: const ManaText('save'),
+          child: ManaText.raw(ref.t('save')),
         ),
       ],
     );

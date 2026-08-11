@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 
@@ -10,14 +12,14 @@ enum _StartupState { loading, slowLoad, failure }
 /// LR-001 — root screen, no user input, sequential health checks then
 /// auto-navigate. Per spec: System Status Indicator only appears if
 /// init exceeds 1.5s, to avoid flash-of-loading-state on fast connections.
-class SystemStartupScreen extends StatefulWidget {
+class SystemStartupScreen extends ConsumerStatefulWidget {
   const SystemStartupScreen({super.key});
 
   @override
-  State<SystemStartupScreen> createState() => _SystemStartupScreenState();
+  ConsumerState<SystemStartupScreen> createState() => _SystemStartupScreenState();
 }
 
-class _SystemStartupScreenState extends State<SystemStartupScreen> {
+class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
   _StartupState _state = _StartupState.loading;
 
   @override
@@ -103,7 +105,7 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
               // splash is ever moved to a light surface — `accent` is
               // 1.76:1 on white and must never become ink there.
               Semantics(
-                label: 'Every rupee counts',
+                label: ref.t('every_rupee_counts'),
                 excludeSemantics: true,
                 child: RichText(
                   textAlign: TextAlign.center,
@@ -134,7 +136,7 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
               if (_state == _StartupState.slowLoad) ...[
                 CircularProgressIndicator(color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.md),
-                ManaText.raw('Loading...', style: TextStyle(color: ManaColors.textOnDark)),
+                ManaText.raw(ref.t('loading_ellipsis'), style: TextStyle(color: ManaColors.textOnDark)),
               ],
               if (_state == _StartupState.failure) _FailureCard(onRetry: () {
                 setState(() => _state = _StartupState.loading);
@@ -148,23 +150,23 @@ class _SystemStartupScreenState extends State<SystemStartupScreen> {
   }
 }
 
-class _FailureCard extends StatelessWidget {
+class _FailureCard extends ConsumerWidget {
   final VoidCallback onRetry;
   const _FailureCard({required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         Icon(Icons.wifi_off, color: ManaColors.statusBad, size: 32),
         const SizedBox(height: ManaSpacing.sm),
         ManaText.raw(
-          'Unable to connect. Please check your internet connection and try again.',
+          ref.t('unable_to_connect_note'),
           textAlign: TextAlign.center,
           style: TextStyle(color: ManaColors.textOnDark),
         ),
         const SizedBox(height: ManaSpacing.md),
-        ElevatedButton(onPressed: onRetry, child: const ManaText('retry')),
+        ElevatedButton(onPressed: onRetry, child: ManaText.raw(ref.t('retry'))),
       ],
     );
   }

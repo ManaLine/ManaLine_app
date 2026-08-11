@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/auth_flow_state.dart';
 
@@ -53,7 +54,7 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
               children: [
                 Icon(Icons.check_circle, color: ManaColors.statusGood, size: 64),
                 const SizedBox(height: ManaSpacing.lg),
-                ManaText('your mana line id',
+                ManaText.raw(ref.t('your_mana_line_id'),
                     style: TextStyle(color: ManaColors.textSecondary)),
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw(
@@ -61,15 +62,14 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
                   style: Theme.of(context).textTheme.displayMedium,
                 ),
                 const SizedBox(height: ManaSpacing.sm),
-                const ManaText.raw(
-                  'Save this ID. You\'ll use it to log in and it\'s yours for life.',
+                ManaText.raw(
+                  ref.t('save_this_id_note'),
                   textAlign: TextAlign.center,
                 ),
                 if (isTemp) ...[
                   const SizedBox(height: ManaSpacing.md),
                   ManaText.raw(
-                    'Temporary ID issued. Add your Aadhaar later from your '
-                    'profile to get your permanent ID.',
+                    ref.t('temp_id_issued_note'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: ManaColors.statusWarn, fontSize: 13),
                   ),
@@ -77,7 +77,7 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
                 const SizedBox(height: ManaSpacing.xxl),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(onPressed: _continue, child: const ManaText('continue')),
+                  child: ElevatedButton(onPressed: _continue, child: ManaText.raw(ref.t('continue_label'))),
                 ),
               ],
             ),

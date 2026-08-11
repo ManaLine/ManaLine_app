@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/login_nav_args.dart';
 import '../../../shared/network_error_handler.dart';
@@ -13,14 +15,14 @@ enum _Step { mobile, otp, newPassword }
 /// OTP-only recovery, available to any role, no higher-privilege
 /// dependency (BR-201/BR-195 amendment). Never reveals whether the
 /// mobile number is registered — same generic message either way (F1).
-class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _authApi = AuthApiService();
   String? _otpId;
   _Step _step = _Step.mobile;
@@ -182,7 +184,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => context.go('/lr-007')),
-        title: const ManaText('forgot password'),
+        title: ManaText.raw(ref.t('forgot_password')),
       ),
       body: SafeArea(
         child: Padding(
@@ -203,8 +205,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: ManaSpacing.xl),
-        const ManaText.raw(
-          'Enter your registered mobile number and we\'ll send you a code to reset your password.',
+        ManaText.raw(
+          ref.t('forgot_password_note'),
         ),
         const SizedBox(height: ManaSpacing.lg),
         TextField(
@@ -212,14 +214,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           keyboardType: TextInputType.phone,
           maxLength: 10,
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: 'Mobile Number *'),
+          decoration: InputDecoration(labelText: ref.t('mobile_number_required_field')),
         ),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
           onPressed: canSend ? _sendOtp : null,
           child: _submitting
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('send otp'),
+              : ManaText.raw(ref.t('send_otp')),
         ),
       ],
     );
@@ -254,7 +256,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onPressed: (_otpCode.length == 6 && !_submitting) ? _verifyOtp : null,
           child: _submitting
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('verify'),
+              : ManaText.raw(ref.t('verify')),
         ),
       ],
     );
@@ -290,8 +292,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           obscureText: _obscureNew,
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
-            labelText: 'New Password *',
-            helperText: 'At least 8 characters, with letters and numbers.',
+            labelText: ref.t('new_password_field'),
+            helperText: ref.t('password_helper'),
             suffixIcon: IconButton(
               icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
               onPressed: () => setState(() => _obscureNew = !_obscureNew),
@@ -304,7 +306,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           obscureText: _obscureConfirm,
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
-            labelText: 'Confirm New Password *',
+            labelText: ref.t('confirm_new_password_field'),
             suffixIcon: IconButton(
               icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
               onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
@@ -316,7 +318,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onPressed: (_passwordValid && _confirmValid && !_submitting) ? _resetPassword : null,
           child: _submitting
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('reset password'),
+              : ManaText.raw(ref.t('reset_password')),
         ),
       ],
     );

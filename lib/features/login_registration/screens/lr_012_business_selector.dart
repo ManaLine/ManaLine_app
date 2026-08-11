@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
@@ -255,11 +256,11 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                 context.go('/lr-003');
             }
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'settings', child: ManaText('settings')),
-            PopupMenuItem(value: 'request_join', child: ManaText('request to join a business')),
-            PopupMenuDivider(),
-            PopupMenuItem(value: 'logout', child: ManaText('logout')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'settings', child: ManaText.raw(ref.t('settings'))),
+            PopupMenuItem(value: 'request_join', child: ManaText.raw(ref.t('request_to_join_a_business'))),
+            const PopupMenuDivider(),
+            PopupMenuItem(value: 'logout', child: ManaText.raw(ref.t('logout'))),
           ],
         ),
       ],
@@ -290,11 +291,10 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
               ],
               Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
               const SizedBox(height: ManaSpacing.md),
-              const ManaText('no business linked', style: TextStyle(fontWeight: FontWeight.bold)),
+              ManaText.raw(ref.t('no_business_linked'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: ManaSpacing.sm),
-              const ManaText.raw(
-                'You\'re not yet linked to a business. Create a new one, or '
-                'contact the Owner if you\'re expecting an existing invitation.',
+              ManaText.raw(
+                ref.t('no_business_linked_note'),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: ManaSpacing.xl),
@@ -303,7 +303,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                 // isAdditionalBusiness=false since this is the 0-business
                 // path (per OW-000's own ENTRY POINT: "0 Businesses Linked").
                 onPressed: () => context.push('/ow-000', extra: false),
-                child: const ManaText('create new business'),
+                child: ManaText.raw(ref.t('create_new_business')),
               ),
               const SizedBox(height: ManaSpacing.sm),
               OutlinedButton(
@@ -314,10 +314,10 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                 // always shows the static fallback for now.
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Support: support@manaline.app')),
+                    SnackBar(content: ManaText.raw(ref.t('support_email_note'))),
                   );
                 },
-                child: const ManaText('contact owner'),
+                child: ManaText.raw(ref.t('contact_owner')),
               ),
             ],
           ),
@@ -334,16 +334,16 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
 /// then-blocked); this is a different, additive concept: a real request
 /// awaiting the recipient's own response, not a business option they
 /// can select into yet.
-class _PendingRequestsSection extends StatefulWidget {
+class _PendingRequestsSection extends ConsumerStatefulWidget {
   final List<Membership> pending;
   final Future<void> Function(Membership, bool accept) onRespond;
   const _PendingRequestsSection({required this.pending, required this.onRespond});
 
   @override
-  State<_PendingRequestsSection> createState() => _PendingRequestsSectionState();
+  ConsumerState<_PendingRequestsSection> createState() => _PendingRequestsSectionState();
 }
 
-class _PendingRequestsSectionState extends State<_PendingRequestsSection> {
+class _PendingRequestsSectionState extends ConsumerState<_PendingRequestsSection> {
   String? _respondingTo;
 
   @override
@@ -351,7 +351,7 @@ class _PendingRequestsSectionState extends State<_PendingRequestsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText('pending requests', style: Theme.of(context).textTheme.titleSmall),
+        ManaText.raw(ref.t('pending_requests_header'), style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: ManaSpacing.sm),
         ...widget.pending.map((m) {
           final busy = _respondingTo == m.membershipId;
@@ -364,7 +364,7 @@ class _PendingRequestsSectionState extends State<_PendingRequestsSection> {
                 children: [
                   ManaText.raw('${m.businessName} — as ${m.role}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  ManaText.raw('Waiting for your response.', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  ManaText.raw(ref.t('waiting_for_your_response'), style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   const SizedBox(height: ManaSpacing.sm),
                   Row(
                     children: [
@@ -377,7 +377,7 @@ class _PendingRequestsSectionState extends State<_PendingRequestsSection> {
                                   await widget.onRespond(m, false);
                                   if (mounted) setState(() => _respondingTo = null);
                                 },
-                          child: const ManaText('decline'),
+                          child: ManaText.raw(ref.t('decline')),
                         ),
                       ),
                       const SizedBox(width: ManaSpacing.sm),
@@ -392,7 +392,7 @@ class _PendingRequestsSectionState extends State<_PendingRequestsSection> {
                                 },
                           child: busy
                               ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const ManaText('accept'),
+                              : ManaText.raw(ref.t('accept')),
                         ),
                       ),
                     ],
@@ -503,7 +503,10 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Request sent to ${_foundBusiness!['mlbi']} as $_role. Waiting for the Owner to accept.')),
+        SnackBar(
+            content: ManaText.raw(ref
+                .t('request_sent_to_note')
+                .replaceAll('{name}', "${_foundBusiness!['mlbi']} as $_role"))),
       );
     } catch (e) {
       if (!mounted) return;
@@ -527,10 +530,10 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ManaText('request to join a business', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ManaText.raw(ref.t('request_to_join_a_business'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: ManaSpacing.md),
 
-          ManaText('1. select role', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ManaText.raw(ref.t('step_1_select_role'), style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           const SizedBox(height: ManaSpacing.xs),
           Wrap(
             spacing: ManaSpacing.sm,
@@ -545,13 +548,13 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
           ),
           const SizedBox(height: ManaSpacing.md),
 
-          ManaText('2. find the business', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ManaText.raw(ref.t('step_2_find_the_business'), style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           const SizedBox(height: ManaSpacing.xs),
           TextField(
             controller: _queryController,
             enabled: _role != null,
             decoration: InputDecoration(
-              labelText: 'Business name or MLBI',
+              labelText: ref.t('business_name_or_mlbi_field'),
               suffixIcon: _searching
                   ? const Padding(
                       padding: EdgeInsets.all(12),
@@ -597,7 +600,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
               _suggestions.isEmpty &&
               _foundBusiness == null) ...[
             const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw('No matching business found. Check the name/MLBI and try again.',
+            ManaText.raw(ref.t('no_matching_business_note'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ],
 
@@ -608,7 +611,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
           // it's genuinely the business they mean before sending a request.
           if (_foundBusiness != null) ...[
             const SizedBox(height: ManaSpacing.md),
-            ManaText('3. confirm business details', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            ManaText.raw(ref.t('step_3_confirm_business'), style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.xs),
             Card(
               child: Padding(
@@ -651,7 +654,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
             onPressed: (_foundBusiness != null && _role != null && !_applying) ? _apply : null,
             child: _applying
                 ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const ManaText('4. send request'),
+                : ManaText.raw(ref.t('step_4_send_request')),
           ),
         ],
       ),

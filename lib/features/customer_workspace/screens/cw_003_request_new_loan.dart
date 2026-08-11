@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/loan_request_state.dart';
@@ -87,7 +88,7 @@ class _RequestNewLoanScreenState extends ConsumerState<RequestNewLoanScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('request new loan'),
+        title: ManaText.raw(ref.t('request_new_loan')),
         leading: BackButton(onPressed: () => context.go('/cw-001', extra: widget.businessId)),
       ),
       body: SafeArea(
@@ -116,12 +117,12 @@ class _RequestNewLoanScreenState extends ConsumerState<RequestNewLoanScreen> {
 
 // --- Gate: not allowed ----------------------------------------------------
 
-class _NotAllowedState extends StatelessWidget {
+class _NotAllowedState extends ConsumerWidget {
   final String businessId;
   const _NotAllowedState({required this.businessId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
@@ -142,7 +143,7 @@ class _NotAllowedState extends StatelessWidget {
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
               onPressed: () => context.go('/cw-001', extra: businessId),
-              child: const ManaText('back to dashboard'),
+              child: ManaText.raw(ref.t('back_to_dashboard')),
             ),
           ],
         ),
@@ -153,13 +154,13 @@ class _NotAllowedState extends StatelessWidget {
 
 // --- Gate: cooldown active --------------------------------------------------
 
-class _CooldownState extends StatelessWidget {
+class _CooldownState extends ConsumerWidget {
   final LoanRequestState state;
   final String businessId;
   const _CooldownState({required this.state, required this.businessId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cooldown = state.lastResult?.cooldownUntil;
     return Center(
       child: Padding(
@@ -173,7 +174,7 @@ class _CooldownState extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             if (state.lastResult?.rejectionReason != null) ...[
-              ManaText.raw('Previous request rejected: ${state.lastResult!.rejectionReason}',
+              ManaText.raw(ref.t('previous_request_rejected_note').replaceAll('{reason}', '${state.lastResult!.rejectionReason}'),
                   textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
               const SizedBox(height: ManaSpacing.sm),
             ],
@@ -187,7 +188,7 @@ class _CooldownState extends StatelessWidget {
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
               onPressed: () => context.go('/cw-001', extra: businessId),
-              child: const ManaText('back to dashboard'),
+              child: ManaText.raw(ref.t('back_to_dashboard')),
             ),
           ],
         ),
@@ -207,7 +208,7 @@ class _TemplateSelectionStep extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const ManaText('select a loan template', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        ManaText.raw(ref.t('select_a_loan_template'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: ManaSpacing.sm),
         ManaText.raw(
           'Choose a template, or request a custom amount.',
@@ -259,20 +260,20 @@ class _TemplateTile extends StatelessWidget {
   }
 }
 
-class _CustomAmountTile extends StatelessWidget {
+class _CustomAmountTile extends ConsumerWidget {
   final bool selected;
   final VoidCallback onTap;
   const _CustomAmountTile({required this.selected, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: ListTile(
         leading: Icon(
           selected ? Icons.check_circle : Icons.radio_button_unchecked,
           color: selected ? ManaColors.brand : ManaColors.textSecondary,
         ),
-        title: const ManaText('request custom amount'),
+        title: ManaText.raw(ref.t('request_custom_amount')),
         subtitle: ManaText.raw(
           'Not tied to a template — enter your own amount and frequency.',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -317,7 +318,7 @@ class _RequestDetailsStep extends ConsumerWidget {
           TextButton.icon(
             onPressed: notifier.backToTemplateSelection,
             icon: const Icon(Icons.arrow_back, size: 16),
-            label: const ManaText('back to template selection'),
+            label: ManaText.raw(ref.t('back_to_template_selection')),
           ),
           const SizedBox(height: ManaSpacing.sm),
         ],
@@ -332,19 +333,19 @@ class _RequestDetailsStep extends ConsumerWidget {
           controller: amountController,
           keyboardType: TextInputType.number,
           enabled: state.selectedTemplate == null,
-          decoration: const InputDecoration(labelText: 'Requested Amount *', prefixText: '₹ '),
+          decoration: InputDecoration(labelText: ref.t('requested_amount_field'), prefixText: '₹ '),
           onChanged: notifier.setRequestedAmount,
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: purposeController,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Purpose (optional)'),
+          decoration: InputDecoration(labelText: ref.t('purpose_optional_field')),
           onChanged: notifier.setPurposeRemark,
         ),
         if (state.requestingCustomAmount) ...[
           const SizedBox(height: ManaSpacing.md),
-          const ManaText('preferred repayment frequency', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          ManaText.raw(ref.t('preferred_repayment_frequency'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(height: ManaSpacing.xs),
           ...['Daily', 'Weekly', 'Monthly'].map((f) => _FrequencyTile(
                 label: f,
@@ -360,13 +361,13 @@ class _RequestDetailsStep extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const ManaText('review summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ManaText.raw(ref.t('review_summary'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 const SizedBox(height: ManaSpacing.sm),
-                _SummaryRow(label: 'Amount', value: _currency.format(double.tryParse(state.requestedAmountText) ?? 0)),
+                _SummaryRow(label: ref.t('amount'), value: _currency.format(double.tryParse(state.requestedAmountText) ?? 0)),
                 if (state.purposeRemark.trim().isNotEmpty)
-                  _SummaryRow(label: 'Purpose', value: state.purposeRemark.trim()),
+                  _SummaryRow(label: ref.t('purpose'), value: state.purposeRemark.trim()),
                 _SummaryRow(
-                  label: 'Frequency',
+                  label: ref.t('frequency'),
                   value: state.selectedTemplate?.repaymentFrequency ?? state.preferredFrequency,
                 ),
               ],
@@ -386,7 +387,7 @@ class _RequestDetailsStep extends ConsumerWidget {
                 : () => NetworkErrorHandler.run(context, () => notifier.submit(businessId: businessId)),
             child: submitting
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const ManaText('submit request'),
+                : ManaText.raw(ref.t('submit_request')),
           ),
         ),
       ],

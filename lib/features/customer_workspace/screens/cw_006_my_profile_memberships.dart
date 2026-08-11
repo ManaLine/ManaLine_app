@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/customer_profile_state.dart';
@@ -38,7 +39,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('my profile / memberships'),
+        title: ManaText.raw(ref.t('my_profile_memberships_title')),
         leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/cw-001')),
       ),
       body: SafeArea(
@@ -67,7 +68,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                     children: [
                       _SummaryCard(personId: widget.personId, profile: state.profile!),
                       const SizedBox(height: ManaSpacing.xl),
-                      const ManaText('business memberships', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ManaText.raw(ref.t('business_memberships'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       const SizedBox(height: ManaSpacing.sm),
                       if (state.memberships.isEmpty)
                         Padding(
@@ -97,17 +98,17 @@ class _SummaryCard extends ConsumerWidget {
     final newPhone = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('edit phone'),
+        title: ManaText.raw(ref.t('edit_phone')),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Phone Number'),
+          decoration: InputDecoration(labelText: ref.t('phone_number_plain_field')),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const ManaText('save'),
+            child: ManaText.raw(ref.t('save')),
           ),
         ],
       ),
@@ -123,7 +124,7 @@ class _SummaryCard extends ConsumerWidget {
     });
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Phone updated. Previous value kept in history; Owner(s) notified.')),
+      SnackBar(content: ManaText.raw(ref.t('phone_updated_note'))),
     );
   }
 
@@ -154,7 +155,7 @@ class _SummaryCard extends ConsumerWidget {
     });
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Address updated. Previous value kept in history; Owner(s) notified.')),
+      SnackBar(content: ManaText.raw(ref.t('address_updated_note'))),
     );
   }
 
@@ -193,13 +194,13 @@ class _SummaryCard extends ConsumerWidget {
             ),
             const Divider(height: ManaSpacing.xl),
             _FieldRow(
-              label: 'phone',
+              label: ref.t('phone'),
               value: profile.phoneNumber ?? '—',
               onEdit: () => _editPhone(context, ref),
             ),
             const SizedBox(height: ManaSpacing.sm),
             _FieldRow(
-              label: 'aadhaar / id reference',
+              label: ref.t('aadhaar_id_reference'),
               value: profile.aadhaarLast4 != null ? '•••• •••• ${profile.aadhaarLast4}' : '—',
               // No edit UI at all here (BR-239) — permanent once
               // captured; only the Owner can correct it (PIN + reason,
@@ -208,7 +209,7 @@ class _SummaryCard extends ConsumerWidget {
             ),
             const SizedBox(height: ManaSpacing.sm),
             _FieldRow(
-              label: 'address',
+              label: ref.t('address'),
               value: profile.currentAddress != null
                   ? '${profile.currentAddress!.villageName}, ${profile.currentAddress!.mandal}, ${profile.currentAddress!.district}'
                   : 'Not set',
@@ -221,7 +222,7 @@ class _SummaryCard extends ConsumerWidget {
   }
 }
 
-class _FieldRow extends StatelessWidget {
+class _FieldRow extends ConsumerWidget {
   final String label;
   final String value;
   final VoidCallback? onEdit;
@@ -229,7 +230,7 @@ class _FieldRow extends StatelessWidget {
   const _FieldRow({required this.label, required this.value, this.onEdit, this.locked = false});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -249,7 +250,7 @@ class _FieldRow extends StatelessWidget {
             child: Icon(Icons.lock_outline, size: 16, color: ManaColors.textDisabled),
           )
         else if (onEdit != null)
-          TextButton(onPressed: onEdit, child: const ManaText('edit')),
+          TextButton(onPressed: onEdit, child: ManaText.raw(ref.t('edit'))),
       ],
     );
   }
@@ -336,15 +337,15 @@ class _VillageSelection {
   });
 }
 
-class _VillageSelectorDialog extends StatefulWidget {
+class _VillageSelectorDialog extends ConsumerStatefulWidget {
   final String? initialPinCode;
   const _VillageSelectorDialog({this.initialPinCode});
 
   @override
-  State<_VillageSelectorDialog> createState() => _VillageSelectorDialogState();
+  ConsumerState<_VillageSelectorDialog> createState() => _VillageSelectorDialogState();
 }
 
-class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
+class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> {
   late final _pinCode = TextEditingController(text: widget.initialPinCode ?? '');
   final _villageSearch = TextEditingController();
   Map<String, dynamic>? _selectedVillage; // real row: location_id, village_town_name, mandal, district, state
@@ -419,7 +420,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not add village: $e')),
+          SnackBar(content: ManaText.raw(ref.t('could_not_add_village_note').replaceAll('{error}', '$e'))),
         );
       }
     }
@@ -445,7 +446,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
   Widget build(BuildContext context) {
     final canConfirm = _pinCode.text.trim().length == 6 && _selectedVillage != null;
     return AlertDialog(
-      title: const ManaText('edit address — select village'),
+      title: ManaText.raw(ref.t('edit_address_select_village')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,7 +455,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
             controller: _pinCode,
             keyboardType: TextInputType.number,
             maxLength: 6,
-            decoration: const InputDecoration(labelText: 'PIN Code', helperText: 'Enter PIN code first — villages shown are limited to this PIN'),
+            decoration: InputDecoration(labelText: ref.t('pin_code_plain_field'), helperText: ref.t('pin_code_first_helper')),
             onChanged: (_) {
               setState(() {
                 _selectedVillage = null;
@@ -465,7 +466,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
           const SizedBox(height: 8),
           TextField(
             controller: _villageSearch,
-            decoration: const InputDecoration(labelText: 'Search Village/Town'),
+            decoration: InputDecoration(labelText: ref.t('search_village_town_plain_field')),
             onChanged: (v) {
               setState(() {
                 _selectedVillage = null;
@@ -498,16 +499,16 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
                   TextField(
                     controller: _manualVillageName,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Village/Town Name *', isDense: true),
+                    decoration: InputDecoration(labelText: ref.t('village_town_name_field'), isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     initialValue: _manualAreaType,
-                    decoration: const InputDecoration(labelText: 'Area Type *', isDense: true),
-                    items: const [
-                      DropdownMenuItem(value: 'Village', child: Text('Village')),
-                      DropdownMenuItem(value: 'Town', child: Text('Town')),
+                    decoration: InputDecoration(labelText: ref.t('area_type_field'), isDense: true),
+                    items: [
+                      DropdownMenuItem(value: 'Village', child: ManaText.raw(ref.t('village'))),
+                      DropdownMenuItem(value: 'Town', child: ManaText.raw(ref.t('town'))),
                     ],
                     onChanged: (v) => setState(() => _manualAreaType = v ?? 'Village'),
                   ),
@@ -515,21 +516,21 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
                   TextField(
                     controller: _manualMandal,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Mandal *', isDense: true),
+                    decoration: InputDecoration(labelText: ref.t('mandal_field'), isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _manualDistrict,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'District *', isDense: true),
+                    decoration: InputDecoration(labelText: ref.t('district_field'), isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _manualState,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'State *', isDense: true),
+                    decoration: InputDecoration(labelText: ref.t('state_field'), isDense: true),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 6),
@@ -538,7 +539,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
                     children: [
                       TextButton(
                         onPressed: _savingManualVillage ? null : () => setState(() => _manualVillageEntry = false),
-                        child: const ManaText('cancel'),
+                        child: ManaText.raw(ref.t('cancel')),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
@@ -552,7 +553,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
                             : _saveManualVillage,
                         child: _savingManualVillage
                             ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const ManaText('save & select'),
+                            : ManaText.raw(ref.t('save_and_select')),
                       ),
                     ],
                   ),
@@ -592,7 +593,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const ManaText('cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: ManaText.raw(ref.t('cancel'))),
         ElevatedButton(
           onPressed: canConfirm
               ? () => Navigator.pop(
@@ -607,7 +608,7 @@ class _VillageSelectorDialogState extends State<_VillageSelectorDialog> {
                     ),
                   )
               : null,
-          child: const ManaText('save'),
+          child: ManaText.raw(ref.t('save')),
         ),
       ],
     );

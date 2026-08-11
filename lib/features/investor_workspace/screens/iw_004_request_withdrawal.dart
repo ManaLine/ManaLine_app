@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/withdrawal_request_state.dart';
@@ -55,7 +56,7 @@ class _RequestWithdrawalScreenState
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/iw-001')),
-        title: const ManaText('request withdrawal'),
+        title: ManaText.raw(ref.t('request_withdrawal_title')),
       ),
       body: SafeArea(
         child: state.loadingInvestment && state.investment == null
@@ -161,9 +162,9 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
     // View. This screen doesn't own IW-003, so it just pops/goes back;
     // the caller route wires the actual destination (see integration note).
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
           content:
-              Text('Withdrawal request submitted — pending Owner approval.')),
+              ManaText.raw(ref.t('withdrawal_submitted_note'))),
     );
     if (context.canPop()) {
       context.pop();
@@ -185,7 +186,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ManaText('selected investment',
+                ManaText.raw(ref.t('selected_investment'),
                     style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(
@@ -196,7 +197,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const ManaText('available balance'),
+                    ManaText.raw(ref.t('available_balance')),
                     ManaText.raw(
                       _moneyFormat.format(investment.availableBalance),
                       style: ManaTypography.amount(),
@@ -207,7 +208,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ManaText('principal amount',
+                    ManaText.raw(ref.t('principal_amount'),
                         style: Theme.of(context).textTheme.bodySmall),
                     ManaText.raw(
                       _moneyFormat.format(investment.principalAmount),
@@ -235,7 +236,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
           ),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText('withdrawal type',
+        ManaText.raw(ref.t('withdrawal_type'),
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),
         // Checkmark-ListTile selection pattern (Radio/RadioListTile
@@ -258,7 +259,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
           );
         }),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText('requested amount',
+        ManaText.raw(ref.t('requested_amount'),
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
@@ -267,19 +268,19 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             prefixText: '₹ ',
-            labelText: 'Requested Amount *',
+            labelText: ref.t('requested_amount_field'),
             errorText: _amountError,
           ),
           onChanged: (_) => _validateAmount(),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText('remarks', style: Theme.of(context).textTheme.titleMedium),
+        ManaText.raw(ref.t('remarks'), style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _remarksController,
           enabled: !widget.disabled,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Remarks (optional)'),
+          decoration: InputDecoration(labelText: ref.t('remarks_optional_field')),
         ),
         const SizedBox(height: ManaSpacing.xl),
         Consumer(
@@ -292,7 +293,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2))
-                  : const ManaText('submit request'),
+                  : ManaText.raw(ref.t('submit_request')),
             );
           },
         ),

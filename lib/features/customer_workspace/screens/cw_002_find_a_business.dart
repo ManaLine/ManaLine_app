@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/customer_discovery_state.dart';
@@ -36,7 +37,7 @@ class _FindABusinessScreenState extends ConsumerState<FindABusinessScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('find a business'),
+        title: ManaText.raw(ref.t('find_a_business')),
         leading: BackButton(onPressed: () => context.go('/cw-001', extra: widget.businessId)),
       ),
       body: SafeArea(
@@ -67,9 +68,9 @@ class _SearchAndResults extends ConsumerWidget {
         children: [
           TextField(
             controller: controller,
-            decoration: const InputDecoration(
-              hintText: 'Search by Business Name or MLBI',
-              prefixIcon: Icon(Icons.search),
+            decoration: InputDecoration(
+              hintText: ref.t('search_by_business_name_mlbi'),
+              prefixIcon: const Icon(Icons.search),
             ),
             onChanged: (v) => ref.read(customerDiscoveryProvider.notifier).setQuery(v),
             onSubmitted: (_) =>
@@ -85,7 +86,7 @@ class _SearchAndResults extends ConsumerWidget {
                       context, () => ref.read(customerDiscoveryProvider.notifier).search()),
               child: state.loading
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const ManaText('search'),
+                  : ManaText.raw(ref.t('search')),
             ),
           ),
           const SizedBox(height: ManaSpacing.lg),
@@ -100,7 +101,7 @@ class _SearchAndResults extends ConsumerWidget {
                   )
                 : state.results.isEmpty
                     ? Center(
-                        child: ManaText.raw('No businesses matched your search.',
+                        child: ManaText.raw(ref.t('no_businesses_matched'),
                             style: TextStyle(color: ManaColors.textSecondary)),
                       )
                     : ListView.separated(
@@ -199,12 +200,12 @@ class _RequestToJoinSheetState extends ConsumerState<_RequestToJoinSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText('request to join — ${business?.businessName ?? ''}',
+            ManaText.raw(ref.t('request_to_join_note').replaceAll('{name}', business?.businessName ?? ''),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _remarks,
-              decoration: const InputDecoration(labelText: 'Remarks (optional)'),
+              decoration: InputDecoration(labelText: ref.t('remarks_optional_field')),
               maxLines: 2,
             ),
             const SizedBox(height: ManaSpacing.lg),
@@ -214,7 +215,7 @@ class _RequestToJoinSheetState extends ConsumerState<_RequestToJoinSheet> {
                 onPressed: _submitting ? null : _confirm,
                 child: _submitting
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('confirm request'),
+                    : ManaText.raw(ref.t('confirm_request')),
               ),
             ),
           ],

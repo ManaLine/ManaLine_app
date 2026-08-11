@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../shared/network_error_handler.dart';
@@ -87,14 +88,12 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
-          title: const ManaText('reopen migration'),
+          title: ManaText.raw(ref.t('reopen_migration')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ManaText.raw(
-                'This business has already been started. Reopening lets you '
-                'enter pre-existing records again. The reason is recorded in '
-                'the audit log.',
+                ref.t('reopen_migration_note'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -102,7 +101,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                 controller: controller,
                 autofocus: true,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Reason (required)'),
+                decoration: InputDecoration(labelText: ref.t('reason_required_field')),
                 onChanged: (_) => setLocal(() {}),
               ),
             ],
@@ -110,12 +109,12 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const ManaText('cancel')),
+                child: ManaText.raw(ref.t('cancel'))),
             FilledButton(
               onPressed: controller.text.trim().isEmpty
                   ? null
                   : () => Navigator.pop(dialogContext, controller.text.trim()),
-              child: const ManaText('reopen'),
+              child: ManaText.raw(ref.t('reopen')),
             ),
           ],
         ),
@@ -135,19 +134,15 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('finish migration?'),
-        content: const ManaText.raw(
-          'Pre-existing record entry will be closed and the business marked '
-          'Active. You can reopen migration later if something was missed, '
-          'but every reopen is recorded.',
-        ),
+        title: ManaText.raw(ref.t('finish_migration_question')),
+        content: ManaText.raw(ref.t('finish_migration_note')),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const ManaText('cancel')),
+              child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const ManaText('finish')),
+              child: ManaText.raw(ref.t('finish'))),
         ],
       ),
     );
@@ -172,12 +167,12 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
   Widget build(BuildContext context) {
     final s = _summary;
     return Scaffold(
-      appBar: AppBar(title: const ManaText('pre-existing business')),
+      appBar: AppBar(title: ManaText.raw(ref.t('pre_existing_business'))),
       floatingActionButton: (s != null && !s.migrationLocked)
           ? FloatingActionButton.extended(
               onPressed: _addLoan,
               icon: const Icon(Icons.add),
-              label: const ManaText('add existing loan'),
+              label: ManaText.raw(ref.t('add_existing_loan')),
             )
           : null,
       body: SafeArea(
@@ -200,14 +195,14 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                           OutlinedButton.icon(
                             onPressed: _openBulkOnboarding,
                             icon: const Icon(Icons.upload_file_outlined),
-                            label: const ManaText('bulk onboarding wizard'),
+                            label: ManaText.raw(ref.t('bulk_onboarding_wizard')),
                           ),
                           const SizedBox(height: ManaSpacing.md),
                         ],
                         if (!s.migrationLocked)
                           OutlinedButton(
                             onPressed: _lock,
-                            child: const ManaText('finish migration'),
+                            child: ManaText.raw(ref.t('finish_migration')),
                           ),
                       ],
                     ),
@@ -221,13 +216,13 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
         children: [
           Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
           const SizedBox(height: ManaSpacing.md),
-          const Center(child: ManaText('could not load migration status')),
+          Center(child: ManaText.raw(ref.t('could_not_load_migration_status'))),
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(message,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
           const SizedBox(height: ManaSpacing.md),
-          Center(child: ElevatedButton(onPressed: _load, child: const ManaText('retry'))),
+          Center(child: ElevatedButton(onPressed: _load, child: ManaText.raw(ref.t('retry')))),
         ],
       );
 
@@ -241,30 +236,36 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
             Row(
               children: [
                 Expanded(
-                  child: ManaText(s.migrationLocked ? 'migration closed' : 'migration open',
+                  child: ManaText.raw(ref.t(s.migrationLocked ? 'migration_closed' : 'migration_open'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
-                ManaStatusPill(
-                  label: s.migrationLocked ? 'Locked' : 'Open',
+                const SizedBox(width: ManaSpacing.xs),
+                Flexible(
+                    child: ManaStatusPill(
+                  label: ref.t(s.migrationLocked ? 'locked' : 'open_status'),
                   status: s.migrationLocked ? ManaStatus.neutral : ManaStatus.good,
-                ),
+                )),
               ],
             ),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               s.migrationLocked
-                  ? 'This business was started on '
-                      '${s.businessStartedAt == null ? 'an earlier date' : DateFormat('d MMM yyyy').format(s.businessStartedAt!)}. '
-                      'Reopen migration to enter records from the old book.'
-                  : 'Enter the loans that were already running when you joined. '
-                      'Each one records what you gave out and what has come back.',
+                  ? ref.t('migration_locked_note').replaceAll(
+                      '{date}',
+                      s.businessStartedAt == null
+                          ? ref.t('an_earlier_date')
+                          : DateFormat('d MMM yyyy').format(s.businessStartedAt!))
+                  : ref.t('migration_open_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
             if (s.migrationLocked)
-              OutlinedButton(onPressed: _reopen, child: const ManaText('reopen migration')),
+              OutlinedButton(onPressed: _reopen, child: ManaText.raw(ref.t('reopen_migration'))),
             if (!s.migrationLocked)
-              ManaText.raw('${s.migratedLoanCount} pre-existing loans entered',
+              ManaText.raw(
+                  ref.t('pre_existing_loans_entered_note').replaceAll('{count}', '${s.migratedLoanCount}'),
                   style: const TextStyle(fontSize: 13)),
           ],
         ),
@@ -280,16 +281,13 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     final entered = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const ManaText('declare opening bf'),
+        title: ManaText.raw(ref.t('declare_opening_bf')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(
-              'Count the cash box today and enter that figure. Everything '
-              'before today is out of scope — the count already reflects it.\n\n'
-              'This locks when you finish migration and cannot be changed '
-              'afterwards.',
+              ref.t('declare_opening_bf_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -297,17 +295,17 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
               controller: controller,
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Cash in hand *'),
+              decoration: InputDecoration(labelText: ref.t('cash_in_hand_field')),
             ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const ManaText('cancel')),
+              onPressed: () => Navigator.pop(ctx), child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
             onPressed: () =>
                 Navigator.pop(ctx, int.tryParse(controller.text.trim())),
-            child: const ManaText('declare'),
+            child: ManaText.raw(ref.t('declare')),
           ),
         ],
       ),
@@ -342,19 +340,23 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
             // so the card states that figure and when it was stated.
             Row(
               children: [
-                const Expanded(
-                  child: ManaText('BF — cash in hand',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: ManaText.raw(ref.t('bf_cash_in_hand'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                ManaAmount(s.bf, semanticLabel: 'Brought forward, cash in hand'),
+                const SizedBox(width: ManaSpacing.xs),
+                Flexible(child: ManaAmount(s.bf, semanticLabel: ref.t('bf_semantic_label'))),
               ],
             ),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
               s.hasDeclaredBf
-                  ? 'Declared on ${DateFormat('d MMM yyyy').format(s.openingBfDeclaredOn!)}'
-                    '${s.migrationLocked ? ' — locked' : ''}'
-                  : 'Not declared yet. Count the cash box and enter it below.',
+                  ? ref.t('bf_declared_on_note').replaceAll(
+                          '{date}', DateFormat('d MMM yyyy').format(s.openingBfDeclaredOn!)) +
+                      (s.migrationLocked ? ref.t('bf_locked_suffix') : '')
+                  : ref.t('bf_not_declared_note'),
               style: TextStyle(
                 fontSize: 13,
                 color: s.hasDeclaredBf
@@ -367,8 +369,8 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
               OutlinedButton.icon(
                 onPressed: () => _declareBf(s),
                 icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
-                label: ManaText(
-                    s.hasDeclaredBf ? 'change opening bf' : 'declare opening bf'),
+                label: ManaText.raw(
+                    ref.t(s.hasDeclaredBf ? 'change_opening_bf' : 'declare_opening_bf')),
               ),
             ],
             const Divider(),
@@ -383,17 +385,17 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
               child: Row(
                 children: [
                   Expanded(
-                    child: ManaText.raw('Line balance — still with customers',
+                    child: ManaText.raw(ref.t('line_balance_label'),
                         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   ),
-                  ManaAmount(s.lineBalance, size: ManaAmountSize.compact),
+                  const SizedBox(width: ManaSpacing.xs),
+                  Flexible(child: ManaAmount(s.lineBalance, size: ManaAmountSize.compact)),
                 ],
               ),
             ),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
-              'Line balance is deliberately outside BF — that money is out on '
-              'the line, not in the cash box.',
+              ref.t('line_balance_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ],
@@ -419,23 +421,27 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('profit & investor payable', style: TextStyle(fontWeight: FontWeight.bold)),
+            ManaText.raw(ref.t('profit_and_investor_payable'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             if (payable != null)
               Row(
                 children: [
-                  const Expanded(child: ManaText.raw('Owed back to investors')),
-                  ManaAmount(payable, size: ManaAmountSize.compact),
+                  Expanded(child: ManaText.raw(ref.t('owed_back_to_investors'))),
+                  const SizedBox(width: ManaSpacing.xs),
+                  Flexible(child: ManaAmount(payable, size: ManaAmountSize.compact)),
                 ],
               ),
             if (profit != null) ...[
               const SizedBox(height: ManaSpacing.xs),
               Row(
                 children: [
-                  const Expanded(child: ManaText.raw('Business profit')),
-                  ManaAmount(profit,
-                      size: ManaAmountSize.compact,
-                      tone: profit < 0 ? ManaAmountTone.negative : ManaAmountTone.positive),
+                  Expanded(child: ManaText.raw(ref.t('business_profit'))),
+                  const SizedBox(width: ManaSpacing.xs),
+                  Flexible(
+                    child: ManaAmount(profit,
+                        size: ManaAmountSize.compact,
+                        tone: profit < 0 ? ManaAmountTone.negative : ManaAmountTone.positive),
+                  ),
                 ],
               ),
             ],
@@ -573,23 +579,20 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   Widget build(BuildContext context) {
     final customers = ref.watch(customerListProvider).customers;
     return Scaffold(
-      appBar: AppBar(title: const ManaText('add existing loan')),
+      appBar: AppBar(title: ManaText.raw(ref.t('add_existing_loan'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             ManaText.raw(
-              'Enter the loan as it stands today. The repayment schedule is '
-              'created from today forward for whatever is still owed — past '
-              'instalments are not recreated, so the customer\'s Line Score '
-              'starts from here.',
+              ref.t('add_existing_loan_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
             DropdownButtonFormField<CustomerSummary>(
               initialValue: _customer,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Customer *'),
+              decoration: InputDecoration(labelText: ref.t('customer_required_field')),
               items: customers
                   .map((c) => DropdownMenuItem(
                         value: c,
@@ -600,32 +603,31 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
               onChanged: (v) => setState(() => _customer = v),
             ),
             const SizedBox(height: ManaSpacing.md),
-            _amountField(_given, 'Amount Given * — cash you handed over'),
-            _amountField(_interest, 'Interest *'),
-            _amountField(_fee, 'Processing Fee'),
-            _computedRow('Total Issued', _issuedV,
-                'the whole obligation = given + interest + fee'),
+            _amountField(_given, ref.t('amount_given_cash_field')),
+            _amountField(_interest, ref.t('interest_required_field')),
+            _amountField(_fee, ref.t('processing_fee_field')),
+            _computedRow(ref.t('total_issued'), _issuedV, ref.t('total_issued_hint')),
             const SizedBox(height: ManaSpacing.md),
             DropdownButtonFormField<String>(
               initialValue: _frequency,
-              decoration: const InputDecoration(labelText: 'Repayment Frequency'),
-              items: const ['Daily', 'Weekly', 'Monthly']
-                  .map((f) => DropdownMenuItem(value: f, child: ManaText.raw(f)))
-                  .toList(),
+              decoration: InputDecoration(labelText: ref.t('repayment_frequency_field')),
+              items: [
+                DropdownMenuItem(value: 'Daily', child: ManaText.raw(ref.t('daily'))),
+                DropdownMenuItem(value: 'Weekly', child: ManaText.raw(ref.t('weekly'))),
+                DropdownMenuItem(value: 'Monthly', child: ManaText.raw(ref.t('monthly'))),
+              ],
               onChanged: (v) => setState(() => _frequency = v ?? 'Weekly'),
             ),
             const SizedBox(height: ManaSpacing.md),
-            _amountField(_pending, 'Pending Instalments * — how many are left'),
-            _amountField(_emi, 'Instalment Amount (EMI) *'),
-            _amountField(_penalty, 'Penalty Outstanding'),
-            _computedRow('Remaining Balance', _remainingV,
-                'still owed today = pending x EMI + penalty'),
-            _computedRow('Already Paid', _collected,
-                'total issued - remaining balance'),
+            _amountField(_pending, ref.t('pending_instalments_field')),
+            _amountField(_emi, ref.t('instalment_amount_emi_field')),
+            _amountField(_penalty, ref.t('penalty_outstanding_field')),
+            _computedRow(ref.t('remaining_balance_label'), _remainingV, ref.t('remaining_balance_hint')),
+            _computedRow(ref.t('already_paid'), _collected, ref.t('already_paid_hint')),
             const SizedBox(height: ManaSpacing.md),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const ManaText('original start date'),
+              title: ManaText.raw(ref.t('original_start_date')),
               subtitle: ManaText.raw(DateFormat('d MMM yyyy').format(_effectiveDate)),
               trailing: const Icon(Icons.calendar_today, size: 18),
               onTap: () async {
@@ -652,7 +654,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
               child: _saving
                   ? const SizedBox(
                       width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const ManaText('save existing loan'),
+                  : ManaText.raw(ref.t('save_existing_loan')),
             ),
           ],
         ),
@@ -698,17 +700,16 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('what this records',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            ManaText.raw(ref.t('what_this_records'),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
-            _derived('Already collected', _collected),
-            _derived('Still owed', _remainingV),
+            _derived(ref.t('already_collected'), _collected),
+            _derived(ref.t('still_owed'), _remainingV),
             if (_pendingV != null && _pendingV! > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: ManaText.raw(
-                  '$_pendingV instalments will be created. They begin only once '
-                  'the migration is finished, not today.',
+                  ref.t('instalments_created_note').replaceAll('{count}', '$_pendingV'),
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
               ),

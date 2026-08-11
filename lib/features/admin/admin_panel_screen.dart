@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../design/tokens/colors.dart';
 import '../../design/tokens/spacing.dart';
+import '../../shared/translation_service.dart';
 import '../../design/components/mana_text.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -24,7 +25,7 @@ class AdminPanelScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('admin panel'),
+        title: ManaText.raw(ref.t('admin_panel')),
         leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/lr-012')),
       ),
       body: SafeArea(
@@ -66,13 +67,13 @@ class AdminPanelScreen extends ConsumerWidget {
   }
 }
 
-class _DeletePersonCard extends StatefulWidget {
+class _DeletePersonCard extends ConsumerStatefulWidget {
   const _DeletePersonCard();
   @override
-  State<_DeletePersonCard> createState() => _DeletePersonCardState();
+  ConsumerState<_DeletePersonCard> createState() => _DeletePersonCardState();
 }
 
-class _DeletePersonCardState extends State<_DeletePersonCard> {
+class _DeletePersonCardState extends ConsumerState<_DeletePersonCard> {
   final _mlidController = TextEditingController();
   final _reasonController = TextEditingController();
   Map<String, dynamic>? _found;
@@ -112,12 +113,12 @@ class _DeletePersonCardState extends State<_DeletePersonCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('are you absolutely sure?'),
+        title: ManaText.raw(ref.t('are_you_absolutely_sure')),
         content: ManaText.raw(
           'Permanently delete ${_found!['full_name']} (${_found!['mlid']}) and everything referencing them — addresses, ${_found!['business_count']} business membership(s), loans, collections. This cannot be undone.\n\nReason: $reason',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: ManaColors.statusBad),
             onPressed: () => Navigator.pop(context, true),
@@ -178,7 +179,7 @@ class _DeletePersonCardState extends State<_DeletePersonCard> {
                   onPressed: _searching ? null : _search,
                   child: _searching
                       ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const ManaText('search'),
+                      : ManaText.raw(ref.t('search')),
                 ),
               ],
             ),
@@ -228,13 +229,13 @@ class _DeletePersonCardState extends State<_DeletePersonCard> {
   }
 }
 
-class _DeleteBusinessCard extends StatefulWidget {
+class _DeleteBusinessCard extends ConsumerStatefulWidget {
   const _DeleteBusinessCard();
   @override
-  State<_DeleteBusinessCard> createState() => _DeleteBusinessCardState();
+  ConsumerState<_DeleteBusinessCard> createState() => _DeleteBusinessCardState();
 }
 
-class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
+class _DeleteBusinessCardState extends ConsumerState<_DeleteBusinessCard> {
   final _mlbiController = TextEditingController();
   final _reasonController = TextEditingController();
   Map<String, dynamic>? _found;
@@ -274,12 +275,12 @@ class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('are you absolutely sure?'),
+        title: ManaText.raw(ref.t('are_you_absolutely_sure')),
         content: ManaText.raw(
           'Permanently delete "${_found!['business_name']}" (${_found!['mlbi']}) and everything under it — ${_found!['agent_count']} agent(s), ${_found!['customer_count']} customer(s), ${_found!['investor_count']} investor(s), all loans/collections/settlements. This cannot be undone.\n\nReason: $reason',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: ManaColors.statusBad),
             onPressed: () => Navigator.pop(context, true),
@@ -340,7 +341,7 @@ class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
                   onPressed: _searching ? null : _search,
                   child: _searching
                       ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const ManaText('search'),
+                      : ManaText.raw(ref.t('search')),
                 ),
               ],
             ),
@@ -391,13 +392,13 @@ class _DeleteBusinessCardState extends State<_DeleteBusinessCard> {
   }
 }
 
-class _DeleteLoanCard extends StatefulWidget {
+class _DeleteLoanCard extends ConsumerStatefulWidget {
   const _DeleteLoanCard();
   @override
-  State<_DeleteLoanCard> createState() => _DeleteLoanCardState();
+  ConsumerState<_DeleteLoanCard> createState() => _DeleteLoanCardState();
 }
 
-class _DeleteLoanCardState extends State<_DeleteLoanCard> {
+class _DeleteLoanCardState extends ConsumerState<_DeleteLoanCard> {
   final _idController = TextEditingController();
   final _reasonController = TextEditingController();
   Map<String, dynamic>? _found;
@@ -437,12 +438,12 @@ class _DeleteLoanCardState extends State<_DeleteLoanCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('are you absolutely sure?'),
+        title: ManaText.raw(ref.t('are_you_absolutely_sure')),
         content: ManaText.raw(
           'Permanently delete loan ${_found!['loan_number']} (${_found!['customer_name']}, ${_currency.format(_found!['remaining_balance'])} outstanding) and its collections/schedule. This cannot be undone.\n\nReason: $reason',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: ManaColors.statusBad),
             onPressed: () => Navigator.pop(context, true),
@@ -503,7 +504,7 @@ class _DeleteLoanCardState extends State<_DeleteLoanCard> {
                   onPressed: _searching ? null : _search,
                   child: _searching
                       ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const ManaText('search'),
+                      : ManaText.raw(ref.t('search')),
                 ),
               ],
             ),
@@ -553,13 +554,13 @@ class _DeleteLoanCardState extends State<_DeleteLoanCard> {
   }
 }
 
-class _DeleteCollectionCard extends StatefulWidget {
+class _DeleteCollectionCard extends ConsumerStatefulWidget {
   const _DeleteCollectionCard();
   @override
-  State<_DeleteCollectionCard> createState() => _DeleteCollectionCardState();
+  ConsumerState<_DeleteCollectionCard> createState() => _DeleteCollectionCardState();
 }
 
-class _DeleteCollectionCardState extends State<_DeleteCollectionCard> {
+class _DeleteCollectionCardState extends ConsumerState<_DeleteCollectionCard> {
   final _idController = TextEditingController();
   final _reasonController = TextEditingController();
   Map<String, dynamic>? _found;
@@ -599,12 +600,12 @@ class _DeleteCollectionCardState extends State<_DeleteCollectionCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('are you absolutely sure?'),
+        title: ManaText.raw(ref.t('are_you_absolutely_sure')),
         content: ManaText.raw(
           'Permanently delete this collection of ${_currency.format(_found!['collected_amount'])} from ${_found!['customer_name']}. This cannot be undone.\n\nReason: $reason',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: ManaColors.statusBad),
             onPressed: () => Navigator.pop(context, true),
@@ -665,7 +666,7 @@ class _DeleteCollectionCardState extends State<_DeleteCollectionCard> {
                   onPressed: _searching ? null : _search,
                   child: _searching
                       ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const ManaText('search'),
+                      : ManaText.raw(ref.t('search')),
                 ),
               ],
             ),

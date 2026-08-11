@@ -59,7 +59,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 name: 'Mana Chits',
                 enabled: false,
                 badge: ref.t('coming_soon'),
-                onTap: () => _showComingSoon(context),
+                onTap: () => _showComingSoon(context, ref),
               ),
               const Spacer(),
             ],
@@ -69,7 +69,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
     );
   }
 
-  void _showComingSoon(BuildContext context) {
+  void _showComingSoon(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
       builder: (_) => Padding(
@@ -77,11 +77,11 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ManaText('mana chits — coming soon — version 2', textAlign: TextAlign.center),
+            ManaText.raw(ref.t('mana_chits_coming_soon'), textAlign: TextAlign.center),
             const SizedBox(height: ManaSpacing.md),
             OutlinedButton(
               onPressed: () => Navigator.pop(context),
-              child: const ManaText('close'),
+              child: ManaText.raw(ref.t('close')),
             ),
           ],
         ),

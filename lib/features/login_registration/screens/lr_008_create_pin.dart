@@ -176,7 +176,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
           const SizedBox(height: ManaSpacing.md),
           TextButton(
             onPressed: () => setState(() => _length = _length == 4 ? 6 : 4),
-            child: ManaText('use ${_length == 4 ? 6 : 4}-digit pin instead'),
+            child: ManaText.raw(ref.t('use_other_pin_length').replaceAll('{digits}', '${_length == 4 ? 6 : 4}')),
           ),
         ],
         const SizedBox(height: ManaSpacing.xl),

@@ -234,7 +234,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
       final granted = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const ManaText('use your location?'),
+          title: ManaText.raw(ref.t('use_your_location_question')),
           content: const ManaText.raw(
             'When you visit a customer, MANA LINE can note where you were, to '
             'confirm the visit happened at their address.\n\n'
@@ -245,10 +245,10 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const ManaText('not now')),
+                child: ManaText.raw(ref.t('not_now'))),
             ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const ManaText('allow')),
+                child: ManaText.raw(ref.t('allow'))),
           ],
         ),
       );

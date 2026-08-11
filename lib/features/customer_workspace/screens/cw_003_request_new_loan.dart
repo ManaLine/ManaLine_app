@@ -131,8 +131,8 @@ class _NotAllowedState extends ConsumerWidget {
           children: [
             Icon(Icons.block, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('not available for this business',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('not_available_for_business'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               'This Business does not currently accept Customer-initiated '
@@ -170,8 +170,8 @@ class _CooldownState extends ConsumerWidget {
           children: [
             Icon(Icons.hourglass_top, size: 48, color: ManaColors.statusWarn),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('resubmission not available yet',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('resubmission_not_available'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
             if (state.lastResult?.rejectionReason != null) ...[
               ManaText.raw(ref.t('previous_request_rejected_note').replaceAll('{reason}', '${state.lastResult!.rejectionReason}'),

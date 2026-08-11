@@ -507,7 +507,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ManaText('add new village', style: Theme.of(context).textTheme.titleSmall),
+                      ManaText.raw(ref.t('add_new_village'), style: Theme.of(context).textTheme.titleSmall),
                       const SizedBox(height: ManaSpacing.sm),
                       TextField(
                         controller: _manualVillageName,
@@ -556,7 +556,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                         children: [
                           TextButton(
                             onPressed: _savingManualVillage ? null : () => setState(() => _manualVillageEntry = false),
-                            child: const ManaText('cancel'),
+                            child: ManaText.raw(ref.t('cancel')),
                           ),
                           const SizedBox(width: ManaSpacing.sm),
                           ElevatedButton(
@@ -571,7 +571,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                             child: _savingManualVillage
                                 ? const SizedBox(
                                     height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                : const ManaText('save & select'),
+                                : ManaText.raw(ref.t('save_and_select')),
                           ),
                         ],
                       ),
@@ -637,14 +637,14 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               CheckboxListTile(
                 value: _acceptTerms,
                 onChanged: (v) => setState(() => _acceptTerms = v ?? false),
-                title: const ManaText('accept terms & conditions *'),
+                title: ManaText.raw(ref.t('accept_terms_conditions')),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
               ),
               CheckboxListTile(
                 value: _acceptPrivacy,
                 onChanged: (v) => setState(() => _acceptPrivacy = v ?? false),
-                title: const ManaText('accept privacy policy *'),
+                title: ManaText.raw(ref.t('accept_privacy_policy')),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
               ),
@@ -662,8 +662,8 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const ManaText('still needed to register',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ManaText.raw(ref.t('still_needed_to_register'),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 4),
                       ..._missingRequirements.map(
                         (m) => ManaText.raw('• $m', style: const TextStyle(fontSize: 13)),
@@ -693,7 +693,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 ? const SizedBox(
                     width: 20, height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const ManaText('register'),
+                : ManaText.raw(ref.t('register')),
           ),
         ),
       ),
@@ -711,18 +711,18 @@ class _SectionLabel extends StatelessWidget {
       );
 }
 
-class _LivePhotoCapture extends StatelessWidget {
+class _LivePhotoCapture extends ConsumerWidget {
   final Uint8List? photoBytes;
   final VoidCallback onCapture;
   const _LivePhotoCapture({required this.photoBytes, required this.onCapture});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (photoBytes == null) {
       return OutlinedButton.icon(
         onPressed: onCapture,
         icon: const Icon(Icons.camera_alt),
-        label: const ManaText('capture live photo *'),
+        label: ManaText.raw(ref.t('capture_live_photo')),
       );
     }
     return Row(
@@ -732,7 +732,7 @@ class _LivePhotoCapture extends StatelessWidget {
         TextButton.icon(
           onPressed: onCapture,
           icon: const Icon(Icons.refresh, size: 18),
-          label: const ManaText('retake photo'),
+          label: ManaText.raw(ref.t('retake_photo')),
         ),
       ],
     );

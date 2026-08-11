@@ -165,10 +165,10 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
             if (parse != null && !_busy) ...[
               const SizedBox(height: ManaSpacing.lg),
-              const ManaText('step 3',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              ManaText.raw(ref.t('step_3'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: ManaSpacing.xs),
-              ManaText.raw('${parse.rows.length} rows ready to import',
+              ManaText.raw(ref.t('rows_ready_to_import').replaceAll('{count}', '${parse.rows.length}'),
                   style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: ManaSpacing.sm),
               ElevatedButton.icon(

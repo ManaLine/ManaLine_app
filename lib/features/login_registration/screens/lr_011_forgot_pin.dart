@@ -319,7 +319,7 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
           onPressed: (_otpCode.length == 6 && !_submitting) ? _verifyOtp : null,
           child: _submitting
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('verify'),
+              : ManaText.raw(ref.t('verify')),
         ),
       ],
     );
@@ -372,7 +372,7 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
           const SizedBox(height: ManaSpacing.md),
           TextButton(
             onPressed: () => setState(() => _pinLength = _pinLength == 4 ? 6 : 4),
-            child: ManaText('use ${_pinLength == 4 ? 6 : 4}-digit pin instead'),
+            child: ManaText.raw(ref.t('use_other_pin_length').replaceAll('{digits}', '${_pinLength == 4 ? 6 : 4}')),
           ),
         ],
         const SizedBox(height: ManaSpacing.xl),

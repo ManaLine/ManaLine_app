@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../owner_workspace/state/customer_state.dart' show CustomerSummary, CustomerProfile, CustomerRemark;
@@ -59,12 +60,12 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
     // Can View Customers gates the whole screen (PRIMARY PERMISSION).
     if (!state.loading && state.customers.isEmpty && state.error == null && !state.permissions.canViewCustomers) {
       return Scaffold(
-        appBar: AppBar(title: const ManaText('customer management')),
+        appBar: AppBar(title: ManaText.raw(ref.t('customer_management'))),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(ManaSpacing.lg),
             child: ManaText.raw(
-              'You do not have permission to view customers on this business.',
+              ref.t('no_permission_view_customers'),
               textAlign: TextAlign.center,
               style: TextStyle(color: ManaColors.textSecondary),
             ),
@@ -75,12 +76,12 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('customer management'),
+        title: ManaText.raw(ref.t('customer_management')),
         actions: [
           // Create Customer — hidden entirely unless can_create_customer.
           if (state.permissions.canCreateCustomer)
             IconButton(
-              tooltip: 'Create Customer',
+              tooltip: ref.t('create_customer'),
               icon: const Icon(Icons.person_add_alt_1_outlined),
               onPressed: () => _showCreateCustomerNotice(context),
             ),
@@ -98,9 +99,9 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
                       children: [
                         TextField(
                           controller: _search,
-                          decoration: const InputDecoration(
-                            hintText: 'Search by name, MLID, or phone',
-                            prefixIcon: Icon(Icons.search),
+                          decoration: InputDecoration(
+                            hintText: ref.t('search_by_name_mlid_phone'),
+                            prefixIcon: const Icon(Icons.search),
                           ),
                           onChanged: (v) =>
                               ref.read(agentCustomerListProvider.notifier).setSearchQuery(v),
@@ -126,7 +127,7 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
                                 Padding(
                                   padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                                   child: Center(
-                                    child: ManaText.raw('No assigned customers match this view.',
+                                    child: ManaText.raw(ref.t('no_assigned_customers_match'),
                                         style: TextStyle(color: ManaColors.textSecondary)),
                                   ),
                                 ),
@@ -166,7 +167,7 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
     // (same fields/endpoint); wiring the shared sheet here is out of scope
     // for this pass — flagged for cross-check with the OW-004 owner.
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Create Customer reuses the OW-004 identity-search flow — TODO: wire shared sheet.')),
+      SnackBar(content: ManaText.raw(ref.t('create_customer_todo_note'))),
     );
   }
 }
@@ -189,7 +190,7 @@ class _FilterChips extends ConsumerWidget {
       runSpacing: ManaSpacing.xs,
       children: [
         ChoiceChip(
-          label: const ManaText('all villages'),
+          label: ManaText.raw(ref.t('all_villages')),
           selected: state.villageFilter == null,
           onSelected: (_) => ref.read(agentCustomerListProvider.notifier).setVillageFilter(null),
         ),
@@ -199,7 +200,7 @@ class _FilterChips extends ConsumerWidget {
               onSelected: (_) => ref.read(agentCustomerListProvider.notifier).setVillageFilter(v),
             )),
         FilterChip(
-          label: const ManaText("today's due"),
+          label: ManaText.raw(ref.t('todays_due')),
           selected: state.loanStatusFilter == 'HasDue',
           onSelected: (sel) =>
               ref.read(agentCustomerListProvider.notifier).setLoanStatusFilter(sel ? 'HasDue' : null),
@@ -209,13 +210,13 @@ class _FilterChips extends ConsumerWidget {
   }
 }
 
-class _CustomerRow extends StatelessWidget {
+class _CustomerRow extends ConsumerWidget {
   final CustomerSummary customer;
   final VoidCallback onTap;
   const _CustomerRow({required this.customer, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final flagged = customer.membershipStatus != 'Active';
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
@@ -241,7 +242,7 @@ class _CustomerRow extends StatelessWidget {
             ManaText.raw(_currency.format(customer.outstandingBalance),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             if (customer.todaysDue > 0)
-              ManaText.raw('Due ${_currency.format(customer.todaysDue)}',
+              ManaText.raw(ref.t('due_note').replaceAll('{amount}', _currency.format(customer.todaysDue)),
                   style: TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
           ],
         ),
@@ -285,28 +286,29 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: ManaText.raw(customerName),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             tabs: [
-              Tab(text: 'Summary'),
-              Tab(text: 'Loan Information'),
-              Tab(text: 'Collection History'),
-              Tab(text: 'Remarks'),
+              Tab(text: ref.t('summary_tab')),
+              Tab(text: ref.t('loan_information')),
+              Tab(text: ref.t('collection_history')),
+              Tab(text: ref.t('remarks_tab')),
             ],
           ),
           actions: [
             PopupMenuButton<String>(
               onSelected: (v) => _handleAction(context, ref, v),
               itemBuilder: (_) => [
-                const PopupMenuItem(value: 'collect', child: ManaText('collect payment')),
+                PopupMenuItem(value: 'collect', child: ManaText.raw(ref.t('collect_payment'))),
                 // View Loan has no dedicated permission per spec (read-only
                 // display); Create Loan hidden entirely unless can_issue_loans.
-                const PopupMenuItem(value: 'view_loan', child: ManaText('view loan')),
-                if (perms.canIssueLoans) const PopupMenuItem(value: 'create_loan', child: ManaText('create loan')),
+                PopupMenuItem(value: 'view_loan', child: ManaText.raw(ref.t('view_loan'))),
+                if (perms.canIssueLoans)
+                  PopupMenuItem(value: 'create_loan', child: ManaText.raw(ref.t('create_loan'))),
                 if (perms.canEditCustomerContact)
-                  const PopupMenuItem(value: 'edit_contact', child: ManaText('update contact info')),
+                  PopupMenuItem(value: 'edit_contact', child: ManaText.raw(ref.t('update_contact_info'))),
                 if (perms.canUploadDocuments)
-                  const PopupMenuItem(value: 'upload_document', child: ManaText('upload document')),
+                  PopupMenuItem(value: 'upload_document', child: ManaText.raw(ref.t('upload_document'))),
               ],
             ),
           ],
@@ -316,7 +318,8 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw('Could not load profile.\n$e', textAlign: TextAlign.center),
+              child: ManaText.raw(ref.t('could_not_load_profile').replaceAll('{error}', '$e'),
+                  textAlign: TextAlign.center),
             ),
           ),
           data: (profile) => TabBarView(
@@ -412,30 +415,30 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const ManaText('update contact info', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ManaText.raw(ref.t('update_contact_info'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: ManaSpacing.md),
                   TextField(
                     controller: phoneController,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(labelText: 'Phone Number'),
+                    decoration: InputDecoration(labelText: ref.t('phone_number_plain_field')),
                   ),
                   const SizedBox(height: ManaSpacing.lg),
-                  const ManaText('address', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ManaText.raw(ref.t('address'), style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: ManaSpacing.sm),
                   TextField(
                     controller: doorNoController,
-                    decoration: const InputDecoration(labelText: 'Door No'),
+                    decoration: InputDecoration(labelText: ref.t('door_no_field')),
                   ),
                   const SizedBox(height: ManaSpacing.md),
                   TextField(
                     controller: pinCodeController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'PIN Code'),
+                    decoration: InputDecoration(labelText: ref.t('pin_code_plain_field')),
                   ),
                   const SizedBox(height: ManaSpacing.md),
                   TextField(
                     controller: villageSearchController,
-                    decoration: const InputDecoration(labelText: 'Search Village/Town'),
+                    decoration: InputDecoration(labelText: ref.t('search_village_town_plain_field')),
                     onChanged: (v) {
                       selectedVillageId = null;
                       selectedVillageLabel = null;
@@ -468,13 +471,13 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                     ),
                   if (selectedVillageLabel != null) ...[
                     const SizedBox(height: ManaSpacing.xs),
-                    ManaText.raw('Selected: $selectedVillageLabel',
+                    ManaText.raw(ref.t('selected_note').replaceAll('{value}', '$selectedVillageLabel'),
                         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                   ],
                   const SizedBox(height: ManaSpacing.lg),
                   ElevatedButton(
                     onPressed: () => Navigator.of(sheetContext).pop(true),
-                    child: const ManaText('save'),
+                    child: ManaText.raw(ref.t('save')),
                   ),
                 ],
               ),
@@ -508,13 +511,13 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ManaText('upload document', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ManaText.raw(ref.t('upload_document'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: ManaSpacing.md),
               for (final type in AgentDocumentType.values)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.description_outlined, color: ManaColors.brand),
-                  title: ManaText(type.displayLabel),
+                  title: ManaText.raw(type.displayLabel),
                   onTap: () => Navigator.of(sheetContext).pop(type),
                 ),
             ],
@@ -532,12 +535,12 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
   }
 }
 
-class _SummaryTab extends StatelessWidget {
+class _SummaryTab extends ConsumerWidget {
   final CustomerProfile profile;
   const _SummaryTab({required this.profile});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = profile.summary;
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -547,16 +550,15 @@ class _SummaryTab extends StatelessWidget {
         Center(child: ManaText.raw(s.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
         Center(child: ManaText.raw(s.mlid, style: TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
-        _row('Village', s.village),
-        _row('Phone', s.phoneNumber),
-        _row('Assigned Agent', profile.currentAgent ?? '—'),
-        _row('Loan Count', '${s.activeLoanCount}'),
-        _row('Outstanding', _currency.format(s.outstandingBalance)),
-        _row("Today's Due", _currency.format(s.todaysDue)),
+        _row(ref.t('village'), s.village),
+        _row(ref.t('phone'), s.phoneNumber),
+        _row(ref.t('assigned_agent'), profile.currentAgent ?? '—'),
+        _row(ref.t('loan_count'), '${s.activeLoanCount}'),
+        _row(ref.t('outstanding'), _currency.format(s.outstandingBalance)),
+        _row(ref.t('todays_due'), _currency.format(s.todaysDue)),
         const SizedBox(height: ManaSpacing.md),
         ManaText.raw(
-          'Outstanding, Today\'s Due, and loan figures are read-only here — '
-          'collection and loan-issue writes only happen via Collection Mode / Loan Distribution.',
+          ref.t('read_only_figures_note'),
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
       ],
@@ -567,7 +569,12 @@ class _SummaryTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(
+                child: ManaText.raw(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
@@ -575,14 +582,14 @@ class _SummaryTab extends StatelessWidget {
 }
 
 /// LOAN INFORMATION — read-only display only.
-class _LoanInformationTab extends StatelessWidget {
+class _LoanInformationTab extends ConsumerWidget {
   final CustomerProfile profile;
   const _LoanInformationTab({required this.profile});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (profile.loans.isEmpty) {
-      return Center(child: ManaText.raw('No loans yet.', style: TextStyle(color: ManaColors.textSecondary)));
+      return Center(child: ManaText.raw(ref.t('no_loans_yet'), style: TextStyle(color: ManaColors.textSecondary)));
     }
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -624,7 +631,12 @@ class _LoanInformationTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(
+                child: ManaText.raw(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
@@ -633,15 +645,15 @@ class _LoanInformationTab extends StatelessWidget {
 
 /// COLLECTION HISTORY — Business Date, Receipt Number, Amount, Payment
 /// Mode, Collector, Remarks. Read Only.
-class _CollectionHistoryTab extends StatelessWidget {
+class _CollectionHistoryTab extends ConsumerWidget {
   final CustomerProfile profile;
   const _CollectionHistoryTab({required this.profile});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (profile.collections.isEmpty) {
       return Center(
-          child: ManaText.raw('No collections yet.', style: TextStyle(color: ManaColors.textSecondary)));
+          child: ManaText.raw(ref.t('no_collections_yet'), style: TextStyle(color: ManaColors.textSecondary)));
     }
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -711,7 +723,7 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
           child: ListView(
             padding: const EdgeInsets.all(ManaSpacing.lg),
             children: widget.profile.remarks.isEmpty
-                ? [ManaText.raw('No remarks yet.', style: TextStyle(color: ManaColors.textSecondary))]
+                ? [ManaText.raw(ref.t('no_remarks_yet'), style: TextStyle(color: ManaColors.textSecondary))]
                 : widget.profile.remarks
                     .map((r) => Card(
                           child: ListTile(
@@ -731,7 +743,7 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline, size: 18),
                                   color: ManaColors.statusBad,
-                                  tooltip: 'Delete',
+                                  tooltip: ref.t('delete'),
                                   onPressed: () => _deleteRemark(r),
                                 ),
                               ],
@@ -752,7 +764,7 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
                     child: DropdownButtonFormField<String>(
                       initialValue: _selectedReason,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Add a remark (append-only)'),
+                      decoration: InputDecoration(labelText: ref.t('add_remark_append_only_field')),
                       items: agentRemarkReasons
                           .map((r) => DropdownMenuItem(value: r, child: ManaText.raw(r, overflow: TextOverflow.ellipsis)))
                           .toList(),

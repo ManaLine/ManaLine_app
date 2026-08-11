@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
@@ -60,7 +61,7 @@ class _OwnerSettlementScreenState extends ConsumerState<OwnerSettlementScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('settlement'),
+        title: ManaText.raw(ref.t('settlement')),
         actions: [
           // Only before submission. Once the settlement is Pending or
           // Approved, a new expense would move the float the submitted
@@ -69,7 +70,7 @@ class _OwnerSettlementScreenState extends ConsumerState<OwnerSettlementScreen> {
             TextButton.icon(
               onPressed: _recordExpense,
               icon: const Icon(Icons.receipt_long, size: 18),
-              label: const ManaText('expense'),
+              label: ManaText.raw(ref.t('expense')),
             ),
         ],
       ),
@@ -199,7 +200,10 @@ class _ReturnedView extends ConsumerWidget {
                   children: [
                     Icon(Icons.undo, color: ManaColors.statusBad),
                     const SizedBox(width: ManaSpacing.sm),
-                    const ManaText('returned — correction required', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Expanded(
+                      child: ManaText.raw(ref.t('returned_correction_required'),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ],
                 ),
                 if (s?.returnReason != null) ...[
@@ -215,7 +219,7 @@ class _ReturnedView extends ConsumerWidget {
           alignment: Alignment.centerLeft,
           child: ElevatedButton(
             onPressed: () => ref.read(agentSettlementProvider.notifier).beginResubmit(),
-            child: const ManaText('correct and resubmit'),
+            child: ManaText.raw(ref.t('correct_and_resubmit')),
           ),
         ),
       ],
@@ -223,7 +227,7 @@ class _ReturnedView extends ConsumerWidget {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
+class _SummaryCard extends ConsumerWidget {
   final SettlementPreview preview;
   final int physicalCashDeclared;
 
@@ -233,33 +237,33 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.preview, required this.physicalCashDeclared, this.difference});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText('settlement summary', style: Theme.of(context).textTheme.titleMedium),
+            ManaText.raw(ref.t('settlement_summary'), style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: ManaSpacing.sm),
-            _row('Opening Balance (BF)', preview.openingBalance),
-            _row('Cash Collected', preview.cashCollected),
-            _row('UPI Collected', preview.upiCollected),
-            _row('Bank Collection', preview.bankCollected),
-            _row('Cheque Collection', preview.chequeCollected),
-            _row('Loan Distribution', preview.loanDistribution),
-            _row('Expenses', preview.expenses),
+            _row(ref.t('opening_balance_bf'), preview.openingBalance),
+            _row(ref.t('cash_collected'), preview.cashCollected),
+            _row(ref.t('upi_collected'), preview.upiCollected),
+            _row(ref.t('bank_collection'), preview.bankCollected),
+            _row(ref.t('cheque_collection'), preview.chequeCollected),
+            _row(ref.t('loan_distribution'), preview.loanDistribution),
+            _row(ref.t('expenses'), preview.expenses),
             const Divider(),
             // Expected Closing and Difference exist only once the server
             // has computed them. Rendering a locally-derived stand-in here
             // is what this change removed.
             if (preview.expectedClosingBalance != null)
-              _row('Expected Closing Balance', preview.expectedClosingBalance!,
+              _row(ref.t('expected_closing_balance'), preview.expectedClosingBalance!,
                   emphasize: true),
-            _row('Physical Cash Declared', physicalCashDeclared, emphasize: true),
+            _row(ref.t('physical_cash_declared'), physicalCashDeclared, emphasize: true),
             if (difference != null) ...[
               const Divider(),
-              _row('Difference', difference!,
+              _row(ref.t('difference'), difference!,
                   emphasize: true,
                   color: difference == 0
                       ? ManaColors.statusGood
@@ -282,7 +286,10 @@ class _SummaryCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ManaText(label, style: style),
+          Expanded(
+              child: ManaText.raw(label,
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: style)),
+          const SizedBox(width: ManaSpacing.xs),
           ManaText.raw(_currency.format(amount), style: style),
         ],
       ),
@@ -338,7 +345,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: ManaText.raw('Unable to load settlement figures.', style: TextStyle(color: ManaColors.textSecondary)),
+          child: ManaText.raw(ref.t('unable_to_load_settlement'), style: TextStyle(color: ManaColors.textSecondary)),
         ),
       );
     }
@@ -347,14 +354,23 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw('${_dateFmt.format(widget.periodStart)} – ${_dateFmt.format(widget.periodEnd)}',
-                style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            Expanded(
+              child: ManaText.raw('${_dateFmt.format(widget.periodStart)} – ${_dateFmt.format(widget.periodEnd)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            ),
+            const SizedBox(width: ManaSpacing.xs),
             // cycle_type is Business-level/Owner-set (OW-012 Account Cycle
             // config) — read-only display here, never an Agent choice per
             // submission.
-            ManaStatusPill(label: '${state.cycleType} Account', status: ManaStatus.neutral),
+            Flexible(
+              child: ManaStatusPill(
+                  label: ref.t('cycle_account_note').replaceAll('{cycle}', state.cycleType),
+                  status: ManaStatus.neutral),
+            ),
           ],
         ),
         const SizedBox(height: ManaSpacing.md),
@@ -364,12 +380,12 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
           difference: state.difference,
         ),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText('settlement details', style: Theme.of(context).textTheme.titleMedium),
+        ManaText.raw(ref.t('settlement_details'), style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _cashController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Physical Cash (₹)'),
+          decoration: InputDecoration(labelText: ref.t('physical_cash_field')),
           onChanged: (v) => ref.read(agentSettlementProvider.notifier).setPhysicalCash(int.tryParse(v) ?? 0),
         ),
         const SizedBox(height: ManaSpacing.md),
@@ -377,8 +393,10 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
           controller: _chequeCountController,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            labelText: 'Cheque Count (tally, not persisted)',
-            helperText: 'Sits alongside Cheque Collection ${_currency.format(state.preview!.chequeCollected)} for your own reconciliation.',
+            labelText: ref.t('cheque_count_field'),
+            helperText: ref
+                .t('cheque_count_helper')
+                .replaceAll('{amount}', _currency.format(state.preview!.chequeCollected)),
           ),
           onChanged: (v) => ref.read(agentSettlementProvider.notifier).setChequeCountTally(int.tryParse(v) ?? 0),
         ),
@@ -386,9 +404,9 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
         TextField(
           controller: _remarksController,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Supporting Remarks',
-            hintText: 'Optional — note anything the Owner should know',
+          decoration: InputDecoration(
+            labelText: ref.t('supporting_remarks_field'),
+            hintText: ref.t('supporting_remarks_hint'),
           ),
           onChanged: (v) => ref.read(agentSettlementProvider.notifier).setRemarks(v),
         ),
@@ -401,7 +419,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
             onPressed: state.canSubmit && !state.submitting ? () => _submit(context) : null,
             child: state.submitting
                 ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const ManaText('submit settlement'),
+                : ManaText.raw(ref.t('submit_settlement')),
           ),
         ),
       ],
@@ -416,7 +434,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
     });
     if (result == null || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settlement submitted for Owner review.')),
+      SnackBar(content: ManaText.raw(ref.t('settlement_submitted_note'))),
     );
   }
 }
@@ -425,11 +443,11 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
 /// difference is zero" off a figure the phone derived with a different
 /// formula from the server's. Telling an agent their cash balances is a
 /// claim only the server can make, and it makes it at submit.
-class _DifferencePendingNote extends StatelessWidget {
+class _DifferencePendingNote extends ConsumerWidget {
   const _DifferencePendingNote();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       color: ManaColors.statusWarnFaint,
       child: Padding(
@@ -438,9 +456,8 @@ class _DifferencePendingNote extends StatelessWidget {
           children: [
             Icon(Icons.info_outline, color: ManaColors.statusWarn),
             const SizedBox(width: ManaSpacing.sm),
-            const Expanded(
-              child: ManaText(
-                  'count your cash and declare it. the difference is worked out when you submit.'),
+            Expanded(
+              child: ManaText.raw(ref.t('count_cash_declare_note')),
             ),
           ],
         ),

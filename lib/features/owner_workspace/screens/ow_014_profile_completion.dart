@@ -7,6 +7,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../state/global_workflow_state.dart';
 
@@ -117,7 +118,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
         final type = await showDialog<String>(
           context: context,
           builder: (dialogContext) => SimpleDialog(
-            title: const ManaText('document type'),
+            title: ManaText.raw(ref.t('document_type')),
             children: [
               // Exactly identity_document_type_enum (migration 0001) — the
               // RPC param is that enum, so an off-list value is a 22P02.
@@ -193,7 +194,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const ManaText('complete profile')),
+      appBar: AppBar(title: ManaText.raw(ref.t('complete_profile'))),
       body: SafeArea(
         child: FutureBuilder<MemberProfileChecklist>(
           future: _future,
@@ -205,7 +206,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
               return Padding(
                 padding: const EdgeInsets.all(ManaSpacing.lg),
                 child: ManaText.raw(
-                  'Could not load this profile.\n${snapshot.error}',
+                  ref.t('could_not_load_profile_note').replaceAll('{error}', '${snapshot.error}'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: ManaColors.statusBad, fontSize: 13),
                 ),
@@ -219,68 +220,67 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
                 ManaText.raw('${c.mlid} · ${c.profileStatus}',
                     style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                 const SizedBox(height: ManaSpacing.lg),
-                const ManaText('owner captured', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                ManaText.raw(ref.t('owner_captured'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: ManaSpacing.sm),
                 _StepTile(
                   done: c.hasPhoto,
                   icon: Icons.camera_alt_outlined,
-                  title: 'Profile Photo',
-                  subtitle: c.hasPhoto ? 'Captured — tap to retake' : 'Required',
+                  title: ref.t('profile_photo'),
+                  subtitle: c.hasPhoto ? ref.t('captured_tap_retake') : ref.t('required_label'),
                   onTap: _busy ? null : _capturePhoto,
                 ),
                 _StepTile(
                   done: c.hasAddress,
                   icon: Icons.home_outlined,
-                  title: 'Address · PIN Code · Village',
-                  subtitle: c.addressSummary ?? 'Required',
+                  title: ref.t('address_pin_village'),
+                  subtitle: c.addressSummary ?? ref.t('required_label'),
                   onTap: _busy ? null : _editAddress,
                 ),
                 _StepTile(
                   done: c.hasDocument,
                   icon: Icons.description_outlined,
-                  title: 'Identity Documents',
-                  subtitle: c.hasDocument ? 'On file — tap to add another' : 'Required',
+                  title: ref.t('identity_documents'),
+                  subtitle: c.hasDocument ? ref.t('on_file_tap_add_another') : ref.t('required_label'),
                   onTap: _busy ? null : _uploadDocument,
                 ),
                 _StepTile(
                   done: c.hasMobile,
                   icon: Icons.badge_outlined,
-                  title: 'Mobile · DOB · Aadhaar',
-                  subtitle: c.hasMobile ? 'Mobile on file — tap to edit' : 'Optional, but needed for SMS/OTP',
+                  title: ref.t('mobile_dob_aadhaar'),
+                  subtitle: c.hasMobile ? ref.t('mobile_on_file_tap_edit') : ref.t('optional_needed_for_sms'),
                   onTap: _busy ? null : _editContact,
                 ),
                 const SizedBox(height: ManaSpacing.lg),
-                const ManaText('member completes these', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                ManaText.raw(ref.t('member_completes_these'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(
-                  'These cannot be done on the member\'s behalf — the credential is theirs to set and the '
-                  'OTP goes to their phone.',
+                  ref.t('member_completes_note'),
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
                 const SizedBox(height: ManaSpacing.sm),
                 _StepTile(
                   done: c.hasCredential,
                   icon: Icons.lock_outline,
-                  title: 'Password / PIN',
-                  subtitle: c.hasCredential ? 'Set by the member' : 'Member sets this at First Login',
+                  title: ref.t('password_pin'),
+                  subtitle: c.hasCredential ? ref.t('set_by_member') : ref.t('member_sets_at_first_login'),
                   onTap: null,
                 ),
                 _StepTile(
                   done: c.termsAccepted,
                   icon: Icons.gavel_outlined,
-                  title: 'OTP Verification · Terms Acceptance',
-                  subtitle: c.termsAccepted ? 'Accepted by the member' : 'Requires the member\'s own verified OTP',
+                  title: ref.t('otp_terms_acceptance'),
+                  subtitle: c.termsAccepted ? ref.t('accepted_by_member') : ref.t('requires_member_own_otp'),
                   onTap: null,
                 ),
                 const SizedBox(height: ManaSpacing.xl),
                 FilledButton(
                   onPressed: _busy || !c.ownerStepsDone ? null : _markComplete,
-                  child: const ManaText('mark profile complete'),
+                  child: ManaText.raw(ref.t('mark_profile_complete')),
                 ),
                 if (!c.ownerStepsDone) ...[
                   const SizedBox(height: ManaSpacing.sm),
                   ManaText.raw(
-                    'Photo, address and at least one identity document are required first.',
+                    ref.t('owner_steps_required_note'),
                     style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                   ),
                 ],
@@ -337,14 +337,14 @@ class _AddressResult {
   const _AddressResult({required this.doorNo, required this.pinCode, required this.villageId});
 }
 
-class _AddressDialog extends StatefulWidget {
+class _AddressDialog extends ConsumerStatefulWidget {
   const _AddressDialog();
 
   @override
-  State<_AddressDialog> createState() => _AddressDialogState();
+  ConsumerState<_AddressDialog> createState() => _AddressDialogState();
 }
 
-class _AddressDialogState extends State<_AddressDialog> {
+class _AddressDialogState extends ConsumerState<_AddressDialog> {
   final _doorNo = TextEditingController();
   final _pinCode = TextEditingController();
   final _villageSearch = TextEditingController();
@@ -435,7 +435,7 @@ class _AddressDialogState extends State<_AddressDialog> {
     final canSave =
         _doorNo.text.trim().isNotEmpty && _pinCode.text.trim().length == 6 && _selectedVillage != null;
     return AlertDialog(
-      title: const ManaText('address'),
+      title: ManaText.raw(ref.t('address')),
       content: SizedBox(
         width: 360,
         child: SingleChildScrollView(
@@ -445,7 +445,7 @@ class _AddressDialogState extends State<_AddressDialog> {
             children: [
               TextField(
                 controller: _doorNo,
-                decoration: const InputDecoration(labelText: 'Door / House No *', isDense: true),
+                decoration: InputDecoration(labelText: ref.t('door_house_no_field'), isDense: true),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.sm),
@@ -454,10 +454,10 @@ class _AddressDialogState extends State<_AddressDialog> {
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  labelText: 'PIN Code *',
+                decoration: InputDecoration(
+                  labelText: ref.t('pin_code_required_field'),
                   isDense: true,
-                  helperText: 'Villages shown are limited to this PIN',
+                  helperText: ref.t('villages_limited_to_pin_helper'),
                 ),
                 onChanged: (_) {
                   setState(() => _selectedVillage = null);
@@ -466,7 +466,7 @@ class _AddressDialogState extends State<_AddressDialog> {
               ),
               TextField(
                 controller: _villageSearch,
-                decoration: const InputDecoration(labelText: 'Search Village/Town *', isDense: true),
+                decoration: InputDecoration(labelText: ref.t('search_village_town_field'), isDense: true),
                 onChanged: (v) {
                   setState(() {
                     _selectedVillage = null;
@@ -507,23 +507,24 @@ class _AddressDialogState extends State<_AddressDialog> {
                     _manualEntry = true;
                     _manualName.text = _villageSearch.text.trim();
                   }),
-                  child: Text('"${_villageSearch.text.trim()}" not found — add it'),
+                  child: ManaText.raw(
+                      ref.t('village_not_found_add_it').replaceAll('{query}', _villageSearch.text.trim())),
                 ),
               if (_manualEntry) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 TextField(
                   controller: _manualName,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Village/Town Name *', isDense: true),
+                  decoration: InputDecoration(labelText: ref.t('village_town_name_field'), isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: ManaSpacing.xs),
                 DropdownButtonFormField<String>(
                   initialValue: _manualAreaType,
-                  decoration: const InputDecoration(labelText: 'Area Type *', isDense: true),
-                  items: const [
-                    DropdownMenuItem(value: 'Village', child: Text('Village')),
-                    DropdownMenuItem(value: 'Town', child: Text('Town')),
+                  decoration: InputDecoration(labelText: ref.t('area_type_field'), isDense: true),
+                  items: [
+                    DropdownMenuItem(value: 'Village', child: ManaText.raw(ref.t('village'))),
+                    DropdownMenuItem(value: 'Town', child: ManaText.raw(ref.t('town'))),
                   ],
                   onChanged: (v) => setState(() => _manualAreaType = v ?? 'Village'),
                 ),
@@ -531,21 +532,21 @@ class _AddressDialogState extends State<_AddressDialog> {
                 TextField(
                   controller: _manualMandal,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Mandal *', isDense: true),
+                  decoration: InputDecoration(labelText: ref.t('mandal_field'), isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: ManaSpacing.xs),
                 TextField(
                   controller: _manualDistrict,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'District *', isDense: true),
+                  decoration: InputDecoration(labelText: ref.t('district_field'), isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: ManaSpacing.xs),
                 TextField(
                   controller: _manualState,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'State *', isDense: true),
+                  decoration: InputDecoration(labelText: ref.t('state_field'), isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: ManaSpacing.xs),
@@ -554,13 +555,13 @@ class _AddressDialogState extends State<_AddressDialog> {
                   children: [
                     TextButton(
                       onPressed: _savingManual ? null : () => setState(() => _manualEntry = false),
-                      child: const ManaText('cancel'),
+                      child: ManaText.raw(ref.t('cancel')),
                     ),
                     ElevatedButton(
                       onPressed: _savingManual || !_manualComplete ? null : _saveManualVillage,
                       child: _savingManual
                           ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const ManaText('save & select'),
+                          : ManaText.raw(ref.t('save_and_select')),
                     ),
                   ],
                 ),
@@ -568,8 +569,9 @@ class _AddressDialogState extends State<_AddressDialog> {
               if (_selectedVillage != null) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(
-                  'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, '
-                  '${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
+                  ref.t('selected_note').replaceAll('{value}',
+                      '${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, '
+                      '${_selectedVillage!['district']}, ${_selectedVillage!['state']}'),
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
               ],
@@ -578,7 +580,7 @@ class _AddressDialogState extends State<_AddressDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const ManaText('cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: ManaText.raw(ref.t('cancel'))),
         ElevatedButton(
           onPressed: canSave
               ? () => Navigator.pop(
@@ -590,7 +592,7 @@ class _AddressDialogState extends State<_AddressDialog> {
                     ),
                   )
               : null,
-          child: const ManaText('save'),
+          child: ManaText.raw(ref.t('save')),
         ),
       ],
     );
@@ -609,14 +611,14 @@ class _ContactResult {
   const _ContactResult({this.mobileNumber, this.dob, this.aadhaarNumber});
 }
 
-class _ContactDialog extends StatefulWidget {
+class _ContactDialog extends ConsumerStatefulWidget {
   const _ContactDialog();
 
   @override
-  State<_ContactDialog> createState() => _ContactDialogState();
+  ConsumerState<_ContactDialog> createState() => _ContactDialogState();
 }
 
-class _ContactDialogState extends State<_ContactDialog> {
+class _ContactDialogState extends ConsumerState<_ContactDialog> {
   final _mobile = TextEditingController();
   final _aadhaar = TextEditingController();
   DateTime? _dob;
@@ -630,7 +632,7 @@ class _ContactDialogState extends State<_ContactDialog> {
     final anything = mobile.isNotEmpty || aadhaar.isNotEmpty || _dob != null;
 
     return AlertDialog(
-      title: const ManaText('contact & identity'),
+      title: ManaText.raw(ref.t('contact_and_identity')),
       content: SizedBox(
         width: 360,
         child: Column(
@@ -638,7 +640,7 @@ class _ContactDialogState extends State<_ContactDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(
-              'Blank fields are left unchanged.',
+              ref.t('blank_fields_unchanged_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -648,9 +650,9 @@ class _ContactDialogState extends State<_ContactDialog> {
               maxLength: 10,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
-                labelText: 'Mobile Number',
+                labelText: ref.t('mobile_number_field'),
                 isDense: true,
-                errorText: mobileValid ? null : 'Must be 10 digits',
+                errorText: mobileValid ? null : ref.t('must_be_10_digits'),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -661,9 +663,9 @@ class _ContactDialogState extends State<_ContactDialog> {
               maxLength: 12,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
-                labelText: 'Aadhaar Number',
+                labelText: ref.t('aadhaar_number_field'),
                 isDense: true,
-                errorText: aadhaarValid ? null : 'Must be 12 digits',
+                errorText: aadhaarValid ? null : ref.t('must_be_12_digits'),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -673,8 +675,9 @@ class _ContactDialogState extends State<_ContactDialog> {
                 Expanded(
                   child: ManaText.raw(
                     _dob == null
-                        ? 'Date of Birth — not set'
-                        : 'Date of Birth — ${_dob!.toIso8601String().split('T').first}',
+                        ? ref.t('dob_not_set')
+                        : ref.t('dob_value_note').replaceAll(
+                            '{date}', _dob!.toIso8601String().split('T').first),
                     style: const TextStyle(fontSize: 13),
                   ),
                 ),
@@ -689,7 +692,7 @@ class _ContactDialogState extends State<_ContactDialog> {
                     );
                     if (picked != null) setState(() => _dob = picked);
                   },
-                  child: const ManaText('pick'),
+                  child: ManaText.raw(ref.t('pick')),
                 ),
               ],
             ),
@@ -697,7 +700,7 @@ class _ContactDialogState extends State<_ContactDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const ManaText('cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: ManaText.raw(ref.t('cancel'))),
         ElevatedButton(
           onPressed: !anything || !mobileValid || !aadhaarValid
               ? null
@@ -709,7 +712,7 @@ class _ContactDialogState extends State<_ContactDialog> {
                       dob: _dob?.toIso8601String().split('T').first,
                     ),
                   ),
-          child: const ManaText('save'),
+          child: ManaText.raw(ref.t('save')),
         ),
       ],
     );

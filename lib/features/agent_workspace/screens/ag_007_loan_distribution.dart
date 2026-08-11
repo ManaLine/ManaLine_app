@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/agent_dashboard_state.dart';
@@ -71,7 +72,7 @@ class _Ag007LoanDistributionScreenState extends ConsumerState<Ag007LoanDistribut
     final distState = ref.watch(loanDistributionProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('loan distribution')),
+      appBar: AppBar(title: ManaText.raw(ref.t('loan_distribution_screen'))),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(loanDistributionProvider.notifier).loadTransfers(agentId: widget.agentId),
@@ -83,15 +84,13 @@ class _Ag007LoanDistributionScreenState extends ConsumerState<Ag007LoanDistribut
               ElevatedButton.icon(
                 onPressed: bfState.bfAssignment == null ? null : _startNewLoan,
                 icon: const Icon(Icons.request_page_outlined),
-                label: const ManaText('start new loan'),
+                label: ManaText.raw(ref.t('start_new_loan')),
               ),
               const SizedBox(height: ManaSpacing.xxl),
-              const ManaText('bf cash transfer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ManaText.raw(ref.t('bf_cash_transfer'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
-                'Send or receive BF Cash with another Agent. A transfer only moves '
-                'the balance once BOTH agents confirm (BR-173) — no Owner approval '
-                'gate applies.',
+                ref.t('bf_cash_transfer_note'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -128,25 +127,29 @@ class _Ag007LoanDistributionScreenState extends ConsumerState<Ag007LoanDistribut
 
 // --- BF Cash Panel ---------------------------------------------------------
 
-class _BfCashPanel extends StatelessWidget {
+class _BfCashPanel extends ConsumerWidget {
   final AgentBfAssignment? bfAssignment;
   const _BfCashPanel({required this.bfAssignment});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('bf cash panel', style: TextStyle(fontWeight: FontWeight.bold)),
+            ManaText.raw(ref.t('bf_cash_panel'), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: ManaSpacing.sm),
             Row(
               children: [
                 Expanded(
-                  child: ManaText.raw('Current BF Cash Balance', style: TextStyle(color: ManaColors.textSecondary)),
+                  child: ManaText.raw(ref.t('current_bf_cash_balance'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: ManaColors.textSecondary)),
                 ),
+                const SizedBox(width: ManaSpacing.xs),
                 ManaText.raw(
                   bfAssignment == null ? '—' : _currency.format(bfAssignment!.openingBf),
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -156,8 +159,7 @@ class _BfCashPanel extends StatelessWidget {
             if (bfAssignment == null) ...[
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
-                'No BF Cash assignment found for this session yet — loan issuance is '
-                'blocked until the Owner grants BF Cash access via AG-001\'s Opening BF gate.',
+                ref.t('no_bf_assignment_note'),
                 style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
               ),
             ],
@@ -210,7 +212,7 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
     });
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('BF Cash Transfer sent — pending the other Agent\'s confirmation.')),
+      SnackBar(content: ManaText.raw(ref.t('bf_transfer_sent_note'))),
     );
   }
 
@@ -223,25 +225,25 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('send bf cash', style: TextStyle(fontWeight: FontWeight.w600)),
+            ManaText.raw(ref.t('send_bf_cash'), style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: ManaSpacing.sm),
             TextField(
               controller: _toAgentName,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'To Agent Name *'),
+              decoration: InputDecoration(labelText: ref.t('to_agent_name_field')),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ManaSpacing.sm),
             TextField(
               controller: _toAgentId,
-              decoration: const InputDecoration(labelText: 'To Agent ID *'),
+              decoration: InputDecoration(labelText: ref.t('to_agent_id_field')),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ManaSpacing.sm),
             TextField(
               controller: _amount,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Amount *'),
+              decoration: InputDecoration(labelText: ref.t('amount_required_field')),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -249,7 +251,7 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
               onPressed: (_canSend && !sending) ? _send : null,
               child: sending
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const ManaText('send'),
+                  : ManaText.raw(ref.t('send')),
             ),
           ],
         ),
@@ -285,7 +287,7 @@ class _TransferList extends ConsumerWidget {
     });
     if (ok == null || !context.mounted) return;
     ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('BF Cash Transfer confirmed — balance updated.')));
+        .showSnackBar(SnackBar(content: ManaText.raw(ref.t('bf_transfer_confirmed_note'))));
   }
 
   Future<void> _deleteTransfer(
@@ -304,7 +306,8 @@ class _TransferList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (transfers.isEmpty) {
-      return ManaText.raw('No transfers — $title.', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary));
+      return ManaText.raw(ref.t('no_transfers_note').replaceAll('{title}', title),
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary));
     }
     // BUG FIXED this pass: the Confirm button had no in-flight guard at
     // all — confirmTransfer() does a real balance-affecting write, and a
@@ -316,14 +319,16 @@ class _TransferList extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        ManaText.raw(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: ManaSpacing.sm),
         ...transfers.map((t) => Card(
               margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
               child: ListTile(
                 leading: Icon(Icons.sync_alt, color: ManaColors.statusWarn),
                 title: ManaText.raw(
-                  t.direction(agentId) == 'Incoming' ? 'From ${t.fromAgentName}' : 'To ${t.toAgentName}',
+                  t.direction(agentId) == 'Incoming'
+                      ? ref.t('from_agent_note').replaceAll('{name}', t.fromAgentName)
+                      : ref.t('to_agent_note').replaceAll('{name}', t.toAgentName),
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: ManaText.raw('${t.businessDate} · ${_currency.format(t.amount)}',
@@ -339,16 +344,16 @@ class _TransferList extends ConsumerWidget {
                             onPressed: confirming ? null : () => _confirm(context, ref, t),
                             child: confirming
                                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                : const ManaText('confirm'),
+                                : ManaText.raw(ref.t('confirm')),
                           )
-                        : const ManaStatusPill(label: 'Pending', status: ManaStatus.warn),
+                        : ManaStatusPill(label: ref.t('pending_label'), status: ManaStatus.warn),
                     // A transfer neither side has confirmed has moved no
                     // cash yet, so deleting one is how a mistyped hand-over
                     // is cancelled rather than left pending forever.
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 18),
                       color: ManaColors.statusBad,
-                      tooltip: 'Delete',
+                      tooltip: ref.t('delete'),
                       onPressed: () => _deleteTransfer(context, ref, t),
                     ),
                   ],
@@ -392,7 +397,7 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
     final stepIndex = _steps.indexOf(state.step);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('new loan')),
+      appBar: AppBar(title: ManaText.raw(ref.t('new_loan'))),
       body: SafeArea(
         child: Column(
           children: [
@@ -412,7 +417,11 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
                     ),
                   ),
                   const SizedBox(width: ManaSpacing.md),
-                  ManaText.raw('Step ${stepIndex + 1} of ${_steps.length}',
+                  ManaText.raw(
+                      ref
+                          .t('step_x_of_y')
+                          .replaceAll('{current}', '${stepIndex + 1}')
+                          .replaceAll('{total}', '${_steps.length}'),
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                 ],
               ),
@@ -483,11 +492,9 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('select customer', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('select_customer'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        ManaText.raw('Search by Phone, MANA LINE ID, Aadhaar, Customer Name, or Village. Only '
-            'existing customers may receive a remotely-issued loan — a brand-new '
-            'customer must first be created via Customer Management.',
+        ManaText.raw(ref.t('select_customer_note'),
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         Row(
@@ -495,7 +502,7 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
             Expanded(
               child: TextField(
                 controller: _query,
-                decoration: const InputDecoration(labelText: 'Search'),
+                decoration: InputDecoration(labelText: ref.t('search')),
                 onChanged: (_) => setState(() {}),
               ),
             ),
@@ -504,7 +511,7 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
               onPressed: (_query.text.trim().isNotEmpty && !_searching) ? _search : null,
               child: _searching
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const ManaText('search'),
+                  : ManaText.raw(ref.t('search')),
             ),
           ],
         ),
@@ -517,12 +524,13 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
               subtitle: ManaText.raw('${_found!.mlid} · ${_found!.village}'),
               trailing: ElevatedButton(
                 onPressed: () => ref.read(loanWizardProvider.notifier).selectCustomer(_found!),
-                child: const ManaText('select'),
+                child: ManaText.raw(ref.t('select')),
               ),
             ),
           )
         else if (_query.text.trim().isNotEmpty && !_searching)
-          ManaText.raw('No matching customer found.', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ManaText.raw(ref.t('no_matching_customer'),
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
       ],
     );
   }
@@ -532,14 +540,14 @@ class _AgStep2Eligibility extends ConsumerWidget {
   const _AgStep2Eligibility();
 
   static const _systemChecks = [
-    'Customer Exists',
-    'Business Linked',
-    'Customer Active',
-    'Not Blocked',
-    'No Duplicate Loan',
-    'No Owner Restrictions',
-    'No Pending Approval',
-    'Outstanding Rules',
+    'check_customer_exists',
+    'check_business_linked',
+    'check_customer_active',
+    'check_not_blocked',
+    'check_no_duplicate_loan',
+    'check_no_owner_restrictions',
+    'check_no_pending_approval',
+    'check_outstanding_rules',
     'Line Repayment Index',
     'Remote-Issuance Rule (Existing Customer)',
   ];
@@ -552,9 +560,9 @@ class _AgStep2Eligibility extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('eligibility check', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('eligibility_check'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        ManaText.raw('Customer: ${state.customer?.fullName ?? ''}',
+        ManaText.raw(ref.t('customer_note').replaceAll('{name}', state.customer?.fullName ?? ''),
             style: TextStyle(color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
         Card(
@@ -568,7 +576,7 @@ class _AgStep2Eligibility extends ConsumerWidget {
                           children: [
                             Icon(Icons.check_circle, size: 16, color: ManaColors.statusGood),
                             const SizedBox(width: ManaSpacing.sm),
-                            ManaText(c, style: const TextStyle(fontSize: 13)),
+                            Expanded(child: ManaText.raw(ref.t(c), style: const TextStyle(fontSize: 13))),
                           ],
                         ),
                       ))
@@ -583,15 +591,14 @@ class _AgStep2Eligibility extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ManaText.raw(
-                "BF Cash Validation (BR-165): this Agent's BF Cash must cover the "
-                'loan amount — hard block, not a warning. Verified at confirm time '
-                'inside the create call.',
-                style: TextStyle(fontSize: 13),
+              ManaText.raw(
+                ref.t('bf_cash_validation_note'),
+                style: const TextStyle(fontSize: 13),
               ),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
-                'Current BF Cash Balance: ${bf == null ? '—' : _currency.format(bf.openingBf)}',
+                ref.t('current_bf_cash_balance_note').replaceAll(
+                    '{amount}', bf == null ? '—' : _currency.format(bf.openingBf)),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
@@ -609,7 +616,7 @@ class _AgStep2Eligibility extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
           onPressed: () => ref.read(loanWizardProvider.notifier).markEligibilityPassed(),
-          child: const ManaText('continue'),
+          child: ManaText.raw(ref.t('continue_label')),
         ),
       ],
     );
@@ -668,36 +675,36 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('loan details', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('loan_details'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.lg),
         TextField(
           controller: _repaymentAmount,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Repayment Amount *'),
+          decoration: InputDecoration(labelText: ref.t('repayment_amount_required_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _interest,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Interest'),
+          decoration: InputDecoration(labelText: ref.t('interest_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _processingFee,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Processing Fee'),
+          decoration: InputDecoration(labelText: ref.t('processing_fee_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
         DropdownButtonFormField<String>(
           initialValue: _repaymentType,
-          decoration: const InputDecoration(labelText: 'Repayment Type'),
-          items: const [
-            DropdownMenuItem(value: 'Weekly', child: Text('Weekly')),
-            DropdownMenuItem(value: 'Monthly', child: Text('Monthly')),
-            DropdownMenuItem(value: 'Daily', child: Text('Daily')),
+          decoration: InputDecoration(labelText: ref.t('repayment_type_field_plain')),
+          items: [
+            DropdownMenuItem(value: 'Weekly', child: ManaText.raw(ref.t('weekly'))),
+            DropdownMenuItem(value: 'Monthly', child: ManaText.raw(ref.t('monthly'))),
+            DropdownMenuItem(value: 'Daily', child: ManaText.raw(ref.t('daily'))),
           ],
           onChanged: (v) => setState(() => _repaymentType = v ?? 'Weekly'),
         ),
@@ -705,20 +712,20 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
         TextField(
           controller: _duration,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Duration (installments) *'),
+          decoration: InputDecoration(labelText: ref.t('duration_installments_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _installment,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Installment Amount *'),
+          decoration: InputDecoration(labelText: ref.t('installment_amount_required_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          title: const ManaText('effective date'),
+          title: ManaText.raw(ref.t('effective_date')),
           subtitle: ManaText.raw('${_effectiveDate.day}/${_effectiveDate.month}/${_effectiveDate.year}'),
           trailing: const Icon(Icons.calendar_today_outlined),
           onTap: () async {
@@ -737,9 +744,11 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
           decoration: BoxDecoration(color: ManaColors.brandFaint, borderRadius: BorderRadius.circular(8)),
           child: Row(
             children: [
-              const Expanded(
-                child: ManaText('amount given (system-derived, read-only)', style: TextStyle(fontSize: 13)),
+              Expanded(
+                child: ManaText.raw(ref.t('amount_given_derived_label'),
+                    style: const TextStyle(fontSize: 13)),
               ),
+              const SizedBox(width: ManaSpacing.xs),
               ManaText.raw('₹$_amountGiven',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
@@ -748,7 +757,7 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
           onPressed: _canSubmit ? () => _submit(agentId) : null,
-          child: const ManaText('continue'),
+          child: ManaText.raw(ref.t('continue_label')),
         ),
       ],
     );
@@ -788,18 +797,18 @@ class _AgStep4GuarantorState extends ConsumerState<_AgStep4Guarantor> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('guarantor', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('guarantor'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        ManaText.raw('Guarantor is loan-scoped, not customer-scoped.',
+        ManaText.raw(ref.t('guarantor_loan_scoped_note'),
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.lg),
-        const ManaText('need guarantor?', style: TextStyle(fontWeight: FontWeight.w600)),
+        ManaText.raw(ref.t('need_guarantor_question'), style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: ManaSpacing.sm),
         Row(
           children: [
             Expanded(
               child: ChoiceChip(
-                label: const ManaText('yes'),
+                label: ManaText.raw(ref.t('yes')),
                 selected: _needsGuarantor == true,
                 onSelected: (_) => setState(() => _needsGuarantor = true),
               ),
@@ -807,7 +816,7 @@ class _AgStep4GuarantorState extends ConsumerState<_AgStep4Guarantor> {
             const SizedBox(width: ManaSpacing.sm),
             Expanded(
               child: ChoiceChip(
-                label: const ManaText('no'),
+                label: ManaText.raw(ref.t('no')),
                 selected: _needsGuarantor == false,
                 onSelected: (_) => setState(() => _needsGuarantor = false),
               ),
@@ -819,26 +828,26 @@ class _AgStep4GuarantorState extends ConsumerState<_AgStep4Guarantor> {
           TextField(
             controller: _name,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(labelText: 'Guarantor Name *'),
+            decoration: InputDecoration(labelText: ref.t('guarantor_name_field')),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: ManaSpacing.md),
-          TextField(controller: _relationship, decoration: const InputDecoration(labelText: 'Relationship')),
+          TextField(controller: _relationship, decoration: InputDecoration(labelText: ref.t('relationship_field'))),
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _phone,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Phone'),
+            decoration: InputDecoration(labelText: ref.t('phone_field')),
           ),
           const SizedBox(height: ManaSpacing.md),
-          TextField(controller: _address, decoration: const InputDecoration(labelText: 'Address')),
+          TextField(controller: _address, decoration: InputDecoration(labelText: ref.t('address_field'))),
           const SizedBox(height: ManaSpacing.md),
-          TextField(controller: _remarks, decoration: const InputDecoration(labelText: 'Remarks')),
+          TextField(controller: _remarks, decoration: InputDecoration(labelText: ref.t('remarks_field'))),
         ],
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
           onPressed: (_needsGuarantor != null && _canSubmit) ? _submit : null,
-          child: const ManaText('continue'),
+          child: ManaText.raw(ref.t('continue_label')),
         ),
       ],
     );
@@ -865,11 +874,10 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('live photo', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('live_photo'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-          'Mandatory before this loan can be created (BR-036/081, fraud prevention). '
-          'Camera capture only — gallery upload is never offered.',
+          ref.t('live_photo_note'),
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
@@ -877,7 +885,7 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
           OutlinedButton.icon(
             onPressed: _capture,
             icon: const Icon(Icons.camera_alt),
-            label: const ManaText('capture live photo *'),
+            label: ManaText.raw(ref.t('capture_live_photo')),
           )
         else
           Row(
@@ -887,16 +895,15 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
               TextButton.icon(
                 onPressed: _capture,
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const ManaText('retake photo'),
+                label: ManaText.raw(ref.t('retake_photo')),
               ),
             ],
           ),
         const SizedBox(height: ManaSpacing.xl),
-        const ManaText('grace period (days)', style: TextStyle(fontWeight: FontWeight.w600)),
+        ManaText.raw(ref.t('grace_period_days_header'), style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-          'Internal only — never shown to the customer (BR-206). Owner-configurable, '
-          'overridable per loan (BR-007/381).',
+          ref.t('grace_period_note'),
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.sm),
@@ -904,7 +911,7 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
           key: ValueKey(state.gracePeriodDays),
           initialValue: state.gracePeriodDays.toString(),
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Grace Period (days) *'),
+          decoration: InputDecoration(labelText: ref.t('grace_period_days_field')),
           onChanged: (v) {
             final parsed = int.tryParse(v);
             if (parsed != null) ref.read(loanWizardProvider.notifier).setGracePeriodDays(parsed);
@@ -915,7 +922,7 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
           onPressed: state.livePhotoStepComplete
               ? () => ref.read(loanWizardProvider.notifier).goToStep(LoanWizardStep.confirm)
               : null,
-          child: const ManaText('continue'),
+          child: ManaText.raw(ref.t('continue_label')),
         ),
       ],
     );
@@ -939,7 +946,8 @@ class _AgStep5Confirm extends ConsumerWidget {
     });
     if (loanNumber == null) return;
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Loan $loanNumber created — active.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: ManaText.raw(ref.t('loan_created_note').replaceAll('{number}', loanNumber))));
     // Per AG-007's own locked rule (mirrors OW-005): an Agent-created
     // loan returns to the Agent's own dashboard, not OW-001.
     context.go('/ag-001', extra: businessId);
@@ -953,22 +961,27 @@ class _AgStep5Confirm extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('confirm loan', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('confirm_loan'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.lg),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(ManaSpacing.md),
             child: Column(
               children: [
-                _row('Customer', state.customer?.fullName ?? ''),
-                _row('Repayment Amount', '₹${state.repaymentAmount ?? 0}'),
-                _row('Interest', '₹${state.interest ?? 0}'),
-                _row('Processing Fee', '₹${state.processingFee ?? 0}'),
-                _row('Amount Given', '₹${state.amountGiven}'),
-                _row('Repayment Type', state.repaymentType),
-                _row('Duration', '${state.durationValue ?? 0} installments'),
-                _row('Installment', '₹${state.installmentAmount ?? 0}'),
-                _row('Guarantor', state.needsGuarantor ? (state.guarantorName ?? '') : 'None'),
+                _row(ref.t('customer'), state.customer?.fullName ?? ''),
+                _row(ref.t('repayment_amount_required_field'), '₹${state.repaymentAmount ?? 0}'),
+                _row(ref.t('interest_field'), '₹${state.interest ?? 0}'),
+                _row(ref.t('processing_fee_field'), '₹${state.processingFee ?? 0}'),
+                _row(ref.t('amount_given'), '₹${state.amountGiven}'),
+                _row(ref.t('repayment_type_field_plain'), state.repaymentType),
+                _row(
+                    ref.t('duration'),
+                    ref
+                        .t('duration_installments_note')
+                        .replaceAll('{count}', '${state.durationValue ?? 0}')),
+                _row(ref.t('installment_label'), '₹${state.installmentAmount ?? 0}'),
+                _row(ref.t('guarantor'),
+                    state.needsGuarantor ? (state.guarantorName ?? '') : ref.t('none')),
               ],
             ),
           ),
@@ -984,11 +997,9 @@ class _AgStep5Confirm extends ConsumerWidget {
                 ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
                 if (blocked) ...[
                   const SizedBox(height: ManaSpacing.sm),
-                  const ManaText.raw(
-                    'Loan Creation Blocked (BR-165). Top up BF Cash after the Owner sends '
-                    'money outside the app, or receive a BF Cash Transfer from another '
-                    'Agent — see the BF Cash Transfer section on the previous screen.',
-                    style: TextStyle(fontSize: 13),
+                  ManaText.raw(
+                    ref.t('loan_creation_blocked_note'),
+                    style: const TextStyle(fontSize: 13),
                   ),
                 ],
               ],
@@ -1006,7 +1017,7 @@ class _AgStep5Confirm extends ConsumerWidget {
                         ref.read(loanWizardProvider.notifier).reset();
                         Navigator.of(context).maybePop();
                       },
-                child: const ManaText('cancel'),
+                child: ManaText.raw(ref.t('cancel')),
               ),
             ),
             const SizedBox(width: ManaSpacing.md),
@@ -1016,7 +1027,7 @@ class _AgStep5Confirm extends ConsumerWidget {
                 onPressed: state.submitting ? null : () => _confirm(context, ref),
                 child: state.submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('confirm — create loan'),
+                    : ManaText.raw(ref.t('confirm_create_loan')),
               ),
             ),
           ],
@@ -1029,7 +1040,12 @@ class _AgStep5Confirm extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Expanded(child: ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(
+                child: ManaText.raw(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),

@@ -76,14 +76,20 @@ Full list in README §"Money conventions"; the ones that change code:
 
 Install from an **interactive** `claude` terminal — `/plugin` opens a dialog panel and cannot run in a non-interactive session.
 
+All four live in the `claude-plugins-official` marketplace (already added at `~/.claude/plugins/marketplaces/claude-plugins-official`). No third-party marketplace is needed — `superpowers` is vendored there from `obra/superpowers`, and `code-review` is Anthropic's, so the `trailofbits/skills` fallback is unnecessary.
+
 | Capability | Install source | Status here |
 |---|---|---|
-| Superpowers | `/plugin marketplace add claude-plugins-official` → `/plugin install superpowers@claude-plugins-official`<br>Fallback: `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace` | **Not installed** |
-| Security Guidance | `/plugin install security-guidance@claude-plugins-official` | Equivalent available: built-in `/security-review` |
-| Frontend Design | Built-in skill, no install | Available (`design:*`, `artifact-design`) |
-| Code Review | Check Superpowers first; else `/plugin marketplace add trailofbits/skills` → `/plugin install code-review@trailofbits-skills` | Equivalent available: `engineering:code-review`, `/code-review` |
+| Superpowers | `/plugin install superpowers@claude-plugins-official` | Active — 14 skills (`test-driven-development`, `systematic-debugging`, `brainstorming`, `writing-plans`, …) |
+| Security Guidance | `/plugin install security-guidance@claude-plugins-official` | Active — **0 skills is correct**: it ships `hooks/`, not `skills/`, and fires automatically on edits and on Stop |
+| Frontend Design | `/plugin install frontend-design@claude-plugins-official` | Active — 1 skill; built-in `design:*` / `artifact-design` also available |
+| Code Review | `/plugin install code-review@claude-plugins-official` | Active — 1 skill; built-in `engineering:code-review` / `/code-review` also available |
 
-Verify with `/plugin list`; restart the session if prompted, then re-confirm.
+Two files carry the state, and **both** must agree or nothing loads:
+- `~/.claude/settings.json` → `enabledPlugins` map (`"<plugin>@claude-plugins-official": true`). This is what `/plugin install` writes, and it can be edited directly when `/plugin` is unavailable.
+- `~/.claude/plugins/installed_plugins.json` → per-plugin `installPath` under `~/.claude/plugins/cache/`.
+
+Enabling alone is not installing. If `installed_plugins.json` names an `installPath` that does not exist on disk, the plugin silently fails to load with no error — this already happened here. Marketplace entries with a local `./plugins/<name>` source can be copied from the marketplace clone; `superpowers` is a git-URL source and has to be cloned at the sha pinned in `marketplace.json`. Verify with `/plugin list`; the Desktop app's Settings → Plugins pane shows the same thing with skill counts.
 
 ## Workflow rules
 

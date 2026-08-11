@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/soft_delete_service.dart';
@@ -39,11 +40,11 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(chetiListProvider);
     return Scaffold(
-      appBar: AppBar(title: const ManaText('cheti')),
+      appBar: AppBar(title: ManaText.raw(ref.t('cheti'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(),
         icon: const Icon(Icons.add),
-        label: const ManaText('add cheti'),
+        label: ManaText.raw(ref.t('add_cheti')),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -59,8 +60,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: ManaText.raw(
-                          'No chetis yet. Add one you are already paying, or a '
-                          'new one you have just joined.',
+                          ref.t('no_chetis_yet_note'),
                           textAlign: TextAlign.center,
                           style: TextStyle(color: ManaColors.textSecondary),
                         ),
@@ -82,9 +82,12 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
         child: Row(
           children: [
             Expanded(
-              child: ManaText.raw('Cheti — net position',
+              child: ManaText.raw(ref.t('cheti_net_position'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             ),
+            const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(
               _currency.format(net),
               style: TextStyle(
@@ -135,15 +138,20 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
               spacing: ManaSpacing.lg,
               runSpacing: ManaSpacing.xs,
               children: [
-                _figure('Face value', _currency.format(c.faceValue)),
-                _figure('Instalments', '${c.instalmentsPaid} of ${c.totalInstalments}'),
-                _figure('Paid in', _currency.format(c.totalPaid)),
+                _figure(ref.t('face_value'), _currency.format(c.faceValue)),
+                _figure(
+                    ref.t('instalments'),
+                    ref
+                        .t('instalments_x_of_y')
+                        .replaceAll('{paid}', '${c.instalmentsPaid}')
+                        .replaceAll('{total}', '${c.totalInstalments}')),
+                _figure(ref.t('paid_in'), _currency.format(c.totalPaid)),
                 if (c.isAvailed)
-                  _figure('Availed', _currency.format(c.totalReceived)),
-                _figure('Net position', _currency.format(net),
+                  _figure(ref.t('availed'), _currency.format(c.totalReceived)),
+                _figure(ref.t('net_position'), _currency.format(net),
                     warn: net < 0),
                 if (c.finalProfit != null)
-                  _figure('Final profit', _currency.format(c.finalProfit!),
+                  _figure(ref.t('final_profit'), _currency.format(c.finalProfit!),
                       warn: c.finalProfit! < 0),
               ],
             ),
@@ -151,9 +159,13 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: ManaSpacing.xs),
                 child: ManaText.raw(
-                  'Availed ${_dateFmt.format(c.availedDate!)}'
-                  '${c.availedPreMigration ? ' (before migration)' : ''}'
-                  '${c.instalmentsRemaining > 0 ? ' — ${c.instalmentsRemaining} instalments still to pay' : ''}',
+                  ref.t('availed_on_note').replaceAll('{date}', _dateFmt.format(c.availedDate!)) +
+                      (c.availedPreMigration ? ref.t('before_migration_suffix') : '') +
+                      (c.instalmentsRemaining > 0
+                          ? ref
+                              .t('instalments_still_to_pay_suffix')
+                              .replaceAll('{count}', '${c.instalmentsRemaining}')
+                          : ''),
                   style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
                 ),
               ),
@@ -168,20 +180,20 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                   TextButton.icon(
                     onPressed: () => _openPayment(c),
                     icon: const Icon(Icons.south_west, size: 18),
-                    label: const ManaText('record payment'),
+                    label: ManaText.raw(ref.t('record_payment')),
                   ),
                 if (!c.isAvailed)
                   TextButton.icon(
                     onPressed: () => _openAvailing(c),
                     icon: const Icon(Icons.north_east, size: 18),
-                    label: const ManaText('record availing'),
+                    label: ManaText.raw(ref.t('record_availing')),
                   ),
                 TextButton.icon(
                   onPressed: () => _deleteCheti(c),
                   icon: const Icon(Icons.delete_outline, size: 18),
                   style: TextButton.styleFrom(
                       foregroundColor: ManaColors.statusBad),
-                  label: const ManaText('delete'),
+                  label: ManaText.raw(ref.t('delete')),
                 ),
               ],
             ),
@@ -195,8 +207,11 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                 child: ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   title: ManaText.raw(
-                    '${c.payments.length} recorded instalment'
-                    '${c.payments.length == 1 ? '' : 's'}',
+                    ref
+                        .t(c.payments.length == 1
+                            ? 'recorded_instalment_note'
+                            : 'recorded_instalments_note')
+                        .replaceAll('{count}', '${c.payments.length}'),
                     style: TextStyle(
                         fontSize: 13, color: ManaColors.textSecondary),
                   ),
@@ -214,7 +229,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                         trailing: IconButton(
                           icon: const Icon(Icons.delete_outline, size: 18),
                           color: ManaColors.statusBad,
-                          tooltip: 'Delete',
+                          tooltip: ref.t('delete'),
                           onPressed: () => _deleteChetiPayment(c, p),
                         ),
                       ),
@@ -413,16 +428,16 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ManaText('add cheti',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('add_cheti'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.md),
-            _field(_name, 'Cheti Name *', number: false),
+            _field(_name, ref.t('cheti_name_field'), number: false),
             Row(
               children: [
                 Expanded(
                   child: DropdownButtonFormField<ChetiType>(
                     initialValue: _type,
-                    decoration: const InputDecoration(labelText: 'Type'),
+                    decoration: InputDecoration(labelText: ref.t('type_field')),
                     items: ChetiType.values
                         .map((t) => DropdownMenuItem(
                             value: t, child: ManaText.raw(t.dbValue)))
@@ -434,7 +449,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
                 Expanded(
                   child: DropdownButtonFormField<ChetiFrequency>(
                     initialValue: _frequency,
-                    decoration: const InputDecoration(labelText: 'Frequency'),
+                    decoration: InputDecoration(labelText: ref.t('frequency_field')),
                     items: ChetiFrequency.values
                         .map((f) => DropdownMenuItem(
                             value: f, child: ManaText.raw(f.dbValue)))
@@ -446,12 +461,12 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
-            _field(_faceValue, 'Face Value *'),
-            _field(_total, 'Total Instalments *'),
-            _field(_instalment, 'Instalment Amount *'),
+            _field(_faceValue, ref.t('face_value_field')),
+            _field(_total, ref.t('total_instalments_field')),
+            _field(_instalment, ref.t('instalment_amount_field')),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const ManaText('start date'),
+              title: ManaText.raw(ref.t('start_date')),
               subtitle: ManaText.raw(_dateFmt.format(_startDate)),
               trailing: const Icon(Icons.calendar_today, size: 18),
               onTap: () async {
@@ -466,24 +481,26 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
             ),
             const Divider(height: ManaSpacing.xl),
             ManaText.raw(
-              'Already part-way through? Enter the position as it stands '
-              'today. Past instalments are not recreated and do not move BF — '
-              'that cash left the till before this app existed.',
+              ref.t('cheti_partway_note'),
               style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
-            _field(_openingCount, 'Instalments Already Paid'),
-            _field(_openingPaid, 'Total Already Paid (₹)'),
+            _field(_openingCount, ref.t('instalments_already_paid_field')),
+            _field(_openingPaid, ref.t('total_already_paid_field')),
             if (_openingImplied != null && _openCountV > 0)
               Padding(
                 padding: const EdgeInsets.only(bottom: ManaSpacing.md),
                 child: ManaText.raw(
                   _openPaidV == _openingImplied
-                      ? 'Matches $_openCountV × ${_currency.format(_instV!)}.'
-                      : '$_openCountV × ${_currency.format(_instV!)} would be '
-                          '${_currency.format(_openingImplied!)}. The gap is the '
-                          'dividend you have already earned — enter what you '
-                          'actually paid.',
+                      ? ref
+                          .t('opening_matches_note')
+                          .replaceAll('{count}', '$_openCountV')
+                          .replaceAll('{amount}', _currency.format(_instV!))
+                      : ref
+                          .t('opening_gap_note')
+                          .replaceAll('{count}', '$_openCountV')
+                          .replaceAll('{amount}', _currency.format(_instV!))
+                          .replaceAll('{implied}', _currency.format(_openingImplied!)),
                   style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
                 ),
               ),
@@ -491,13 +508,13 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
               contentPadding: EdgeInsets.zero,
               value: _alreadyAvailed,
               onChanged: (v) => setState(() => _alreadyAvailed = v),
-              title: const ManaText('already availed the lumpsum'),
+              title: ManaText.raw(ref.t('already_availed_lumpsum')),
             ),
             if (_alreadyAvailed) ...[
-              _field(_availedAmount, 'Amount Availed *'),
+              _field(_availedAmount, ref.t('amount_availed_field')),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const ManaText('availed on'),
+                title: ManaText.raw(ref.t('availed_on')),
                 subtitle: ManaText.raw(_dateFmt.format(_availedDate)),
                 trailing: const Icon(Icons.calendar_today, size: 18),
                 onTap: () async {
@@ -522,7 +539,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
               child: _saving
                   ? const SizedBox(
                       width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const ManaText('save cheti'),
+                  : ManaText.raw(ref.t('save_cheti')),
             ),
           ],
         ),
@@ -611,13 +628,13 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw('Record payment — ${widget.cheti.name}',
+          ManaText.raw(ref.t('record_payment_for_note').replaceAll('{name}', widget.cheti.name),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _gross,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Instalment *'),
+            decoration: InputDecoration(labelText: ref.t('instalment_required_field')),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: ManaSpacing.md),
@@ -628,9 +645,9 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
             TextField(
               controller: _dividend,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Dividend this period',
-                helperText: 'Reduces the cash you hand over, and counts as profit.',
+              decoration: InputDecoration(
+                labelText: ref.t('dividend_this_period_field'),
+                helperText: ref.t('dividend_helper'),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -638,8 +655,11 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
           Row(
             children: [
               Expanded(
-                  child: ManaText.raw('Cash out of BF',
+                  child: ManaText.raw(ref.t('cash_out_of_bf'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))),
+              const SizedBox(width: ManaSpacing.xs),
               ManaText.raw(_netV == null ? '—' : _currency.format(_netV),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ],
@@ -655,7 +675,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
             child: _saving
                 ? const SizedBox(
                     width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const ManaText('save payment'),
+                : ManaText.raw(ref.t('save_payment')),
           ),
         ],
       ),
@@ -714,25 +734,25 @@ class _AvailingSheetState extends ConsumerState<_AvailingSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw('Record availing — ${widget.cheti.name}',
+          ManaText.raw(ref.t('record_availing_for_note').replaceAll('{name}', widget.cheti.name),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(
-            'This adds to BF. You keep paying the remaining '
-            '${widget.cheti.instalmentsRemaining} instalments — availing does '
-            'not close the cheti.',
+            ref
+                .t('availing_adds_to_bf_note')
+                .replaceAll('{count}', '${widget.cheti.instalmentsRemaining}'),
             style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
           ),
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Amount Availed *'),
+            decoration: InputDecoration(labelText: ref.t('amount_availed_field')),
             onChanged: (_) => setState(() {}),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const ManaText('availed on'),
+            title: ManaText.raw(ref.t('availed_on')),
             subtitle: ManaText.raw(_dateFmt.format(_date)),
             trailing: const Icon(Icons.calendar_today, size: 18),
             onTap: () async {
@@ -751,7 +771,7 @@ class _AvailingSheetState extends ConsumerState<_AvailingSheet> {
             child: _saving
                 ? const SizedBox(
                     width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const ManaText('save availing'),
+                : ManaText.raw(ref.t('save_availing')),
           ),
         ],
       ),

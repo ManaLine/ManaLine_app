@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/draft_transactions_state.dart';
@@ -58,7 +59,7 @@ class _DraftTransactionsScreenState extends ConsumerState<DraftTransactionsScree
     final state = ref.watch(draftTransactionsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('draft transactions')),
+      appBar: AppBar(title: ManaText.raw(ref.t('draft_transactions'))),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(draftTransactionsProvider.notifier).load(
@@ -75,7 +76,7 @@ class _DraftTransactionsScreenState extends ConsumerState<DraftTransactionsScree
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
                           child: ManaText.raw(
-                            'No open drafts. Interrupted entries you Save Draft on will show up here.',
+                            ref.t('no_open_drafts_note'),
                             textAlign: TextAlign.center,
                             style: TextStyle(color: ManaColors.textSecondary),
                           ),
@@ -122,11 +123,19 @@ class _DraftCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ManaStatusPill(label: draft.draftType.schemaValue, status: ManaStatus.neutral),
-                ManaText.raw(_dateTimeFmt.format(draft.updatedAt),
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                Flexible(
+                    child: ManaStatusPill(
+                        label: draft.draftType.schemaValue, status: ManaStatus.neutral)),
+                const SizedBox(width: ManaSpacing.xs),
+                Expanded(
+                  child: ManaText.raw(_dateTimeFmt.format(draft.updatedAt),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                ),
               ],
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -136,11 +145,11 @@ class _DraftCard extends ConsumerWidget {
             ),
             if (draft.loanNumber != null) ...[
               const SizedBox(height: 2),
-              ManaText.raw('Loan ${draft.loanNumber}',
+              ManaText.raw(ref.t('loan_number_note').replaceAll('{number}', draft.loanNumber ?? '—'),
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             ],
             const SizedBox(height: 2),
-            ManaText.raw('Created ${_dateTimeFmt.format(draft.createdAt)}',
+            ManaText.raw(ref.t('created_note').replaceAll('{when}', _dateTimeFmt.format(draft.createdAt)),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
@@ -149,17 +158,17 @@ class _DraftCard extends ConsumerWidget {
                 if (canEdit)
                   ElevatedButton(
                     onPressed: () => _continueDraft(context),
-                    child: const ManaText('continue draft'),
+                    child: ManaText.raw(ref.t('continue_draft')),
                   ),
                 OutlinedButton(
                   onPressed: () => _submit(context, ref),
-                  child: const ManaText('submit'),
+                  child: ManaText.raw(ref.t('submit_label')),
                 ),
                 if (canDiscard)
                   OutlinedButton(
                     onPressed: () => _confirmDiscard(context, ref),
                     style: OutlinedButton.styleFrom(foregroundColor: ManaColors.statusBad),
-                    child: const ManaText('discard'),
+                    child: ManaText.raw(ref.t('discard')),
                   ),
               ],
             ),
@@ -214,7 +223,7 @@ class _DraftCard extends ConsumerWidget {
     // stay put rather than assume success.
     if (result == null || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Draft submitted.')),
+      SnackBar(content: ManaText.raw(ref.t('draft_submitted_note'))),
     );
   }
 
@@ -222,14 +231,14 @@ class _DraftCard extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const ManaText('discard draft'),
-        content: const ManaText.raw('This draft will be permanently removed. This cannot be undone.'),
+        title: ManaText.raw(ref.t('discard_draft')),
+        content: ManaText.raw(ref.t('discard_draft_note')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: ManaColors.statusBad),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const ManaText('discard'),
+            child: ManaText.raw(ref.t('discard')),
           ),
         ],
       ),

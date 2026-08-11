@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/agent_notifications_state.dart';
@@ -39,17 +40,15 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('clear all notifications?'),
-        content: const ManaText.raw(
-            'They will be removed from this list. Your loans, collections and '
-            'records are not affected.'),
+        title: ManaText.raw(ref.t('clear_all_notifications_question')),
+        content: ManaText.raw(ref.t('clear_all_notifications_note')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const ManaText('cancel')),
+              child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const ManaText.raw('Clear All')),
+              child: ManaText.raw(ref.t('clear_all'))),
         ],
       ),
     );
@@ -118,7 +117,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
         break;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Open target not available in this build yet.')), // TODO stub
+      SnackBar(content: ManaText.raw(ref.t('open_target_not_available'))), // TODO stub
     );
   }
 
@@ -128,19 +127,23 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('notifications'),
+        title: ManaText.raw(ref.t('notifications')),
         actions: [
-          TextButton(
+          // An icon, not a TextButton: an AppBar's actions Row cannot shrink
+          // its children, and the translated "Mark All Read" label overflowed
+          // it outright in Telugu. The tooltip carries the wording.
+          IconButton(
+            tooltip: ref.t('mark_all_read'),
+            icon: const Icon(Icons.done_all),
             onPressed: state.unreadCount == 0
                 ? null
                 : () => ref.read(agentNotificationsProvider.notifier).markAllRead(businessId: widget.businessId),
-            child: const ManaText.raw('Mark All Read'),
           ),
           // Clearing deletes; marking read does not. So this one asks first,
           // and the two are not put side by side as if they were the same
           // weight of action.
           IconButton(
-            tooltip: 'Clear All',
+            tooltip: ref.t('clear_all'),
             icon: const Icon(Icons.delete_sweep_outlined),
             onPressed: state.notifications.isEmpty ? null : _confirmClear,
           ),
@@ -153,17 +156,19 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, ManaSpacing.sm),
-                child: Row(
+                child: Wrap(
+                  spacing: ManaSpacing.sm,
+                  runSpacing: ManaSpacing.xs,
                   children: [
                     ChoiceChip(
-                      label: const ManaText('all'),
+                      label: ManaText.raw(ref.t('all')),
                       selected: state.filter == NotificationsFilter.all,
                       onSelected: (_) =>
                           ref.read(agentNotificationsProvider.notifier).setFilter(NotificationsFilter.all),
                     ),
-                    const SizedBox(width: ManaSpacing.sm),
                     ChoiceChip(
-                      label: ManaText('unread (${state.unreadCount})'),
+                      label: ManaText.raw(
+                          ref.t('unread_count_note').replaceAll('{count}', '${state.unreadCount}')),
                       selected: state.filter == NotificationsFilter.unread,
                       onSelected: (_) =>
                           ref.read(agentNotificationsProvider.notifier).setFilter(NotificationsFilter.unread),
@@ -189,7 +194,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
                     : state.visible.isEmpty
                         // S2 — Empty.
                         ? Center(
-                            child: ManaText.raw('No notifications.',
+                            child: ManaText.raw(ref.t('no_notifications'),
                                 style: TextStyle(color: ManaColors.textSecondary)),
                           )
                         // S1 — List, unread highlighted.
@@ -214,7 +219,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
   }
 }
 
-class _NotificationRow extends StatelessWidget {
+class _NotificationRow extends ConsumerWidget {
   final AgentNotification notification;
   final VoidCallback onOpen;
   final VoidCallback onMarkRead;
@@ -233,7 +238,7 @@ class _NotificationRow extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = _typeIcon;
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
@@ -243,12 +248,14 @@ class _NotificationRow extends StatelessWidget {
         title: Row(
           children: [
             Flexible(
-              child: ManaText(notification.notificationType.label,
+              child: ManaText.raw(notification.notificationType.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
             if (!notification.isRead) ...[
               const SizedBox(width: ManaSpacing.xs),
-              const ManaStatusPill(label: 'Unread', status: ManaStatus.warn),
+              Flexible(child: ManaStatusPill(label: ref.t('unread'), status: ManaStatus.warn)),
             ],
           ],
         ),
@@ -271,8 +278,9 @@ class _NotificationRow extends StatelessWidget {
             if (v == 'read') onMarkRead();
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'open', child: ManaText('open')),
-            if (!notification.isRead) const PopupMenuItem(value: 'read', child: ManaText('mark read')),
+            PopupMenuItem(value: 'open', child: ManaText.raw(ref.t('open_label'))),
+            if (!notification.isRead)
+              PopupMenuItem(value: 'read', child: ManaText.raw(ref.t('mark_read'))),
           ],
         ),
         onTap: onOpen,

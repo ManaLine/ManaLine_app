@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../state/account_review_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -39,10 +40,10 @@ class _AccountReviewScreenState extends ConsumerState<AccountReviewScreen> {
       child: Scaffold(
         appBar: AppBar(
           leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/ow-001', extra: widget.businessId)),
-          title: const ManaText('account review'),
-          bottom: const TabBar(tabs: [
-            Tab(text: 'Account Review'),
-            Tab(text: 'Daily Allowance'),
+          title: ManaText.raw(ref.t('account_review')),
+          bottom: TabBar(tabs: [
+            Tab(text: ref.t('account_review')),
+            Tab(text: ref.t('daily_allowance')),
           ]),
         ),
         body: SafeArea(
@@ -58,25 +59,25 @@ class _AccountReviewScreenState extends ConsumerState<AccountReviewScreen> {
   }
 }
 
-class _ErrorBanner extends StatelessWidget {
+class _ErrorBanner extends ConsumerWidget {
   final String message;
   final VoidCallback onRetry;
   const _ErrorBanner({required this.message, required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.xl),
       children: [
         Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
         const SizedBox(height: ManaSpacing.md),
-        const Center(child: ManaText('could not load data')),
+        Center(child: ManaText.raw(ref.t('could_not_load_data'))),
         const SizedBox(height: ManaSpacing.sm),
         ManaText.raw(message,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
         const SizedBox(height: ManaSpacing.sm),
-        Center(child: ElevatedButton(onPressed: onRetry, child: const ManaText('retry'))),
+        Center(child: ElevatedButton(onPressed: onRetry, child: ManaText.raw(ref.t('retry')))),
       ],
     );
   }
@@ -110,7 +111,7 @@ class _AccountReviewTab extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                     child: Center(
-                      child: ManaText.raw('No accounts pending review.',
+                      child: ManaText.raw(ref.t('no_accounts_pending_review'),
                           style: TextStyle(color: ManaColors.textSecondary)),
                     ),
                   )
@@ -122,12 +123,12 @@ class _AccountReviewTab extends ConsumerWidget {
   }
 }
 
-class _OwnerBfPanel extends StatelessWidget {
+class _OwnerBfPanel extends ConsumerWidget {
   final OwnerBfPanelData data;
   const _OwnerBfPanel({required this.data});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       color: ManaColors.inkFaint,
       child: Padding(
@@ -135,16 +136,16 @@ class _OwnerBfPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText('owner bf', style: Theme.of(context).textTheme.titleMedium),
+            ManaText.raw(ref.t('owner_bf'), style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: ManaSpacing.sm),
-            _bfRow('Balance before today', data.balanceBeforeToday),
-            _bfRow('Assigned out this session', data.totalAssignedThisSession),
-            _bfRow('Returning this session', data.totalReturningThisSession),
+            _bfRow(ref.t('balance_before_today'), data.balanceBeforeToday),
+            _bfRow(ref.t('assigned_out_this_session'), data.totalAssignedThisSession),
+            _bfRow(ref.t('returning_this_session'), data.totalReturningThisSession),
             const Divider(),
-            _bfRow('Owner BF, current', data.ownerBfCurrent, emphasize: true),
+            _bfRow(ref.t('owner_bf_current'), data.ownerBfCurrent, emphasize: true),
             const SizedBox(height: 4),
             ManaText.raw(
-              'Provisional until each pending account is Approved.',
+              ref.t('provisional_until_approved_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
           ],
@@ -163,7 +164,8 @@ class _OwnerBfPanel extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ManaText(label, style: style),
+          Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style)),
+          const SizedBox(width: ManaSpacing.xs),
           ManaText.raw(_currency.format(amount), style: style),
         ],
       ),
@@ -198,29 +200,35 @@ class _SettlementCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ManaText.raw(_dateFmt.format(settlement.businessDate),
-                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
-                ManaStatusPill(label: settlement.status, status: _statusKind),
+                Expanded(
+                  child: ManaText.raw(_dateFmt.format(settlement.businessDate),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                ),
+                const SizedBox(width: ManaSpacing.xs),
+                Flexible(child: ManaStatusPill(label: settlement.status, status: _statusKind)),
               ],
             ),
             const SizedBox(height: 4),
             ManaText.raw(settlement.agentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: ManaSpacing.sm),
-            _fieldRow('Total Collections', settlement.totalCollections),
-            _fieldRow('Total Loans Issued', settlement.totalLoansIssued),
-            _fieldRow('Total Interest', settlement.totalInterest),
-            _fieldRow('Total Processing Fee', settlement.totalProcessingFee),
-            if (settlement.expenses > 0) _fieldRow('Expenses', settlement.expenses),
-            if (settlement.short > 0) _fieldRow('Short', settlement.short, color: ManaColors.statusBad),
-            if (settlement.excess > 0) _fieldRow('Excess', settlement.excess, color: ManaColors.statusWarn),
-            if (settlement.difference > 0) _fieldRow('Difference', settlement.difference, color: ManaColors.statusBad),
+            _fieldRow(ref.t('total_collections'), settlement.totalCollections),
+            _fieldRow(ref.t('total_loans_issued'), settlement.totalLoansIssued),
+            _fieldRow(ref.t('total_interest'), settlement.totalInterest),
+            _fieldRow(ref.t('total_processing_fee'), settlement.totalProcessingFee),
+            if (settlement.expenses > 0) _fieldRow(ref.t('expenses'), settlement.expenses),
+            if (settlement.short > 0) _fieldRow(ref.t('short'), settlement.short, color: ManaColors.statusBad),
+            if (settlement.excess > 0) _fieldRow(ref.t('excess'), settlement.excess, color: ManaColors.statusWarn),
+            if (settlement.difference > 0) _fieldRow(ref.t('difference'), settlement.difference, color: ManaColors.statusBad),
             const Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const ManaText('hand over balance'),
+                Expanded(child: ManaText.raw(ref.t('hand_over_balance'), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: ManaSpacing.xs),
                 ManaText.raw(_currency.format(settlement.handOverTotal),
                     style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
@@ -237,23 +245,23 @@ class _SettlementCard extends ConsumerWidget {
               children: [
                 OutlinedButton(
                   onPressed: () => _viewDetail(context, ref),
-                  child: const ManaText('view'),
+                  child: ManaText.raw(ref.t('view')),
                 ),
                 if (settlement.status == 'Pending Owner Review') ...[
                   ElevatedButton(
                     onPressed: () => _approve(context, ref),
-                    child: const ManaText('approve'),
+                    child: ManaText.raw(ref.t('approve')),
                   ),
                   OutlinedButton(
                     onPressed: () => _showReturnDialog(context, ref),
                     style: OutlinedButton.styleFrom(foregroundColor: ManaColors.statusBad),
-                    child: const ManaText('return'),
+                    child: ManaText.raw(ref.t('return_label')),
                   ),
                 ],
                 if (settlement.status == 'Approved')
                   ElevatedButton(
                     onPressed: () => _lock(context, ref),
-                    child: const ManaText('lock account'),
+                    child: ManaText.raw(ref.t('lock_account')),
                   ),
               ],
             ),
@@ -269,7 +277,8 @@ class _SettlementCard extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ManaText(label, style: TextStyle(fontSize: 13, color: color)),
+          Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: color))),
+          const SizedBox(width: ManaSpacing.xs),
           ManaText.raw(_currency.format(amount), style: TextStyle(fontSize: 16, color: color)),
         ],
       ),
@@ -313,24 +322,24 @@ class _SettlementCard extends ConsumerWidget {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) {
           return AlertDialog(
-            title: const ManaText('return account'),
+            title: ManaText.raw(ref.t('return_account')),
             content: TextField(
               controller: controller,
               autofocus: true,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Reason (required)',
-                hintText: 'Explain what the Agent needs to correct',
+              decoration: InputDecoration(
+                labelText: ref.t('reason_required_field'),
+                hintText: ref.t('reason_required_hint'),
               ),
               onChanged: (_) => setState(() {}),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const ManaText('cancel')),
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: ManaText.raw(ref.t('cancel'))),
               ElevatedButton(
                 onPressed: controller.text.trim().isEmpty
                     ? null
                     : () => Navigator.pop(dialogContext, controller.text.trim()),
-                child: const ManaText('save'),
+                child: ManaText.raw(ref.t('save')),
               ),
             ],
           );
@@ -348,12 +357,12 @@ class _SettlementCard extends ConsumerWidget {
   }
 }
 
-class _SettlementDetailSheet extends StatelessWidget {
+class _SettlementDetailSheet extends ConsumerWidget {
   final AccountSettlementDetail detail;
   const _SettlementDetailSheet({required this.detail});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       child: Column(
@@ -363,16 +372,16 @@ class _SettlementDetailSheet extends StatelessWidget {
           ManaText.raw(detail.summary.agentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           const SizedBox(height: ManaSpacing.md),
           if (detail.adjustments.isEmpty)
-            ManaText.raw('No Short/Excess adjustments.', style: TextStyle(color: ManaColors.textSecondary))
+            ManaText.raw(ref.t('no_short_excess_adjustments'), style: TextStyle(color: ManaColors.textSecondary))
           else
             ...detail.adjustments.map((a) => ListTile(
                   dense: true,
                   title: ManaText.raw('${a.type} — ${_currency.format(a.amount)}'),
-                  subtitle: ManaText.raw('Applied to: ${a.appliedTo}'),
+                  subtitle: ManaText.raw(ref.t('applied_to_note').replaceAll('{target}', a.appliedTo)),
                 )),
           if (detail.agentRemarks != null) ...[
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('agent remarks'),
+            ManaText.raw(ref.t('agent_remarks')),
             ManaText.raw(detail.agentRemarks!),
           ],
         ],
@@ -392,7 +401,7 @@ class _DailyAllowanceTab extends ConsumerWidget {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         ManaText.raw(
-          'Tracking/visibility only — no linkage to Payable Salary or any figure elsewhere on this screen.',
+          ref.t('daily_allowance_tracking_note'),
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.md),
@@ -400,7 +409,7 @@ class _DailyAllowanceTab extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
             child: Center(
-              child: ManaText.raw('No access days granted this session.',
+              child: ManaText.raw(ref.t('no_access_days_granted'),
                   style: TextStyle(color: ManaColors.textSecondary)),
             ),
           )
@@ -408,7 +417,7 @@ class _DailyAllowanceTab extends ConsumerWidget {
           ...state.accessDays.map((a) => Card(
                 child: ListTile(
                   title: ManaText.raw(a.agentName),
-                  subtitle: ManaText.raw('Allowance: ${_currency.format(a.allowanceAmount)}'),
+                  subtitle: ManaText.raw(ref.t('allowance_note').replaceAll('{amount}', _currency.format(a.allowanceAmount))),
                   trailing: IconButton(
                     icon: const Icon(Icons.close, size: 18),
                     onPressed: () =>

@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+**Read this file at start of every session. Confirm plugins active before starting work.**
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this is
@@ -69,3 +71,47 @@ Full list in README §"Money conventions"; the ones that change code:
 ## Docs
 
 `docs/01_Global_Rules_Guide.md` holds the locked business rules (BR-001…BR-240+); `docs/15_Calculation_Engine.md` holds the locked formulas. Per project convention, final BR and calculation-engine documents are authored at the *end* — decisions are recorded in code comments and commit messages as they are made, not by editing the specs mid-flight.
+
+## Plugins / capabilities
+
+Install from an **interactive** `claude` terminal — `/plugin` opens a dialog panel and cannot run in a non-interactive session.
+
+| Capability | Install source | Status here |
+|---|---|---|
+| Superpowers | `/plugin marketplace add claude-plugins-official` → `/plugin install superpowers@claude-plugins-official`<br>Fallback: `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace` | **Not installed** |
+| Security Guidance | `/plugin install security-guidance@claude-plugins-official` | Equivalent available: built-in `/security-review` |
+| Frontend Design | Built-in skill, no install | Available (`design:*`, `artifact-design`) |
+| Code Review | Check Superpowers first; else `/plugin marketplace add trailofbits/skills` → `/plugin install code-review@trailofbits-skills` | Equivalent available: `engineering:code-review`, `/code-review` |
+
+Verify with `/plugin list`; restart the session if prompted, then re-confirm.
+
+## Workflow rules
+
+**Before any new work:**
+Full pass over existing code — bugs, security issues, dead code (unused functions/imports/files, duplicate logic, dead comments). Summarize findings. Fix what's safe immediately. Flag the rest before touching.
+
+**Tools:**
+- Superpowers: plan-first, TDD (RED-GREEN-REFACTOR) for all non-trivial tasks. Plan before code. Confirm architecturally significant decisions before proceeding.
+- Frontend Design: all UI/layout/styling work. Real design decisions, not generic defaults.
+- Code Review: senior-engineer-lens review on every diff before presenting — bugs, anti-patterns, SOLID violations, inconsistent style, dead code.
+- Security Guidance: run on every change — injection flaws, unsafe deserialization, insecure DOM APIs, hardcoded secrets/keys, leak-prone patterns. Fix before marking done, don't wait to be asked.
+
+**Ongoing:**
+- Remove genuinely unused code when touching a file. Ask first if uncertain whether something is dead or planned.
+- Minimal code — no speculative abstractions, no "just in case" code.
+- Write/update tests for anything changed, not just anything added.
+- Flag tradeoffs/risky assumptions instead of guessing silently.
+
+**Goal:**
+Fast, responsive, close-to-bug-free app. Minimal, clean code. No bloat. No unused code. No unpatched security gaps. Correctness and simplicity over cleverness.
+
+## Session start checklist
+
+1. Read CLAUDE.md
+2. Confirm all 4 plugins/skills active
+3. Report status
+4. Proceed only after confirmation
+
+## Response style
+
+No unnecessary explanation. Stay strict to content. Minimal tokens. No preamble, no postamble, no filler confirmations beyond what's requested.

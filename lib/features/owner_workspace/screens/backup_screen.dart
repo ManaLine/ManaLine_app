@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/person_identity.dart';
@@ -55,7 +56,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: ManaText.raw('Could not share the file: $e')),
+          SnackBar(content: ManaText.raw(ref.t('could_not_share_file_note').replaceAll('{error}', '$e'))),
         );
       }
     } finally {
@@ -75,19 +76,17 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           // through to router.dart's stub-business-id fallback.
           onPressed: () => context.pop(),
         ),
-        title: const ManaText('backup'),
+        title: ManaText.raw(ref.t('backup')),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            const ManaText('export to excel',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            ManaText.raw(ref.t('export_to_excel'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
-              'Creates a spreadsheet of your customers, loans, collections, '
-              'expenses, investments and daily ledger. Deleted records are '
-              'not included.',
+              ref.t('export_to_excel_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
@@ -121,9 +120,10 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
               if (r.truncatedSheets.isNotEmpty) ...[
                 const SizedBox(height: ManaSpacing.md),
                 ManaText.raw(
-                  'Some sheets were too large and were cut to '
-                  '${BackupExportService.maxRowsPerSheet} rows: '
-                  '${r.truncatedSheets.join(", ")}. This backup is incomplete.',
+                  ref
+                      .t('truncated_sheets_note')
+                      .replaceAll('{rows}', '${BackupExportService.maxRowsPerSheet}')
+                      .replaceAll('{sheets}', r.truncatedSheets.join(", ")),
                   style: TextStyle(
                       fontSize: 13, color: ManaColors.statusBad),
                 ),
@@ -132,7 +132,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
               OutlinedButton.icon(
                 onPressed: _share,
                 icon: const Icon(Icons.ios_share),
-                label: const ManaText('share file'),
+                label: ManaText.raw(ref.t('share_file')),
               ),
             ],
           ],

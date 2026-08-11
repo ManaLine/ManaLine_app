@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/import_service.dart';
@@ -42,7 +43,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: ManaText.raw('Could not build the template: $e')),
+          SnackBar(content: ManaText.raw(ref.t('could_not_build_template_note').replaceAll('{error}', '$e'))),
         );
       }
     } finally {
@@ -51,11 +52,11 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   }
 
   Future<void> _pick() async {
-    const group = XTypeGroup(
-      label: 'Spreadsheet',
-      extensions: ['xlsx', 'csv'],
+    final group = XTypeGroup(
+      label: ref.t('spreadsheet'),
+      extensions: const ['xlsx', 'csv'],
     );
-    final file = await openFile(acceptedTypeGroups: const [group]);
+    final file = await openFile(acceptedTypeGroups: [group]);
     if (file == null) return; // cancelled — not an error
 
     setState(() {
@@ -113,37 +114,35 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: const ManaText('import records'),
+        title: ManaText.raw(ref.t('import_records')),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             ManaText.raw(
-              'Enter loans your business already had before it came onto MANA '
-              'LINE. If any row is wrong, nothing is imported — fix the sheet '
-              'and upload it again.',
+              ref.t('import_records_note'),
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
 
-            const ManaText('step 1',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            ManaText.raw(ref.t('step_1'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: ManaSpacing.xs),
             OutlinedButton.icon(
               onPressed: _busy ? null : _template,
               icon: const Icon(Icons.download_outlined),
-              label: const ManaText('get template'),
+              label: ManaText.raw(ref.t('get_template')),
             ),
             const SizedBox(height: ManaSpacing.lg),
 
-            const ManaText('step 2',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            ManaText.raw(ref.t('step_2'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: ManaSpacing.xs),
             OutlinedButton.icon(
               onPressed: _busy ? null : _pick,
               icon: const Icon(Icons.folder_open_outlined),
-              label: const ManaText('choose file'),
+              label: ManaText.raw(ref.t('choose_file')),
             ),
             if (_fileName != null) ...[
               const SizedBox(height: ManaSpacing.sm),
@@ -175,7 +174,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               ElevatedButton.icon(
                 onPressed: parse.rows.isEmpty ? null : _import,
                 icon: const Icon(Icons.upload_outlined),
-                label: const ManaText('import'),
+                label: ManaText.raw(ref.t('import_label')),
               ),
             ],
 
@@ -183,15 +182,14 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               const SizedBox(height: ManaSpacing.lg),
               if (!outcome.rejected)
                 ManaText.raw(
-                  '${outcome.imported} loans imported.',
+                  ref.t('loans_imported_note').replaceAll('{count}', '${outcome.imported}'),
                   style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: ManaColors.statusGood),
                 )
               else ...[
                 ManaText.raw(
-                  'Nothing was imported. ${outcome.errors.length} '
-                  '${outcome.errors.length == 1 ? "row" : "rows"} need fixing:',
+                  ref.t('nothing_imported_note').replaceAll('{count}', '${outcome.errors.length}'),
                   style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: ManaColors.statusBad),
@@ -201,7 +199,10 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: ManaText.raw(
-                      'Row ${e.row}: ${e.message}',
+                      ref
+                          .t('row_error_note')
+                          .replaceAll('{row}', '${e.row}')
+                          .replaceAll('{message}', e.message),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),

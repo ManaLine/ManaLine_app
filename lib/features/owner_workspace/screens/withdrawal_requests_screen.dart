@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
@@ -44,13 +45,13 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
     final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const ManaText('reject withdrawal request'),
-        content: TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'Reason'), maxLines: 3),
+        title: ManaText.raw(ref.t('reject_withdrawal_request')),
+        content: TextField(controller: reasonController, decoration: InputDecoration(labelText: ref.t('reason_field')), maxLines: 3),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(reasonController.text.trim()),
-            child: const ManaText('reject'),
+            child: ManaText.raw(ref.t('reject')),
           ),
         ],
       ),
@@ -70,36 +71,39 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const ManaText('pay out withdrawal'),
+          title: ManaText.raw(ref.t('pay_out_withdrawal')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ManaText.raw('Requested: ${_currency.format(r.requestedAmount)} (${r.withdrawalType})',
+              ManaText.raw(ref
+                  .t('requested_amount_type_note')
+                  .replaceAll('{amount}', _currency.format(r.requestedAmount))
+                  .replaceAll('{type}', r.withdrawalType),
                   style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
               const SizedBox(height: ManaSpacing.md),
               TextField(
                 controller: principalController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Principal Portion *'),
+                decoration: InputDecoration(labelText: ref.t('principal_portion_field')),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.sm),
               TextField(
                 controller: interestController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Interest Portion *'),
+                decoration: InputDecoration(labelText: ref.t('interest_portion_field')),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
-                'Total: ${_currency.format((double.tryParse(principalController.text) ?? 0) + (double.tryParse(interestController.text) ?? 0))}',
+                ref.t('total_note').replaceAll('{amount}', _currency.format((double.tryParse(principalController.text) ?? 0) + (double.tryParse(interestController.text) ?? 0))),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const ManaText('cancel')),
-            FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const ManaText('pay out')),
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: ManaText.raw(ref.t('cancel'))),
+            FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: ManaText.raw(ref.t('pay_out'))),
           ],
         ),
       ),
@@ -125,7 +129,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const ManaText('withdrawal requests')),
+      appBar: AppBar(title: ManaText.raw(ref.t('withdrawal_requests_title'))),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => _reload(),
@@ -142,7 +146,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
-                      child: ManaText.raw('Could not load withdrawal requests.\n${snapshot.error}',
+                      child: ManaText.raw(ref.t('could_not_load_withdrawal_requests_note').replaceAll('{error}', '${snapshot.error}'),
                           textAlign: TextAlign.center, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                     ),
                   ],
@@ -154,7 +158,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                   padding: const EdgeInsets.all(ManaSpacing.xxl),
                   children: [
                     Center(
-                      child: ManaText.raw('No pending withdrawal requests.', style: TextStyle(color: ManaColors.textSecondary)),
+                      child: ManaText.raw(ref.t('no_pending_withdrawal_requests'), style: TextStyle(color: ManaColors.textSecondary)),
                     ),
                   ],
                 );
@@ -192,11 +196,11 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: OutlinedButton(onPressed: () => _reject(r), child: const ManaText('reject')),
+                                      child: OutlinedButton(onPressed: () => _reject(r), child: ManaText.raw(ref.t('reject'))),
                                     ),
                                     const SizedBox(width: ManaSpacing.sm),
                                     Expanded(
-                                      child: FilledButton(onPressed: () => _approve(r), child: const ManaText('pay out')),
+                                      child: FilledButton(onPressed: () => _approve(r), child: ManaText.raw(ref.t('pay_out'))),
                                     ),
                                   ],
                                 ),

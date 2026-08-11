@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
@@ -52,17 +53,17 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
     final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const ManaText('reject loan request'),
+        title: ManaText.raw(ref.t('reject_loan_request')),
         content: TextField(
           controller: reasonController,
-          decoration: const InputDecoration(labelText: 'Reason'),
+          decoration: InputDecoration(labelText: ref.t('reason_field')),
           maxLines: 3,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(reasonController.text.trim()),
-            child: const ManaText('reject'),
+            child: ManaText.raw(ref.t('reject')),
           ),
         ],
       ),
@@ -78,7 +79,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const ManaText('loan requests')),
+      appBar: AppBar(title: ManaText.raw(ref.t('loan_requests'))),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => _reload(),
@@ -95,7 +96,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
-                      child: ManaText.raw('Could not load loan requests.\n${snapshot.error}',
+                      child: ManaText.raw(ref.t('could_not_load_loan_requests_note').replaceAll('{error}', '${snapshot.error}'),
                           textAlign: TextAlign.center, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
                     ),
                   ],
@@ -107,7 +108,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                   padding: const EdgeInsets.all(ManaSpacing.xxl),
                   children: [
                     Center(
-                      child: ManaText.raw('No pending loan requests.', style: TextStyle(color: ManaColors.textSecondary)),
+                      child: ManaText.raw(ref.t('no_pending_loan_requests'), style: TextStyle(color: ManaColors.textSecondary)),
                     ),
                   ],
                 );
@@ -147,14 +148,14 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                                     Expanded(
                                       child: OutlinedButton(
                                         onPressed: () => _reject(r),
-                                        child: const ManaText('reject'),
+                                        child: ManaText.raw(ref.t('reject')),
                                       ),
                                     ),
                                     const SizedBox(width: ManaSpacing.sm),
                                     Expanded(
                                       child: FilledButton(
                                         onPressed: () => _approve(r),
-                                        child: const ManaText('approve'),
+                                        child: ManaText.raw(ref.t('approve')),
                                       ),
                                     ),
                                   ],

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
@@ -73,7 +74,7 @@ class _BusinessTransferScreenState
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('transfer this business?'),
+        title: ManaText.raw(ref.t('transfer_this_business_question')),
         content: ManaText.raw(
           '${person.fullName} (${person.mlid}) will be asked to accept. '
           'Nothing changes until they do.\n\n'
@@ -83,10 +84,10 @@ class _BusinessTransferScreenState
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const ManaText('cancel')),
+              child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const ManaText('send offer')),
+              child: ManaText.raw(ref.t('send_offer'))),
         ],
       ),
     );
@@ -126,7 +127,7 @@ class _BusinessTransferScreenState
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const ManaText('cancel')),
+              child: ManaText.raw(ref.t('cancel'))),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               child: ManaText.raw(accept ? 'Accept' : 'Decline')),
@@ -168,7 +169,7 @@ class _BusinessTransferScreenState
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: const ManaText('business transfer'),
+        title: ManaText.raw(ref.t('business_transfer')),
       ),
       body: SafeArea(
         child: transfers.when(
@@ -194,8 +195,8 @@ class _BusinessTransferScreenState
                 padding: const EdgeInsets.all(ManaSpacing.lg),
                 children: [
                   if (incoming.isNotEmpty) ...[
-                    const ManaText('offered to you',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    ManaText.raw(ref.t('offered_to_you'),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: ManaSpacing.sm),
                     for (final t in incoming)
                       _OfferCard(
@@ -209,8 +210,8 @@ class _BusinessTransferScreenState
                     const SizedBox(height: ManaSpacing.lg),
                   ],
                   if (outgoing.isNotEmpty) ...[
-                    const ManaText('waiting to be accepted',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    ManaText.raw(ref.t('waiting_to_be_accepted'),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: ManaSpacing.sm),
                     for (final t in outgoing)
                       _OfferCard(
@@ -222,20 +223,19 @@ class _BusinessTransferScreenState
                     const SizedBox(height: ManaSpacing.lg),
                   ],
 
-                  const ManaText('hand this business to someone',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  ManaText.raw(ref.t('hand_business_to_someone'),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: ManaSpacing.xs),
                   ManaText.raw(
-                    'They have to accept before anything moves. Settle your own '
-                    'agent cash and review any waiting settlements first.',
+                    ref.t('transfer_business_note'),
                     style: TextStyle(
                         fontSize: 13, color: ManaColors.textSecondary),
                   ),
                   const SizedBox(height: ManaSpacing.sm),
                   TextField(
                     controller: _mlid,
-                    decoration: const InputDecoration(
-                      labelText: 'Their MLID',
+                    decoration: InputDecoration(
+                      labelText: ref.t('their_mlid_field'),
                       hintText: 'MLPI...',
                     ),
                     onSubmitted: (_) => _find(),
@@ -243,7 +243,7 @@ class _BusinessTransferScreenState
                   const SizedBox(height: ManaSpacing.sm),
                   OutlinedButton(
                     onPressed: _busy ? null : _find,
-                    child: const ManaText('find person'),
+                    child: ManaText.raw(ref.t('find_person')),
                   ),
                   if (_lookupError != null) ...[
                     const SizedBox(height: ManaSpacing.sm),
@@ -276,15 +276,15 @@ class _BusinessTransferScreenState
                     const SizedBox(height: ManaSpacing.sm),
                     TextField(
                       controller: _note,
-                      decoration: const InputDecoration(
-                        labelText: 'Note (optional)',
+                      decoration: InputDecoration(
+                        labelText: ref.t('note_optional_field'),
                       ),
                       maxLines: 2,
                     ),
                     const SizedBox(height: ManaSpacing.sm),
                     ElevatedButton(
                       onPressed: _busy ? null : _offer,
-                      child: const ManaText('send offer'),
+                      child: ManaText.raw(ref.t('send_offer')),
                     ),
                   ],
                   if (_busy) ...[

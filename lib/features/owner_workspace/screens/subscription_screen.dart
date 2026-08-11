@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../state/subscription_state.dart';
@@ -28,7 +29,7 @@ class SubscriptionScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: const ManaText('subscription'),
+        title: ManaText.raw(ref.t('subscription')),
       ),
       body: SafeArea(
         child: usage.when(
@@ -48,28 +49,24 @@ class SubscriptionScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(ManaSpacing.lg),
             children: [
               ManaText.raw(
-                'Nothing is being charged yet. These are the planned prices, '
-                'shown so you can see which one fits your business.',
+                ref.t('planned_prices_note'),
                 style:
                     TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
               const SizedBox(height: ManaSpacing.lg),
               _UsageCard(usage: u),
               const SizedBox(height: ManaSpacing.lg),
-              const ManaText('plans',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              ManaText.raw(ref.t('plans'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: ManaSpacing.sm),
               for (final t in kOwnerTiers)
                 _TierCard(tier: t, isCurrent: t.name == u.currentTier.name),
               const SizedBox(height: ManaSpacing.lg),
-              const ManaText('customers and investors',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              ManaText.raw(ref.t('customers_and_investors'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
-                'Customers and Investors view their records free. Requesting a '
-                'loan, or requesting to invest or withdraw, is ₹99 a year for '
-                'that role — and one discounted Combo covers a person who is '
-                'both.',
+                ref.t('customers_investors_free_note'),
                 style:
                     TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
@@ -81,12 +78,12 @@ class SubscriptionScreen extends ConsumerWidget {
   }
 }
 
-class _UsageCard extends StatelessWidget {
+class _UsageCard extends ConsumerWidget {
   final BusinessUsage usage;
   const _UsageCard({required this.usage});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = usage.currentTier;
     return Container(
       padding: const EdgeInsets.all(ManaSpacing.md),
@@ -97,12 +94,12 @@ class _UsageCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ManaText('your business today',
-              style: TextStyle(fontWeight: FontWeight.w700)),
+          ManaText.raw(ref.t('your_business_today'),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: ManaSpacing.sm),
-          _UsageRow(label: 'Agents', value: usage.agents, cap: t.agents),
-          _UsageRow(label: 'Customers', value: usage.customers, cap: t.customers),
-          _UsageRow(label: 'Investors', value: usage.investors, cap: t.investors),
+          _UsageRow(label: ref.t('agents'), value: usage.agents, cap: t.agents),
+          _UsageRow(label: ref.t('customers'), value: usage.customers, cap: t.customers),
+          _UsageRow(label: ref.t('investors'), value: usage.investors, cap: t.investors),
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(
             'That fits the ${t.name} plan.',

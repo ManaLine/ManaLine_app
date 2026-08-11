@@ -9,6 +9,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/business_name_checker.dart';
 import '../../../shared/photo_compression.dart';
+import '../../../shared/translation_service.dart';
 import '../state/business_management_state.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
@@ -21,13 +22,13 @@ import 'ow_019_cheti_management.dart';
 // `state.error` and never rendered anywhere — indistinguishable from a
 // business that genuinely has no data. Surfacing it here so a load
 // failure reads as "something broke, tap retry" instead of "empty".
-class _ErrorBanner extends StatelessWidget {
+class _ErrorBanner extends ConsumerWidget {
   final String message;
   final VoidCallback onRetry;
   const _ErrorBanner({required this.message, required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
@@ -36,11 +37,11 @@ class _ErrorBanner extends StatelessWidget {
           children: [
             Icon(Icons.cloud_off, size: 40, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('could not load data'),
+            ManaText.raw(ref.t('could_not_load_data')),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(message, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
             const SizedBox(height: ManaSpacing.sm),
-            ElevatedButton(onPressed: onRetry, child: const ManaText('retry')),
+            ElevatedButton(onPressed: onRetry, child: ManaText.raw(ref.t('retry'))),
           ],
         ),
       ),
@@ -97,15 +98,30 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
   Widget build(BuildContext context) {
     final state = ref.watch(businessListProvider);
 
+    // A translated "Create Business" label plus icon can outgrow a narrow
+    // phone width at large text scales — FloatingActionButton.extended has
+    // no way to shrink its own label, and Scaffold doesn't clip a FAB
+    // against the screen edge, so the button just renders partway off
+    // screen. Icon-only (with the same label as a tooltip) sidesteps that
+    // entirely rather than picking a scale threshold to gate on.
+    final bigText = MediaQuery.textScalerOf(context).scale(14) > 20;
     return Scaffold(
-      appBar: AppBar(title: const ManaText('business management')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const _CreateBusinessScreen()),
-        ),
-        icon: const Icon(Icons.add),
-        label: const ManaText('create business'),
-      ),
+      appBar: AppBar(title: ManaText.raw(ref.t('business_management'))),
+      floatingActionButton: bigText
+          ? FloatingActionButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const _CreateBusinessScreen()),
+              ),
+              tooltip: ref.t('create_business'),
+              child: const Icon(Icons.add),
+            )
+          : FloatingActionButton.extended(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const _CreateBusinessScreen()),
+              ),
+              icon: const Icon(Icons.add),
+              label: ManaText.raw(ref.t('create_business')),
+            ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(businessListProvider.notifier).load(),
@@ -119,7 +135,7 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
                       children: [
                         Center(
                           child: ManaText.raw(
-                            'No businesses yet. Tap "Create Business" to get started.',
+                            ref.t('no_businesses_yet_note'),
                             style: TextStyle(color: ManaColors.textSecondary),
                           ),
                         ),
@@ -143,7 +159,7 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
   }
 }
 
-class _BusinessSummaryCard extends StatelessWidget {
+class _BusinessSummaryCard extends ConsumerWidget {
   final BusinessSummary business;
   final VoidCallback onTap;
   const _BusinessSummaryCard({required this.business, required this.onTap});
@@ -155,7 +171,7 @@ class _BusinessSummaryCard extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.md),
       child: InkWell(
@@ -166,6 +182,7 @@ class _BusinessSummaryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
                     backgroundColor: ManaColors.inkFaint,
@@ -180,13 +197,18 @@ class _BusinessSummaryCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ManaText.raw(business.businessName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.titleLarge),
                         ManaText.raw(business.mlbi,
                             style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
                       ],
                     ),
                   ),
-                  ManaStatusPill(label: business.businessStatus, status: _statusKind),
+                  const SizedBox(width: ManaSpacing.xs),
+                  Flexible(
+                    child: ManaStatusPill(label: business.businessStatus, status: _statusKind),
+                  ),
                 ],
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -194,10 +216,18 @@ class _BusinessSummaryCard extends StatelessWidget {
                 spacing: ManaSpacing.md,
                 runSpacing: ManaSpacing.xs,
                 children: [
-                  _StatChip(icon: Icons.location_on_outlined, label: '${business.operatingAreaCount} Areas'),
-                  _StatChip(icon: Icons.people_outline, label: '${business.activeCustomers} Customers'),
-                  _StatChip(icon: Icons.badge_outlined, label: '${business.activeAgents} Agents'),
-                  _StatChip(icon: Icons.savings_outlined, label: '${business.activeInvestors} Investors'),
+                  _StatChip(
+                      icon: Icons.location_on_outlined,
+                      label: ref.t('areas_count_note').replaceAll('{count}', '${business.operatingAreaCount}')),
+                  _StatChip(
+                      icon: Icons.people_outline,
+                      label: ref.t('customers_count_note').replaceAll('{count}', '${business.activeCustomers}')),
+                  _StatChip(
+                      icon: Icons.badge_outlined,
+                      label: ref.t('agents_count_note').replaceAll('{count}', '${business.activeAgents}')),
+                  _StatChip(
+                      icon: Icons.savings_outlined,
+                      label: ref.t('investors_count_note').replaceAll('{count}', '${business.activeInvestors}')),
                 ],
               ),
             ],
@@ -220,7 +250,12 @@ class _StatChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: ManaColors.textSecondary),
         const SizedBox(width: 4),
-        ManaText.raw(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+        Flexible(
+          child: ManaText.raw(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+        ),
       ],
     );
   }
@@ -319,14 +354,13 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
     final formState = ref.watch(createBusinessFormProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('create business')),
+      appBar: AppBar(title: ManaText.raw(ref.t('create_business'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             ManaText.raw(
-              'This is the same Create Business step covered in first-time setup — '
-              'use it here to add another business, or to start one you skipped earlier.',
+              ref.t('create_business_repeat_note'),
               style: TextStyle(color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
@@ -346,38 +380,38 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
             Center(
               child: TextButton(
                 onPressed: _pickLogo,
-                child: ManaText(_logoBytes == null ? 'add business photo' : 'change photo'),
+                child: ManaText.raw(ref.t(_logoBytes == null ? 'add_business_photo' : 'change_photo')),
               ),
             ),
             TextField(
               controller: _businessName,
-              decoration: const InputDecoration(labelText: 'Business Name *'),
+              decoration: InputDecoration(labelText: ref.t('business_name_field')),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _registeredFinanceName,
-              decoration: const InputDecoration(labelText: 'Registered Finance Name *'),
+              decoration: InputDecoration(labelText: ref.t('registered_finance_name_field')),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ManaSpacing.md),
-            TextField(controller: _businessType, decoration: const InputDecoration(labelText: 'Business Type')),
+            TextField(controller: _businessType, decoration: InputDecoration(labelText: ref.t('business_type_field'))),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _businessAddress,
-              decoration: const InputDecoration(labelText: 'Business Address'),
+              decoration: InputDecoration(labelText: ref.t('business_address_field')),
               maxLines: 2,
             ),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _businessPhone,
-              decoration: const InputDecoration(labelText: 'Business Phone'),
+              decoration: InputDecoration(labelText: ref.t('business_phone_field')),
               keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _businessEmail,
-              decoration: const InputDecoration(labelText: 'Business Email'),
+              decoration: InputDecoration(labelText: ref.t('business_email_field')),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: ManaSpacing.xxl),
@@ -385,7 +419,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
               onPressed: (_valid && !formState.submitting) ? _submit : null,
               child: formState.submitting
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const ManaText('save business'),
+                  : ManaText.raw(ref.t('save_business')),
             ),
           ],
         ),
@@ -437,13 +471,13 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
       initialIndex: BusinessDetailTab.values.indexOf(initialTab),
       child: Scaffold(
         appBar: AppBar(
-          title: ManaText.raw(detail?.summary.businessName ?? 'business detail'),
+          title: ManaText.raw(detail?.summary.businessName ?? ref.t('business_detail')),
           actions: [
             // OW-018 — for a business that was already running before it
             // joined. Lives here rather than on OW-001 because it is a
             // one-off setup act, not daily work.
             IconButton(
-              tooltip: 'Pre-Existing Business',
+              tooltip: ref.t('pre_existing_business'),
               icon: const Icon(Icons.move_to_inbox_outlined),
               // Navigator, not go_router: this detail screen is pushed as a
               // MaterialPageRoute from the list, so it is outside the
@@ -457,7 +491,7 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
             // OW-019 — the Owner's own chetis. Sits beside migration for the
             // same reason: it is the business's financing, not daily work.
             IconButton(
-              tooltip: 'Cheti',
+              tooltip: ref.t('cheti'),
               icon: const Icon(Icons.savings_outlined),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -471,11 +505,11 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
             onTap: (i) => ref
                 .read(businessDetailProvider(widget.businessId).notifier)
                 .setTab(BusinessDetailTab.values[i]),
-            tabs: const [
-              Tab(text: 'Operating Areas'),
-              Tab(text: 'Agreements'),
-              Tab(text: 'Members'),
-              Tab(text: 'Account Periods'),
+            tabs: [
+              Tab(text: ref.t('operating_areas')),
+              Tab(text: ref.t('agreements')),
+              Tab(text: ref.t('members')),
+              Tab(text: ref.t('account_periods')),
             ],
           ),
         ),
@@ -561,14 +595,16 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('remove village?'),
+        title: ManaText.raw(ref.t('remove_village_question')),
         content: ManaText.raw(
-          '${village.villageTownName} will no longer be part of ${area.name}. '
-          'Customers already registered there are not affected.',
+          ref
+              .t('remove_village_note')
+              .replaceAll('{village}', village.villageTownName)
+              .replaceAll('{area}', area.name),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('cancel')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const ManaText('remove')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: ManaText.raw(ref.t('cancel'))),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: ManaText.raw(ref.t('remove'))),
         ],
       ),
     );
@@ -585,17 +621,19 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('remove operating area?'),
+        title: ManaText.raw(ref.t('remove_operating_area_question')),
         content: ManaText.raw(
-          '${area.name} (${area.villagesLabel}) will be set Inactive. Its account '
-          'periods and history are kept, and any assigned agent loses access to it.',
+          ref
+              .t('remove_operating_area_note')
+              .replaceAll('{area}', area.name)
+              .replaceAll('{villages}', area.villagesLabel),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: ManaColors.statusBad),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const ManaText('remove'),
+            child: ManaText.raw(ref.t('remove')),
           ),
         ],
       ),
@@ -613,18 +651,18 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const ManaText('rename operating area'),
+        title: ManaText.raw(ref.t('rename_area')),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLength: 120,
-          decoration: const InputDecoration(labelText: 'Area name'),
+          decoration: InputDecoration(labelText: ref.t('area_name_field')),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const ManaText('cancel')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: ManaText.raw(ref.t('cancel'))),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const ManaText('save'),
+            child: ManaText.raw(ref.t('save')),
           ),
         ],
       ),
@@ -694,25 +732,23 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         ManaText.raw(
-          'An operating area is one round, covering as many villages as the '
-          'round actually walks. Name it, add its first village here, then '
-          'attach the rest from the area itself.',
+          ref.t('operating_area_intro_note'),
           style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _areaName,
           maxLength: 120,
-          decoration: const InputDecoration(
-            labelText: 'Area name',
-            helperText: 'Leave blank to name it after the first village',
+          decoration: InputDecoration(
+            labelText: ref.t('area_name_field'),
+            helperText: ref.t('area_name_helper'),
           ),
         ),
         TextField(
           controller: _pinCode,
           keyboardType: TextInputType.number,
           maxLength: 6,
-          decoration: const InputDecoration(labelText: 'PIN Code'),
+          decoration: InputDecoration(labelText: ref.t('pin_code_field')),
           onChanged: (v) {
             if (v.trim().length == 6) {
               ref.read(operatingAreaSearchProvider.notifier).searchByPin(v.trim());
@@ -739,16 +775,16 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
           child: FilledButton.tonalIcon(
             onPressed: search.selected != null ? _addSelected : null,
             icon: const Icon(Icons.add, size: 18),
-            label: const ManaText('add area'),
+            label: ManaText.raw(ref.t('add_area')),
           ),
         ),
         const SizedBox(height: ManaSpacing.lg),
         const Divider(),
         const SizedBox(height: ManaSpacing.sm),
-        const ManaText('current operating areas', style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('current_operating_areas'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: ManaSpacing.sm),
         if (areas.isEmpty)
-          ManaText.raw('No Operating Areas yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_operating_areas_yet'), style: TextStyle(color: ManaColors.textSecondary))
         else
           ...areas.map((a) => Card(
                 child: Column(
@@ -759,15 +795,23 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                       title: Row(
                         children: [
                           Expanded(child: ManaText.raw(a.name)),
-                          if (a.status != 'Active')
-                            const ManaStatusPill(label: 'Inactive', status: ManaStatus.neutral),
+                          if (a.status != 'Active') ...[
+                            const SizedBox(width: ManaSpacing.xs),
+                            Flexible(
+                              child: ManaStatusPill(label: ref.t('inactive'), status: ManaStatus.neutral),
+                            ),
+                          ],
                         ],
                       ),
                       subtitle: ManaText.raw(a.cycleConfigured
-                          ? 'Cycle: ${a.accountCycleDuration} ${a.accountCycleUnit}, submits ${a.submissionTime}'
-                          : 'Account cycle not yet configured'),
+                          ? ref
+                              .t('cycle_configured_note')
+                              .replaceAll('{duration}', '${a.accountCycleDuration}')
+                              .replaceAll('{unit}', '${a.accountCycleUnit}')
+                              .replaceAll('{time}', '${a.submissionTime}')
+                          : ref.t('account_cycle_not_configured')),
                       trailing: PopupMenuButton<String>(
-                        tooltip: 'Area options',
+                        tooltip: ref.t('area_options'),
                         onSelected: (v) => switch (v) {
                           'cycle' => _configureCycle(a),
                           'rename' => _rename(a),
@@ -777,13 +821,13 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                         itemBuilder: (_) => [
                           PopupMenuItem(
                               value: 'cycle',
-                              child: ManaText(a.cycleConfigured ? 'edit cycle' : 'configure cycle')),
-                          const PopupMenuItem(value: 'rename', child: ManaText('rename area')),
-                          const PopupMenuItem(value: 'village', child: ManaText('add village')),
+                              child: ManaText.raw(ref.t(a.cycleConfigured ? 'edit_cycle' : 'configure_cycle'))),
+                          PopupMenuItem(value: 'rename', child: ManaText.raw(ref.t('rename_area'))),
+                          PopupMenuItem(value: 'village', child: ManaText.raw(ref.t('add_village'))),
                           const PopupMenuDivider(),
                           PopupMenuItem(
                             value: 'remove',
-                            child: ManaText.raw('remove area',
+                            child: ManaText.raw(ref.t('remove_area'),
                                 style: TextStyle(color: ManaColors.statusBad)),
                           ),
                         ],
@@ -814,33 +858,48 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                             TextButton.icon(
                               onPressed: () => _addVillage(a),
                               icon: const Icon(Icons.add, size: 18),
-                              label: const ManaText('add village'),
+                              label: ManaText.raw(ref.t('add_village')),
                             ),
                           ],
                         ),
                       ),
                     ),
                     const Divider(height: 1),
-                    ListTile(
-                      dense: true,
-                      leading: Icon(
-                        a.isUnassigned ? Icons.person_off_outlined : Icons.badge_outlined,
-                        size: 18,
-                        color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
-                      ),
-                      title: ManaText.raw(
-                        a.isUnassigned
-                            ? 'No agent assigned — not being worked'
-                            : '${a.assignedAgents.length == 1 ? 'Agent' : 'Agents'}: '
-                                '${a.assignedAgentsLabel}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
-                        ),
-                      ),
-                      trailing: TextButton(
-                        onPressed: () => _assignAgent(a),
-                        child: ManaText(a.isUnassigned ? 'assign agent' : 'manage agents'),
+                    // A ListTile's trailing slot has a hard width assertion —
+                    // built from a plain Row instead, same reasoning as the
+                    // blocking-issues row on OW-011.
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md, vertical: ManaSpacing.xs),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            a.isUnassigned ? Icons.person_off_outlined : Icons.badge_outlined,
+                            size: 18,
+                            color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
+                          ),
+                          const SizedBox(width: ManaSpacing.sm),
+                          Expanded(
+                            child: ManaText.raw(
+                              a.isUnassigned
+                                  ? ref.t('no_agent_assigned_not_worked')
+                                  : ref
+                                      .t(a.assignedAgents.length == 1 ? 'agent_colon_note' : 'agents_colon_note')
+                                      .replaceAll('{names}', a.assignedAgentsLabel),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: ManaSpacing.sm),
+                          Flexible(
+                            child: TextButton(
+                              onPressed: () => _assignAgent(a),
+                              child: ManaText.raw(ref.t(a.isUnassigned ? 'assign_agent' : 'manage_agents')),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -896,14 +955,14 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
           controller: scrollController,
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            ManaText.raw('Add a village to ${widget.areaName}',
+            ManaText.raw(ref.t('add_village_to_note').replaceAll('{area}', widget.areaName),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _pinCode,
               keyboardType: TextInputType.number,
               maxLength: 6,
-              decoration: const InputDecoration(labelText: 'PIN Code'),
+              decoration: InputDecoration(labelText: ref.t('pin_code_field')),
               onChanged: (v) {
                 if (v.trim().length == 6) {
                   ref.read(operatingAreaSearchProvider.notifier).searchByPin(v.trim());
@@ -912,7 +971,7 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
             ),
             if (search.searching) const Center(child: CircularProgressIndicator()),
             if (!search.searching && search.matches.isEmpty && _pinCode.text.trim().length == 6)
-              ManaText.raw('No villages found for that PIN.',
+              ManaText.raw(ref.t('no_villages_found_for_pin'),
                   style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             ...search.matches.map((m) => ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -938,13 +997,13 @@ class _AreaAssignmentChoice {
   _AreaAssignmentChoice.unassign(this.unassignAgentId) : agent = null;
 }
 
-class _AssignAgentSheet extends StatelessWidget {
+class _AssignAgentSheet extends ConsumerWidget {
   final OperatingAreaSummary area;
   final List<AgentSummary> agents;
   const _AssignAgentSheet({required this.area, required this.agents});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -969,7 +1028,7 @@ class _AssignAgentSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.xs),
-              child: ManaText('working this round',
+              child: ManaText.raw(ref.t('working_this_round'),
                   style: TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
             ),
@@ -980,7 +1039,7 @@ class _AssignAgentSheet extends StatelessWidget {
                     style: TextButton.styleFrom(foregroundColor: ManaColors.statusBad),
                     onPressed: () =>
                         Navigator.of(context).pop(_AreaAssignmentChoice.unassign(a.agentId)),
-                    child: const ManaText('remove'),
+                    child: ManaText.raw(ref.t('remove')),
                   ),
                 )),
             const Divider(height: 1),
@@ -988,7 +1047,7 @@ class _AssignAgentSheet extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(
                 ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.xs),
-            child: ManaText('add an agent',
+            child: ManaText.raw(ref.t('add_an_agent'),
                 style: TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
           ),
@@ -996,8 +1055,7 @@ class _AssignAgentSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw(
-                  'No Active agents in this business yet — add one from Workforce Management first. '
-                  'If you work this round yourself, add yourself as an agent.',
+                  ref.t('no_active_agents_note'),
                   style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
             )
           else
@@ -1025,15 +1083,15 @@ class _CycleConfigInput {
   _CycleConfigInput({required this.duration, required this.unit, required this.submissionTime});
 }
 
-class _CycleConfigDialog extends StatefulWidget {
+class _CycleConfigDialog extends ConsumerStatefulWidget {
   final OperatingAreaSummary initial;
   const _CycleConfigDialog({required this.initial});
 
   @override
-  State<_CycleConfigDialog> createState() => _CycleConfigDialogState();
+  ConsumerState<_CycleConfigDialog> createState() => _CycleConfigDialogState();
 }
 
-class _CycleConfigDialogState extends State<_CycleConfigDialog> {
+class _CycleConfigDialogState extends ConsumerState<_CycleConfigDialog> {
   late final _duration = TextEditingController(text: '${widget.initial.accountCycleDuration ?? 3}');
   String _unit = 'Days';
   final _submissionTime = TextEditingController(text: '21:00');
@@ -1048,33 +1106,35 @@ class _CycleConfigDialogState extends State<_CycleConfigDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const ManaText('configure account cycle'),
+      title: ManaText.raw(ref.t('configure_cycle')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _duration,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Account Cycle Duration'),
+            decoration: InputDecoration(labelText: ref.t('account_cycle_duration_field')),
           ),
           const SizedBox(height: ManaSpacing.md),
           DropdownButtonFormField<String>(
             initialValue: _unit,
-            decoration: const InputDecoration(labelText: 'Account Cycle Unit'),
-            items: const ['Days', 'Weeks', 'Months']
-                .map((u) => DropdownMenuItem(value: u, child: ManaText.raw(u)))
-                .toList(),
+            decoration: InputDecoration(labelText: ref.t('account_cycle_unit_field')),
+            items: [
+              DropdownMenuItem(value: 'Days', child: ManaText.raw(ref.t('days'))),
+              DropdownMenuItem(value: 'Weeks', child: ManaText.raw(ref.t('weeks'))),
+              DropdownMenuItem(value: 'Months', child: ManaText.raw(ref.t('months'))),
+            ],
             onChanged: (v) => setState(() => _unit = v ?? _unit),
           ),
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _submissionTime,
-            decoration: const InputDecoration(labelText: 'Submission Time (HH:MM)'),
+            decoration: InputDecoration(labelText: ref.t('submission_time_field')),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const ManaText('cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: ManaText.raw(ref.t('cancel'))),
         FilledButton(
           onPressed: () {
             final duration = int.tryParse(_duration.text.trim()) ?? 3;
@@ -1082,7 +1142,7 @@ class _CycleConfigDialogState extends State<_CycleConfigDialog> {
               _CycleConfigInput(duration: duration, unit: _unit, submissionTime: _submissionTime.text.trim()),
             );
           },
-          child: const ManaText('save'),
+          child: ManaText.raw(ref.t('save')),
         ),
       ],
     );
@@ -1124,19 +1184,18 @@ class _AgreementsTabState extends ConsumerState<_AgreementsTab> {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         ManaText.raw(
-          'Business Agreements are business-specific — a multi-business Owner '
-          'sets these independently per MLBI; they do not carry over.',
+          ref.t('business_agreements_note'),
           style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: ManaSpacing.md),
         FilledButton.tonalIcon(
           onPressed: _createAgreement,
           icon: const Icon(Icons.add, size: 18),
-          label: const ManaText('create agreement'),
+          label: ManaText.raw(ref.t('create_agreement')),
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (agreements.isEmpty)
-          ManaText.raw('No agreements created yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_agreements_yet'), style: TextStyle(color: ManaColors.textSecondary))
         else
           ...agreements.map((a) => Card(
                 child: ListTile(
@@ -1158,42 +1217,44 @@ class _AgreementInput {
   _AgreementInput({required this.type, required this.sourceType, required this.content, required this.effectiveDate});
 }
 
-class _CreateAgreementDialog extends StatefulWidget {
+class _CreateAgreementDialog extends ConsumerStatefulWidget {
   const _CreateAgreementDialog();
 
   @override
-  State<_CreateAgreementDialog> createState() => _CreateAgreementDialogState();
+  ConsumerState<_CreateAgreementDialog> createState() => _CreateAgreementDialogState();
 }
 
-class _CreateAgreementDialogState extends State<_CreateAgreementDialog> {
+class _CreateAgreementDialogState extends ConsumerState<_CreateAgreementDialog> {
   String _type = 'Customer';
   String _sourceType = 'In-App';
   final _content = TextEditingController();
   final _effectiveDate = TextEditingController();
+
+  static const _typeKeys = {'Customer': 'customer', 'Agent': 'agent', 'Investor': 'investor'};
 
   @override
   Widget build(BuildContext context) {
     final valid = _content.text.trim().isNotEmpty && _effectiveDate.text.trim().isNotEmpty;
 
     return AlertDialog(
-      title: const ManaText('create business agreement'),
+      title: ManaText.raw(ref.t('create_business_agreement')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
               initialValue: _type,
-              decoration: const InputDecoration(labelText: 'Agreement Type'),
-              items: const ['Customer', 'Agent', 'Investor']
-                  .map((t) => DropdownMenuItem(value: t, child: ManaText.raw(t)))
+              decoration: InputDecoration(labelText: ref.t('agreement_type_field')),
+              items: ['Customer', 'Agent', 'Investor']
+                  .map((t) => DropdownMenuItem(value: t, child: ManaText.raw(ref.t(_typeKeys[t]!))))
                   .toList(),
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
             const SizedBox(height: ManaSpacing.md),
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'Uploaded PDF', label: ManaText.raw('Upload PDF')),
-                ButtonSegment(value: 'In-App', label: ManaText.raw('Create Inside App')),
+              segments: [
+                ButtonSegment(value: 'Uploaded PDF', label: ManaText.raw(ref.t('upload_pdf'))),
+                ButtonSegment(value: 'In-App', label: ManaText.raw(ref.t('create_inside_app'))),
               ],
               selected: {_sourceType},
               onSelectionChanged: (s) => setState(() => _sourceType = s.first),
@@ -1202,7 +1263,7 @@ class _CreateAgreementDialogState extends State<_CreateAgreementDialog> {
             TextField(
               controller: _content,
               decoration: InputDecoration(
-                labelText: _sourceType == 'Uploaded PDF' ? 'Document URL' : 'Agreement Text',
+                labelText: ref.t(_sourceType == 'Uploaded PDF' ? 'document_url_field' : 'agreement_text_field'),
               ),
               maxLines: _sourceType == 'Uploaded PDF' ? 1 : 4,
               onChanged: (_) => setState(() {}),
@@ -1210,14 +1271,14 @@ class _CreateAgreementDialogState extends State<_CreateAgreementDialog> {
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _effectiveDate,
-              decoration: const InputDecoration(labelText: 'Effective Date (YYYY-MM-DD)'),
+              decoration: InputDecoration(labelText: ref.t('effective_date_ymd_field')),
               onChanged: (_) => setState(() {}),
             ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const ManaText('cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: ManaText.raw(ref.t('cancel'))),
         FilledButton(
           onPressed: valid
               ? () => Navigator.of(context).pop(_AgreementInput(
@@ -1227,7 +1288,7 @@ class _CreateAgreementDialogState extends State<_CreateAgreementDialog> {
                     effectiveDate: _effectiveDate.text.trim(),
                   ))
               : null,
-          child: const ManaText('save'),
+          child: ManaText.raw(ref.t('save')),
         ),
       ],
     );
@@ -1251,16 +1312,16 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
       builder: (_) {
         final controller = TextEditingController();
         return AlertDialog(
-          title: ManaText('add existing $role'.toLowerCase()),
+          title: ManaText.raw(ref.t(role == 'Agent' ? 'add_existing_agent' : 'add_existing_customer')),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(labelText: 'MLID'),
+            decoration: InputDecoration(labelText: ref.t('mlid_field')),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const ManaText('cancel')),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: ManaText.raw(ref.t('cancel'))),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-              child: const ManaText('add'),
+              child: ManaText.raw(ref.t('add')),
             ),
           ],
         );
@@ -1284,13 +1345,13 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         builder: (_) {
           final controller = TextEditingController();
           return AlertDialog(
-            title: const ManaText('reject investor request'),
-            content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Reason')),
+            title: ManaText.raw(ref.t('reject_investor_request')),
+            content: TextField(controller: controller, decoration: InputDecoration(labelText: ref.t('reason_field'))),
             actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const ManaText('cancel')),
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: ManaText.raw(ref.t('cancel'))),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-                child: const ManaText('reject'),
+                child: ManaText.raw(ref.t('reject')),
               ),
             ],
           );
@@ -1321,14 +1382,14 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
           spacing: ManaSpacing.sm,
           runSpacing: ManaSpacing.sm,
           children: [
-            OutlinedButton(onPressed: () => _addExisting('Agent'), child: const ManaText('add existing agent')),
+            OutlinedButton(onPressed: () => _addExisting('Agent'), child: ManaText.raw(ref.t('add_existing_agent'))),
             OutlinedButton(
-                onPressed: () => _addExisting('Customer'), child: const ManaText('add existing customer')),
+                onPressed: () => _addExisting('Customer'), child: ManaText.raw(ref.t('add_existing_customer'))),
           ],
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (state.membershipRequests.isNotEmpty) ...[
-          const ManaText('request queue (investors)', style: TextStyle(fontWeight: FontWeight.bold)),
+          ManaText.raw(ref.t('request_queue_investors'), style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: ManaSpacing.sm),
           ...state.membershipRequests.map((r) => Card(
                 child: ListTile(
@@ -1336,7 +1397,9 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
                   title: ManaText.raw(r.fullName),
                   subtitle: ManaText.raw(
                     r.proposedInvestmentAmount != null
-                        ? 'Proposed: ₹${r.proposedInvestmentAmount!.toStringAsFixed(0)}'
+                        ? ref
+                            .t('proposed_amount_note')
+                            .replaceAll('{amount}', r.proposedInvestmentAmount!.toStringAsFixed(0))
                         : r.requestedRole,
                   ),
                   trailing: Row(
@@ -1357,18 +1420,18 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
           const SizedBox(height: ManaSpacing.lg),
         ],
         if (pendingInvitations.isNotEmpty) ...[
-          const ManaText('pending invitations', style: TextStyle(fontWeight: FontWeight.bold)),
+          ManaText.raw(ref.t('pending_invitations_header'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ...pendingInvitations.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
           const SizedBox(height: ManaSpacing.lg),
         ],
         if (pendingAcceptance.isNotEmpty) ...[
-          const ManaText('pending acceptance', style: TextStyle(fontWeight: FontWeight.bold)),
+          ManaText.raw(ref.t('pending_acceptance_status'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ...pendingAcceptance.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
           const SizedBox(height: ManaSpacing.lg),
         ],
-        const ManaText('active members', style: TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('active_members'), style: const TextStyle(fontWeight: FontWeight.bold)),
         if (active.isEmpty)
-          ManaText.raw('No active members yet.', style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_active_members_yet'), style: TextStyle(color: ManaColors.textSecondary))
         else
           ...active.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
       ],
@@ -1417,10 +1480,10 @@ class _MemberRow extends ConsumerWidget {
                   ManaStatusPill(label: member.membershipStatus, status: _statusKind),
                   PopupMenuButton<String>(
                     onSelected: (status) => _changeStatus(context, ref, status),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'Active', child: ManaText('reactivate')),
-                      PopupMenuItem(value: 'Suspended', child: ManaText('suspend')),
-                      PopupMenuItem(value: 'Removed', child: ManaText('remove')),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'Active', child: ManaText.raw(ref.t('reactivate'))),
+                      PopupMenuItem(value: 'Suspended', child: ManaText.raw(ref.t('suspend'))),
+                      PopupMenuItem(value: 'Removed', child: ManaText.raw(ref.t('remove'))),
                     ],
                   ),
                 ],
@@ -1441,38 +1504,33 @@ class _MemberRow extends ConsumerWidget {
 ///
 /// So the empty state names the actual reason out of the three that are
 /// possible, and routes to the tab that fixes it.
-class _AccountPeriodsEmptyState extends StatelessWidget {
+class _AccountPeriodsEmptyState extends ConsumerWidget {
   final List<OperatingAreaSummary> areas;
   const _AccountPeriodsEmptyState({required this.areas});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final active = areas.where((a) => a.status == 'Active').toList();
     final assigned = active.where((a) => !a.isUnassigned).toList();
 
     final (String headline, String detail) = switch ((active.isEmpty, assigned.isEmpty)) {
       // No areas at all — the first domino, upstream of everything.
       (true, _) => (
-          'No operating areas yet',
-          'An account period covers one operating area. Add an area first, '
-              'then assign it to an agent.',
+          ref.t('no_operating_areas_yet_headline'),
+          ref.t('no_operating_areas_yet_detail'),
         ),
       // Areas exist, none assigned. An unassigned area isn't being worked
       // at all, so it opens no period — assigning an agent is the whole
       // answer, and it is the only answer.
       (false, true) => (
-          'No agent is assigned to an area yet',
-          'Account periods open when you assign an operating area to an agent. '
-              'None of your ${active.length} areas has one yet. If you work a '
-              'round yourself, add yourself as an agent and assign it to you.',
+          ref.t('no_agent_assigned_area_headline'),
+          ref.t('no_agent_assigned_area_detail').replaceAll('{count}', '${active.length}'),
         ),
       // Assigned areas exist but no period — shouldn't happen, so don't
       // pretend to explain it.
       (false, false) => (
-          'No account periods yet',
-          '${assigned.length} of your areas are assigned to an agent, so a '
-              'period was expected here. Pull to refresh; if it stays empty '
-              'this is worth reporting.',
+          ref.t('no_account_periods_yet_headline'),
+          ref.t('no_account_periods_yet_detail').replaceAll('{count}', '${assigned.length}'),
         ),
     };
 
@@ -1495,7 +1553,7 @@ class _AccountPeriodsEmptyState extends StatelessWidget {
             // is a tab switch, not a navigation push — the Owner stays put.
             onPressed: () => DefaultTabController.of(context).animateTo(0),
             icon: const Icon(Icons.location_on_outlined, size: 18),
-            label: const ManaText('go to operating areas'),
+            label: ManaText.raw(ref.t('go_to_operating_areas')),
           ),
         ],
       ),
@@ -1519,14 +1577,16 @@ class _AccountPeriodsTab extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const ManaText('approve account period?'),
+        title: ManaText.raw(ref.t('approve_account_period_question')),
         content: ManaText.raw(
-          '${period.operatingAreaLabel} · ${period.agentName}\n'
-          'Approving locks this Account Period. Locked accounts cannot be modified.',
+          ref
+              .t('approve_account_period_note')
+              .replaceAll('{area}', period.operatingAreaLabel)
+              .replaceAll('{agent}', period.agentName),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const ManaText('cancel')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const ManaText('approve')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: ManaText.raw(ref.t('cancel'))),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: ManaText.raw(ref.t('approve'))),
         ],
       ),
     );
@@ -1549,19 +1609,39 @@ class _AccountPeriodsTab extends ConsumerWidget {
         if (periods.isEmpty)
           _AccountPeriodsEmptyState(areas: state.operatingAreas)
         else
+          // A ListTile's trailing slot has a hard width assertion — built
+          // from a plain Row instead, same reasoning as OW-011's
+          // blocking-issues row.
           ...periods.map((p) => Card(
-                child: ListTile(
-                  title: ManaText.raw('${p.operatingAreaLabel} · ${p.agentName}'),
-                  subtitle: ManaText.raw(
-                    '${p.businessStartDate.toIso8601String().split("T").first} → '
-                    '${p.plannedBusinessEndDate.toIso8601String().split("T").first}',
+                child: Padding(
+                  padding: const EdgeInsets.all(ManaSpacing.md),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ManaText.raw('${p.operatingAreaLabel} · ${p.agentName}'),
+                            ManaText.raw(
+                              '${p.businessStartDate.toIso8601String().split("T").first} → '
+                              '${p.plannedBusinessEndDate.toIso8601String().split("T").first}',
+                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: ManaSpacing.sm),
+                      Flexible(
+                        child: p.status == 'Submitted'
+                            ? FilledButton(
+                                onPressed: () => _reviewSubmitted(context, ref, p),
+                                child: ManaText.raw(ref.t('review')),
+                              )
+                            : ManaStatusPill(label: p.status, status: _statusKind(p.status)),
+                      ),
+                    ],
                   ),
-                  trailing: p.status == 'Submitted'
-                      ? FilledButton(
-                          onPressed: () => _reviewSubmitted(context, ref, p),
-                          child: const ManaText('review'),
-                        )
-                      : ManaStatusPill(label: p.status, status: _statusKind(p.status)),
                 ),
               )),
       ],

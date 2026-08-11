@@ -1780,4 +1780,6 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'add_profile_photo': {'English': r'Add Profile Photo', 'Telugu': r'ప్రొఫైల్ ఫోటో జోడించండి'},
   'change_profile_photo': {'English': r'Change Profile Photo', 'Telugu': r'ప్రొఫైల్ ఫోటో మార్చండి'},
   'edit_address': {'English': r'Edit Address', 'Telugu': r'చిరునామా మార్చండి'},
+  'net_change_this_view': {'English': r'Net Change (This View)', 'Telugu': r'నికర మార్పు (ఈ వీక్షణ)'},
+  'no_transactions_yet': {'English': r'No transactions yet.', 'Telugu': r'ఇంకా లావాదేవీలు లేవు.'},
 };

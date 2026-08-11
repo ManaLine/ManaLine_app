@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -145,7 +146,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
     final netChange = _transactions.isEmpty ? 0.0 : _runningBalanceById[_transactions.first.id] ?? 0.0;
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('history'),
+        title: ManaText.raw(ref.t('history')),
         leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/ow-001', extra: widget.businessId)),
       ),
       body: SafeArea(
@@ -169,7 +170,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                             color: ManaColors.surfaceSunken,
                             child: Column(
                               children: [
-                                ManaText('net change (this view)',
+                                ManaText.raw(ref.t('net_change_this_view'),
                                     style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                                 const SizedBox(height: 4),
                                 ManaText.raw(
@@ -188,7 +189,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                           return Padding(
                             padding: const EdgeInsets.all(ManaSpacing.xl),
                             child: Center(
-                              child: ManaText.raw('No transactions yet.',
+                              child: ManaText.raw(ref.t('no_transactions_yet'),
                                   style: TextStyle(color: ManaColors.textSecondary)),
                             ),
                           );

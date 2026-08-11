@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/admin_auth_service.dart';
 
@@ -13,14 +15,14 @@ enum _Step { username, otpAndPassword }
 /// verification and the new password are submitted together in one call
 /// (admin-password-reset-confirm) — the backend never splits them, so
 /// neither does this screen.
-class AdminForgotPasswordScreen extends StatefulWidget {
+class AdminForgotPasswordScreen extends ConsumerStatefulWidget {
   const AdminForgotPasswordScreen({super.key});
 
   @override
-  State<AdminForgotPasswordScreen> createState() => _AdminForgotPasswordScreenState();
+  ConsumerState<AdminForgotPasswordScreen> createState() => _AdminForgotPasswordScreenState();
 }
 
-class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
+class _AdminForgotPasswordScreenState extends ConsumerState<AdminForgotPasswordScreen> {
   final _authApi = AdminAuthService();
   final _username = TextEditingController();
   final _newPassword = TextEditingController();
@@ -92,7 +94,7 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password updated — please log in')),
+        SnackBar(content: ManaText.raw(ref.t('password_updated_note'))),
       );
       context.go('/admin-login');
     } on AdminAuthException catch (e) {
@@ -115,7 +117,7 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => context.go('/admin-login')),
-        title: const ManaText('forgot password'),
+        title: ManaText.raw(ref.t('forgot_password')),
       ),
       body: SafeArea(
         child: Padding(
@@ -144,7 +146,7 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
           controller: _username,
           autocorrect: false,
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: 'Username *'),
+          decoration: InputDecoration(labelText: ref.t('username_field')),
         ),
         if (_error != null) ...[
           const SizedBox(height: ManaSpacing.md),
@@ -155,7 +157,7 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
           onPressed: canSend ? _requestReset : null,
           child: _submitting
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('send otp'),
+              : ManaText.raw(ref.t('send_otp')),
         ),
       ],
       ),
@@ -181,8 +183,8 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
             obscureText: _obscureNew,
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              labelText: 'New Password *',
-              helperText: 'At least 8 characters.',
+              labelText: ref.t('new_password_field'),
+              helperText: ref.t('password_helper_short'),
               suffixIcon: IconButton(
                 icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
                 onPressed: () => setState(() => _obscureNew = !_obscureNew),
@@ -195,7 +197,7 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
             obscureText: _obscureConfirm,
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              labelText: 'Confirm New Password *',
+              labelText: ref.t('confirm_new_password_field'),
               suffixIcon: IconButton(
                 icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
                 onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
@@ -211,7 +213,7 @@ class _AdminForgotPasswordScreenState extends State<AdminForgotPasswordScreen> {
             onPressed: canSubmit ? _confirmReset : null,
             child: _submitting
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const ManaText('reset password'),
+                : ManaText.raw(ref.t('reset_password')),
           ),
         ],
       ),

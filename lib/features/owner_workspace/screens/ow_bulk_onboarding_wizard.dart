@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
@@ -81,8 +82,8 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   }
 
   Future<void> _identityPick() async {
-    const group = XTypeGroup(label: 'Spreadsheet', extensions: ['xlsx', 'csv']);
-    final file = await openFile(acceptedTypeGroups: const [group]);
+    final group = XTypeGroup(label: ref.t('spreadsheet'), extensions: const ['xlsx', 'csv']);
+    final file = await openFile(acceptedTypeGroups: [group]);
     if (file == null) return;
 
     setState(() {
@@ -171,8 +172,8 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   }
 
   Future<void> _step2Pick() async {
-    const group = XTypeGroup(label: 'Spreadsheet', extensions: ['xlsx']);
-    final file = await openFile(acceptedTypeGroups: const [group]);
+    final group = XTypeGroup(label: ref.t('spreadsheet'), extensions: const ['xlsx']);
+    final file = await openFile(acceptedTypeGroups: [group]);
     if (file == null) return;
 
     setState(() {
@@ -256,8 +257,8 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   }
 
   Future<void> _emiPick() async {
-    const group = XTypeGroup(label: 'Spreadsheet', extensions: ['xlsx']);
-    final file = await openFile(acceptedTypeGroups: const [group]);
+    final group = XTypeGroup(label: ref.t('spreadsheet'), extensions: const ['xlsx']);
+    final file = await openFile(acceptedTypeGroups: [group]);
     if (file == null) return;
 
     setState(() {
@@ -329,7 +330,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
-        title: const ManaText('bulk onboarding'),
+        title: ManaText.raw(ref.t('bulk_onboarding')),
       ),
       body: SafeArea(
         child: Column(
@@ -398,7 +399,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             Flexible(
               child: OutlinedButton(
                 onPressed: () => setState(() => _step -= 1),
-                child: const ManaText('back'),
+                child: ManaText.raw(ref.t('back')),
               ),
             ),
           const Spacer(),
@@ -429,13 +430,13 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         OutlinedButton.icon(
           onPressed: _busy1 ? null : _identityTemplate,
           icon: const Icon(Icons.download_outlined),
-          label: const ManaText('get template'),
+          label: ManaText.raw(ref.t('get_template')),
         ),
         const SizedBox(height: ManaSpacing.md),
         OutlinedButton.icon(
           onPressed: _busy1 ? null : _identityPick,
           icon: const Icon(Icons.folder_open_outlined),
-          label: const ManaText('choose file'),
+          label: ManaText.raw(ref.t('choose_file')),
         ),
         if (_identityFileName != null) ...[
           const SizedBox(height: ManaSpacing.sm),
@@ -468,7 +469,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           ElevatedButton.icon(
             onPressed: parse.rows.isEmpty ? null : _identitySubmit,
             icon: const Icon(Icons.upload_outlined),
-            label: const ManaText('import identities'),
+            label: ManaText.raw(ref.t('import_identities')),
           ),
         ],
         if (outcome != null && !_busy1)
@@ -489,7 +490,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw('Row ${d.row}: ${d.reason == "duplicate_in_file" ? "repeats another row in this file" : "looks like an existing customer"}',
+            ManaText.raw(ref.t('row_duplicate_note').replaceAll('{row}', '${d.row}').replaceAll('{reason}', d.reason == "duplicate_in_file" ? ref.t('duplicate_in_file') : ref.t('looks_like_existing_customer')),
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             if (d.candidates.isNotEmpty)
               ManaText.raw(d.candidates.join(' · '), style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
@@ -497,13 +498,13 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             Row(
               children: [
                 ChoiceChip(
-                  label: const ManaText('merge (skip)'),
+                  label: ManaText.raw(ref.t('merge_skip')),
                   selected: decision == 'skip',
                   onSelected: (_) => setState(() => _dedupeDecisions[d.row] = 'skip'),
                 ),
                 const SizedBox(width: ManaSpacing.sm),
                 ChoiceChip(
-                  label: const ManaText('ignore (import)'),
+                  label: ManaText.raw(ref.t('ignore_import')),
                   selected: decision == 'keep',
                   onSelected: (_) => setState(() => _dedupeDecisions[d.row] = 'keep'),
                 ),
@@ -532,13 +533,13 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         OutlinedButton.icon(
           onPressed: _busy2 ? null : _step2Template,
           icon: const Icon(Icons.download_outlined),
-          label: const ManaText('get template'),
+          label: ManaText.raw(ref.t('get_template')),
         ),
         const SizedBox(height: ManaSpacing.md),
         OutlinedButton.icon(
           onPressed: _busy2 ? null : _step2Pick,
           icon: const Icon(Icons.folder_open_outlined),
-          label: const ManaText('choose file'),
+          label: ManaText.raw(ref.t('choose_file')),
         ),
         if (_step2FileName != null) ...[
           const SizedBox(height: ManaSpacing.sm),
@@ -562,7 +563,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           ElevatedButton.icon(
             onPressed: (parse.investor.rows.isEmpty && parse.customer.rows.isEmpty) ? null : _step2Submit,
             icon: const Icon(Icons.upload_outlined),
-            label: const ManaText('import details'),
+            label: ManaText.raw(ref.t('import_details')),
           ),
         ],
         if (_investorOutcome != null && !_busy2)
@@ -597,13 +598,13 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         OutlinedButton.icon(
           onPressed: _busy3 ? null : _emiTemplate,
           icon: const Icon(Icons.download_outlined),
-          label: const ManaText('get template'),
+          label: ManaText.raw(ref.t('get_template')),
         ),
         const SizedBox(height: ManaSpacing.md),
         OutlinedButton.icon(
           onPressed: _busy3 ? null : _emiPick,
           icon: const Icon(Icons.folder_open_outlined),
-          label: const ManaText('choose file'),
+          label: ManaText.raw(ref.t('choose_file')),
         ),
         if (_emiFileName != null) ...[
           const SizedBox(height: ManaSpacing.sm),
@@ -631,7 +632,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           ElevatedButton.icon(
             onPressed: schedule.isEmpty ? null : _emiSubmit,
             icon: const Icon(Icons.upload_outlined),
-            label: const ManaText('import emi history'),
+            label: ManaText.raw(ref.t('import_emi_history')),
           ),
         ],
         if (result != null && !_busy3) ...[
@@ -654,7 +655,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             OutlinedButton.icon(
               onPressed: _emiDownloadCorrection,
               icon: const Icon(Icons.download_outlined),
-              label: const ManaText('download corrected file'),
+              label: ManaText.raw(ref.t('download_corrected_file')),
             ),
           ],
         ],
@@ -669,7 +670,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ManaText('what was done', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        ManaText.raw(ref.t('what_was_done'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: ManaSpacing.md),
         _checklistRow('Identities imported', _identityOutcome?.imported),
         _checklistRow('Investments recorded', _investorOutcome?.imported),
@@ -682,7 +683,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        FilledButton(onPressed: () => context.pop(), child: const ManaText('done')),
+        FilledButton(onPressed: () => context.pop(), child: ManaText.raw(ref.t('done'))),
         _navBar(onNext: null),
       ],
     );
@@ -712,21 +713,21 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ManaText.raw(
-                  'Nothing was imported. ${outcome.errors.length} ${outcome.errors.length == 1 ? "row" : "rows"} need fixing:',
+                  ref.t('nothing_imported_note').replaceAll('{count}', '${outcome.errors.length}'),
                   style: TextStyle(fontWeight: FontWeight.w700, color: ManaColors.statusBad),
                 ),
                 const SizedBox(height: ManaSpacing.sm),
                 for (final e in outcome.errors)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: ManaText.raw('Row ${e.row}: ${e.message}', style: const TextStyle(fontSize: 13)),
+                    child: ManaText.raw(ref.t('row_error_note').replaceAll('{row}', '${e.row}').replaceAll('{message}', e.message), style: const TextStyle(fontSize: 13)),
                   ),
                 if (onDownloadCorrection != null) ...[
                   const SizedBox(height: ManaSpacing.sm),
                   OutlinedButton.icon(
                     onPressed: onDownloadCorrection,
                     icon: const Icon(Icons.download_outlined),
-                    label: const ManaText('download corrected file'),
+                    label: ManaText.raw(ref.t('download_corrected_file')),
                   ),
                 ],
               ],

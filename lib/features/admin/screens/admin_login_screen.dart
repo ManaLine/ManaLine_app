@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/admin_auth_service.dart';
 
@@ -10,14 +12,14 @@ import '../state/admin_auth_service.dart';
 /// buried inside OW-001's own popup menu, was removed entirely; see
 /// supabase/migrations/20260807125210_admin_own_identity_system.sql).
 /// Username+password against admin_accounts, nothing to do with `persons`.
-class AdminLoginScreen extends StatefulWidget {
+class AdminLoginScreen extends ConsumerStatefulWidget {
   const AdminLoginScreen({super.key});
 
   @override
-  State<AdminLoginScreen> createState() => _AdminLoginScreenState();
+  ConsumerState<AdminLoginScreen> createState() => _AdminLoginScreenState();
 }
 
-class _AdminLoginScreenState extends State<AdminLoginScreen> {
+class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   final _authApi = AdminAuthService();
   final _username = TextEditingController();
   final _password = TextEditingController();
@@ -54,7 +56,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const ManaText('admin login')),
+      appBar: AppBar(title: ManaText.raw(ref.t('admin_login'))),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -64,13 +66,13 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               const SizedBox(height: ManaSpacing.xxl),
               Icon(Icons.admin_panel_settings_outlined, size: 48, color: ManaColors.textSecondary),
               const SizedBox(height: ManaSpacing.md),
-              const ManaText.raw('Platform Admin', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ManaText.raw(ref.t('platform_admin'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: ManaSpacing.xl),
               TextField(
                 controller: _username,
                 autocorrect: false,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Username *'),
+                decoration: InputDecoration(labelText: ref.t('username_field')),
               ),
               const SizedBox(height: ManaSpacing.md),
               TextField(
@@ -79,7 +81,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _canSubmit ? _login() : null,
                 decoration: InputDecoration(
-                  labelText: 'Password *',
+                  labelText: ref.t('password_field'),
                   suffixIcon: IconButton(
                     icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setState(() => _obscure = !_obscure),
@@ -95,13 +97,13 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 onPressed: _canSubmit ? _login : null,
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ManaText('login'),
+                    : ManaText.raw(ref.t('login')),
               ),
               const SizedBox(height: ManaSpacing.md),
               Center(
                 child: TextButton(
                   onPressed: _submitting ? null : () => context.push('/admin-forgot-password'),
-                  child: const ManaText('forgot password?'),
+                  child: ManaText.raw(ref.t('forgot_password_question')),
                 ),
               ),
             ],

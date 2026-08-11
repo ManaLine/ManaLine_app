@@ -8,6 +8,7 @@ import '../../../shared/title_case_formatter.dart';
 import '../../../shared/business_name_checker.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
@@ -115,13 +116,13 @@ class _FirstBusinessSetupScreenState
   }
 }
 
-class _StepIndicator extends StatelessWidget {
+class _StepIndicator extends ConsumerWidget {
   final int current;
   final int total;
   const _StepIndicator({required this.current, required this.total});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, ManaSpacing.sm),
@@ -139,7 +140,7 @@ class _StepIndicator extends StatelessWidget {
             ),
           ),
           const SizedBox(width: ManaSpacing.md),
-          ManaText.raw('Step $current of $total',
+          ManaText.raw(ref.t('step_x_of_y').replaceAll('{current}', '$current').replaceAll('{total}', '$total'),
               style: TextStyle(
                   fontSize: 13, color: ManaColors.textSecondary)),
         ],
@@ -148,7 +149,7 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-class _StepScaffold extends StatelessWidget {
+class _StepScaffold extends ConsumerWidget {
   final String title;
   final String? subtitle;
   final Widget child;
@@ -172,7 +173,7 @@ class _StepScaffold extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         Expanded(
@@ -201,14 +202,14 @@ class _StepScaffold extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton(
                         onPressed: submitting ? null : onBack,
-                        child: const ManaText('back')),
+                        child: ManaText.raw(ref.t('back'))),
                   ),
                 if (onBack != null) const SizedBox(width: ManaSpacing.md),
                 if (onSkip != null)
                   Expanded(
                     child: TextButton(
                         onPressed: submitting ? null : onSkip,
-                        child: const ManaText('skip for now')),
+                        child: ManaText.raw(ref.t('skip_for_now'))),
                   ),
                 if (onSkip != null) const SizedBox(width: ManaSpacing.md),
                 Expanded(
@@ -357,7 +358,7 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
             controller: _businessName,
             textCapitalization: TextCapitalization.words,
             inputFormatters: [TitleCaseTextFormatter()],
-            decoration: const InputDecoration(labelText: 'Business Name *'),
+            decoration: InputDecoration(labelText: ref.t('business_name_field')),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: ManaSpacing.md),
@@ -366,25 +367,25 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
             textCapitalization: TextCapitalization.words,
             inputFormatters: [TitleCaseTextFormatter()],
             decoration:
-                const InputDecoration(labelText: 'Registered Finance Name *'),
+                InputDecoration(labelText: ref.t('registered_finance_name_field')),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _address,
-            decoration: const InputDecoration(labelText: 'Business Address'),
+            decoration: InputDecoration(labelText: ref.t('business_address_field')),
           ),
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _phone,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Business Phone'),
+            decoration: InputDecoration(labelText: ref.t('business_phone_field')),
           ),
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _email,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(labelText: 'Business Email'),
+            decoration: InputDecoration(labelText: ref.t('business_email_field')),
           ),
         ],
       ),
@@ -546,8 +547,8 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
             controller: _pinCode,
             keyboardType: TextInputType.number,
             maxLength: 6,
-            decoration: const InputDecoration(
-                labelText: 'PIN Code',
+            decoration: InputDecoration(
+                labelText: ref.t('pin_code_plain_field'),
                 helperText:
                     'Enter PIN code first — villages shown are limited to this PIN'),
             onChanged: (_) {
@@ -560,7 +561,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
           ),
           TextField(
             controller: _villageSearch,
-            decoration: const InputDecoration(labelText: 'Search Village/Town'),
+            decoration: InputDecoration(labelText: ref.t('search_village_town_plain_field')),
             onChanged: (v) {
               setState(() {
                 _selectedVillageId = null;
@@ -625,24 +626,24 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ManaText('add new village',
+                  ManaText.raw(ref.t('add_new_village'),
                       style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.sm),
                   TextField(
                     controller: _manualVillageName,
                     textCapitalization: TextCapitalization.words,
                     decoration:
-                        const InputDecoration(labelText: 'Village/Town Name *'),
+                        InputDecoration(labelText: ref.t('village_town_name_field')),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: ManaSpacing.sm),
                   DropdownButtonFormField<String>(
                     initialValue: _manualAreaType,
-                    decoration: const InputDecoration(labelText: 'Area Type *'),
-                    items: const [
-                      DropdownMenuItem(
+                    decoration: InputDecoration(labelText: ref.t('area_type_field')),
+                    items: [
+                      const DropdownMenuItem(
                           value: 'Village', child: Text('Village')),
-                      DropdownMenuItem(value: 'Town', child: Text('Town')),
+                      DropdownMenuItem(value: 'Town', child: ManaText.raw(ref.t('town'))),
                     ],
                     onChanged: (v) =>
                         setState(() => _manualAreaType = v ?? 'Village'),
@@ -651,21 +652,21 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
                   TextField(
                     controller: _manualMandal,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Mandal *'),
+                    decoration: InputDecoration(labelText: ref.t('mandal_field')),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: ManaSpacing.sm),
                   TextField(
                     controller: _manualDistrict,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'District *'),
+                    decoration: InputDecoration(labelText: ref.t('district_field')),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: ManaSpacing.sm),
                   TextField(
                     controller: _manualState,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'State *'),
+                    decoration: InputDecoration(labelText: ref.t('state_field')),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: ManaSpacing.sm),
@@ -675,7 +676,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
                         onPressed: _savingManualVillage
                             ? null
                             : () => setState(() => _manualVillageEntry = false),
-                        child: const ManaText('cancel'),
+                        child: ManaText.raw(ref.t('cancel')),
                       ),
                       const SizedBox(width: ManaSpacing.sm),
                       ElevatedButton(
@@ -693,7 +694,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
                                 width: 16,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2))
-                            : const ManaText('save & select'),
+                            : ManaText.raw(ref.t('save_and_select')),
                       ),
                     ],
                   ),
@@ -702,7 +703,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
             ),
           if (_selectedVillage != null) ...[
             const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw('Selected: $_selectedVillage',
+            ManaText.raw(ref.t('selected_note').replaceAll('{value}', '$_selectedVillage'),
                 style: TextStyle(
                     fontSize: 13, color: ManaColors.textSecondary)),
           ],
@@ -715,12 +716,12 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
                   ? _addArea
                   : null,
               icon: const Icon(Icons.add, size: 18),
-              label: const ManaText('add area'),
+              label: ManaText.raw(ref.t('add_area')),
             ),
           ),
           const SizedBox(height: ManaSpacing.lg),
           if (state.operatingAreas.isEmpty)
-            ManaText.raw('No Operating Areas added yet.',
+            ManaText.raw(ref.t('no_operating_areas_added'),
                 style: TextStyle(color: ManaColors.textSecondary))
           else
             ...state.operatingAreas.map((a) => Card(
@@ -810,7 +811,7 @@ class _Step3AccountCycleState extends ConsumerState<_Step3AccountCycle> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close, size: 18),
-                          tooltip: 'Remove area',
+                          tooltip: ref.t('remove_area_tooltip'),
                           onPressed: () => ref
                               .read(businessSetupProvider.notifier)
                               .removeOperatingArea(a.localId),
@@ -825,13 +826,13 @@ class _Step3AccountCycleState extends ConsumerState<_Step3AccountCycle> {
   }
 }
 
-class _DurationPickerDialog extends StatefulWidget {
+class _DurationPickerDialog extends ConsumerStatefulWidget {
   const _DurationPickerDialog();
   @override
-  State<_DurationPickerDialog> createState() => _DurationPickerDialogState();
+  ConsumerState<_DurationPickerDialog> createState() => _DurationPickerDialogState();
 }
 
-class _DurationPickerDialogState extends State<_DurationPickerDialog> {
+class _DurationPickerDialogState extends ConsumerState<_DurationPickerDialog> {
   int _days = 30;
   late final _controller = TextEditingController(text: '30');
 
@@ -848,7 +849,7 @@ class _DurationPickerDialogState extends State<_DurationPickerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const ManaText('account cycle duration'),
+      title: ManaText.raw(ref.t('account_cycle_duration')),
       content: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -878,10 +879,10 @@ class _DurationPickerDialogState extends State<_DurationPickerDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const ManaText('cancel')),
+            child: ManaText.raw(ref.t('cancel'))),
         ElevatedButton(
             onPressed: () => Navigator.pop(context, _days),
-            child: const ManaText('save')),
+            child: ManaText.raw(ref.t('save'))),
       ],
     );
   }
@@ -915,9 +916,9 @@ class _Step4ExistingMembers extends ConsumerWidget {
         child: ListTile(
           leading:
               Icon(Icons.group_add_outlined, color: ManaColors.brand),
-          title: const ManaText('start pre-existing member migration'),
-          subtitle: const ManaText.raw('Launches OW-014 Global Workflow.',
-              style: TextStyle(fontSize: 13)),
+          title: ManaText.raw(ref.t('start_pre_existing_migration')),
+          subtitle: ManaText.raw(ref.t('launches_global_workflow_note'),
+              style: const TextStyle(fontSize: 13)),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1009,13 +1010,13 @@ class _Step6AssignAreas extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw('Who works ${a.villageName}?',
+              child: ManaText.raw(ref.t('who_works_village_note').replaceAll('{village}', a.villageName),
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
             if (agents.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(ManaSpacing.lg),
-                child: ManaText.raw('No active agents found.',
+                child: ManaText.raw(ref.t('no_active_agents_found'),
                     style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
               )
             else

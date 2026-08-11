@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../state/global_workflow_state.dart';
 
 /// OW-014 — Global Workflow (Pre-Existing Member Creation). All four
@@ -43,7 +44,7 @@ class _GlobalWorkflowScreenState extends ConsumerState<GlobalWorkflowScreen> {
     final state = ref.watch(globalWorkflowProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('add existing member')),
+      appBar: AppBar(title: ManaText.raw(ref.t('add_existing_member'))),
       body: SafeArea(
         child: switch (state.stage) {
           WizardStage.selectType => _SelectTypeStep(),
@@ -65,7 +66,7 @@ class _SelectTypeStep extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('select member type', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('select_member_type'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.md),
         for (final type in MemberType.values)
           Card(
@@ -100,22 +101,23 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('search existing mlid', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('search_existing_mlid'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         if (state.memberType != null)
-          ManaText.raw('Type: ${state.memberType!.label}', style: TextStyle(color: ManaColors.textSecondary)),
+          ManaText.raw(ref.t('type_note').replaceAll('{type}', state.memberType!.label),
+              style: TextStyle(color: ManaColors.textSecondary)),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _mobileController,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Mobile Number'),
+          decoration: InputDecoration(labelText: ref.t('mobile_number_field')),
         ),
         const SizedBox(height: ManaSpacing.sm),
-        ManaText.raw('— OR —', style: TextStyle(color: ManaColors.textSecondary), textAlign: TextAlign.center),
+        ManaText.raw(ref.t('or_separator'), style: TextStyle(color: ManaColors.textSecondary), textAlign: TextAlign.center),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _mlidController,
-          decoration: const InputDecoration(labelText: 'MLID'),
+          decoration: InputDecoration(labelText: ref.t('mlid_field')),
         ),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
@@ -128,7 +130,7 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
                   ),
           child: state.searching
               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('search'),
+              : ManaText.raw(ref.t('search')),
         ),
         if (state.error != null) ...[
           const SizedBox(height: ManaSpacing.md),
@@ -148,18 +150,19 @@ class _FoundStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(globalWorkflowProvider);
     final result = state.searchResult;
-    if (result == null) return const Center(child: ManaText.raw('No identity found.'));
+    if (result == null) return Center(child: ManaText.raw(ref.t('no_identity_found')));
 
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('identity found', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('identity_found'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.md),
         Card(
           child: ListTile(
             leading: Icon(Icons.check_circle, color: ManaColors.statusGood),
             title: ManaText.raw(result.fullName),
-            subtitle: ManaText.raw('MLID: ${result.mlid}${result.mobileNumber != null ? ' · ${result.mobileNumber}' : ''}'),
+            subtitle: ManaText.raw(ref.t('mlid_colon_note').replaceAll('{mlid}', result.mlid) +
+                (result.mobileNumber != null ? ' · ${result.mobileNumber}' : '')),
           ),
         ),
         const SizedBox(height: ManaSpacing.lg),
@@ -175,11 +178,15 @@ class _FoundStep extends ConsumerWidget {
                   if (context.mounted) {
                     final memberType = ref.read(globalWorkflowProvider).memberType ?? 'Member';
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Request sent to ${result.mlid} as $memberType.')),
+                      SnackBar(
+                          content: ManaText.raw(ref
+                              .t('request_sent_note')
+                              .replaceAll('{mlid}', result.mlid)
+                              .replaceAll('{type}', '$memberType'))),
                     );
                   }
                 },
-          child: const ManaText('request business membership'),
+          child: ManaText.raw(ref.t('request_business_membership')),
         ),
       ],
     );
@@ -212,31 +219,31 @@ class _NotFoundStepState extends ConsumerState<_NotFoundStep> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText('minimum information', style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('minimum_information'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _fullName,
-          decoration: const InputDecoration(labelText: 'Full Name *'),
+          decoration: InputDecoration(labelText: ref.t('full_name_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _fatherHusband,
-          decoration: const InputDecoration(labelText: 'Father / Husband Name *'),
+          decoration: InputDecoration(labelText: ref.t('father_husband_name_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _village,
-          decoration: const InputDecoration(labelText: 'Village *'),
+          decoration: InputDecoration(labelText: ref.t('village_required_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
-        TextField(controller: _mobile, decoration: const InputDecoration(labelText: 'Mobile Number (optional)')),
+        TextField(controller: _mobile, decoration: InputDecoration(labelText: ref.t('mobile_number_optional_field'))),
         const SizedBox(height: ManaSpacing.sm),
-        TextField(controller: _area, decoration: const InputDecoration(labelText: 'Area / Locality (optional)')),
+        TextField(controller: _area, decoration: InputDecoration(labelText: ref.t('area_locality_optional_field'))),
         const SizedBox(height: ManaSpacing.sm),
-        TextField(controller: _remarks, decoration: const InputDecoration(labelText: 'Remarks (optional)'), maxLines: 2),
+        TextField(controller: _remarks, decoration: InputDecoration(labelText: ref.t('remarks_optional_field')), maxLines: 2),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
           onPressed: !_canSave || state.loading
@@ -255,20 +262,20 @@ class _NotFoundStepState extends ConsumerState<_NotFoundStep> {
                   });
                   if (ok == true && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Pre-existing member created — Profile Incomplete.')),
+                      SnackBar(content: ManaText.raw(ref.t('pre_existing_member_created_note'))),
                     );
                   }
                 },
           child: state.loading
               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : const ManaText('save'),
+              : ManaText.raw(ref.t('save')),
         ),
       ],
     );
   }
 }
 
-class _IncompleteStep extends StatelessWidget {
+class _IncompleteStep extends ConsumerWidget {
   final GlobalWorkflowState state;
   const _IncompleteStep({required this.state});
 
@@ -283,7 +290,7 @@ class _IncompleteStep extends StatelessWidget {
   bool get _canOpen => state.createdPersonId != null && state.createdMembershipId != null;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
@@ -295,23 +302,24 @@ class _IncompleteStep extends StatelessWidget {
               decoration: BoxDecoration(color: ManaColors.statusBad, shape: BoxShape.circle),
             ),
             const SizedBox(width: ManaSpacing.sm),
-            ManaText('incomplete profile', style: Theme.of(context).textTheme.headlineMedium),
+            Expanded(
+              child: ManaText.raw(ref.t('incomplete_profile'),
+                  style: Theme.of(context).textTheme.headlineMedium),
+            ),
           ],
         ),
         const SizedBox(height: ManaSpacing.md),
         ManaText.raw(
-          'This member exists as an internal record only, usable for manual/offline collection and '
-          'record-keeping. Cannot receive SMS, receive OTP, accept agreements, or request online '
-          'services until profile completion.',
+          ref.t('incomplete_profile_note'),
           style: TextStyle(color: ManaColors.textSecondary),
         ),
         const SizedBox(height: ManaSpacing.lg),
         Card(
           child: ListTile(
-            title: const ManaText('complete profile'),
-            subtitle: const ManaText.raw(
-              'Capture Photo, Password, Address, PIN Code, Village, Identity Documents, OTP Verification, Terms Acceptance.',
-              style: TextStyle(fontSize: 13),
+            title: ManaText.raw(ref.t('complete_profile')),
+            subtitle: ManaText.raw(
+              ref.t('complete_profile_note'),
+              style: const TextStyle(fontSize: 13),
             ),
             trailing: const Icon(Icons.chevron_right),
             enabled: _canOpen,
@@ -327,7 +335,7 @@ class _IncompleteStep extends StatelessWidget {
         if (!_canOpen) ...[
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(
-            'No member selected — create or select a member first.',
+            ref.t('no_member_selected_note'),
             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
           ),
         ],

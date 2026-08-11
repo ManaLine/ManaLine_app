@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(flutter analyze *)",
+      "PowerShell(flutter test *)",
+      "PowerShell(dart analyze *)",
+      "PowerShell(git status *)",
+      "PowerShell(git log *)",
+      "PowerShell(git diff *)",
+      "PowerShell(git show *)",
+      "PowerShell(git rev-parse *)",
+      "PowerShell(git branch *)",
+      "PowerShell(git -C D:\\mana_line_app status *)",
+      "PowerShell(git -C D:\\mana_line_app log *)",
+      "PowerShell(git -C D:\\mana_line_app diff *)",
+      "Bash(deno check *)",
+      "mcp__ccd_session_mgmt__list_sessions",
+      "mcp__ccd_session_mgmt__list_events",
+      "mcp__ccd_session_mgmt__search_session_transcripts",
+      "mcp__Claude_Browser__read_network_requests",
+      "mcp__Claude_Browser__read_console_messages",
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__preview_logs"
+    ]
+  }
+}

@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/translation_service.dart';
 import '../state/group_loan_state.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -42,12 +43,12 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/ow-001', extra: widget.businessId)),
-        title: const ManaText('group loan management'),
+        title: ManaText.raw(ref.t('group_loan_management')),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openCreateGroup(context),
         icon: const Icon(Icons.add),
-        label: const ManaText('create group'),
+        label: ManaText.raw(ref.t('create_group')),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -72,9 +73,9 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
                           children: [
                             Icon(Icons.groups_2_outlined, size: 40, color: ManaColors.textSecondary),
                             const SizedBox(height: ManaSpacing.md),
-                            const ManaText.raw('No groups yet',
+                            ManaText.raw(ref.t('no_groups_yet'),
                                 textAlign: TextAlign.center,
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: ManaSpacing.sm),
                             // The dead end: "Create Group" builds a group
                             // out of EXISTING loans, and this business has
@@ -83,9 +84,7 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
                             // rather than letting the Owner discover it two
                             // taps in.
                             ManaText.raw(
-                              'A group is formed from customers who already have a loan — '
-                              'it groups them for collection only, and does not merge their money. '
-                              'Create the loans first, then come back and group them.',
+                              ref.t('no_groups_yet_detail'),
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                             ),
@@ -97,7 +96,8 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
                             child: ListTile(
                               leading: Icon(Icons.groups_outlined, color: ManaColors.brand),
                               title: ManaText.raw(g.groupName),
-                              subtitle: ManaText.raw('${g.memberCount} members'),
+                              subtitle: ManaText.raw(
+                                  ref.t('members_count_note').replaceAll('{count}', '${g.memberCount}')),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute(builder: (_) => GroupLoanDetailScreen(groupId: g.groupId)),
@@ -149,7 +149,7 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const ManaText('create group')),
+      appBar: AppBar(title: ManaText.raw(ref.t('create_group'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -157,7 +157,7 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
             TextField(
               controller: _nameController,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Group Name'),
+              decoration: InputDecoration(labelText: ref.t('group_name_field')),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -166,17 +166,17 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(labelText: 'Search existing loans'),
+                    decoration: InputDecoration(labelText: ref.t('search_existing_loans_field')),
                     onSubmitted: (_) => _search(),
                   ),
                 ),
                 const SizedBox(width: ManaSpacing.sm),
-                ElevatedButton(onPressed: _searching ? null : _search, child: const ManaText('search')),
+                ElevatedButton(onPressed: _searching ? null : _search, child: ManaText.raw(ref.t('search'))),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
             if (_results.isEmpty)
-              ManaText.raw('Search for individual loans to add as group members.',
+              ManaText.raw(ref.t('search_loans_to_add_note'),
                   style: TextStyle(color: ManaColors.textSecondary))
             else
               // Checkmark-ListTile selection pattern — Radio/RadioListTile
@@ -190,7 +190,10 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
                       color: selected ? ManaColors.statusGood : ManaColors.textSecondary,
                     ),
                     title: ManaText.raw('${loan.customerName} — ${loan.loanNumber}'),
-                    subtitle: ManaText.raw('Balance ${_currency.format(loan.remainingBalance)} · ${loan.status}'),
+                    subtitle: ManaText.raw(ref
+                        .t('balance_status_note')
+                        .replaceAll('{balance}', _currency.format(loan.remainingBalance))
+                        .replaceAll('{status}', loan.status)),
                     onTap: () => setState(() {
                       if (selected) {
                         _selectedLoanIds.remove(loan.loanId);
@@ -221,7 +224,7 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
                     },
               child: _saving
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const ManaText('confirm'),
+                  : ManaText.raw(ref.t('confirm_label')),
             ),
           ],
         ),
@@ -240,17 +243,18 @@ class GroupLoanDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const ManaText('group detail'),
+        title: ManaText.raw(ref.t('group_detail')),
         actions: [
           asyncDetail.maybeWhen(
             data: (detail) => PopupMenuButton<String>(
               onSelected: (v) => _handleMenu(context, ref, v, detail),
               itemBuilder: (_) => [
-                const PopupMenuItem(value: 'rename', child: ManaText('rename')),
+                PopupMenuItem(value: 'rename', child: ManaText.raw(ref.t('rename'))),
                 PopupMenuItem(
                   value: 'delete',
                   enabled: detail.eligibleForDeletion,
-                  child: ManaText(detail.eligibleForDeletion ? 'delete group' : 'delete (balance > ₹0)'),
+                  child: ManaText.raw(
+                      ref.t(detail.eligibleForDeletion ? 'delete_group' : 'delete_balance_positive')),
                 ),
               ],
             ),
@@ -261,7 +265,9 @@ class GroupLoanDetailScreen extends ConsumerWidget {
       body: SafeArea(
         child: asyncDetail.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: ManaText.raw('Could not load group.\n$e', textAlign: TextAlign.center)),
+          error: (e, _) => Center(
+              child: ManaText.raw(ref.t('could_not_load_group_note').replaceAll('{error}', '$e'),
+                  textAlign: TextAlign.center)),
           data: (detail) => ListView(
             padding: const EdgeInsets.all(ManaSpacing.lg),
             children: [
@@ -276,7 +282,10 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const ManaText('group balance'),
+                          Expanded(
+                              child: ManaText.raw(ref.t('group_balance'),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          const SizedBox(width: ManaSpacing.xs),
                           ManaText.raw(_currency.format(detail.groupBalance),
                               style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
@@ -284,14 +293,17 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const ManaText('group emi'),
+                          Expanded(
+                              child: ManaText.raw(ref.t('group_emi'),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          const SizedBox(width: ManaSpacing.xs),
                           ManaText.raw(_currency.format(detail.groupEmi),
                               style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                       const SizedBox(height: 4),
                       ManaText.raw(
-                        'Computed live from member loans — never stored.',
+                        ref.t('computed_live_note'),
                         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
                     ],
@@ -299,13 +311,15 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: ManaSpacing.md),
-              ManaText('members', style: Theme.of(context).textTheme.titleMedium),
+              ManaText.raw(ref.t('members'), style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: ManaSpacing.sm),
               ...detail.members.map((m) => Card(
                     child: ListTile(
                       title: ManaText.raw('${m.customerName} — ${m.loanNumber}'),
-                      subtitle: ManaText.raw(
-                          'Balance ${_currency.format(m.remainingBalance)} · EMI ${_currency.format(m.installmentAmount)}'),
+                      subtitle: ManaText.raw(ref
+                          .t('balance_emi_note')
+                          .replaceAll('{balance}', _currency.format(m.remainingBalance))
+                          .replaceAll('{emi}', _currency.format(m.installmentAmount))),
                       trailing: ManaStatusPill(
                         label: m.status,
                         status: m.status == 'Closed'
@@ -319,7 +333,7 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                   )),
               const SizedBox(height: ManaSpacing.md),
               ManaText.raw(
-                'Membership is fixed permanently at creation — no additions or removals.',
+                ref.t('membership_fixed_note'),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
               ),
             ],
@@ -340,13 +354,13 @@ class GroupLoanDetailScreen extends ConsumerWidget {
       final newName = await showDialog<String>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const ManaText('rename group'),
+          title: ManaText.raw(ref.t('rename_group')),
           content: TextField(controller: controller, autofocus: true),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const ManaText('cancel')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: ManaText.raw(ref.t('cancel'))),
             ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
-              child: const ManaText('save'),
+              child: ManaText.raw(ref.t('save')),
             ),
           ],
         ),
@@ -360,12 +374,11 @@ class GroupLoanDetailScreen extends ConsumerWidget {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const ManaText('delete group'),
-          content: const ManaText.raw(
-              'Member loans revert to ungrouped individual loans. This does not affect their own history.'),
+          title: ManaText.raw(ref.t('delete_group')),
+          content: ManaText.raw(ref.t('delete_group_note')),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const ManaText('cancel')),
-            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const ManaText('delete')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
+            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: ManaText.raw(ref.t('delete'))),
           ],
         ),
       );

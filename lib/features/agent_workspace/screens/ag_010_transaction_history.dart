@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/agent_history_state.dart';
 
@@ -50,7 +51,7 @@ class _Ag010TransactionHistoryScreenState extends ConsumerState<Ag010Transaction
     final state = ref.watch(agentHistoryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('transaction history')),
+      appBar: AppBar(title: ManaText.raw(ref.t('transaction_history'))),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
@@ -78,8 +79,13 @@ class _Ag010TransactionHistoryScreenState extends ConsumerState<Ag010Transaction
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  ManaText('total collected (last 100)',
-                                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                  Expanded(
+                                    child: ManaText.raw(ref.t('total_collected_last_100'),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                  ),
+                                  const SizedBox(width: ManaSpacing.xs),
                                   ManaText.raw(_currency.format(state.totalCollected),
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                 ],
@@ -92,7 +98,7 @@ class _Ag010TransactionHistoryScreenState extends ConsumerState<Ag010Transaction
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                             child: Center(
-                              child: ManaText.raw('No transactions recorded yet.',
+                              child: ManaText.raw(ref.t('no_transactions_recorded_yet'),
                                   style: TextStyle(color: ManaColors.textSecondary)),
                             ),
                           );
@@ -106,7 +112,7 @@ class _Ag010TransactionHistoryScreenState extends ConsumerState<Ag010Transaction
   }
 }
 
-class _HistoryRow extends StatelessWidget {
+class _HistoryRow extends ConsumerWidget {
   final AgentTransactionEntry entry;
   const _HistoryRow({required this.entry});
 
@@ -119,7 +125,7 @@ class _HistoryRow extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: Padding(
@@ -130,21 +136,25 @@ class _HistoryRow extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Flexible(
-                  child: ManaText.raw(entry.customerName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Expanded(
+                  child: ManaText.raw(entry.customerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
-                ManaStatusPill(label: entry.resultType, status: _statusKind),
+                const SizedBox(width: ManaSpacing.xs),
+                Flexible(child: ManaStatusPill(label: entry.resultType, status: _statusKind)),
               ],
             ),
             const SizedBox(height: 2),
-            ManaText.raw('Loan ${entry.loanNumber}',
+            ManaText.raw(ref.t('loan_number_note').replaceAll('{number}', entry.loanNumber),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             const SizedBox(height: 2),
             ManaText.raw(_dateTimeFmt.format(entry.entryTimestamp),
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             if (entry.receiptNumber != null) ...[
               const SizedBox(height: 2),
-              ManaText.raw('Receipt: ${entry.receiptNumber}',
+              ManaText.raw(ref.t('receipt_note').replaceAll('{number}', entry.receiptNumber!),
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
             ],
             const SizedBox(height: ManaSpacing.sm),

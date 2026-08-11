@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/agent_dashboard_state.dart' show AgentAreaAssignment;
 import '../state/agent_profile_state.dart';
@@ -55,7 +56,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
     final state = ref.watch(agentProfileProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('profile')),
+      appBar: AppBar(title: ManaText.raw(ref.t('profile'))),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _reload,
@@ -66,7 +67,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(ManaSpacing.lg),
                         child: ManaText.raw(
-                          state.error ?? 'Could not load profile.',
+                          state.error ?? ref.t('could_not_load_profile_plain'),
                           textAlign: TextAlign.center,
                           style: TextStyle(color: ManaColors.statusBad),
                         ),
@@ -77,11 +78,11 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
                       children: [
                         _BasicProfileCard(profile: state.profile!),
                         const SizedBox(height: ManaSpacing.xl),
-                        ManaText('route / area assignment', style: Theme.of(context).textTheme.titleMedium),
+                        ManaText.raw(ref.t('route_area_assignment'), style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: ManaSpacing.sm),
                         _RouteAreaSummary(assignments: state.areaAssignments),
                         const SizedBox(height: ManaSpacing.xl),
-                        ManaText('my compensation', style: Theme.of(context).textTheme.titleMedium),
+                        ManaText.raw(ref.t('my_compensation'), style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: ManaSpacing.sm),
                         _CompensationLinkOutRow(
                           summary: state.compensationSummary,
@@ -89,10 +90,10 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
                         ),
                         if (state.memberships.length > 1) ...[
                           const SizedBox(height: ManaSpacing.xl),
-                          ManaText('other business memberships', style: Theme.of(context).textTheme.titleMedium),
+                          ManaText.raw(ref.t('other_business_memberships'), style: Theme.of(context).textTheme.titleMedium),
                           const SizedBox(height: ManaSpacing.xs),
                           ManaText.raw(
-                            'Each Owner sees only their own tenancy\'s data for you — nothing here is shared or blended across businesses.',
+                            ref.t('tenancy_isolation_note'),
                             style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                           ),
                           const SizedBox(height: ManaSpacing.sm),
@@ -110,7 +111,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
 /// Date, Current Status. Identity editing is not allowed by the Agent —
 /// same locked pattern as AG-004 — so no edit affordance anywhere here,
 /// not even a disabled one.
-class _BasicProfileCard extends StatelessWidget {
+class _BasicProfileCard extends ConsumerWidget {
   final AgentProfileSummary profile;
   const _BasicProfileCard({required this.profile});
 
@@ -121,7 +122,7 @@ class _BasicProfileCard extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -146,13 +147,14 @@ class _BasicProfileCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                ManaStatusPill(label: profile.currentStatus, status: _statusPillStatus),
+                const SizedBox(width: ManaSpacing.xs),
+                Flexible(child: ManaStatusPill(label: profile.currentStatus, status: _statusPillStatus)),
               ],
             ),
             const Divider(height: ManaSpacing.xl),
-            _FieldRow(label: 'phone', value: profile.phoneNumber ?? '—'),
+            _FieldRow(label: ref.t('phone'), value: profile.phoneNumber ?? '—'),
             const SizedBox(height: ManaSpacing.sm),
-            _FieldRow(label: 'joined date', value: _date.format(profile.joinedDate)),
+            _FieldRow(label: ref.t('joined_date_label'), value: _date.format(profile.joinedDate)),
           ],
         ),
       ),
@@ -177,7 +179,7 @@ class _FieldRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText(label, style: Theme.of(context).textTheme.labelMedium),
+              ManaText.raw(label, style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 2),
               ManaText.raw(value, style: Theme.of(context).textTheme.bodyMedium),
             ],
@@ -196,18 +198,18 @@ class _FieldRow extends StatelessWidget {
 /// `agent_area_assignments`, the same backing table AG-003 already reads.
 /// Shown here as a summary only: no reordering, no selection state, not
 /// re-implemented.
-class _RouteAreaSummary extends StatelessWidget {
+class _RouteAreaSummary extends ConsumerWidget {
   final List<AgentAreaAssignment> assignments;
   const _RouteAreaSummary({required this.assignments});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final enabled = assignments.where((a) => a.enabled).toList();
     if (enabled.isEmpty) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: ManaText.raw('No Operating Areas currently assigned.', style: TextStyle(color: ManaColors.textSecondary)),
+          child: ManaText.raw(ref.t('no_operating_areas_assigned'), style: TextStyle(color: ManaColors.textSecondary)),
         ),
       );
     }
@@ -221,7 +223,7 @@ class _RouteAreaSummary extends StatelessWidget {
                     leading: Icon(Icons.route_outlined, color: ManaColors.brand),
                     title: ManaText.raw(a.areaName),
                     trailing: a.selectedInSession
-                        ? const ManaStatusPill(label: 'In Session', status: ManaStatus.good)
+                        ? ManaStatusPill(label: ref.t('in_session'), status: ManaStatus.good)
                         : null,
                   ))
               .toList(),
@@ -236,20 +238,20 @@ class _RouteAreaSummary extends StatelessWidget {
 /// Salary + Salary Cycle status at a glance) that opens the full panel
 /// already locked at AG-001, rather than re-rendering Advances Deducted /
 /// Shorts Deducted / Pending Salary / Salary History here.
-class _CompensationLinkOutRow extends StatelessWidget {
+class _CompensationLinkOutRow extends ConsumerWidget {
   final AgentCompensationSummary? summary;
   final String businessId;
   const _CompensationLinkOutRow({required this.summary, required this.businessId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = summary;
     return Card(
       child: ListTile(
         leading: Icon(Icons.account_balance_wallet_outlined, color: ManaColors.brand),
         title: ManaText.raw(s != null ? _currency.format(s.fixedSalary) : '—',
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: ManaText.raw(s?.salaryCycleStatus ?? 'Compensation not yet available',
+        subtitle: ManaText.raw(s?.salaryCycleStatus ?? ref.t('compensation_not_available'),
             style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
         trailing: const Icon(Icons.chevron_right),
         // Opens AG-001, scrolled/anchored to its "MY COMPENSATION
@@ -267,7 +269,7 @@ class _CompensationLinkOutRow extends StatelessWidget {
 /// IW-005 already established for its Business Memberships list. One
 /// Agent identity may work under N Owners; each Owner's panel is fully
 /// isolated, never blended here.
-class _MembershipTile extends StatelessWidget {
+class _MembershipTile extends ConsumerWidget {
   final AgentBusinessMembership membership;
   const _MembershipTile({required this.membership});
 
@@ -278,12 +280,12 @@ class _MembershipTile extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: ListTile(
         title: ManaText.raw(membership.businessName),
-        subtitle: const ManaText('agent'),
+        subtitle: ManaText.raw(ref.t('agent')),
         trailing: ManaStatusPill(label: membership.membershipStatus, status: _pillStatus),
         onTap: () => context.push('/ag-001', extra: membership.businessId),
       ),

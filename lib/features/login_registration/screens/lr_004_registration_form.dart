@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/live_face_capture_screen.dart';
+import '../../../shared/mana_time.dart';
 import '../../../shared/title_case_formatter.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/language_selector.dart';
@@ -55,6 +56,11 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   final _confirmAadhaar = TextEditingController();
 
   String? _gender;
+  // Mandatory at registration (see _missingRequirements). persons.dob stays
+  // nullable in the schema because every pre-existing row has a null dob and
+  // a NOT NULL would need a backfill nobody can supply; the requirement is
+  // enforced here and again server-side in auth-register.
+  DateTime? _dob;
   String? _villageId; // set by real village search below (locations table)
   String? _selectedVillageLabel;
   List<Map<String, dynamic>> _villageResults = [];
@@ -105,6 +111,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     }
     if (_fatherHusbandName.text.trim().length < 2) missing.add('Father / Husband Name');
     if (_gender == null) missing.add('Gender');
+    if (_dob == null) missing.add('Date of Birth');
     if (_mobile.text.trim().length != 10) missing.add('Mobile Number (10 digits)');
     if (_password.text.length < 8) missing.add('Password (min 8 chars, letters + numbers)');
     if (_confirmPassword.text != _password.text || _confirmPassword.text.isEmpty) {
@@ -192,6 +199,9 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               fullName: _fullName.text.trim(),
               fatherHusbandName: _fatherHusbandName.text.trim(),
               genderDigit: genderDigit,
+              // Date only — persons.dob is a DATE column. Non-null here
+              // because _canSubmit gates on it.
+              dob: _dob!.toIso8601String().split('T').first,
               mobileNumber: _mobile.text.trim(),
               password: _password.text,
               aadhaarNumber: _aadhaar.text.trim(),
@@ -385,6 +395,33 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                   DropdownMenuItem(value: '0', child: Text('Female')),
                 ],
                 onChanged: (v) => setState(() => _gender = v),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              // Label left in English to match the other 16 field labels on
+              // this screen, which are not translation-wired yet; wiring one
+              // of seventeen would read as an oversight rather than progress.
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Date of Birth *'),
+                subtitle: Text(
+                  _dob == null
+                      ? 'Not set'
+                      : '${_dob!.day.toString().padLeft(2, '0')}-'
+                          '${_dob!.month.toString().padLeft(2, '0')}-${_dob!.year}',
+                ),
+                trailing: const Icon(Icons.calendar_today_outlined),
+                onTap: () async {
+                  // IST, not the handset clock — the same rule as every other
+                  // date default in this app. See lib/shared/mana_time.dart.
+                  final today = manaNowIst();
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _dob ?? DateTime(today.year - 30),
+                    firstDate: DateTime(today.year - 120),
+                    lastDate: today,
+                  );
+                  if (picked != null) setState(() => _dob = picked);
+                },
               ),
               const SizedBox(height: ManaSpacing.xl),
 

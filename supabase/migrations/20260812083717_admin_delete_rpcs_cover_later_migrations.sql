@@ -1,0 +1,19 @@
+-- =============================================================================
+-- Admin delete RPCs, part 1 of 3 — SUPERSEDED IN THE SAME SESSION
+-- =============================================================================
+-- Applied to prod as version 20260812083717. It introduced
+-- app.person_delete_blockers, added person_phone_history to
+-- app.purge_person_hard, and put a blocker pre-flight into
+-- app.admin_delete_person.
+--
+-- Two further defects were then found by INVOKING the functions rather than
+-- reading them (an FK cycle via business_members.permission_profile_id, and
+-- collections.guarantor_id being deleted out of order). Those are fixed in
+-- 20260812084019, which re-declares every function this file touched.
+--
+-- This file is therefore intentionally a no-op: on a rebuild, 20260812084019
+-- is the authoritative definition of all four functions. Kept only so the
+-- local ledger matches supabase_migrations.schema_migrations — without a file
+-- at this exact version, a later `supabase db push` would try to re-run it.
+-- See supabase/MIGRATIONS.md.
+SELECT 1;

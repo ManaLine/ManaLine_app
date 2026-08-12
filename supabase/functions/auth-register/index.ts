@@ -34,6 +34,7 @@ import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { buildMlpi, buildMltiCandidate, genderDigitOf } from "../_shared/mlid.ts";
 import { hashSecret } from "../_shared/hashing.ts";
 import { istDate } from "../_shared/time.ts";
+import { isValidDob } from "../_shared/validation.ts";
 
 interface RegisterBody {
   full_name: string;
@@ -83,6 +84,25 @@ Deno.serve(async (req: Request) => {
   if (!body.father_husband_name?.trim()) errors.push("father_husband_name is required");
   if (body.gender_digit !== "0" && body.gender_digit !== "1") {
     errors.push("gender_digit must be '0' or '1'");
+  }
+  // DOB. persons.dob stays nullable because every pre-existing row has a null
+  // dob and a NOT NULL would need a backfill nobody can supply, so this is the
+  // enforcement point — the LR-004 check is UX, not a boundary.
+  //
+  // REQUIRED only for self-registration ('System'), matching the scope agreed
+  // for this change and the way the password rule below is already gated.
+  // The Owner-side path (registrationSource 'Migration',
+  // GlobalWorkflowService.registerPreExistingPerson) never collected a DOB and
+  // has no field to collect one from; requiring it unconditionally would break
+  // pre-existing-person onboarding the moment this deployed.
+  //
+  // A dob that IS supplied must be valid whatever the source — a bad date is
+  // never better than no date.
+  if (body.registration_source === "System" && !body.dob?.trim()) {
+    errors.push("dob is required");
+  }
+  if (body.dob?.trim() && !isValidDob(body.dob.trim())) {
+    errors.push("dob must be a real past date in YYYY-MM-DD form");
   }
   if (body.aadhaar_number && !isValidAadhaar(body.aadhaar_number)) {
     errors.push("aadhaar_number must be exactly 12 digits");
@@ -215,8 +235,13 @@ Deno.serve(async (req: Request) => {
   // --- profile_status (BR-231): Complete if all commonly-required fields
   // present, else Incomplete. Pending Verification / Archived are not
   // reachable from registration itself. ---
+  // Normalised once: validation above ran on the trimmed value, so the stored
+  // value and the profile_status decision must use the same thing. A dob of
+  // "   " is absent, not present.
+  const dob = body.dob?.trim() ? body.dob.trim() : null;
+
   const profileStatus =
-    body.dob && body.mobile_number && body.aadhaar_number ? "Complete" : "Incomplete";
+    dob && body.mobile_number && body.aadhaar_number ? "Complete" : "Incomplete";
 
   const passwordHash = body.password ? await hashSecret(body.password) : null;
 
@@ -228,7 +253,7 @@ Deno.serve(async (req: Request) => {
       gender_digit: genderDigit,
       full_name: body.full_name.trim(),
       father_husband_name: body.father_husband_name.trim(),
-      dob: body.dob ?? null,
+      dob,
       aadhaar_number: body.aadhaar_number ?? null,
       mobile_number: body.mobile_number ?? null,
       password_hash: passwordHash,

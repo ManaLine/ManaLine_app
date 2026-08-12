@@ -1,0 +1,14 @@
+-- =============================================================================
+-- Admin delete RPCs, part 2 of 3 — SUPERSEDED IN THE SAME SESSION
+-- =============================================================================
+-- Applied to prod as version 20260812083807. It added the five tables later
+-- migrations had introduced (agent_bf_grants, business_transfers, chetis,
+-- cheti_payments, operating_area_locations) to app.admin_delete_business.
+--
+-- Superseded minutes later by 20260812084019 after invoking the function
+-- surfaced an FK cycle and a guarantors/collections ordering bug. That
+-- migration re-declares admin_delete_business in full.
+--
+-- Intentionally a no-op, kept so the local ledger matches
+-- supabase_migrations.schema_migrations. See supabase/MIGRATIONS.md.
+SELECT 1;

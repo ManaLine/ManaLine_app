@@ -14,7 +14,7 @@ MANA LINE — a Flutter + Supabase field lending app for rural India (owner, age
 
 ```bash
 flutter analyze
-flutter test                     # 733 tests
+flutter test                     # 757 tests
 flutter build apk --debug --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 flutter run -d chrome --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 ```

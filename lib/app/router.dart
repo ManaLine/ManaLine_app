@@ -35,6 +35,7 @@ import '../features/owner_workspace/state/global_workflow_state.dart' show Membe
 import '../features/owner_workspace/screens/ow_014_profile_completion.dart';
 import '../features/owner_workspace/screens/ow_015_group_loan_management.dart';
 import '../features/owner_workspace/screens/ow_016_profile.dart';
+import '../features/owner_workspace/screens/ow_017_statement_screen.dart';
 import '../features/owner_workspace/screens/ow_017_transaction_history.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/ow_019_cheti_management.dart';
@@ -281,6 +282,12 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ow-017',
       builder: (c, s) => TransactionHistoryScreen(businessId: _resolveBusinessId(s)),
+    ),
+    // My Statements — the export flow off OW-017's header, not a separate
+    // spec screen, so it hangs off OW-017's own id rather than claiming one.
+    GoRoute(
+      path: '/ow-017-statement',
+      builder: (c, s) => StatementScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-018',

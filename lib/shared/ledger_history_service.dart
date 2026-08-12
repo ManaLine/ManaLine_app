@@ -1,0 +1,283 @@
+/// The shared ledger model behind both history screens.
+///
+/// WHY ONE MODEL: OW-017 previously built its own `_Txn` from three
+/// hand-written queries and AG-010 built a different shape from a fourth.
+/// Both called the result "history" and neither was the whole of it —
+/// expenses, investor deposits and withdrawals, and cheti movements were
+/// missing entirely. `day_ledger` names eight categories; this model carries
+/// all of them, from one server-side feed, so the two screens cannot drift
+/// apart again.
+library;
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'mana_time.dart';
+
+/// Which way the cash went. Derived server-side, never inferred from sign.
+enum LedgerDirection { moneyIn, moneyOut }
+
+/// The eight things that move money, matching `day_ledger`'s columns.
+enum LedgerEventType {
+  collection('collection', LedgerDirection.moneyIn),
+  loanDistribution('loan_distribution', LedgerDirection.moneyOut),
+  expense('expense', LedgerDirection.moneyOut),
+  investorDeposit('investor_deposit', LedgerDirection.moneyIn),
+  investorWithdrawal('investor_withdrawal', LedgerDirection.moneyOut),
+  chetiPaid('cheti_paid', LedgerDirection.moneyOut),
+  chetiReceived('cheti_received', LedgerDirection.moneyIn),
+  adjustmentShort('adjustment_short', LedgerDirection.moneyOut),
+  adjustmentExcess('adjustment_excess', LedgerDirection.moneyIn);
+
+  const LedgerEventType(this.wire, this.direction);
+
+  /// The `event_type` string `app.ledger_history` returns.
+  final String wire;
+  final LedgerDirection direction;
+
+  static LedgerEventType fromWire(String value) =>
+      LedgerEventType.values.firstWhere(
+        (t) => t.wire == value,
+        // A type the server knows and this build does not must not be
+        // silently dropped from a money list, and must not be guessed into
+        // the wrong direction either.
+        orElse: () => throw ArgumentError('Unknown ledger event type: $value'),
+      );
+}
+
+class LedgerEvent {
+  /// Stable across pages — '<type>:<uuid>' from the server.
+  final String id;
+  final LedgerEventType type;
+
+  /// The Indian business day this belongs to. THE grouping key: a collection
+  /// taken at 00:30 IST belongs to that Indian day, which is why grouping
+  /// must never be derived from [occurredAt]'s local date.
+  final String businessDate;
+
+  /// Ordering within the day. Falls back to midnight on [businessDate] for
+  /// rows that only carry a date (investments, adjustments).
+  final DateTime occurredAt;
+
+  /// Whole rupees. Every money column in this schema is numeric(_,0).
+  final int amount;
+
+  /// Customer, investor or cheti name. Null where the event has no other
+  /// party — an expense is paid by the business to nobody in particular.
+  final String? counterparty;
+
+  /// Loan number, expense category, or adjustment type.
+  final String? reference;
+
+  /// How it happened: collection result, withdrawal type, interest type,
+  /// expense remark.
+  final String? method;
+
+  const LedgerEvent({
+    required this.id,
+    required this.type,
+    required this.businessDate,
+    required this.occurredAt,
+    required this.amount,
+    this.counterparty,
+    this.reference,
+    this.method,
+  });
+
+  bool get isMoneyIn => type.direction == LedgerDirection.moneyIn;
+
+  /// Signed value, for arithmetic only. Never render this directly — the UI
+  /// shows direction through position and tone, not a minus sign on a debit.
+  int get signedAmount => isMoneyIn ? amount : -amount;
+
+  factory LedgerEvent.fromRow(Map<String, dynamic> row) => LedgerEvent(
+        id: row['event_id'] as String,
+        type: LedgerEventType.fromWire(row['event_type'] as String),
+        businessDate: row['business_date'] as String,
+        occurredAt: DateTime.parse(row['occurred_at'] as String),
+        amount: (row['amount'] as num).round(),
+        counterparty: row['counterparty'] as String?,
+        reference: row['reference'] as String?,
+        method: row['method'] as String?,
+      );
+}
+
+/// Month totals, read from `day_ledger` rather than summed from the feed.
+///
+/// This distinction is the whole point. The old screen added up whichever
+/// rows it had loaded and labelled the result "Net Change" — a number that
+/// was not the month, not the balance, and not anything the business could
+/// check. These figures come from the same derived ledger Day Closure
+/// reconciles against.
+class LedgerMonthSummary {
+  final String monthStart;
+  final int received;
+  final int spent;
+  final int net;
+  final int? openingBalance;
+  final int? closingBalance;
+
+  /// How many days in this month have a ledger row at all. Zero means the
+  /// month is empty, which is different from a month that netted zero.
+  final int daysRecorded;
+
+  const LedgerMonthSummary({
+    required this.monthStart,
+    required this.received,
+    required this.spent,
+    required this.net,
+    required this.daysRecorded,
+    this.openingBalance,
+    this.closingBalance,
+  });
+
+  bool get isEmpty => daysRecorded == 0;
+
+  factory LedgerMonthSummary.fromRow(Map<String, dynamic> row) => LedgerMonthSummary(
+        monthStart: row['month_start'] as String,
+        received: (row['received'] as num?)?.round() ?? 0,
+        spent: (row['spent'] as num?)?.round() ?? 0,
+        net: (row['net'] as num?)?.round() ?? 0,
+        openingBalance: (row['opening_balance'] as num?)?.round(),
+        closingBalance: (row['closing_balance'] as num?)?.round(),
+        daysRecorded: (row['days_recorded'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// A business day's worth of events, as the list renders them.
+class LedgerDay {
+  final String businessDate;
+  final List<LedgerEvent> events;
+  const LedgerDay({required this.businessDate, required this.events});
+
+  /// Net across THIS DAY'S LOADED EVENTS only.
+  ///
+  /// Correct for an Owner, who sees every event. NOT the business position
+  /// for an Agent, whose feed is an RLS-filtered subset — AG-010 must present
+  /// this as the agent's own activity and must never show it as a closing
+  /// balance. Also incomplete for anyone while the day is still paging in.
+  int get netOfLoadedEvents =>
+      events.fold(0, (sum, e) => sum + e.signedAmount);
+
+  int get moneyIn =>
+      events.where((e) => e.isMoneyIn).fold(0, (s, e) => s + e.amount);
+
+  int get moneyOut =>
+      events.where((e) => !e.isMoneyIn).fold(0, (s, e) => s + e.amount);
+}
+
+/// Groups a flat, newest-first feed into business days, preserving order.
+List<LedgerDay> groupByBusinessDate(List<LedgerEvent> events) {
+  final days = <String, List<LedgerEvent>>{};
+  for (final e in events) {
+    (days[e.businessDate] ??= <LedgerEvent>[]).add(e);
+  }
+  return [
+    for (final entry in days.entries)
+      LedgerDay(businessDate: entry.key, events: entry.value),
+  ];
+}
+
+/// What the user narrowed the feed to.
+///
+/// Applied server-side. Filtering the loaded page in Dart would filter only
+/// the newest 50 events and present that as the whole answer — "Expenses
+/// only" would quietly mean "expenses among the most recent fifty things".
+class LedgerFilter {
+  final Set<LedgerEventType> types;
+  final DateTime? from;
+  final DateTime? to;
+  final String search;
+
+  const LedgerFilter({
+    this.types = const {},
+    this.from,
+    this.to,
+    this.search = '',
+  });
+
+  bool get isActive =>
+      types.isNotEmpty || from != null || to != null || search.trim().isNotEmpty;
+
+  /// How many distinct constraints are on, for the filter button's badge.
+  int get activeCount =>
+      (types.isNotEmpty ? 1 : 0) +
+      ((from != null || to != null) ? 1 : 0) +
+      (search.trim().isNotEmpty ? 1 : 0);
+
+  LedgerFilter copyWith({
+    Set<LedgerEventType>? types,
+    DateTime? from,
+    DateTime? to,
+    String? search,
+    bool clearDates = false,
+  }) =>
+      LedgerFilter(
+        types: types ?? this.types,
+        from: clearDates ? null : (from ?? this.from),
+        to: clearDates ? null : (to ?? this.to),
+        search: search ?? this.search,
+      );
+}
+
+class LedgerHistoryService {
+  LedgerHistoryService(this._db);
+  final SupabaseClient _db;
+
+  /// One page of history, newest first.
+  ///
+  /// Keyset-paginated on `occurred_at` rather than OFFSET: the old screen
+  /// fetched a business's entire history with no limit at all, which its own
+  /// `PERF:` comment admitted was unbounded over the life of the business.
+  ///
+  /// `.schema('app')` is required — a bare `.rpc()` targets `public` and 404s.
+  Future<List<LedgerEvent>> page({
+    required String businessId,
+    DateTime? before,
+    int limit = 50,
+    LedgerFilter filter = const LedgerFilter(),
+  }) async {
+    final rows = await _db.schema('app').rpc('ledger_history', params: {
+      'p_business_id': businessId,
+      'p_before': before?.toIso8601String(),
+      'p_limit': limit,
+      // Null, not an empty list: the SQL treats NULL as "no constraint", and
+      // an empty array would match nothing at all.
+      'p_types': filter.types.isEmpty ? null : filter.types.map((t) => t.wire).toList(),
+      'p_from': filter.from == null ? null : manaDateOf(filter.from!),
+      'p_to': filter.to == null ? null : manaDateOf(filter.to!),
+      'p_search': filter.search.trim().isEmpty ? null : filter.search.trim(),
+    });
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(LedgerEvent.fromRow)
+        .toList();
+  }
+
+  /// [month] may be any date inside the month; the server truncates.
+  Future<LedgerMonthSummary> monthSummary({
+    required String businessId,
+    DateTime? month,
+  }) async {
+    final target = month ?? manaNowIst();
+    final rows = await _db.schema('app').rpc('ledger_month_summary', params: {
+      'p_business_id': businessId,
+      'p_month': manaDateOf(target),
+    });
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) {
+      return LedgerMonthSummary(
+        monthStart: manaDateOf(DateTime(target.year, target.month, 1)),
+        received: 0,
+        spent: 0,
+        net: 0,
+        daysRecorded: 0,
+      );
+    }
+    return LedgerMonthSummary.fromRow(list.first);
+  }
+}
+
+final ledgerHistoryServiceProvider = Provider<LedgerHistoryService>(
+  (ref) => LedgerHistoryService(Supabase.instance.client),
+);

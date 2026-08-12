@@ -2,30 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../design/components/mana_ledger.dart';
+import '../../../design/components/mana_skeleton.dart';
+import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/ledger_history_service.dart';
+import '../../../shared/ledger_history_state.dart';
+import '../../../shared/ledger_labels.dart';
+import '../../../shared/ledger_filter_sheet.dart';
 import '../../../shared/translation_service.dart';
-import '../../../design/components/mana_text.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
-final _dateFmt = DateFormat('dd MMM, hh:mm a');
-
-/// OW-017 — Transaction History. NEW screen (extends beyond the original
-/// locked OW inventory, per explicit request). Combines loans (money out),
-/// collections (money in), and settlement adjustments (Short=out,
-/// Excess=in) into one chronological, PhonePe-style timeline with a
-/// running balance.
+/// OW-017 — Transaction History, Owner view.
 ///
-/// HONEST SCOPE NOTE: the "running balance" here starts at 0 and shows
-/// the NET CUMULATIVE CHANGE across the transactions in view — it is
-/// NOT cross-verified against a specific account_period's true opening
-/// balance (that would require picking one specific period/agent
-/// context, which this business-wide combined view deliberately doesn't
-/// scope to). Labeled clearly in the UI as "Net Change," not claimed as
-/// an authoritative cash-in-hand figure — treat this as a transaction
-/// log with a running total, not a substitute for OW-006/AG-006's real
-/// settlement reconciliation.
+/// Rebuilt on `app.ledger_history`. What this replaces was assembled from
+/// three client-side queries — collections, loans, settlement adjustments —
+/// and called the business's history. `day_ledger` names eight money
+/// categories; expenses, investor deposits, investor withdrawals and both
+/// cheti directions were missing, so the screen was quietly incomplete. It
+/// also fetched the entire history with no limit and summed whichever rows it
+/// held into a figure labelled "Net Change", which was not the month, not the
+/// balance, and not anything the business could check.
+///
+/// Now: every category, keyset-paginated, grouped by BUSINESS DAY, with the
+/// month figure read from day_ledger — the same derived ledger Day Closure
+/// reconciles against.
 class TransactionHistoryScreen extends ConsumerStatefulWidget {
   final String businessId;
   const TransactionHistoryScreen({super.key, required this.businessId});
@@ -34,263 +36,347 @@ class TransactionHistoryScreen extends ConsumerStatefulWidget {
   ConsumerState<TransactionHistoryScreen> createState() => _TransactionHistoryScreenState();
 }
 
-enum _TxnType { collection, loan, adjustmentExcess, adjustmentShort }
-
-class _Txn {
-  final String id;
-  final _TxnType type;
-  final double amount; // always positive; sign/color derived from type
-  final DateTime timestamp;
-  final String title;
-  final Map<String, dynamic> raw;
-  _Txn({required this.id, required this.type, required this.amount, required this.timestamp, required this.title, required this.raw});
-
-  bool get isCredit => type == _TxnType.collection || type == _TxnType.adjustmentExcess;
-}
-
 class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScreen> {
-  bool _loading = true;
-  String? _error;
-  List<_Txn> _transactions = [];
-  final Map<String, double> _runningBalanceById = {};
+  final _scroll = ScrollController();
+  final _search = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
+    _scroll.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(ledgerHistoryProvider(widget.businessId).notifier).load();
     });
-    try {
-      final db = Supabase.instance.client;
-
-      final collectionRows = await db
-          .from('collections')
-          .select('collection_id, collected_amount, entry_timestamp, loans!inner(business_id, loan_number)')
-          .eq('loans.business_id', widget.businessId);
-
-      final loanRows = await db
-          .from('loans')
-          .select('loan_id, loan_number, amount_given, entry_timestamp')
-          .eq('business_id', widget.businessId);
-
-      final adjustmentRows = await db
-          .from('settlement_adjustments')
-          .select('adjustment_id, adjustment_type, amount, business_date, '
-              'account_settlements(account_periods(business_id))')
-          .eq('account_settlements.account_periods.business_id', widget.businessId);
-
-      final txns = <_Txn>[];
-
-      for (final r in (collectionRows as List).cast<Map<String, dynamic>>()) {
-        final loan = r['loans'] as Map<String, dynamic>?;
-        txns.add(_Txn(
-          id: 'c-${r['collection_id']}',
-          type: _TxnType.collection,
-          amount: (r['collected_amount'] as num).toDouble(),
-          timestamp: DateTime.parse(r['entry_timestamp'] as String),
-          title: 'Collection — ${loan?['loan_number'] ?? ''}',
-          raw: r,
-        ));
-      }
-      for (final r in (loanRows as List).cast<Map<String, dynamic>>()) {
-        txns.add(_Txn(
-          id: 'l-${r['loan_id']}',
-          type: _TxnType.loan,
-          amount: (r['amount_given'] as num).toDouble(),
-          timestamp: DateTime.parse(r['entry_timestamp'] as String),
-          title: 'Loan Distribution — ${r['loan_number']}',
-          raw: r,
-        ));
-      }
-      for (final r in (adjustmentRows as List).cast<Map<String, dynamic>>()) {
-        final isExcess = r['adjustment_type'] == 'Excess';
-        txns.add(_Txn(
-          id: 'a-${r['adjustment_id']}',
-          type: isExcess ? _TxnType.adjustmentExcess : _TxnType.adjustmentShort,
-          amount: (r['amount'] as num).toDouble(),
-          timestamp: DateTime.parse(r['business_date'] as String),
-          title: 'Settlement Adjustment — ${r['adjustment_type']}',
-          raw: r,
-        ));
-      }
-
-      txns.sort((a, b) => a.timestamp.compareTo(b.timestamp)); // oldest first, to compute running balance forward
-      double running = 0;
-      for (final t in txns) {
-        running += t.isCredit ? t.amount : -t.amount;
-        _runningBalanceById[t.id] = running;
-      }
-      txns.sort((a, b) => b.timestamp.compareTo(a.timestamp)); // display newest first
-
-      if (!mounted) return;
-      setState(() {
-        _transactions = txns;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = 'Could not load transaction history.';
-      });
-    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final netChange = _transactions.isEmpty ? 0.0 : _runningBalanceById[_transactions.first.id] ?? 0.0;
-    return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('history')),
-        leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/ow-001', extra: widget.businessId)),
-      ),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(child: ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad)))
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    // PERF: builder — this business's whole loan/collection/
-                    // adjustment history, fetched with no limit, is genuinely
-                    // unbounded over the life of the business. Index 0 is the
-                    // fixed net-change header; the rest are transaction rows.
-                    child: ListView.builder(
-                      itemCount: 1 + (_transactions.isEmpty ? 1 : _transactions.length),
-                      itemBuilder: (context, i) {
-                        if (i == 0) {
-                          return Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(ManaSpacing.lg),
-                            color: ManaColors.surfaceSunken,
-                            child: Column(
-                              children: [
-                                ManaText.raw(ref.t('net_change_this_view'),
-                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                                const SizedBox(height: 4),
-                                ManaText.raw(
-                                  _currency.format(netChange),
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: netChange >= 0 ? ManaColors.statusGood : ManaColors.statusBad,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        if (_transactions.isEmpty) {
-                          return Padding(
-                            padding: const EdgeInsets.all(ManaSpacing.xl),
-                            child: Center(
-                              child: ManaText.raw(ref.t('no_transactions_yet'),
-                                  style: TextStyle(color: ManaColors.textSecondary)),
-                            ),
-                          );
-                        }
-                        final t = _transactions[i - 1];
-                        return _TxnTile(
-                          txn: t,
-                          runningBalance: _runningBalanceById[t.id] ?? 0,
-                          onTap: () => _showDetail(context, t),
-                        );
-                      },
-                    ),
-                  ),
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final remaining = _scroll.position.maxScrollExtent - _scroll.position.pixels;
+    if (remaining < 400) {
+      ref.read(ledgerHistoryProvider(widget.businessId).notifier).loadMore();
+    }
+  }
+
+  LedgerHistoryNotifier get _notifier =>
+      ref.read(ledgerHistoryProvider(widget.businessId).notifier);
+
+  Future<void> _openFilters() async {
+    final current = ref.read(ledgerHistoryProvider(widget.businessId)).filter;
+    final next = await showLedgerFilterSheet(context, ref, current);
+    if (next != null) await _notifier.applyFilter(next);
+  }
+
+  Future<void> _openMonthSheet(LedgerMonthSummary summary) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ManaText.raw(
+                _monthLabel(summary.monthStart),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              ManaLedgerMonthBreakdown(
+                summary: summary,
+                receivedLabel: ref.t('money_received'),
+                spentLabel: ref.t('money_spent'),
+                openingLabel: ref.t('opening_balance'),
+                closingLabel: ref.t('closing_balance_label'),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              ManaText.raw(
+                ref.t('month_totals_from_ledger_note'),
+                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  void _showDetail(BuildContext context, _Txn t) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
+  String _monthLabel(String isoDate) =>
+      DateFormat('MMMM yyyy').format(DateTime.parse(isoDate));
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(ledgerHistoryProvider(widget.businessId));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: ManaText.raw(ref.t('history')),
+        leading: BackButton(
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go('/ow-001', extra: widget.businessId),
+        ),
+        actions: [
+          // Icon-only, not a labelled button. A TextButton.icon carrying a
+          // translated "My Statements" overflows the AppBar by ~35px at 2.0x
+          // text scale on a 360dp screen — the label is longer in every
+          // language other than English. The tooltip keeps it nameable.
+          IconButton(
+            onPressed: () => context.push('/ow-017-statement', extra: widget.businessId),
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: ref.t('my_statements'),
+          ),
+        ],
+      ),
+      body: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(t.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw('${t.isCredit ? '+' : '-'}${_currency.format(t.amount)}',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: t.isCredit ? ManaColors.statusGood : ManaColors.statusBad,
-                )),
-            const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(_dateFmt.format(t.timestamp), style: TextStyle(color: ManaColors.textSecondary)),
-            const SizedBox(height: ManaSpacing.md),
-            const Divider(),
-            ...t.raw.entries
-                .where((e) => e.value is! Map)
-                .map((e) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          ManaText.raw(e.key, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
-                          ManaText.raw('${e.value}', style: const TextStyle(fontSize: 13)),
-                        ],
-                      ),
-                    )),
+            _SearchBar(
+              controller: _search,
+              hint: ref.t('search_transactions'),
+              activeCount: state.filter.activeCount,
+              onSubmitted: (v) =>
+                  _notifier.applyFilter(state.filter.copyWith(search: v)),
+              onFilterTap: _openFilters,
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => _notifier.load(),
+                child: _body(state),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+
+  Widget _body(LedgerHistoryState state) {
+    if (state.loading && state.events.isEmpty) {
+      return const ManaSkeletonList(itemCount: 6);
+    }
+    if (state.error != null && state.events.isEmpty) {
+      return _Message(
+        text: ref.t('could_not_load_history'),
+        tone: ManaColors.statusBad,
+        actionLabel: ref.t('retry'),
+        onAction: () => _notifier.load(),
+      );
+    }
+    if (state.isEmpty) {
+      return _Message(
+        text: state.filter.isActive
+            ? ref.t('no_transactions_match_filters')
+            : ref.t('no_transactions_yet'),
+        tone: ManaColors.textSecondary,
+        actionLabel: state.filter.isActive ? ref.t('clear_all') : null,
+        onAction: state.filter.isActive
+            ? () => _notifier.applyFilter(const LedgerFilter())
+            : null,
+      );
+    }
+
+    // Flattened so one lazy ListView covers headers and rows — a Column of
+    // per-day ListViews would build every row up front, which is what the
+    // unbounded fetch this replaces already cost us once.
+    final slivers = <Widget>[];
+    if (state.summary != null) {
+      slivers.add(ManaLedgerMonthBand(
+        monthLabel: _monthLabel(state.summary!.monthStart),
+        summary: state.summary,
+        onTap: () => _openMonthSheet(state.summary!),
+      ));
+      slivers.add(Divider(height: 1, color: ManaColors.divider));
+    }
+    for (final day in state.days) {
+      slivers.add(ManaLedgerDayHeader(
+        dateLabel: ledgerDayLabel(day.businessDate),
+        trailingLabel: ref.t('day_net'),
+        trailingAmount: day.netOfLoadedEvents,
+      ));
+      for (final e in day.events) {
+        slivers.add(ManaLedgerRow(
+          event: e,
+          actionLabel: ledgerActionLabel(ref, e),
+          timeLabel: ledgerTimeLabel(e),
+          onTap: () => _showDetail(e),
+        ));
+      }
+    }
+    if (state.loadingMore) {
+      slivers.add(const Padding(
+        padding: EdgeInsets.all(ManaSpacing.lg),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ));
+    }
+
+    return ListView.builder(
+      controller: _scroll,
+      itemCount: slivers.length,
+      itemBuilder: (_, i) => slivers[i],
+    );
+  }
+
+  void _showDetail(LedgerEvent e) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ManaText.raw(
+                ledgerActionLabel(ref, e),
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              ),
+              if (e.counterparty != null)
+                ManaText.raw(
+                  e.counterparty!,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              const SizedBox(height: ManaSpacing.md),
+              _detailLine(ref.t('amount'), null, e),
+              _detailLine(ref.t('date'), ledgerDayLabel(e.businessDate), null),
+              _detailLine(ref.t('time'), ledgerTimeLabel(e), null),
+              if (e.reference != null) _detailLine(ref.t('reference'), e.reference, null),
+              if (e.method != null) _detailLine(ref.t('details'), e.method, null),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailLine(String label, String? value, LedgerEvent? amountOf) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(
+            child: ManaText.raw(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ),
+          const SizedBox(width: ManaSpacing.sm),
+          if (amountOf != null)
+            ManaLedgerAmount(event: amountOf)
+          else
+            Flexible(
+              child: ManaText.raw(value ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 13)),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-class _TxnTile extends StatelessWidget {
-  final _Txn txn;
-  final double runningBalance;
-  final VoidCallback onTap;
-  const _TxnTile({required this.txn, required this.runningBalance, required this.onTap});
+class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final int activeCount;
+  final ValueChanged<String> onSubmitted;
+  final VoidCallback onFilterTap;
 
-  IconData get _icon {
-    switch (txn.type) {
-      case _TxnType.collection:
-        return Icons.arrow_downward;
-      case _TxnType.loan:
-        return Icons.arrow_upward;
-      case _TxnType.adjustmentExcess:
-        return Icons.add_circle_outline;
-      case _TxnType.adjustmentShort:
-        return Icons.remove_circle_outline;
-    }
-  }
+  const _SearchBar({
+    required this.controller,
+    required this.hint,
+    required this.activeCount,
+    required this.onSubmitted,
+    required this.onFilterTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final color = txn.isCredit ? ManaColors.statusGood : ManaColors.statusBad;
-    return ListTile(
-      onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: color.withValues(alpha: 0.15),
-        child: Icon(_icon, color: color, size: 20),
-      ),
-      title: ManaText.raw(txn.title, style: const TextStyle(fontSize: 14)),
-      subtitle: ManaText.raw(_dateFmt.format(txn.timestamp), style: const TextStyle(fontSize: 13)),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.sm),
+      child: Row(
         children: [
-          ManaText.raw(
-            '${txn.isCredit ? '+' : '-'}${_currency.format(txn.amount)}',
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              textInputAction: TextInputAction.search,
+              onSubmitted: onSubmitted,
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                hintText: hint,
+                filled: true,
+                fillColor: ManaColors.surfaceSunken,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
           ),
-          ManaText.raw(
-            _currency.format(runningBalance),
-            style: TextStyle(color: ManaColors.textSecondary, fontSize: 16),
+          const SizedBox(width: ManaSpacing.sm),
+          // Badged rather than a bare icon: an active filter that looks
+          // identical to no filter is how people conclude money is missing.
+          Badge(
+            isLabelVisible: activeCount > 0,
+            label: Text('$activeCount'),
+            child: IconButton(
+              onPressed: onFilterTap,
+              icon: const Icon(Icons.tune),
+              tooltip: 'Filters',
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _Message extends StatelessWidget {
+  final String text;
+  final Color tone;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _Message({
+    required this.text,
+    required this.tone,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Scrollable so pull-to-refresh still works on an empty or failed list.
+    return ListView(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(ManaSpacing.xxl),
+          child: Column(
+            children: [
+              ManaText.raw(text, textAlign: TextAlign.center, style: TextStyle(color: tone)),
+              if (actionLabel != null) ...[
+                const SizedBox(height: ManaSpacing.md),
+                TextButton(onPressed: onAction, child: ManaText(actionLabel!)),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

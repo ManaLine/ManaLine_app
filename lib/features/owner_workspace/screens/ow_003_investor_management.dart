@@ -7,6 +7,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart';
+import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/translation_service.dart';
@@ -729,7 +730,9 @@ class _InvestmentsTab extends ConsumerWidget {
     // this app after already running for years needs to record
     // investments that started well before "today" (e.g. this investor's
     // original entry date), not just brand-new ones.
-    DateTime effectiveDate = existing?.effectiveDate ?? DateTime.now();
+    // IST, not the handset clock — this is written as the investment's
+    // effective_date. See lib/shared/mana_time.dart.
+    DateTime effectiveDate = existing?.effectiveDate ?? manaNowIst();
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -791,7 +794,9 @@ class _InvestmentsTab extends ConsumerWidget {
                     context: dialogContext,
                     initialDate: effectiveDate,
                     firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
+                    // "Today" here is the IST business day, so an owner
+                    // recording after 18:30 UTC can still pick it.
+                    lastDate: manaNowIst(),
                   );
                   if (picked != null) setState(() => effectiveDate = picked);
                 },

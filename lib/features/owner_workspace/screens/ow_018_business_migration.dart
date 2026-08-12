@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/mana_time.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_amount.dart';
@@ -473,7 +474,9 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   final _emi = TextEditingController();
   final _penalty = TextEditingController(text: '0');
   String _frequency = 'Weekly';
-  DateTime _effectiveDate = DateTime.now().subtract(const Duration(days: 30));
+  // IST, not the handset clock — a migrated loan's effective_date is the
+  // business day it is booked against. See lib/shared/mana_time.dart.
+  DateTime _effectiveDate = manaNowIst().subtract(const Duration(days: 30));
   bool _saving = false;
 
   @override
@@ -636,7 +639,9 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                   initialDate: _effectiveDate,
                   // Backdating is the whole point here, unlike OW-005.
                   firstDate: DateTime(2000),
-                  lastDate: DateTime.now(),
+                  // "Today" is the IST business day, same clock as the
+                  // default above.
+                  lastDate: manaNowIst(),
                 );
                 if (picked != null) setState(() => _effectiveDate = picked);
               },

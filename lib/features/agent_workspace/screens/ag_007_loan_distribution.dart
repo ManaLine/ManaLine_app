@@ -639,7 +639,9 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
   final _duration = TextEditingController();
   final _installment = TextEditingController();
   String _repaymentType = 'Weekly';
-  DateTime _effectiveDate = DateTime.now();
+  // IST, not the handset clock: this becomes p_effective_date, i.e. the
+  // business day the loan is booked against. See lib/shared/mana_time.dart.
+  DateTime _effectiveDate = manaNowIst();
 
   // Whole rupees (M8) — server stores money as DECIMAL(14,0).
   int get _amountGiven =>
@@ -732,8 +734,10 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
             final picked = await showDatePicker(
               context: context,
               initialDate: _effectiveDate,
-              firstDate: DateTime.now().subtract(const Duration(days: 1)),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
+              // Bounds off the same IST clock as the default above — mixing
+              // the two can put initialDate outside [firstDate, lastDate].
+              firstDate: manaNowIst().subtract(const Duration(days: 1)),
+              lastDate: manaNowIst().add(const Duration(days: 365)),
             );
             if (picked != null) setState(() => _effectiveDate = picked);
           },

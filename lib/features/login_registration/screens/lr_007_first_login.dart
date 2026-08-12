@@ -173,6 +173,33 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
             .from('persons')
             .update({'profile_photo_url': url})
             .eq('person_id', personId);
+
+        // Also record it as an identity document. WHY HERE: a self-registered
+        // person otherwise has no identity_documents row at all — LR-004 never
+        // creates one — while auth-register already stamps them
+        // profile_status='Complete' from dob+mobile+aadhaar. They therefore
+        // never appear in OW-014's incomplete list, so nothing would ever
+        // prompt anyone to collect a document for them.
+        //
+        // Type 'Photo', not 'Aadhaar': file_url is NOT NULL and the only real
+        // file in this flow is the live capture. Registration collects an
+        // Aadhaar *number*, never an Aadhaar image, so an 'Aadhaar' row here
+        // would need an invented file_url — a fabricated record, which is
+        // worse than no record.
+        //
+        // NOT MANDATORY, per the Owner's instruction: its own try, so a failed
+        // insert leaves the photo (already saved above) intact and never
+        // blocks first login.
+        try {
+          await Supabase.instance.client.from('identity_documents').insert({
+            'person_id': personId,
+            'document_type': 'Photo',
+            'file_url': url,
+          });
+        } catch (_) {
+          // Non-fatal by design. uploaded_at defaults to now() under the
+          // Asia/Kolkata database, so no client timestamp is sent.
+        }
       } catch (e) {
         // Swallowed deliberately — see comment above.
       } finally {

@@ -14,12 +14,12 @@ MANA LINE — a Flutter + Supabase field lending app for rural India (owner, age
 
 ```bash
 flutter analyze
-flutter test                     # 164 tests
+flutter test                     # 723 tests
 flutter build apk --debug --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 flutter run -d chrome --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 ```
 
-Supabase credentials come from `--dart-define` and live in `run.ps1.txt` (git-ignored). **Without them the app does not fail — it hangs**, because the fallback URL is a host that does not exist; symptoms are raw translation keys on every screen and login claiming "No internet connection". A "Build not configured" screen catches this in `main.dart`. Never commit credentials.
+Supabase credentials come from `--dart-define` and live in `run.ps1.txt`, which is **tracked, not git-ignored** — it holds only `SUPABASE_URL` and the anon key, both of which ship inside every APK anyway. Nothing else may be added to it: a service-role key or JWT secret there would be a real leak. Put those in `.env` (already ignored). **Without them the app does not fail — it hangs**, because the fallback URL is a host that does not exist; symptoms are raw translation keys on every screen and login claiming "No internet connection". A "Build not configured" screen catches this in `main.dart`. Never commit credentials.
 
 Run a single test file with `flutter test test/<file>.dart`. adb is not on PATH — use `$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe`.
 

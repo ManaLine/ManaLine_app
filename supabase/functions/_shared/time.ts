@@ -31,3 +31,25 @@ export function istDate(): string {
 export function parseIst(naive: string): Date {
   return new Date(naive.replace(" ", "T") + "+05:30");
 }
+
+/**
+ * The IST wall clock [ms] milliseconds ago, in the same naive form as
+ * [istNow] — the correct cutoff for any comparison against a naive IST
+ * timestamp column.
+ *
+ * WHY THIS EXISTS: `new Date(Date.now() - ms).toISOString()` looks like a
+ * cutoff and is not. It emits UTC, and Postgres casting it to `timestamp
+ * without time zone` DISCARDS the trailing `Z` — so a UTC wall clock gets
+ * compared as though it were IST, 5h30m adrift. Against auth_rate_limits
+ * (bucket_ts defaults to now() under an Asia/Kolkata database, i.e. IST)
+ * that inflated every rate-limit window by 5h30m: the 5-minute login
+ * throttle held for 5h35m, the 15-minute BR-201 lockout cooldown for 5h45m,
+ * and the pruning half of the same comparison never deleted anything, so the
+ * table only grew. Nothing errored — every layer did exactly what it said.
+ */
+export function istAgo(ms: number): string {
+  return new Date(Date.now() + IST_OFFSET_MS - ms)
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
+}

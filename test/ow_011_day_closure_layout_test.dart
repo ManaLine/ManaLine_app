@@ -86,7 +86,7 @@ final _closedState = DayClosureState(
   ),
 );
 
-final _reopenedState = DayClosureState(
+const _reopenedState = DayClosureState(
   phase: DayClosurePhase.reopened,
   businessDate: '2026-08-06',
 );

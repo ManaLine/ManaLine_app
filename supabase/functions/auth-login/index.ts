@@ -17,7 +17,7 @@ import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { compareSecret } from "../_shared/hashing.ts";
 import { mintPersonJwt } from "../_shared/jwt.ts";
-import { istNow } from "../_shared/time.ts";
+import { istAgo, istNow } from "../_shared/time.ts";
 import { rateLimit } from "../_shared/rate_limit.ts";
 
 const LOCKOUT_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes after last lockout
@@ -131,7 +131,9 @@ Deno.serve(async (req: Request) => {
     .from("auth_rate_limits")
     .select("bucket_key", { count: "exact", head: true })
     .eq("bucket_key", `lockout:${person.person_id}`)
-    .gt("bucket_ts", new Date(Date.now() - COOLDOWN_WINDOW_MS).toISOString());
+    // istAgo, not toISOString: bucket_ts is naive IST, and a UTC cutoff here
+    // stretched this 15-minute cooldown to 5h45m.
+    .gt("bucket_ts", istAgo(COOLDOWN_WINDOW_MS));
   if ((cooldownCount ?? 0) > 0) {
     return errorResponse(403, "ACCOUNT_LOCKED", "Account is temporarily locked. Please try again in a few minutes.", { person_id: person.person_id });
   }

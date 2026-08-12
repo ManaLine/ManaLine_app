@@ -17,6 +17,7 @@
 // Cleanup: old rows are deleted on each call so the table stays small.
 
 import { supabaseAdmin } from "./supabaseAdmin.ts";
+import { istAgo } from "./time.ts";
 
 export async function rateLimit(
   bucketKey: string,
@@ -24,7 +25,20 @@ export async function rateLimit(
   windowMs: number = 5 * 60 * 1000
 ): Promise<boolean> {
   const admin = supabaseAdmin();
-  const cutoff = new Date(Date.now() - windowMs).toISOString();
+
+  // BUG FIXED (2026-08-10, hotfixed straight to prod and only now committed):
+  // the cutoff used to be `new Date(Date.now() - windowMs).toISOString()`,
+  // i.e. UTC, while auth_rate_limits.bucket_ts is `timestamp without time
+  // zone` defaulting to now() — which under this database's TimeZone
+  // (Asia/Kolkata) stores an IST wall clock. Postgres casting the string
+  // discards the `Z`, so the cutoff sat 5.5 hours BEHIND every stored row:
+  // the prune deleted nothing and the count matched everything ever recorded.
+  // Buckets never drained, so after `limit` attempts EVER a key was
+  // rate-limited permanently. Admin login had already reached that state.
+  //
+  // Now via istAgo so the same naive-IST rule is stated in exactly one place
+  // and is unit-tested (_shared/time_test.ts) rather than re-derived here.
+  const cutoff = istAgo(windowMs);
 
   // Prune stale rows for this bucket.
   await admin

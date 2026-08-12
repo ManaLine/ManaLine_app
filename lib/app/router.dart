@@ -339,10 +339,13 @@ final manaRouter = GoRouter(
     GoRoute(path: '/iw-settings', builder: (c, s) => SettingsScreen(homeRoute: '/iw-001', businessId: s.extra as String?)),
 
     // --- Agent Workspace -------------------------------------------------
-    // AG-001 through AG-009 are real, built screens — full Agent Workspace
-    // inventory complete (no AG-010 exists). agentId/businessId passed via
-    // `extra` where relevant — falls back to stub ids so each route is
-    // directly reachable during review.
+    // AG-001 through AG-009 are real, built screens. AG-010 (Transaction
+    // History) also exists but is deliberately NOT registered here — it is
+    // the Agent footer's 4th tab and is pushed by AG-001 with the agent's
+    // membershipId, which no deep link can supply. It is the one screen ID
+    // without a route; see ag_010_transaction_history.dart.
+    // agentId/businessId passed via `extra` where relevant — falls back to
+    // stub ids so each route is directly reachable during review.
     GoRoute(
       path: '/ag-001',
       builder: (c, s) => AgentHomeDashboardScreen(

@@ -12,8 +12,8 @@ import '../state/agent_profile_state.dart';
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _date = DateFormat('d MMM yyyy');
 
-/// AG-009 — Profile. Final screen in the Agent Workspace inventory
-/// (AG-001–AG-009, no AG-010 per AG-001's own closing note). Pure view
+/// AG-009 — Profile. Last of the routed Agent Workspace screens; AG-010
+/// (Transaction History) exists as the footer's 4th tab. Pure view
 /// screen — no self-edit of identity, status, route, or compensation
 /// anywhere; all of that is Owner-controlled via OW-002 Workforce
 /// Management (not this chat's scope).

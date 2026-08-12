@@ -116,6 +116,9 @@ class DayClosureApiService {
       canProceed: blockingIssues.isEmpty,
       blockingIssues: blockingIssues,
       expected: expected,
+      // Already in the select above; it used to be fetched and dropped, which
+      // is why Final Review showed a hardcoded 0.
+      openingBalance: (ledgerRow['opening_balance'] as num?)?.toInt(),
     );
   }
 
@@ -278,11 +281,19 @@ class DayClosurePrecheckResult {
   final List<DayClosureBlockingIssue> blockingIssues;
   final List<DayClosureBlockingIssue> warnings;
   final ExpectedFigures? expected; // surfaced only when canProceed=true
+
+  /// `day_ledger.opening_balance` for this business date — the cash the day
+  /// started with. Null only when there is no ledger row, in which case
+  /// canProceed is already false. Final Review renders this rather than a
+  /// hardcoded 0; see the note on [DayClosureState.openingBalance].
+  final int? openingBalance;
+
   DayClosurePrecheckResult({
     required this.canProceed,
     this.blockingIssues = const [],
     this.warnings = const [],
     this.expected,
+    this.openingBalance,
   });
 }
 
@@ -410,6 +421,13 @@ class DayClosureState {
   final List<DayClosureBlockingIssue> blockingIssues;
   final List<DayClosureBlockingIssue> warnings;
 
+  /// `day_ledger.opening_balance` — the cash this business day opened with,
+  /// shown on the Final Review card. Nullable on purpose: null means "not
+  /// known yet", and the card omits the row rather than printing ₹0. A
+  /// stand-in zero beside real Collections and Closing Balance reads as a
+  /// day that started empty, and the Owner reconciles the till against it.
+  final int? openingBalance;
+
   // S2 — Owner-entered Actual figures
   final ExpectedFigures? expected;
   final int physicalCash;
@@ -432,6 +450,7 @@ class DayClosureState {
     this.businessDate = '',
     this.blockingIssues = const [],
     this.warnings = const [],
+    this.openingBalance,
     this.expected,
     this.physicalCash = 0,
     this.upiBalance = 0,
@@ -454,6 +473,7 @@ class DayClosureState {
     String? businessDate,
     List<DayClosureBlockingIssue>? blockingIssues,
     List<DayClosureBlockingIssue>? warnings,
+    int? openingBalance,
     ExpectedFigures? expected,
     int? physicalCash,
     int? upiBalance,
@@ -471,6 +491,7 @@ class DayClosureState {
       businessDate: businessDate ?? this.businessDate,
       blockingIssues: blockingIssues ?? this.blockingIssues,
       warnings: warnings ?? this.warnings,
+      openingBalance: openingBalance ?? this.openingBalance,
       expected: expected ?? this.expected,
       physicalCash: physicalCash ?? this.physicalCash,
       upiBalance: upiBalance ?? this.upiBalance,
@@ -527,6 +548,7 @@ class DayClosureNotifier extends Notifier<DayClosureState> {
       state = state.copyWith(
         phase: DayClosurePhase.cashVerification,
         warnings: result.warnings,
+        openingBalance: result.openingBalance,
         expected: result.expected,
         submitting: false,
       );

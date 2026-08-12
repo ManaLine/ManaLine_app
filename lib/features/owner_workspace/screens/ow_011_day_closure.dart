@@ -657,9 +657,11 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
       children: [
         ManaText.raw(ref.t('final_review'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.lg),
-        _SummaryRow(
-            label: ref.t('opening_balance'),
-            value: 0), // TODO: from day_ledger, deferred to API pass
+        // day_ledger.opening_balance. Omitted rather than shown as 0 when the
+        // ledger did not supply it — a stand-in zero beside the real figures
+        // below reads as a day that opened with no cash.
+        if (state.openingBalance != null)
+          _SummaryRow(label: ref.t('opening_balance'), value: state.openingBalance!),
         if (expected != null)
           _SummaryRow(label: ref.t('collections'), value: expected.expectedCash),
         _SummaryRow(

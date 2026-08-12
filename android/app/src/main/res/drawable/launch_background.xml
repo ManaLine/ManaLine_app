@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Circular logo on white splash background. The logo_splash.png must
-     be copied from assets/images/logo.png (see copy command in CLAUDE.md
-     or run: cp assets/images/logo.png android/app/src/main/res/drawable/logo_splash.png) -->
+<!-- Deliberately a bare colour fill with NO logo.
+     Android always paints a window background before Flutter's first frame;
+     it cannot be skipped. Drawing the logo here as well produced a second,
+     white logo screen ahead of LR-001's blue one — the app appeared to
+     splash twice. Filling with LR-001's own background instead makes the
+     handover invisible, so the logo is shown exactly once, by LR-001. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/logo_splash" />
-    </item>
+    <item android:drawable="@color/splash_background" />
 </layer-list>

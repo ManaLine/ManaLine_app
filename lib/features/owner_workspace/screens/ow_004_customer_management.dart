@@ -9,6 +9,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../shared/document_viewer.dart';
@@ -22,7 +23,17 @@ final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalD
 /// context menu); "Add Customer" is a header action (C4 sub-flow).
 class CustomerManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const CustomerManagementScreen({super.key, required this.businessId});
+  /// 'register' opens the Add Customer sheet straight away, so the
+  /// dashboard's Register Customer tile lands on the form rather than on a
+  /// list the person then has to find a button in. Registration on the
+  /// doorstep is a two-tap job or it does not get done.
+  final String? initialAction;
+
+  const CustomerManagementScreen({
+    super.key,
+    required this.businessId,
+    this.initialAction,
+  });
 
   @override
   ConsumerState<CustomerManagementScreen> createState() => _CustomerManagementScreenState();
@@ -37,6 +48,13 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(customerListProvider.notifier).load(widget.businessId);
+      if (widget.initialAction == 'register') {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => _AddCustomerSheet(businessId: widget.businessId),
+        ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId));
+      }
     });
   }
 
@@ -337,6 +355,10 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   _AddCustomerStage _stage = _AddCustomerStage.search;
   final _query = TextEditingController();
   CustomerSummary? _foundIdentity;
+
+  /// Every person the search matched. A name is not unique, so this is
+  /// routinely more than one — see CustomerApiService.searchIdentity.
+  List<CustomerSummary> _results = const [];
   bool _searching = false;
   bool _notFound = false;
 
@@ -388,8 +410,13 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
     if (!mounted) return;
     setState(() {
       _searching = false;
-      if (result != null) {
-        _foundIdentity = result;
+      final matches = result ?? const <CustomerSummary>[];
+      _results = matches;
+      // Auto-select only when there is exactly one — with several people
+      // called Sai, picking the first for the Owner is how the wrong person
+      // gets linked to a business.
+      _foundIdentity = matches.length == 1 ? matches.first : null;
+      if (matches.isNotEmpty) {
         _notFound = false;
         _stage = _AddCustomerStage.found;
       } else if (widget.existingOnly) {
@@ -588,18 +615,37 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
       ];
 
   List<Widget> _foundStage() => [
-        ManaText.raw(ref.t('identity_found'), style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: ManaSpacing.sm),
-        Card(
-          child: ListTile(
-            leading: const ManaVerificationRing(isVerified: true, size: 40),
-            title: ManaText.raw(_foundIdentity!.fullName),
-            subtitle: ManaText.raw(_foundIdentity!.mlid),
-          ),
+        ManaText.raw(
+          _results.length == 1
+              ? ref.t('identity_found')
+              : '${_results.length} matches — choose one',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        const SizedBox(height: ManaSpacing.sm),
+        // One card per match, selectable. Father/husband name is shown
+        // because it is frequently the only thing distinguishing two people
+        // with the same name in the same village.
+        for (final person in _results)
+          Card(
+            color: person.personId == _foundIdentity?.personId
+                ? ManaColors.brandFaint
+                : null,
+            child: ListTile(
+              leading: const ManaVerificationRing(isVerified: true, size: 40),
+              title: ManaText.raw(person.fullName),
+              subtitle: ManaText.raw(
+                [person.mlid, if (person.fatherHusbandName.isNotEmpty) person.fatherHusbandName]
+                    .join(' · '),
+              ),
+              trailing: person.personId == _foundIdentity?.personId
+                  ? Icon(Icons.check_circle, color: ManaColors.statusGood)
+                  : null,
+              onTap: () => setState(() => _foundIdentity = person),
+            ),
+          ),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
-          onPressed: _submitting ? null : _linkExisting,
+          onPressed: (_submitting || _foundIdentity == null) ? null : _linkExisting,
           child: _submitting
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
               : ManaText.raw(ref.t('confirm_and_link_to_business')),
@@ -659,6 +705,24 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
+        // Fills PIN and village from where the Owner is standing — which,
+        // for this sheet, is the customer's doorstep. It does NOT capture
+        // the coordinates: createNew already takes its own fix at save
+        // time, and taking a second one here would record whichever was
+        // earlier rather than where the address was actually confirmed.
+        UseMyLocationButton(
+          onCaptured: (place) {
+            setState(() {
+              if (place.pinCode != null) _pinCode.text = place.pinCode!;
+              if (place.village != null) {
+                _villageSearch.text = place.village!;
+                _villageId = null;
+                _selectedVillageLabel = null;
+              }
+            });
+            if (_pinCode.text.trim().length == 6) _searchVillages(_villageSearch.text);
+          },
+        ),
         TextField(
           controller: _pinCode,
           keyboardType: TextInputType.number,

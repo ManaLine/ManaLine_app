@@ -31,6 +31,10 @@ dependencies:
   file_selector: ^1.1.0
   image: ^4.3.0
   geolocator: ^14.0.2
+  # Reverse-geocoding for the address forms' "use my location" button. Uses
+  # the platform's own geocoder — no API key, no Google Maps billing, and it
+  # keeps working on the cheap handsets this app targets.
+  geocoding: ^4.0.0
   local_auth: ^3.0.2
   cached_network_image: ^3.4.1
 
@@ -49,6 +53,12 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/logo.png"
   min_sdk_android: 21
+  # logo.png is a circle with a transparent surround. Android keeps the
+  # alpha, so the icon reads as a disc rather than a black square. The App
+  # Store rejects any alpha channel, so iOS gets it flattened onto the same
+  # navy the splash uses — never white, which would halo the gold rim.
+  remove_alpha_ios: true
+  background_color_ios: "#12293D"
 
 flutter:
   uses-material-design: true

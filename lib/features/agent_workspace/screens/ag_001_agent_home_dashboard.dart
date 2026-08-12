@@ -174,13 +174,21 @@ class _AgentHomeDashboardScreenState
             ),
           ],
         ),
+        // Settings / Switch / Logout used to be icons in the header's second
+        // row. That row is gone — they are drawer rows now, shared with the
+        // other three workspaces so the order and labels cannot drift.
+        ...manaGlobalDrawerSections(
+          onProfile: () => context.push('/ag-009'),
+          onSwitchWorkspace: () => context.go('/lr-012'),
+          onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),
+          onSettings: () =>
+              context.push('/ag-settings', extra: widget.businessId),
+          onLogout: () {
+            ref.read(authFlowProvider.notifier).reset();
+            context.go('/lr-003');
+          },
+        ),
       ],
-      onSettings: () => context.push('/ag-settings', extra: widget.businessId),
-      onSwitch: () => context.go('/lr-013', extra: widget.businessId),
-      onLogout: () {
-        ref.read(authFlowProvider.notifier).reset();
-        context.go('/lr-003');
-      },
       bottomNavigationBar: _AgentFooterNav(
           businessId: widget.businessId, agentId: widget.agentId),
       body: SafeArea(

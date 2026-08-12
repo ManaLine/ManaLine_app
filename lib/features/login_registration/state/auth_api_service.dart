@@ -134,7 +134,11 @@ class AuthApiService {
     String? mobileNumber,
     String? password,
     String? aadhaarNumber,
-    required Map<String, String?> address,
+    // `Object?`, not `String?`: the address now also carries the GPS pin,
+    // which is numeric. Typing it as String? forced the coordinates to be
+    // stringified, and the Edge Function's numeric range checks would then
+    // reject them.
+    required Map<String, Object?> address,
     required String registrationSource,
     required String customerType,
   }) async {

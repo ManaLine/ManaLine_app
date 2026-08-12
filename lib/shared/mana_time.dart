@@ -90,6 +90,22 @@ String manaDisplayDate([DateTime? when]) {
   return '$d-$m-${t.year.toString().padLeft(4, '0')}';
 }
 
+/// Short IST weekday — `Sun`, `Mon`, …
+///
+/// Hand-built from [DateTime.weekday] rather than taken from `DateFormat`,
+/// for the same reason as everything else in this file: it has to describe
+/// the IST day, and DateFormat would describe the handset's.
+const _manaWeekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+String manaWeekday([DateTime? when]) =>
+    _manaWeekdayNames[(when ?? manaNowIst()).weekday - 1];
+
+/// `Sun, 09-08-2026` — the weekday in front of the date.
+String manaDisplayDateWithWeekday([DateTime? when]) {
+  final t = when ?? manaNowIst();
+  return '${manaWeekday(t)}, ${manaDisplayDate(t)}';
+}
+
 /// The IST wall clock as 12-hour `h:mm AM/PM`, for display only.
 ///
 /// Built from [manaNowIst] rather than `TimeOfDay.format` or `DateTime.now`,
@@ -102,4 +118,19 @@ String manaClock12([DateTime? when]) {
   // 00:xx is 12 AM and 12:xx is 12 PM — a bare `hour % 12` renders both as 0.
   final h12 = t.hour % 12 == 0 ? 12 : t.hour % 12;
   return '$h12:${t.minute.toString().padLeft(2, '0')} $suffix';
+}
+
+/// The same clock with seconds — `h:mm:ss AM/PM`.
+///
+/// Only for the drawer, which ticks once a second while it is open. Every
+/// other clock in the app deliberately stops at minutes: a seconds field
+/// that does not move looks broken, and one that does move costs a rebuild
+/// per second on a screen nobody is reading the seconds off.
+String manaClock12WithSeconds([DateTime? when]) {
+  final t = when ?? manaNowIst();
+  final suffix = t.hour < 12 ? 'AM' : 'PM';
+  final h12 = t.hour % 12 == 0 ? 12 : t.hour % 12;
+  final mm = t.minute.toString().padLeft(2, '0');
+  final ss = t.second.toString().padLeft(2, '0');
+  return '$h12:$mm:$ss $suffix';
 }

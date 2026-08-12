@@ -25,7 +25,29 @@ class AdminAuthService {
     'Authorization': 'Bearer ${SupabaseConfig.anonKey}',
   };
 
-  Map<String, dynamic> _asMap(dynamic data) => Map<String, dynamic>.from(data as Map);
+  /// Unwraps the standard `{data, meta, errors}` envelope every Edge
+  /// Function in this deployment returns.
+  ///
+  /// BUG FIXED: this used to hand back the ENVELOPE, so `data['success']`
+  /// read the envelope's top level — where no such key exists — and came
+  /// back null on every call. `null != true`, so login threw "Invalid
+  /// username or password" no matter what was typed: the admin panel could
+  /// never be opened, with correct credentials or otherwise. The same
+  /// mistake made requestPasswordReset read a null otp_id and throw a
+  /// TypeError, which the screen rendered as "Could not reach the server"
+  /// while the server had in fact answered 200.
+  ///
+  /// This is a copy of AuthApiService._asMap, whose own comment already
+  /// says unwrapping centrally fixes every caller at once. The admin
+  /// service simply never got that fix.
+  Map<String, dynamic> _asMap(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      throw const FormatException('Unexpected Edge Function response shape');
+    }
+    final inner = raw['data'];
+    if (inner is Map<String, dynamic>) return inner;
+    return raw;
+  }
 
   /// Throws [AdminAuthException] on a wrong username/password — the caller
   /// shows that inline, same convention as the person login screens.

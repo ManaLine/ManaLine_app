@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,9 +24,29 @@ class SystemStartupScreen extends ConsumerStatefulWidget {
 class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
   _StartupState _state = _StartupState.loading;
 
+  /// Keeps re-running the health checks while this screen is showing its
+  /// failure card, so the app continues on its own once signal returns
+  /// instead of waiting for someone to notice and press Retry. The button
+  /// stays — it is the "try now" for anyone who does not want to wait —
+  /// but it is no longer the only way out.
+  Timer? _retryTimer;
+
   @override
   void initState() {
     super.initState();
+    _runHealthChecks();
+  }
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    super.dispose();
+  }
+
+  void _retryNow() {
+    _retryTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _state = _StartupState.loading);
     _runHealthChecks();
   }
 
@@ -62,6 +84,12 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _state = _StartupState.failure);
+      // 3s rather than a connectivity listener: the check that matters is
+      // whether this request succeeds, not whether the handset believes it
+      // has a network. A captive portal reports "connected" and answers
+      // nothing.
+      _retryTimer?.cancel();
+      _retryTimer = Timer(const Duration(seconds: 3), _retryNow);
     }
   }
 
@@ -138,10 +166,8 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
                 const SizedBox(height: ManaSpacing.md),
                 ManaText.raw(ref.t('loading_ellipsis'), style: TextStyle(color: ManaColors.textOnDark)),
               ],
-              if (_state == _StartupState.failure) _FailureCard(onRetry: () {
-                setState(() => _state = _StartupState.loading);
-                _runHealthChecks();
-              }),
+              if (_state == _StartupState.failure)
+                _FailureCard(onRetry: _retryNow),
             ],
           ),
         ),

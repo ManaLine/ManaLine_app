@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../state/agent_dashboard_state.dart' show AgentAreaAssignment;
+import '../../../shared/text_utils.dart';
 
 /// AG-009 Profile — real Supabase wiring.
 ///
@@ -39,17 +40,45 @@ class AgentProfileApiService {
     );
   }
 
+  /// One entry per BUSINESS, with every role held there folded into it.
+  ///
+  /// BUG FIXED: this returned one row per membership and the tile printed a
+  /// hardcoded "Agent" for all of them. A person who is Owner *and* Agent in
+  /// the same business — the normal case, since an Owner collects too — saw
+  /// that business listed twice, both times labelled Agent, which read as
+  /// duplicate data. It never was: `uq_business_members_person_business_role`
+  /// makes a genuine duplicate impossible. The roles were simply never
+  /// selected, so they could not be shown.
+  ///
+  /// Removed roles are dropped from the joined label rather than listed —
+  /// "Owner, Agent, Customer" would imply the person is still a customer
+  /// there. A business where every role is Removed keeps its roles and is
+  /// shown Removed, so leaving a business doesn't make it vanish silently.
   Future<List<AgentBusinessMembership>> fetchMemberships({required String personId}) async {
     final rows = await _db
         .from('business_members')
-        .select('business_id, membership_status, businesses!inner(business_name)')
+        .select('business_id, role, membership_status, businesses!inner(business_name)')
         .eq('person_id', int.parse(personId));
-    return (rows as List).map((r) {
-      final m = r as Map<String, dynamic>;
+
+    final byBusiness = <String, List<Map<String, dynamic>>>{};
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      byBusiness.putIfAbsent(r['business_id'] as String, () => []).add(r);
+    }
+
+    return byBusiness.entries.map((e) {
+      final all = e.value;
+      final live = all.where((m) => m['membership_status'] != 'Removed').toList();
+      final shown = live.isEmpty ? all : live;
       return AgentBusinessMembership(
-        businessId: m['business_id'] as String,
-        businessName: (m['businesses'] as Map<String, dynamic>)['business_name'] as String? ?? '',
-        membershipStatus: m['membership_status'] as String,
+        businessId: e.key,
+        businessName: titleCaseName(
+            (all.first['businesses'] as Map<String, dynamic>)['business_name'] as String? ?? ''),
+        roles: [for (final m in shown) m['role'] as String],
+        // The strongest live status, so one suspended role does not make an
+        // otherwise-active business look closed.
+        membershipStatus: live.any((m) => m['membership_status'] == 'Active')
+            ? 'Active'
+            : shown.first['membership_status'] as String,
       );
     }).toList();
   }
@@ -128,13 +157,22 @@ extension MembershipRoleLabel on MembershipRole {
 class AgentBusinessMembership {
   final String businessId;
   final String businessName;
+
+  /// Every role this person holds in this business — "Owner", "Agent",
+  /// "Customer". More than one is normal, not a data fault.
+  final List<String> roles;
   final String membershipStatus;
 
   AgentBusinessMembership({
     required this.businessId,
     required this.businessName,
+    this.roles = const [],
     required this.membershipStatus,
   });
+
+  /// "Owner, Agent" — the same shape LR-012 shows for the same person, so
+  /// the two screens agree.
+  String get rolesLabel => roles.join(', ');
 }
 
 class AgentCompensationSummary {

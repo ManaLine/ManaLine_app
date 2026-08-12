@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/mana_time.dart';
@@ -169,11 +172,15 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     final s = _summary;
     return Scaffold(
       appBar: AppBar(title: ManaText.raw(ref.t('pre_existing_business'))),
+      // "Add a Customer" rather than "Add Existing Loan": the form takes the
+      // person and their loan together, and the person is the part an Owner
+      // is thinking about when they open this screen. Branch behaviour,
+      // main's translation wiring.
       floatingActionButton: (s != null && !s.migrationLocked)
           ? FloatingActionButton.extended(
               onPressed: _addLoan,
-              icon: const Icon(Icons.add),
-              label: ManaText.raw(ref.t('add_existing_loan')),
+              icon: const Icon(Icons.person_add_alt_1),
+              label: ManaText.raw(ref.t('add_a_customer')),
             )
           : null,
       body: SafeArea(
@@ -193,7 +200,23 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                         _profitCard(),
                         const SizedBox(height: ManaSpacing.lg),
                         if (!s.migrationLocked) ...[
-                          OutlinedButton.icon(
+                          // The spreadsheet is the fallback, not the front
+                          // door. Most Owners here have never used Excel,
+                          // and a sheet also fails all-or-nothing — one bad
+                          // row in a thousand rejects the lot. Entering
+                          // people one at a time is slower per customer and
+                          // far more likely to finish, so the one-at-a-time
+                          // path is the button on the screen (the FAB) and
+                          // this is demoted to a plain link beneath it.
+                          ManaText.raw(
+                            'Adding customers one at a time is the reliable way — each '
+                            'one is saved on its own, so a mistake in the tenth never '
+                            'undoes the first nine. The spreadsheet below is only worth '
+                            'it if you already keep your book in Excel.',
+                            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                          ),
+                          const SizedBox(height: ManaSpacing.sm),
+                          TextButton.icon(
                             onPressed: _openBulkOnboarding,
                             icon: const Icon(Icons.upload_file_outlined),
                             label: ManaText.raw(ref.t('bulk_onboarding_wizard')),
@@ -467,6 +490,36 @@ class _MigrateLoanScreen extends ConsumerStatefulWidget {
 
 class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   CustomerSummary? _customer;
+
+  // --- Register-the-person-here mode ------------------------------------
+  //
+  // WHY THIS EXISTS: migrating a book used to mean an Excel sheet, and most
+  // Owners here have never used a spreadsheet. This is the same job as one
+  // form: the person and the loan they already owe, entered together, saved
+  // together, one customer at a time.
+  //
+  // It is NOT a second way to create a customer — it calls exactly the same
+  // registration RPC that OW-004 does, so MLID generation, the Aadhaar
+  // uniqueness check and the address rows are all identical. The only thing
+  // added is that the loan is written straight afterwards, against the id
+  // that call returns.
+  //
+  // Each person is saved on their own. That is the whole point compared to
+  // the bulk sheet: with 1,000 rows in one transaction a single bad row
+  // discards all of them, whereas here the tenth entry failing leaves the
+  // first nine safely saved.
+  bool _newPerson = false;
+  final _fullName = TextEditingController();
+  final _fatherHusband = TextEditingController();
+  final _mobile = TextEditingController();
+  final _aadhaar = TextEditingController();
+  final _doorNo = TextEditingController();
+  final _pinCode = TextEditingController();
+  final _villageSearch = TextEditingController();
+  String? _gender;
+  String? _villageId;
+  List<Map<String, dynamic>> _villageResults = [];
+  bool _villageSearchAttempted = false;
   final _given = TextEditingController();
   final _interest = TextEditingController();
   final _fee = TextEditingController(text: '0');
@@ -489,11 +542,157 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
 
   @override
   void dispose() {
-    for (final c in [_given, _interest, _fee, _pending, _emi, _penalty]) {
+    for (final c in [
+      _given, _interest, _fee, _pending, _emi, _penalty,
+      _fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _villageSearch,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
+
+  /// Villages for the typed PIN. Same query OW-004's sheet runs — the
+  /// address has to resolve to a real `locations` row either way, because
+  /// person_addresses.village_id is a FK, not free text.
+  Future<void> _searchVillages(String query) async {
+    final pin = _pinCode.text.trim();
+    if (pin.length != 6) {
+      setState(() {
+        _villageResults = [];
+        _villageSearchAttempted = false;
+      });
+      return;
+    }
+    final rows = await Supabase.instance.client
+        .from('locations')
+        .select('location_id, village_town_name, mandal, district')
+        .eq('pin_code', pin)
+        .ilike('village_town_name', '%${query.trim()}%')
+        .limit(20);
+    if (!mounted) return;
+    setState(() {
+      _villageResults = (rows as List).cast<Map<String, dynamic>>();
+      _villageSearchAttempted = true;
+    });
+  }
+
+  /// The person half of the form. Same fields, same order and the same
+  /// registration RPC as OW-004's Add Customer sheet — this is not a second
+  /// way to create a person, only a second place to do it from.
+  List<Widget> _personFields() => [
+        TextField(
+          controller: _fullName,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Full Name *'),
+          onChanged: (_) => setState(() {}),
+        ),
+        TextField(
+          controller: _fatherHusband,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Father / Husband Name *'),
+          onChanged: (_) => setState(() {}),
+        ),
+        DropdownButtonFormField<String>(
+          initialValue: _gender,
+          decoration: const InputDecoration(labelText: 'Gender *'),
+          items: const [
+            DropdownMenuItem(value: '1', child: ManaText('male')),
+            DropdownMenuItem(value: '0', child: ManaText('female')),
+          ],
+          onChanged: (v) => setState(() => _gender = v),
+        ),
+        TextField(
+          controller: _mobile,
+          keyboardType: TextInputType.phone,
+          maxLength: 10,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(labelText: 'Mobile Number *'),
+          onChanged: (_) => setState(() {}),
+        ),
+        TextField(
+          controller: _aadhaar,
+          keyboardType: TextInputType.number,
+          maxLength: 12,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          // Optional here and nowhere else, deliberately: this is the
+          // Owner-only pre-existing-member path, the sole Aadhaar-exempt
+          // route per ADDENDUM v4. Without an Aadhaar the person gets an
+          // MLTI instead of an MLPI.
+          decoration: const InputDecoration(
+            labelText: 'Aadhaar Number (optional)',
+            helperText: 'Leave blank if you do not have it — they will get an MLTI id.',
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        TextField(
+          controller: _doorNo,
+          decoration: const InputDecoration(labelText: 'Door / House No *'),
+          onChanged: (_) => setState(() {}),
+        ),
+        UseMyLocationButton(
+          onCaptured: (place) {
+            setState(() {
+              if (place.pinCode != null) _pinCode.text = place.pinCode!;
+              if (place.village != null) {
+                _villageSearch.text = place.village!;
+                _villageId = null;
+              }
+            });
+            if (_pinCode.text.trim().length == 6) _searchVillages(_villageSearch.text);
+          },
+        ),
+        TextField(
+          controller: _pinCode,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(labelText: 'PIN Code *'),
+          onChanged: (_) {
+            setState(() => _villageId = null);
+            _searchVillages(_villageSearch.text);
+          },
+        ),
+        TextField(
+          controller: _villageSearch,
+          decoration: const InputDecoration(labelText: 'Search Village/Town *'),
+          onChanged: (v) {
+            setState(() => _villageId = null);
+            _searchVillages(v);
+          },
+        ),
+        if (_villageResults.isNotEmpty)
+          ..._villageResults.map((v) => ListTile(
+                dense: true,
+                title: ManaText.raw(v['village_town_name'] as String? ?? ''),
+                subtitle: ManaText.raw(
+                    '${v['mandal'] ?? ''} · ${v['district'] ?? ''}',
+                    style: const TextStyle(fontSize: 12)),
+                trailing: _villageId == v['location_id']
+                    ? Icon(Icons.check, color: ManaColors.statusGood)
+                    : null,
+                onTap: () => setState(() {
+                  _villageId = v['location_id'] as String;
+                  _villageSearch.text = v['village_town_name'] as String;
+                }),
+              )),
+        if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
+            child: ManaText.raw(
+              'No village found for this PIN code. Add it from Customer '
+              'Management first, then come back.',
+              style: TextStyle(fontSize: 12, color: ManaColors.statusBad),
+            ),
+          ),
+      ];
+
+  bool get _personComplete =>
+      _fullName.text.trim().length >= 2 &&
+      _fatherHusband.text.trim().length >= 2 &&
+      _gender != null &&
+      _mobile.text.trim().length == 10 &&
+      _doorNo.text.trim().isNotEmpty &&
+      _pinCode.text.trim().length == 6 &&
+      _villageId != null;
 
   int? get _givenV => int.tryParse(_given.text.trim());
   int? get _interestV => int.tryParse(_interest.text.trim());
@@ -525,7 +724,11 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       (_issuedV != null && _remainingV != null) ? _issuedV! - _remainingV! : null;
 
   String? get _validationError {
-    if (_customer == null) return 'Choose the customer this loan belongs to.';
+    if (_newPerson) {
+      if (!_personComplete) return null; // incomplete, not wrong
+    } else if (_customer == null) {
+      return 'Choose the customer this loan belongs to.';
+    }
     if (_givenV == null || _interestV == null || _pendingV == null || _emiV == null) {
       return null; // incomplete, not wrong
     }
@@ -549,7 +752,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   }
 
   bool get _canSave =>
-      _customer != null &&
+      (_newPerson ? _personComplete : _customer != null) &&
       _givenV != null &&
       _interestV != null &&
       _pendingV != null &&
@@ -557,12 +760,47 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       _validationError == null &&
       !_saving;
 
-  Future<void> _save() async {
+  /// Registers the person if this is a new one, then records their loan.
+  ///
+  /// Two calls, in order, NOT one transaction — deliberately. If the loan
+  /// write fails the customer still exists, which is recoverable: the Owner
+  /// picks them from the dropdown and enters the loan again. The reverse
+  /// (rolling the person back) would throw away a successful registration
+  /// because of a typo in an amount. So the failure message below says
+  /// exactly that, rather than a bare error.
+  ///
+  /// [andAnother] keeps the form open with the loan fields cleared, because
+  /// migrating a book is fifty of these in a row, not one.
+  Future<void> _save({bool andAnother = false}) async {
     setState(() => _saving = true);
+
+    String? customerId = _customer?.customerId;
+    if (_newPerson) {
+      final created = await NetworkErrorHandler.run(context, () async {
+        return ref.read(customerListProvider.notifier).createNewReturningId(
+              businessId: widget.businessId,
+              fullName: _fullName.text.trim(),
+              fatherHusbandName: _fatherHusband.text.trim(),
+              genderDigit: _gender!,
+              mobileNumber: _mobile.text.trim(),
+              aadhaarNumber: _aadhaar.text.trim().isEmpty ? null : _aadhaar.text.trim(),
+              doorNo: _doorNo.text.trim(),
+              pinCode: _pinCode.text.trim(),
+              villageId: _villageId!,
+            );
+      });
+      if (!mounted) return;
+      if (created == null) {
+        setState(() => _saving = false);
+        return; // registration failed — message already shown, nothing written
+      }
+      customerId = created;
+    }
+
     final ok = await NetworkErrorHandler.run(context, () async {
       await ref.read(businessManagementApiServiceProvider).migrateLoan(
             businessId: widget.businessId,
-            customerId: _customer!.customerId,
+            customerId: customerId!,
             amountGiven: _givenV!,
             repaymentAmount: _issuedV!,
             remainingBalance: _remainingV!,
@@ -575,14 +813,51 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     });
     if (!mounted) return;
     setState(() => _saving = false);
-    if (ok == true) Navigator.of(context).pop(true);
+
+    if (ok != true) {
+      if (_newPerson) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: ManaText.raw(
+              'The person was saved but the loan was not. Choose them from the '
+              'customer list and enter the loan again — do not register them twice.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!andAnother) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+
+    // Same Owner, same sitting, next customer. The frequency and the
+    // original start date usually repeat across a book, so they stay.
+    setState(() {
+      _customer = null;
+      _newPerson = false;
+      _gender = null;
+      _villageId = null;
+      _villageResults = [];
+      _villageSearchAttempted = false;
+      for (final c in [_fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _villageSearch, _given, _interest, _pending, _emi]) {
+        c.clear();
+      }
+      _fee.text = '0';
+      _penalty.text = '0';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: ManaText.raw('Saved. Enter the next one.')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customerListProvider).customers;
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('add_existing_loan'))),
+      appBar: AppBar(title: ManaText.raw(ref.t('add_a_customer'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -592,19 +867,36 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.lg),
-            DropdownButtonFormField<CustomerSummary>(
-              initialValue: _customer,
-              isExpanded: true,
-              decoration: InputDecoration(labelText: ref.t('customer_required_field')),
-              items: customers
-                  .map((c) => DropdownMenuItem(
-                        value: c,
-                        child: ManaText.raw('${c.fullName} · ${c.mlid}',
-                            style: const TextStyle(fontSize: 13)),
-                      ))
-                  .toList(),
-              onChanged: (v) => setState(() => _customer = v),
+            // Branch behaviour (pick an existing customer OR enter a new
+            // person inline), main's translation wiring.
+            SegmentedButton<bool>(
+              segments: [
+                ButtonSegment(value: false, label: ManaText.raw(ref.t('existing_customer'))),
+                ButtonSegment(value: true, label: ManaText.raw(ref.t('new_person'))),
+              ],
+              selected: {_newPerson},
+              onSelectionChanged: (s) => setState(() {
+                _newPerson = s.first;
+                _customer = null;
+              }),
             ),
+            const SizedBox(height: ManaSpacing.md),
+            if (!_newPerson)
+              DropdownButtonFormField<CustomerSummary>(
+                initialValue: _customer,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: ref.t('customer_required_field')),
+                items: customers
+                    .map((c) => DropdownMenuItem(
+                          value: c,
+                          child: ManaText.raw('${c.fullName} · ${c.mlid}',
+                              style: const TextStyle(fontSize: 13)),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _customer = v),
+              )
+            else
+              ..._personFields(),
             const SizedBox(height: ManaSpacing.md),
             _amountField(_given, ref.t('amount_given_cash_field')),
             _amountField(_interest, ref.t('interest_required_field')),
@@ -654,8 +946,17 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                   style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
             ],
             const SizedBox(height: ManaSpacing.lg),
+            // Migrating a book is fifty of these in a row. Save and Add
+            // Another keeps the Owner in the form instead of making them
+            // walk back in from the migration screen each time.
+            OutlinedButton.icon(
+              onPressed: _canSave ? () => _save(andAnother: true) : null,
+              icon: const Icon(Icons.playlist_add),
+              label: const ManaText('save and add another'),
+            ),
+            const SizedBox(height: ManaSpacing.sm),
             FilledButton(
-              onPressed: _canSave ? _save : null,
+              onPressed: _canSave ? () => _save() : null,
               child: _saving
                   ? const SizedBox(
                       width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))

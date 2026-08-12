@@ -78,13 +78,21 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
             ),
           ],
         ),
+        // Settings / Switch / Logout used to be icons in the header's second
+        // row. That row is gone — they are drawer rows now, shared with the
+        // other three workspaces so the order and labels cannot drift.
+        ...manaGlobalDrawerSections(
+          onProfile: () => context.push('/iw-005'),
+          onSwitchWorkspace: () => context.go('/lr-012'),
+          onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),
+          onSettings: () =>
+              context.push('/iw-settings', extra: widget.businessId),
+          onLogout: () {
+            ref.read(authFlowProvider.notifier).reset();
+            context.go('/lr-003');
+          },
+        ),
       ],
-      onSettings: () => context.push('/iw-settings', extra: widget.businessId),
-      onSwitch: () => context.go('/lr-013', extra: widget.businessId),
-      onLogout: () {
-        ref.read(authFlowProvider.notifier).reset();
-        context.go('/lr-003');
-      },
       body: SafeArea(
         child: async.when(
           // Only shown on a genuine cold load — revisits keep the previous

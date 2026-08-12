@@ -1,3 +1,4 @@
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
 /// P2 GPS — one place that knows how to get a fix, and how to fail.
@@ -125,4 +126,65 @@ class ManaLocation {
       );
     }
   }
+
+  /// A fix, plus the PIN code and village the platform's geocoder reads back
+  /// from it — what the address forms' "use my location" button needs.
+  ///
+  /// Same never-throw contract as [currentFix]: a failed or empty geocode
+  /// still returns the fix, with [ManaPlace.pinCode] and
+  /// [ManaPlace.village] left null. Losing the labels must not lose the
+  /// coordinates, because the coordinates are the part that cannot be
+  /// retyped later.
+  ///
+  /// Uses the platform geocoder, not a web service — no API key and no
+  /// per-lookup billing. It is also frequently vague in rural India, which
+  /// is exactly why every field it fills stays editable: this button saves
+  /// typing, it does not decide the address.
+  static Future<ManaPlace> currentPlace({
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    final fix = await currentFix(timeout: timeout);
+    if (!fix.hasPosition) return ManaPlace(fix: fix);
+
+    try {
+      final marks = await placemarkFromCoordinates(fix.latitude!, fix.longitude!);
+      if (marks.isEmpty) return ManaPlace(fix: fix);
+      final m = marks.first;
+      final pin = (m.postalCode ?? '').replaceAll(RegExp(r'\D'), '');
+      // locality is the town/village; subLocality is often the hamlet and is
+      // the better label when present.
+      final village = (m.subLocality?.trim().isNotEmpty ?? false)
+          ? m.subLocality!.trim()
+          : (m.locality?.trim() ?? '');
+      return ManaPlace(
+        fix: fix,
+        pinCode: pin.length == 6 ? pin : null,
+        village: village.isEmpty ? null : village,
+      );
+    } on Exception {
+      // Geocoding is a convenience. Keep the fix, drop the labels.
+      return ManaPlace(fix: fix);
+    }
+  }
+}
+
+class ManaPlace {
+  final ManaFix fix;
+  final String? pinCode;
+  final String? village;
+
+  const ManaPlace({required this.fix, this.pinCode, this.village});
+
+  bool get hasPosition => fix.hasPosition;
+
+  /// True when there is something worth writing into the form.
+  bool get filledAnything => pinCode != null || village != null;
+
+  String get message => switch (true) {
+        _ when !fix.hasPosition => fix.message,
+        _ when !filledAnything =>
+          'Location captured, but the address could not be read from it — '
+              'please type the PIN code and village.',
+        _ => 'Location captured.',
+      };
 }

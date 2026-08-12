@@ -54,16 +54,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool? _pinEnabled;
   bool _togglingPin = false;
 
+  /// Wrong-PIN attempts inside this dialog. Capped BELOW the server's own
+  /// lockout threshold so verifying a toggle can never be the thing that
+  /// locks someone out of their account.
+  int _pinAttempts = 0;
+  static const _maxPinAttempts = 2;
+
   /// Each workspace's own profile screen. Settings is shared across all four,
   /// so the destination is derived from whichever home route was passed in
   /// rather than duplicating this screen per role.
+  ///
+  /// The `_` arm is reached from LR-012, which sits above role selection and
+  /// so has no home route to derive from. It used to return null, which hid
+  /// the Profile row entirely — and LR-012's profile photo now points here,
+  /// so that would have been a tap that led nowhere. It falls back to the
+  /// last role this device actually used instead. Still null on a genuinely
+  /// first-ever login, where there is no prior role and no profile to show
+  /// yet; the row renders disabled rather than vanishing.
   String? get _profileRoute => switch (widget.homeRoute) {
         '/ow-001' => '/ow-016',
         '/ag-001' => '/ag-009',
         '/cw-001' => '/cw-006',
         '/iw-001' => '/iw-005',
-        _ => null, // reached from the business selector, before a role exists
+        _ => _lastUsedProfileRoute,
       };
+
+  /// Resolved from the entity ids ManaSession caches when LR-013 last
+  /// resolved a membership. Checked most-specific first: an Owner has no
+  /// agent/customer/investor row, so a remembered businessId with none of
+  /// those set is the Owner case.
+  String? get _lastUsedProfileRoute {
+    final session = ManaSession.instance;
+    if (session.lastAgentId != null) return '/ag-009';
+    if (session.lastCustomerId != null) return '/cw-006';
+    if (session.lastInvestorId != null) return '/iw-005';
+    if (session.lastBusinessId != null) return '/ow-016';
+    return null;
+  }
   /// Opens the system share sheet. No app store link yet — MANA LINE is not
   /// published — so the message says what the app is rather than pointing at a
   /// download that would 404. Add the store URL here when there is one.
@@ -144,23 +171,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final fingerprint = await LocalAuthStore.deviceFingerprint();
     if (!mounted) return;
 
-    final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(authApiServiceProvider).login(
-            identifier: mobile,
-            credential: entered,
-            credentialType: 'pin',
-            deviceFingerprint: fingerprint,
-          );
+    // AccountLockedException is caught HERE rather than left to the generic
+    // handler. Verifying a PIN goes through the real login endpoint, so a
+    // wrong PIN increments the SAME server-side failed_pin_attempts counter
+    // as a real login — three wrong guesses in this dialog locked the
+    // account and dumped the person out to the password screen, from a
+    // screen whose only purpose was flipping a convenience toggle.
+    LoginResult? result;
+    AccountLockedException? locked;
+    final reached = await NetworkErrorHandler.run(context, () async {
+      try {
+        result = await ref.read(authApiServiceProvider).login(
+              identifier: mobile,
+              credential: entered,
+              credentialType: 'pin',
+              deviceFingerprint: fingerprint,
+            );
+      } on AccountLockedException catch (e) {
+        locked = e;
+      }
+      return true;
     });
     if (!mounted) return;
     setState(() => _togglingPin = false);
 
-    if (result == null) return; // network failure — SnackBar already shown
-    if (!result.success) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Incorrect PIN.')));
+    if (reached == null) return; // network failure — SnackBar already shown
+
+    if (locked != null) {
+      _pinAttempts = 0;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(locked!.message),
+        duration: const Duration(seconds: 6),
+      ));
       return;
     }
+
+    if (result == null || !result!.success) {
+      _pinAttempts++;
+      final remaining = _maxPinAttempts - _pinAttempts;
+      if (remaining > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Incorrect PIN. $remaining ${remaining == 1 ? "try" : "tries"} left.'),
+        ));
+        // Straight back into the dialog — the toggle is still off, and
+        // making the person find it again to retry is why this read as
+        // "it just logs me out".
+        await _onPinToggled(true);
+      } else {
+        _pinAttempts = 0;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Incorrect PIN. Stopping here so your account is not locked.'),
+          duration: Duration(seconds: 6),
+        ));
+      }
+      return;
+    }
+    _pinAttempts = 0;
 
     // Only stored after the server confirmed it — never on local guesswork.
     await LocalAuthStore.savePin(
@@ -409,14 +475,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: null,
             ),
             _SettingsTile(
-              icon: Icons.no_accounts_outlined,
-              title: 'Switch Off Or Delete Account',
-              subtitle: 'Both are reversible — switching off keeps everything, '
-                  'and a deletion can be stopped for 90 days.',
-              titleColor: ManaColors.statusBad,
-              onTap: () => context.push('/account-closure'),
-            ),
-            _SettingsTile(
               icon: Icons.fingerprint,
               title: 'Biometric Login',
               trailing: _biometricEnabled == null
@@ -433,6 +491,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ? 'Enabled — your fingerprint signs you in on this device.'
                   : 'Enable to sign in with your fingerprint instead of typing your PIN.',
               onTap: null,
+            ),
+            // Deliberately the LAST row of this section, under both sign-in
+            // toggles. It is the only destructive control on the screen, and
+            // a red row sitting directly above the two switches people
+            // actually come here to flip is a mis-tap waiting to happen.
+            _SettingsTile(
+              icon: Icons.no_accounts_outlined,
+              title: 'Switch Off Or Delete Account',
+              subtitle: 'Both are reversible — switching off keeps everything, '
+                  'and a deletion can be stopped for 90 days.',
+              titleColor: ManaColors.statusBad,
+              onTap: () => context.push('/account-closure'),
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('business transfer'),

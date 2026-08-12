@@ -4,6 +4,25 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Mana Line needs camera access to capture your live photo (required for registration and loan issuance, per fraud-prevention policy — gallery photos are never accepted).</string>
+	<!-- Required before geolocator may ask for permission at all: iOS
+	     terminates the app on the request if this key is absent. WhenInUse
+	     only — MANA LINE never reads location in the background, which is
+	     what the consent prompt at first login promises. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Mana Line notes where you are when you register an address or visit a customer, so the visit can be confirmed against that address. It is only read while you are using the app, never in the background, and you can say no — nothing in the app stops working either way.</string>
+	<!-- Required by image_picker's gallery path. iOS terminates the app the
+	     moment the picker opens without this key, and the gallery IS used —
+	     business logo (OW-000/OW-012), profile documents (OW-014) and the
+	     Aadhaar dispute evidence upload (SP-001). It is NOT used for the
+	     live registration photo, which is camera-only by BR-036. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Mana Line needs access to your photos so you can upload your business logo and supporting documents. Your registration photo is always taken with the camera and never chosen from your gallery.</string>
+	<!-- Required by local_auth wherever Face ID exists. mana_biometric.dart
+	     authenticates with biometricOnly: true, so on a Face ID handset this
+	     key is the difference between the prompt appearing and the app being
+	     killed. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Mana Line uses Face ID so you can sign in without typing your PIN. Your PIN always still works, and you can turn this off in Settings.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -17,7 +36,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>mana_line</string>
+	<string>Mana Line</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

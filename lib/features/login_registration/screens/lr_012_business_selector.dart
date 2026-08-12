@@ -233,13 +233,54 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
 
   PreferredSizeWidget _buildHeader(BuildContext context) {
     return AppBar(
-      title: ManaText.raw(_fullName != null ? 'Welcome, $_fullName' : 'Welcome'),
+      // Two lines, not "Welcome, <name>" on one.
+      //
+      // WHY: a single line put a fixed six-character greeting in front of the
+      // part that matters, so the name — which is user data and routinely
+      // three words in this region — was the half that got ellipsed. Names
+      // here really do reach "Karri Siri Manikanta Reddy". Stacking a small
+      // greeting over the name gives the name the full width.
+      titleSpacing: 0,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ManaText.raw(
+            ref.t('welcome'),
+            style: TextStyle(
+              fontSize: 12,
+              color: ManaColors.textSecondary,
+              height: 1.1,
+            ),
+          ),
+          if (_fullName != null)
+            ManaText.raw(
+              _fullName!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+        ],
+      ),
       leading: Padding(
         padding: const EdgeInsets.all(6),
-        child: CircleAvatar(
-          backgroundColor: ManaColors.surfaceSunken,
-          backgroundImage: _profilePhotoUrl != null ? NetworkImage(_profilePhotoUrl!) : null,
-          child: _profilePhotoUrl == null ? const Icon(Icons.person, size: 18) : null,
+        child: Semantics(
+          button: true,
+          label: 'Profile',
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            // Settings is where Profile lives. It is reached from here with
+            // no workspace chosen, so Settings resolves the Profile row from
+            // the last role this device used — see SettingsScreen's own
+            // _profileRoute note.
+            onTap: () => context.push('/settings'),
+            child: CircleAvatar(
+              backgroundColor: ManaColors.surfaceSunken,
+              backgroundImage:
+                  _profilePhotoUrl != null ? NetworkImage(_profilePhotoUrl!) : null,
+              child: _profilePhotoUrl == null ? const Icon(Icons.person, size: 18) : null,
+            ),
+          ),
         ),
       ),
       actions: [
@@ -512,14 +553,24 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
       if (!mounted) return;
       setState(() {
         _applying = false;
-        _error = 'Could not send request — you may already have one pending for this role/business.';
+        // The real message, not a guess. This said "you may already have
+        // one pending" for EVERY failure, which was actively misleading
+        // while the RPC itself was throwing 42883 on every call and no
+        // request had ever been created.
+        _error = e is PostgrestException
+            ? e.message
+            : 'Could not send request. Please try again.';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // SCROLLS. Padding alone accounted for the keyboard but the content
+    // could not move, so once the role chips + search field + confirm card +
+    // button were taller than what the keyboard left behind, it overflowed —
+    // 24px on a real handset. Same class of bug as LR-002's Spacers.
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: ManaSpacing.lg,
         right: ManaSpacing.lg,

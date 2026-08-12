@@ -18,12 +18,35 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        // SCROLLS, and the Column sizes to its content instead of using
+        // Spacer to centre it.
+        //
+        // WHY: this was a fixed-height Column with two Spacers. Spacers
+        // divide up whatever vertical space is LEFT OVER, so the moment the
+        // fixed children (72px logo, heading, two product cards) are taller
+        // than the viewport that leftover goes negative and the layout
+        // overflows — 41px in landscape on a real handset. The identical
+        // fix was already applied to LR-009 for the identical reason; this
+        // screen was simply missed.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: ManaSpacing.xl),
-              ClipOval(
+              // Long-press opens the Platform Admin login.
+              //
+              // The admin panel had NO entry point at all: nothing anywhere
+              // in the app linked to /admin-login, so on the web you could
+              // type the URL and on a phone there was simply no way in. It
+              // is deliberately a long-press on the pre-login logo rather
+              // than a visible row — ordinary Owners should never stumble
+              // into it — and the admin username/password screen is still
+              // the real gate, so discoverability is not the security
+              // boundary here.
+              GestureDetector(
+                onLongPress: () => context.push('/admin-login'),
+                child: ClipOval(
                 child: Image.asset(
                   'assets/images/logo.png',
                   // 1254x1254 source rendered at ~96px. cacheWidth decodes at
@@ -35,6 +58,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                   width: 72,
                   fit: BoxFit.cover,
                 ),
+                ),
               ),
               const SizedBox(height: ManaSpacing.md),
               Text(
@@ -44,7 +68,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                       color: ManaColors.brand,
                     ),
               ),
-              const Spacer(),
+              const SizedBox(height: ManaSpacing.xxl),
               ManaText.raw(ref.t('choose_workspace'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: ManaSpacing.lg),
               _ProductCard(
@@ -61,7 +85,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 badge: ref.t('coming_soon'),
                 onTap: () => _showComingSoon(context, ref),
               ),
-              const Spacer(),
+              const SizedBox(height: ManaSpacing.xxl),
             ],
           ),
         ),

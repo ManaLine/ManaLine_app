@@ -7,7 +7,6 @@ import '../features/login_registration/screens/lr_003_login_registration_choice.
 import '../features/login_registration/screens/lr_004_registration_form.dart';
 import '../features/login_registration/screens/lr_005_otp_verification.dart';
 import '../features/login_registration/screens/lr_006_registration_result.dart';
-import '../features/login_registration/screens/lr_007_first_login.dart';
 import '../features/login_registration/screens/lr_008_create_pin.dart';
 import '../features/login_registration/screens/lr_009_daily_login.dart';
 import '../features/login_registration/screens/lr_010_forgot_password.dart';
@@ -133,9 +132,14 @@ final manaRouter = GoRouter(
     GoRoute(path: '/lr-006', builder: (c, s) => const RegistrationResultScreen()),
     GoRoute(
       path: '/lr-007',
+      // PIN and password are one screen now (see DailyLoginScreen's own
+      // note). This ID is kept and still carries every argument it did
+      // before — it just opens that screen already on the password form,
+      // so nothing that pushes here had to change.
       builder: (c, s) {
         final args = s.extra as LoginStepDownArgs?;
-        return FirstLoginScreen(
+        return DailyLoginScreen(
+          startInPasswordMode: true,
           stepDownFromFailedPin: args?.stepDownFromFailedPin ?? false,
           prefilledMobile: args?.prefilledMobile,
           successToast: args?.successToast,
@@ -177,7 +181,10 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ow-004',
-      builder: (c, s) => CustomerManagementScreen(businessId: _resolveBusinessId(s)),
+      builder: (c, s) => CustomerManagementScreen(
+        businessId: _resolveBusinessId(s),
+        initialAction: s.uri.queryParameters['action'],
+      ),
     ),
     GoRoute(
       path: '/ow-005',

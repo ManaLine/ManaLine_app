@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.mana_line"
+    namespace = "in.manaline.app"
     // Pinned rather than flutter.compileSdkVersion, which resolves to 33 for
     // this Flutter SDK. camera_android_camerax, image_picker_android and
     // app_links all refuse to link below 36, and the failure surfaces as
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.mana_line"
+        applicationId = "in.manaline.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

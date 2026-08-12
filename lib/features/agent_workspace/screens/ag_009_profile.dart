@@ -285,7 +285,10 @@ class _MembershipTile extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: ListTile(
         title: ManaText.raw(membership.businessName),
-        subtitle: ManaText.raw(ref.t('agent')),
+        // The person's real roles on this business, not a hardcoded "Agent" —
+        // see fetchMemberships. Kept over main's ref.t('agent'), which was
+        // translated but still asserted a single role that may be wrong.
+        subtitle: ManaText.raw(membership.rolesLabel),
         trailing: ManaStatusPill(label: membership.membershipStatus, status: _pillStatus),
         onTap: () => context.push('/ag-001', extra: membership.businessId),
       ),

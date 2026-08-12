@@ -9,26 +9,25 @@
 /// navigation (ManaHeaderBlock) drifted the moment screens hand-rolled AppBars
 /// around it.
 ///
-/// LAYOUT DECISION, and it is load-bearing: the spec reads "right = date
-/// dd-mm-yyyy and IST 12-hour time, then Settings / Switch / Logout". Rendered
-/// literally, and with the dashboards' own notifications and search actions
-/// added, that is a menu button, a logo, a two-line name block, a two-line date
-/// block and five icon buttons in one Row — well past 360dp before any text
-/// scaling, and overflow is this codebase's most-shipped bug class (five
-/// times). So the header is two rows:
+/// LAYOUT DECISION, and it is load-bearing: the header is ONE row —
+/// menu, the business name, then the workspace's own [actions] (search,
+/// notifications).
 ///
-///   1. menu, optional logo, identity, and the workspace's own [actions]
-///      (notifications, search — the things that belong to the screen);
-///   2. the date and IST clock on the left, then Settings / Switch / Logout on
-///      the right.
+/// It used to be two rows: identity + actions above, then the date/clock and
+/// Settings / Switch / Logout below. Both rows were then stacked under the
+/// dashboards' own ManaHeaderBlock, so a phone gave up roughly a third of its
+/// height to chrome before showing a single number. Everything that made the
+/// second row has moved into the drawer, which is where a rarely-used global
+/// control belongs and where there is vertical room for it: the clock now sits
+/// under the business name in the drawer header, and Settings / Switch /
+/// Logout are drawer rows.
 ///
-/// That keeps the spec's grouping — date/time and the three global controls
-/// together, away from the per-screen actions — and fits at 2.0x.
-///
-/// The clock comes from `manaClock12()`, never `DateTime.now()` — a header
+/// The clock comes from `manaClock12*()`, never `DateTime.now()` — a header
 /// showing a different day from the one the database stamps rows with reads as
 /// the app being wrong about the business day.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,11 +53,24 @@ class ManaDrawerSection {
   final String labelKey;
   final List<ManaDrawerAction> actions;
 
+  /// Set INSTEAD of [actions] for a row that is a destination in its own
+  /// right rather than a group — Profile and Logout, which have nothing
+  /// beneath them. Rendered as a plain tile, so it acts on the first tap;
+  /// giving it a chevron that opens a list containing only itself would be
+  /// two taps to do one thing.
+  final VoidCallback? onTap;
+
   const ManaDrawerSection({
     required this.icon,
     required this.labelKey,
-    required this.actions,
+    this.actions = const [],
+    this.onTap,
   });
+
+  /// No children — render as a plain tile. A leaf with a null [onTap] is
+  /// legitimate: it shows disabled, which is how this drawer has always
+  /// signalled "exists, not yours" rather than hiding the row.
+  bool get isLeaf => actions.isEmpty;
 }
 
 /// One destination inside a [ManaDrawerSection].
@@ -72,6 +84,53 @@ class ManaDrawerAction {
   final VoidCallback? onTap;
 
   const ManaDrawerAction({required this.labelKey, this.onTap});
+}
+
+/// The global rows every workspace's drawer ends with — Profile, Switch
+/// Workspace, Switch Role, Settings, Logout, in that order.
+///
+/// These used to be icons in the header's second row (Settings / Switch /
+/// Logout) plus, on the Owner dashboard, a separate overflow menu. Both are
+/// gone; the drawer is now the single place a global control lives, and this
+/// helper is what stops the four workspaces from each inventing their own
+/// order and labels for the same five things.
+///
+/// A null callback renders the row disabled rather than dropping it — same
+/// reasoning as [ManaDrawerAction.onTap].
+List<ManaDrawerSection> manaGlobalDrawerSections({
+  VoidCallback? onProfile,
+  VoidCallback? onSwitchWorkspace,
+  VoidCallback? onSwitchRole,
+  VoidCallback? onSettings,
+  VoidCallback? onLogout,
+}) {
+  return [
+    ManaDrawerSection(
+      icon: Icons.person_outline,
+      labelKey: 'profile',
+      onTap: onProfile,
+    ),
+    ManaDrawerSection(
+      icon: Icons.swap_horiz,
+      labelKey: 'switch_workspace',
+      onTap: onSwitchWorkspace,
+    ),
+    ManaDrawerSection(
+      icon: Icons.badge_outlined,
+      labelKey: 'switch_role',
+      onTap: onSwitchRole,
+    ),
+    ManaDrawerSection(
+      icon: Icons.settings_outlined,
+      labelKey: 'settings',
+      onTap: onSettings,
+    ),
+    ManaDrawerSection(
+      icon: Icons.logout,
+      labelKey: 'logout',
+      onTap: onLogout,
+    ),
+  ];
 }
 
 class ManaAppShell extends StatelessWidget {
@@ -91,20 +150,13 @@ class ManaAppShell extends StatelessWidget {
   /// block. Sized and clipped here.
   final Widget? leading;
 
-  /// The screen's OWN header controls — notifications, search. Kept separate
-  /// from Settings/Switch/Logout because those three are global and belong on
-  /// the second row; mixing them put five icons in one row.
+  /// The screen's OWN header controls — search, notifications. These are the
+  /// only icons left in the header; Settings / Switch / Logout used to sit
+  /// beside them and are drawer rows now (see [sections]).
   ///
   /// Use `ManaHeaderAction` so the 48dp target and the accessible name cannot
   /// be forgotten.
   final List<Widget> actions;
-
-  final VoidCallback? onSettings;
-
-  /// Switch workspace / role.
-  final VoidCallback? onSwitch;
-
-  final VoidCallback? onLogout;
 
   final Widget body;
 
@@ -117,17 +169,23 @@ class ManaAppShell extends StatelessWidget {
   /// leaves it null and reads the IST wall clock.
   final DateTime? now;
 
+  /// Second line under the business name — the day and date. Lives in the
+  /// header rather than in a second block below it; see [_ShellHeader].
+  final String? subtitle;
+
+  /// Tapping the logo. Null leaves it inert.
+  final VoidCallback? onLeadingTap;
+
   const ManaAppShell({
     super.key,
     required this.userName,
     required this.body,
     this.businessName,
+    this.subtitle,
     this.sections = const [],
     this.leading,
+    this.onLeadingTap,
     this.actions = const [],
-    this.onSettings,
-    this.onSwitch,
-    this.onLogout,
     this.bottomNavigationBar,
     this.floatingActionButton,
     this.now,
@@ -140,18 +198,17 @@ class ManaAppShell extends StatelessWidget {
         userName: userName,
         businessName: businessName,
         sections: sections,
+        now: now,
       ),
       body: Column(
         children: [
           _ShellHeader(
-            userName: userName,
             businessName: businessName,
+            userName: userName,
+            subtitle: subtitle,
             leading: leading,
+            onLeadingTap: onLeadingTap,
             actions: actions,
-            onSettings: onSettings,
-            onSwitch: onSwitch,
-            onLogout: onLogout,
-            now: now,
           ),
           Expanded(child: body),
         ],
@@ -162,25 +219,31 @@ class ManaAppShell extends StatelessWidget {
   }
 }
 
+/// THE header. Not "the top one of two".
+///
+/// Screens used to draw their own ManaHeaderBlock immediately under this
+/// bar, so the business name, the logo and the date appeared twice, one
+/// row apart, in two different colours — see the OW-001 screenshots that
+/// prompted this. Everything those blocks carried now lives here:
+/// [leading] takes the business logo, [subtitle] the day and date, and
+/// [actions] the notification and search buttons. One bar, one truth.
 class _ShellHeader extends StatelessWidget {
-  final String userName;
+  /// The header's title line. Falls back to [userName] before a business is
+  /// chosen, so the bar is never anonymous.
   final String? businessName;
+  final String userName;
+  final String? subtitle;
   final Widget? leading;
+  final VoidCallback? onLeadingTap;
   final List<Widget> actions;
-  final VoidCallback? onSettings;
-  final VoidCallback? onSwitch;
-  final VoidCallback? onLogout;
-  final DateTime? now;
 
   const _ShellHeader({
-    required this.userName,
     required this.businessName,
+    required this.userName,
+    required this.subtitle,
     required this.leading,
+    required this.onLeadingTap,
     required this.actions,
-    required this.onSettings,
-    required this.onSwitch,
-    required this.onLogout,
-    required this.now,
   });
 
   @override
@@ -196,100 +259,70 @@ class _ShellHeader extends StatelessWidget {
         right: ManaSpacing.sm,
         bottom: ManaSpacing.sm,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
         children: [
-          Row(
-            children: [
-              // Builder, because opening the drawer needs a context BELOW the
-              // Scaffold — `Scaffold.of(context)` at the shell's own level
-              // finds the parent route's Scaffold, or throws.
-              Builder(
-                builder: (inner) => _ShellIcon(
-                  icon: Icons.menu,
-                  label: 'Menu',
-                  onPressed: () => Scaffold.of(inner).openDrawer(),
-                ),
-              ),
-              if (leading != null) ...[
-                ClipRRect(
+          // Builder, because opening the drawer needs a context BELOW the
+          // Scaffold — `Scaffold.of(context)` at the shell's own level
+          // finds the parent route's Scaffold, or throws.
+          Builder(
+            builder: (inner) => _ShellIcon(
+              icon: Icons.menu,
+              label: 'Menu',
+              onPressed: () => Scaffold.of(inner).openDrawer(),
+            ),
+          ),
+          if (leading != null) ...[
+            Semantics(
+              button: onLeadingTap != null,
+              label: onLeadingTap != null ? 'Business Profile' : null,
+              child: InkWell(
+                onTap: onLeadingTap,
+                borderRadius: BorderRadius.circular(ManaRadius.ring),
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(ManaRadius.ring),
                   child: SizedBox(width: 32, height: 32, child: leading),
                 ),
-                const SizedBox(width: ManaSpacing.sm),
-              ],
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        userName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: ManaColors.textOnDark,
-                        ),
-                      ),
-                      if (businessName != null)
-                        Text(
-                          businessName!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            // Not a dimmed white — at 13sp on blue, opacity
-                            // drops this under the contrast floor.
-                            color: ManaColors.textOnDark,
-                            height: 1.3,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
               ),
-              ...actions,
-            ],
-          ),
-          // Second row: clock, then the three global controls. See the layout
-          // note at the top of this file for why these are not in row one.
-          Row(
-            children: [
-              // Expanded, not a bare Text: at 2.0x the date string alone is
-              // wider than the space left beside three 48dp buttons, and an
-              // unflexible child beside flexible siblings is the exact shape
-              // that has overflowed here five times.
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: ManaSpacing.xs),
+            ),
+            const SizedBox(width: ManaSpacing.sm),
+          ],
+          // Expanded so the title yields to the action icons instead of
+          // pushing them off the edge — an unflexible child beside flexible
+          // siblings is the exact shape that has overflowed here five times.
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  header: true,
                   child: Text(
-                    '${manaDisplayDate(now)}  •  ${manaClock12(now)}',
+                    (businessName != null && businessName!.isNotEmpty)
+                        ? businessName!
+                        : userName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                       color: ManaColors.textOnDark,
-                      height: 1.2,
                     ),
                   ),
                 ),
-              ),
-              _ShellIcon(
-                  icon: Icons.settings_outlined,
-                  label: 'Settings',
-                  onPressed: onSettings),
-              _ShellIcon(
-                  icon: Icons.swap_horiz,
-                  label: 'Switch Workspace Or Role',
-                  onPressed: onSwitch),
-              _ShellIcon(
-                  icon: Icons.logout, label: 'Logout', onPressed: onLogout),
-            ],
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: ManaColors.textOnDark,
+                    ),
+                  ),
+              ],
+            ),
           ),
+          ...actions,
         ],
       ),
     );
@@ -341,19 +374,56 @@ class _ShellIcon extends StatelessWidget {
   }
 }
 
-class _ManaDrawer extends ConsumerWidget {
+class _ManaDrawer extends ConsumerStatefulWidget {
   final String userName;
   final String? businessName;
   final List<ManaDrawerSection> sections;
+  final DateTime? now;
 
   const _ManaDrawer({
     required this.userName,
     required this.businessName,
     required this.sections,
+    required this.now,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ManaDrawer> createState() => _ManaDrawerState();
+}
+
+class _ManaDrawerState extends ConsumerState<_ManaDrawer> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    // Only runs while the drawer is on screen: Flutter's DrawerController
+    // does not build its child while the drawer is closed, so this State is
+    // created on open and disposed on close. That is the whole reason the
+    // seconds field is affordable — a clock ticking behind every screen
+    // would be a rebuild per second for something nobody is looking at.
+    //
+    // Skipped entirely when `now` is injected, so tests stay deterministic
+    // and do not leave a live timer running past the test.
+    if (widget.now == null) {
+      _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userName = widget.userName;
+    final businessName = widget.businessName;
+    final sections = widget.sections;
+
     return Drawer(
       child: SafeArea(
         child: ListView(
@@ -379,7 +449,7 @@ class _ManaDrawer extends ConsumerWidget {
                   ),
                   if (businessName != null)
                     Text(
-                      businessName!,
+                      businessName,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -388,38 +458,69 @@ class _ManaDrawer extends ConsumerWidget {
                         height: 1.3,
                       ),
                     ),
+                  // The date and IST clock, moved out of the header. Seconds
+                  // are shown because this one actually ticks — see the
+                  // timer in initState.
+                  const SizedBox(height: ManaSpacing.xs),
+                  Text(
+                    '${manaDisplayDateWithWeekday(widget.now)}  •  '
+                    '${manaClock12WithSeconds(widget.now)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: ManaColors.textOnDark,
+                      height: 1.2,
+                    ),
+                  ),
                 ],
               ),
             ),
             for (final s in sections)
-              ExpansionTile(
-                leading: Icon(s.icon, color: ManaColors.brandDeep),
-                title: ManaText(ref.t(s.labelKey)),
-                // Every child is a full-width tile rather than an indented
-                // label, so the tap target stays the row.
-                children: [
-                  for (final a in s.actions)
-                    ListTile(
-                      // Indent only the content, so the row itself — and its
-                      // tap target — still spans the drawer.
-                      contentPadding: const EdgeInsets.only(
-                        left: ManaSpacing.xl,
-                        right: ManaSpacing.lg,
+              if (s.isLeaf)
+                // A destination, not a group — Profile, Logout. Plain tile so
+                // one tap does the thing.
+                ListTile(
+                  leading: Icon(s.icon, color: ManaColors.brandDeep),
+                  title: ManaText(ref.t(s.labelKey)),
+                  enabled: s.onTap != null,
+                  onTap: s.onTap == null
+                      ? null
+                      : () {
+                          Navigator.of(context).pop();
+                          s.onTap!();
+                        },
+                )
+              else
+                ExpansionTile(
+                  leading: Icon(s.icon, color: ManaColors.brandDeep),
+                  title: ManaText(ref.t(s.labelKey)),
+                  // Every child is a full-width tile rather than an indented
+                  // label, so the tap target stays the row.
+                  children: [
+                    for (final a in s.actions)
+                      ListTile(
+                        // Indent only the content, so the row itself — and
+                        // its tap target — still spans the drawer.
+                        contentPadding: const EdgeInsets.only(
+                          left: ManaSpacing.xl,
+                          right: ManaSpacing.lg,
+                        ),
+                        title: ManaText(ref.t(a.labelKey)),
+                        enabled: a.onTap != null,
+                        onTap: a.onTap == null
+                            ? null
+                            : () {
+                                // Close the drawer before navigating, or it
+                                // stays mounted over the destination and the
+                                // next Back dismisses the drawer instead of
+                                // the screen.
+                                Navigator.of(context).pop();
+                                a.onTap!();
+                              },
                       ),
-                      title: ManaText(ref.t(a.labelKey)),
-                      enabled: a.onTap != null,
-                      onTap: a.onTap == null
-                          ? null
-                          : () {
-                              // Close the drawer before navigating, or it stays
-                              // mounted over the destination and the next Back
-                              // dismisses the drawer instead of the screen.
-                              Navigator.of(context).pop();
-                              a.onTap!();
-                            },
-                    ),
-                ],
-              ),
+                  ],
+                ),
           ],
         ),
       ),

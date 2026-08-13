@@ -457,6 +457,43 @@ class GlobalWorkflowNotifier extends Notifier<GlobalWorkflowState> {
     }
   }
 
+  /// Attach an existing person to this business straight away — no request,
+  /// no approval step.
+  ///
+  /// This is what OW-004 "Add Existing Customer" and OW-002 "Add Existing
+  /// Agent" always meant. The Owner is standing with the person; there is
+  /// nobody else to ask. It writes the business_members row directly with
+  /// onboarding_method 'ID Lookup', the same path
+  /// BusinessManagementNotifier._addExistingMember already used.
+  ///
+  /// Investors deliberately do NOT come through here — see requestMembership.
+  Future<bool> addExistingMemberDirect({required String businessId}) async {
+    final result = state.searchResult;
+    final type = state.memberType;
+    if (result == null || type == null) return false;
+    if (type == MemberType.investor) {
+      // Guard rather than silently doing the wrong thing: an investor
+      // relationship is investor-initiated and must stay a request.
+      state = state.copyWith(
+        error: 'Investors join by request, not by direct add.',
+      );
+      return false;
+    }
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      await ref.read(globalWorkflowApiServiceProvider).attachNewPersonToBusiness(
+            businessId: businessId,
+            personId: result.personId,
+            type: type,
+          );
+      state = state.copyWith(loading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+      return false;
+    }
+  }
+
   Future<bool> createPreExistingMember({
     required String businessId,
     required String fullName,

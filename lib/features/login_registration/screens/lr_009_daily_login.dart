@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_brand_mark.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 import '../../../shared/mana_biometric.dart';
@@ -515,7 +516,12 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: ManaSpacing.xl),
+              const SizedBox(height: ManaSpacing.lg),
+              // Logo, name and tagline sit above the avatar: on the first
+              // screen after choosing a workspace, the app has to say what it
+              // is before it says who you are.
+              const ManaBrandMark(logoSize: 52),
+              const SizedBox(height: ManaSpacing.lg),
               const ManaVerificationRing(isVerified: true, size: 64),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
@@ -572,9 +578,15 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               //
               // "Login with Password" and "Register" used to sit here too.
               // The first is now the AppBar's back arrow, and the second is
-              // reachable from LR-007 once you're there. Change User stays:
-              // without it a wrongly-remembered device has no escape short
-              // of clearing app data.
+              // reachable from LR-007 once you're there.
+              //
+              // Forgot PIN and Change User are hidden in PASSWORD mode. In PIN
+              // mode they are the only ways out of a PIN you cannot recall or
+              // a device remembering the wrong person. On the password form
+              // neither applies: there is no PIN being asked for, and you
+              // switch person simply by typing a different mobile number —
+              // which is exactly why they read as clutter there.
+              if (!_passwordMode)
               Wrap(
                 alignment: WrapAlignment.center,
                 spacing: ManaSpacing.sm,

@@ -577,7 +577,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               titleColor: ManaColors.statusBad,
               onTap: () {
                 ref.read(authFlowProvider.notifier).reset();
-                context.go('/lr-003');
+                context.go('/lr-009');
               },
             ),
           ],

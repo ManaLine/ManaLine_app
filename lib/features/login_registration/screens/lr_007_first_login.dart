@@ -68,8 +68,16 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
   final _password = TextEditingController();
   bool _submitting = false;
   bool _obscurePassword = true;
+
+  /// Blocking consent gate — see the checkbox and [canSubmit] in build().
+  /// Not persisted on purpose: registration stores terms_accepted_at, and
+  /// this per-login confirmation is a separate, deliberate re-ask.
+  bool _acceptedTerms = false;
+
   String? _error;
-  String? _pendingRedirect; // set when "forgot pin?" needs to verify password first, then hand off
+  /// Set when a flow needs the password verified before handing off (LR-009's
+  /// PIN pane still routes its "forgot pin?" through here).
+  String? _pendingRedirect;
 
   @override
   void initState() {
@@ -182,9 +190,14 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
           bytes: pendingPhoto,
           personId: personId,
         );
+        // Both columns, and they mean different things from here on.
+        // live_photo_url is the registration capture and is written exactly
+        // once — this is the only place that sets it. profile_photo_url is
+        // seeded from it so the app has a picture immediately, and is what an
+        // upload in Profile later replaces.
         await Supabase.instance.client
             .from('persons')
-            .update({'profile_photo_url': url})
+            .update({'profile_photo_url': url, 'live_photo_url': url})
             .eq('person_id', personId);
 
         // Also record it as an identity document. WHY HERE: a self-registered
@@ -302,11 +315,48 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     }
   }
 
+  /// Terms in a dialog rather than a route: it is a thing to read and dismiss,
+  /// not a place to be, and pushing a screen mid-login loses the typed
+  /// credentials on some Android back behaviours.
+  Future<void> _showTerms() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: ManaText.raw(ref.t('terms_and_conditions')),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: ManaText.raw(
+              ref.t('terms_body'),
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: ManaText.raw(ref.t('close')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _acceptedTerms = true);
+              Navigator.of(dialogContext).pop();
+            },
+            child: ManaText.raw(ref.t('accept')),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(translationLoaderProvider);
     final lang = ref.watch(authFlowProvider).language;
-    final canSubmit = _mobile.text.length == 10 && _password.text.isNotEmpty;
+    // Terms are part of the gate, not decoration beside it — a tick box that
+    // does not block is a tick box nobody reads.
+    final canSubmit =
+        _mobile.text.length == 10 && _password.text.isNotEmpty && _acceptedTerms;
 
     if (widget.embedded) return _form(lang, canSubmit);
 
@@ -350,7 +400,13 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                 keyboardType: TextInputType.phone,
                 maxLength: 10,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Mobile Number *'),
+                decoration: const InputDecoration(
+                  labelText: 'Mobile Number *',
+                  // maxLength still enforces 10 digits; counterText kills the
+                  // "0/10" readout under the field. It counts up while you
+                  // type your own phone number, which nobody needs told.
+                  counterText: '',
+                ),
               ),
               TextField(
                 controller: _password,
@@ -364,43 +420,44 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                   ),
                 ),
               ),
+              // Forgot PIN removed: this is the password form. There is no PIN
+              // being asked for here, so a PIN-recovery link is noise — and it
+              // is still reachable from the PIN pane, which is where it means
+              // something.
               Align(
                 alignment: Alignment.centerRight,
-                child: Wrap(
-                  children: [
-                    TextButton(
-                      onPressed: (_mobile.text.length == 10 && _password.text.isNotEmpty && !_submitting)
-                          ? () {
-                              // Was: blind context.push('/lr-011') — landed on Forgot
-                              // Pin with no personId ever established (whoever's PIN
-                              // is being reset was never verified), causing "session
-                              // expired" as soon as that screen tried to act on an
-                              // identity it never actually had. Fix: verify the
-                              // password already typed here via the normal _login
-                              // flow first, THEN hand off to LR-011 only on success —
-                              // same pattern already used for LR-009's own
-                              // "forgot pin?" link.
-                              setState(() => _pendingRedirect = '/lr-011');
-                              _login();
-                            }
-                          : null,
-                      child: ManaText.raw(ref.t('forgot_pin')),
+                child: TextButton(
+                  onPressed: () => context.push('/lr-010'),
+                  child: ManaText.raw(ref.t('forgot_password')),
+                ),
+              ),
+              // Consent gate. Registration already records terms_accepted_at,
+              // so for an existing account this is a second, per-login
+              // confirmation rather than the first one — deliberate, and it
+              // blocks: the Login button stays disabled until it is ticked.
+              CheckboxListTile(
+                value: _acceptedTerms,
+                onChanged: (v) => setState(() => _acceptedTerms = v ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: ManaText.raw(
+                  ref.t('accept_terms_to_continue'),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                ),
+                subtitle: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: _showTerms,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    TextButton(
-                      onPressed: () => context.push('/lr-010'),
-                      child: ManaText.raw(ref.t('forgot_password')),
-                    ),
-                    // Was missing: someone who is not yet registered could
-                    // reach this password form (it is the generic login screen)
-                    // and had no route to registration from it. No "change
-                    // user" here, unlike LR-009 — on this screen you simply
-                    // type a different mobile number, so there is no remembered
-                    // identity to switch away from.
-                    TextButton(
-                      onPressed: () => context.push('/lr-004'),
-                      child: ManaText.raw(ref.t('register_button')),
-                    ),
-                  ],
+                    child: ManaText.raw(ref.t('read_terms')),
+                  ),
                 ),
               ),
               if (_error != null) ManaText.raw(_error!),
@@ -411,6 +468,14 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                     ? const SizedBox(
                         width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : ManaText.raw(ref.t('login_button')),
+              ),
+              // Register sits BELOW the login button: logging in is what most
+              // people opening this screen came to do, and registration is the
+              // exception. It was previously in a row of links above the
+              // button, competing with them.
+              TextButton(
+                onPressed: () => context.push('/lr-004'),
+                child: ManaText.raw(ref.t('register_button')),
               ),
               // The host draws the language selector in embedded mode, so
               // drawing it here too would put two on the same screen.

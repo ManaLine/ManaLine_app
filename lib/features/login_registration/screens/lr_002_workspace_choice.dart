@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_brand_mark.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/translation_service.dart';
 
@@ -68,6 +69,22 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                       color: ManaColors.brand,
                     ),
               ),
+              const SizedBox(height: 2),
+              // Not translated: the tagline is the brand, and a brand that
+              // changes wording per language stops being one. Same constant
+              // the login screen uses, so the two cannot drift.
+              ManaText.raw(
+                kManaTagline,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2.0,
+                  color: ManaColors.textSecondary,
+                ),
+              ),
               const SizedBox(height: ManaSpacing.xxl),
               ManaText.raw(ref.t('choose_workspace'), style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: ManaSpacing.lg),
@@ -75,12 +92,18 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 code: 'MLF',
                 name: 'Mana Finance',
                 enabled: true,
-                onTap: () => context.push('/lr-003'),
+                // Straight to the login screen. LR-003 ("Already registered?
+                // Login / Register") used to sit here and has been deleted:
+                // it asked a question the app can answer itself. LR-009 shows
+                // the PIN pad when this device has a PIN and the password
+                // form when it does not, and Register is a button on that
+                // form — so the choice screen was a tap that told us nothing.
+                onTap: () => context.push('/lr-009'),
               ),
               const SizedBox(height: ManaSpacing.md),
               _ProductCard(
                 code: 'MLC',
-                name: 'Mana Chits',
+                name: 'Mana Cheeti',
                 enabled: false,
                 badge: ref.t('coming_soon'),
                 onTap: () => _showComingSoon(context, ref),

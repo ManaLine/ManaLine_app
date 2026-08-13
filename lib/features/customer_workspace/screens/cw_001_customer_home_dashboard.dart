@@ -104,7 +104,7 @@ class _CustomerHomeDashboardScreenState
               context.push('/cw-settings', extra: widget.businessId),
           onLogout: () {
             ref.read(authFlowProvider.notifier).reset();
-            context.go('/lr-003');
+            context.go('/lr-009');
           },
         ),
       ],

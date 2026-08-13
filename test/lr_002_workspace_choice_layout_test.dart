@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mana_line/design/components/mana_brand_mark.dart';
 import 'package:mana_line/features/login_registration/screens/lr_002_workspace_choice.dart';
 import 'package:mana_line/shared/widgets/language_selector.dart';
 
@@ -67,6 +68,13 @@ void main() {
   testWidgets('LR-002 shows both products', (tester) async {
     await pumpManaScreen(tester, const WorkspaceChoiceScreen());
     expect(find.text('Mana Finance'), findsOneWidget);
-    expect(find.text('Mana Chits'), findsOneWidget);
+    // Cheeti, not Chits: the product is spelled Cheeti everywhere in the UI
+    // now. This test caught the rename, which is what it is for.
+    expect(find.text('Mana Cheeti'), findsOneWidget);
+  });
+
+  testWidgets('LR-002 shows the tagline under the app name', (tester) async {
+    await pumpManaScreen(tester, const WorkspaceChoiceScreen());
+    expect(find.text(kManaTagline), findsOneWidget);
   });
 }

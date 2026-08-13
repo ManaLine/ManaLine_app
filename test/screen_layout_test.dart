@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mana_line/features/login_registration/screens/lr_003_login_registration_choice.dart';
 import 'package:mana_line/features/login_registration/screens/lr_007_first_login.dart';
 import 'package:mana_line/features/login_registration/screens/lr_009_daily_login.dart';
 import 'package:mana_line/features/login_registration/screens/lr_012_business_selector.dart';
@@ -105,33 +104,9 @@ void main() {
     });
   });
 
-  // LR-003 is one of the two screens that shipped an overflow this week.
-  group('LR-003 Login / Registration Choice', () {
-    for (final scale in kManaTextScales) {
-      testWidgets('survives text scale ${scale}x', (tester) async {
-        await pumpManaScreen(
-          tester,
-          const LoginRegistrationChoiceScreen(),
-          textScale: scale,
-        );
-
-        expectNoLayoutFault(tester, 'LR-003 at ${scale}x');
-      });
-    }
-
-    for (final language in ManaLanguage.values) {
-      testWidgets('${language.enumValue} at 1.6x', (tester) async {
-        await pumpManaScreen(
-          tester,
-          const LoginRegistrationChoiceScreen(),
-          language: language,
-          textScale: 1.6,
-        );
-
-        expectNoLayoutFault(tester, 'LR-003 in ${language.enumValue} at 1.6x');
-      });
-    }
-  });
+  // LR-003 (Login / Registration Choice) was deleted: it asked "already
+  // registered?", which LR-009 answers by itself. Its layout tests went with
+  // it rather than being left pointing at a screen nobody can reach.
 
   // LR-007 is the other. Its login button overflowed in 4fddbb8.
   group('LR-007 First Login', () {

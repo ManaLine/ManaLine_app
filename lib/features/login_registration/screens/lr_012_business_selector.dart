@@ -294,7 +294,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                 _openRequestJoinFlow(context);
               case 'logout':
                 ref.read(authFlowProvider.notifier).reset();
-                context.go('/lr-003');
+                context.go('/lr-009');
             }
           },
           itemBuilder: (_) => [

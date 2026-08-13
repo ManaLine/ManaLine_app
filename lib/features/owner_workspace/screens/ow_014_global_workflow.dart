@@ -166,29 +166,90 @@ class _FoundStep extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        ElevatedButton(
-          onPressed: state.loading
-              ? null
-              : () async {
-                  await NetworkErrorHandler.run(context, () async {
-                    return ref
-                        .read(globalWorkflowProvider.notifier)
-                        .requestMembership(businessId: businessId, invitedByPersonId: invitedBy);
-                  });
-                  if (context.mounted) {
-                    final memberType = ref.read(globalWorkflowProvider).memberType ?? 'Member';
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: ManaText.raw(ref
-                              .t('request_sent_note')
-                              .replaceAll('{mlid}', result.mlid)
-                              .replaceAll('{type}', '$memberType'))),
-                    );
-                  }
-                },
-          child: ManaText.raw(ref.t('request_business_membership')),
+        // The action depends on WHO is being added, and it used to not.
+        //
+        // This screen is shared by OW-002 (agent), OW-003 (investor) and
+        // OW-004 (customer) via /ow-014?type=..., but it hardcoded
+        // requestMembership for all three — so an Owner adding a customer
+        // standing at the counter was told "Request Business Membership" and
+        // got a membership_requests row nobody would ever approve. The direct
+        // path (addExistingCustomer / addExistingAgent, onboarding_method
+        // 'ID Lookup') already existed and was simply never called from here.
+        //
+        // Customer and agent: added directly by the Owner, who is with them.
+        // Investor: stays request-based — that relationship is
+        // investor-initiated by design (IW-002 writes the request, the Owner
+        // accepts), and money is being taken in rather than lent out.
+        _AddMemberButton(
+          businessId: businessId,
+          invitedBy: invitedBy,
+          personName: result.fullName,
+          mlid: result.mlid,
         ),
       ],
+    );
+  }
+}
+
+/// The found-step action, chosen by member type.
+///
+/// Customer and agent are added directly; investor sends a request. Split out
+/// so the difference is visible in one place rather than buried in a ternary
+/// inside a button.
+class _AddMemberButton extends ConsumerWidget {
+  final String businessId;
+  final String invitedBy;
+  final String personName;
+  final String mlid;
+
+  const _AddMemberButton({
+    required this.businessId,
+    required this.invitedBy,
+    required this.personName,
+    required this.mlid,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(globalWorkflowProvider);
+    final type = state.memberType;
+    final isInvestor = type == MemberType.investor;
+
+    final label = switch (type) {
+      MemberType.agent => ref.t('add_agent_to_business'),
+      MemberType.investor => ref.t('request_business_membership'),
+      _ => ref.t('add_customer_to_business'),
+    };
+
+    return ElevatedButton(
+      onPressed: state.loading
+          ? null
+          : () async {
+              final notifier = ref.read(globalWorkflowProvider.notifier);
+              final ok = await NetworkErrorHandler.run(context, () async {
+                return isInvestor
+                    ? notifier.requestMembership(
+                        businessId: businessId, invitedByPersonId: invitedBy)
+                    : notifier.addExistingMemberDirect(businessId: businessId);
+              });
+              if (!context.mounted) return;
+              // Only claim success when it succeeded. The old code showed
+              // "request sent" unconditionally, including after a failure.
+              if (ok != true) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: ManaText.raw(
+                    isInvestor
+                        ? ref
+                            .t('request_sent_note')
+                            .replaceAll('{mlid}', mlid)
+                            .replaceAll('{type}', type?.label ?? 'Member')
+                        : ref.t('member_added_note').replaceAll('{name}', personName),
+                  ),
+                ),
+              );
+            },
+      child: ManaText.raw(label),
     );
   }
 }

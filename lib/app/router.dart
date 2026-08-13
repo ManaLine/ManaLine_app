@@ -3,7 +3,6 @@ import 'design_showcase_screen.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
 import '../features/login_registration/screens/lr_001_system_startup.dart';
 import '../features/login_registration/screens/lr_002_workspace_choice.dart';
-import '../features/login_registration/screens/lr_003_login_registration_choice.dart';
 import '../features/login_registration/screens/lr_004_registration_form.dart';
 import '../features/login_registration/screens/lr_005_otp_verification.dart';
 import '../features/login_registration/screens/lr_006_registration_result.dart';
@@ -116,7 +115,10 @@ final manaRouter = GoRouter(
     // LR-013 are still placeholders — next batch.
     GoRoute(path: '/lr-001', builder: (c, s) => const SystemStartupScreen()),
     GoRoute(path: '/lr-002', builder: (c, s) => const WorkspaceChoiceScreen()),
-    GoRoute(path: '/lr-003', builder: (c, s) => const LoginRegistrationChoiceScreen()),
+    // /lr-003 (Login-or-Register choice) is deliberately gone. It asked
+    // "already registered?" — a question LR-009 answers by itself, showing
+    // the PIN pad when the device has a PIN and the password form (with a
+    // Register button) when it does not. Logout now lands on /lr-009.
     GoRoute(path: '/lr-004', builder: (c, s) => const RegistrationFormScreen()),
     GoRoute(
       path: '/lr-005',

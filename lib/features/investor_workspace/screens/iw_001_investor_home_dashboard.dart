@@ -89,7 +89,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
               context.push('/iw-settings', extra: widget.businessId),
           onLogout: () {
             ref.read(authFlowProvider.notifier).reset();
-            context.go('/lr-003');
+            context.go('/lr-009');
           },
         ),
       ],

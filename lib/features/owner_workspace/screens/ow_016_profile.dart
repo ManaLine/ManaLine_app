@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -51,15 +54,39 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
   /// reason the welcome header shows no photo: the row's
   /// profile_photo_url is NULL, not a rendering bug.
   ///
-  /// Uses the same live face capture as registration rather than a gallery
-  /// pick, deliberately: this photo sits inside the verification ring and
-  /// is identity evidence, so it must stay a live capture of the person in
-  /// front of the camera and not an arbitrary image from the device.
-  Future<void> _changePhoto() async {
+  /// A gallery pick is allowed here now, which it deliberately was not
+  /// before. The reason that changed: persons.live_photo_url now holds the
+  /// registration capture permanently and separately, so identity evidence no
+  /// longer depends on this column. profile_photo_url is the picture the
+  /// person chooses to show; the live capture stays put and stays viewable.
+  ///
+  /// Before that column existed, a gallery pick here would have destroyed the
+  /// only live photo of the person — which is why the old code forced the
+  /// camera.
+  Future<void> _changePhoto({required bool fromGallery}) async {
     final personId = ref.read(authFlowProvider).personId;
     if (personId == null) return;
-    final bytes = await LiveFaceCaptureScreen.capture(context);
+
+    Uint8List? bytes;
+    if (fromGallery) {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        // Downscale at pick time as well as in ProfilePhotoUpload: a modern
+        // phone camera roll image is 4-6 MB and decoding it whole on a 2 GB
+        // handset is how this OOMs before compression ever runs.
+        maxWidth: 1440,
+        maxHeight: 1440,
+      );
+      if (picked == null) return;
+      bytes = await picked.readAsBytes();
+    } else {
+      bytes = await LiveFaceCaptureScreen.capture(context);
+    }
     if (bytes == null || !mounted) return;
+    // Bound to a final before the closure below: `bytes` is reassigned across
+    // the two branches above, so Dart will not promote it to non-null inside
+    // a callback.
+    final photoBytes = bytes;
 
     setState(() => _savingPhoto = true);
     // Through NetworkErrorHandler, not a silent try/catch — if this fails
@@ -71,9 +98,12 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
       // Same bucket and path shape LR-007 writes, so a retry overwrites the
       // original rather than orphaning it.
       final url = await ProfilePhotoUpload.upload(
-        bytes: bytes,
+        bytes: photoBytes,
         personId: personId,
       );
+      // profile_photo_url only. live_photo_url is written once at first login
+      // and is deliberately not touched here — that is the whole point of the
+      // split, and it is what keeps "View Live Photo" meaningful.
       await db.from('persons').update({'profile_photo_url': url}).eq('person_id', personId);
       return true;
     });
@@ -99,7 +129,8 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
       final person = await Supabase.instance.client
           .from('persons')
           .select(
-              'full_name, mlid, mobile_number, verification_ring, father_husband_name, profile_photo_url')
+              'full_name, mlid, mobile_number, verification_ring, father_husband_name, '
+              'profile_photo_url, live_photo_url')
           .eq('person_id', personId)
           .single();
 
@@ -254,7 +285,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                       OutlinedButton.icon(
                         onPressed: () {
                           ref.read(authFlowProvider.notifier).reset();
-                          context.go('/lr-003');
+                          context.go('/lr-009');
                         },
                         icon: Icon(Icons.logout,
                             color: ManaColors.statusBad),
@@ -271,7 +302,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
 
 class _IdentityCard extends ConsumerWidget {
   final Map<String, dynamic> person;
-  final VoidCallback onChangePhoto;
+  final void Function({required bool fromGallery}) onChangePhoto;
   final bool savingPhoto;
   const _IdentityCard({
     required this.person,
@@ -279,9 +310,77 @@ class _IdentityCard extends ConsumerWidget {
     required this.savingPhoto,
   });
 
+  /// Offers the two sources, and the live photo when there is one to see.
+  ///
+  /// A sheet rather than going straight to the camera: uploading your own
+  /// picture and re-taking the verification photo are different intentions,
+  /// and the old tap silently assumed the second.
+  Future<void> _photoMenu(BuildContext context, WidgetRef ref, String? liveUrl) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: ManaText.raw(ref.t('upload_photo')),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onChangePhoto(fromGallery: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: ManaText.raw(ref.t('take_photo')),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onChangePhoto(fromGallery: false);
+              },
+            ),
+            // Only when a live capture exists. It is never overwritten by an
+            // upload — see persons.live_photo_url — so this stays available
+            // however many times the profile picture changes.
+            if (liveUrl != null && liveUrl.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.verified_user_outlined),
+                title: ManaText.raw(ref.t('view_live_photo')),
+                subtitle: ManaText.raw(
+                  ref.t('live_photo_from_registration_note'),
+                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                ),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  showDialog<void>(
+                    context: context,
+                    builder: (d) => AlertDialog(
+                      title: ManaText.raw(ref.t('view_live_photo')),
+                      content: Image.network(
+                        liveUrl,
+                        errorBuilder: (_, __, ___) =>
+                            ManaText.raw(ref.t('photo_unavailable')),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(d).pop(),
+                          child: ManaText.raw(ref.t('close')),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final photoUrl = (person['profile_photo_url'] as String?)?.trim();
+    final liveUrl = (person['live_photo_url'] as String?)?.trim();
 
     return Card(
       child: Padding(
@@ -307,7 +406,7 @@ class _IdentityCard extends ConsumerWidget {
               label: ref.t(photoUrl == null ? 'add_profile_photo' : 'change_profile_photo'),
               excludeSemantics: true,
               child: InkWell(
-                onTap: savingPhoto ? null : onChangePhoto,
+                onTap: savingPhoto ? null : () => _photoMenu(context, ref, liveUrl),
                 borderRadius: BorderRadius.circular(999),
                 child: Stack(
                   alignment: Alignment.bottomRight,

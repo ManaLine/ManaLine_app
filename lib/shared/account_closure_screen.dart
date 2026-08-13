@@ -81,7 +81,7 @@ class _AccountClosureScreenState extends ConsumerState<AccountClosureScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: ManaText.raw(done)),
     );
-    context.go('/lr-003');
+    context.go('/lr-009');
   }
 
   @override

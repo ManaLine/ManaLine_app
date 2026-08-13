@@ -156,24 +156,32 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, ManaSpacing.sm),
-                child: Wrap(
-                  spacing: ManaSpacing.sm,
-                  runSpacing: ManaSpacing.xs,
-                  children: [
-                    ChoiceChip(
-                      label: ManaText.raw(ref.t('all')),
-                      selected: state.filter == NotificationsFilter.all,
-                      onSelected: (_) =>
-                          ref.read(agentNotificationsProvider.notifier).setFilter(NotificationsFilter.all),
+                // Dropdown rather than two chips, matching the other filters.
+                // The unread count moves into the option label so nothing is
+                // lost — that count was the only reason a chip pair was worth
+                // the horizontal space.
+                child: DropdownButtonFormField<NotificationsFilter>(
+                  initialValue: state.filter,
+                  isExpanded: true,
+                  decoration: InputDecoration(labelText: ref.t('show'), isDense: true),
+                  items: [
+                    DropdownMenuItem(
+                      value: NotificationsFilter.all,
+                      child: ManaText.raw(ref.t('all'),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
-                    ChoiceChip(
-                      label: ManaText.raw(
-                          ref.t('unread_count_note').replaceAll('{count}', '${state.unreadCount}')),
-                      selected: state.filter == NotificationsFilter.unread,
-                      onSelected: (_) =>
-                          ref.read(agentNotificationsProvider.notifier).setFilter(NotificationsFilter.unread),
+                    DropdownMenuItem(
+                      value: NotificationsFilter.unread,
+                      child: ManaText.raw(
+                        ref.t('unread_count_note').replaceAll('{count}', '${state.unreadCount}'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
+                  onChanged: (v) => ref
+                      .read(agentNotificationsProvider.notifier)
+                      .setFilter(v ?? NotificationsFilter.all),
                 ),
               ),
               if (state.error != null)

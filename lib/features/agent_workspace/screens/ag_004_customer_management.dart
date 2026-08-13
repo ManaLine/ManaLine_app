@@ -185,25 +185,45 @@ class _FilterChips extends ConsumerWidget {
     // penalty/grace/collection-status fields, so those five filters aren't
     // representable without extending that shared type; flagged here rather
     // than invented. Village + Today's Due + Loan Status are wired below.
-    return Wrap(
-      spacing: ManaSpacing.xs,
-      runSpacing: ManaSpacing.xs,
+    // Village is a DROPDOWN, not chips. It was one ChoiceChip per village
+    // with no upper bound — an agent covering a dozen villages got a dozen
+    // chips wrapping across the screen before reaching the customer list,
+    // and village names are user data, so their width is unbounded too.
+    //
+    // Today's Due stays a single toggle: it is a boolean, and a two-item
+    // dropdown reading "All / Today's Due" is a worse control than a switch
+    // for something you flip constantly on a collection round.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ChoiceChip(
-          label: ManaText.raw(ref.t('all_villages')),
-          selected: state.villageFilter == null,
-          onSelected: (_) => ref.read(agentCustomerListProvider.notifier).setVillageFilter(null),
+        DropdownButtonFormField<String?>(
+          initialValue: state.villageFilter,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: ref.t('village'), isDense: true),
+          items: [
+            DropdownMenuItem(
+              value: null,
+              child: ManaText.raw(ref.t('all_villages'),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            ...state.villages.map((v) => DropdownMenuItem(
+                  value: v,
+                  child: ManaText.raw(v, maxLines: 1, overflow: TextOverflow.ellipsis),
+                )),
+          ],
+          onChanged: (v) => ref.read(agentCustomerListProvider.notifier).setVillageFilter(v),
         ),
-        ...state.villages.map((v) => ChoiceChip(
-              label: ManaText.raw(v),
-              selected: state.villageFilter == v,
-              onSelected: (_) => ref.read(agentCustomerListProvider.notifier).setVillageFilter(v),
-            )),
-        FilterChip(
-          label: ManaText.raw(ref.t('todays_due')),
-          selected: state.loanStatusFilter == 'HasDue',
-          onSelected: (sel) =>
-              ref.read(agentCustomerListProvider.notifier).setLoanStatusFilter(sel ? 'HasDue' : null),
+        const SizedBox(height: ManaSpacing.xs),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilterChip(
+            label: ManaText.raw(ref.t('todays_due'),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            selected: state.loanStatusFilter == 'HasDue',
+            onSelected: (sel) => ref
+                .read(agentCustomerListProvider.notifier)
+                .setLoanStatusFilter(sel ? 'HasDue' : null),
+          ),
         ),
       ],
     );

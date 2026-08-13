@@ -90,7 +90,7 @@ class _WorkforceManagementScreenState
                           .setSearchQuery(v),
                     ),
                     const SizedBox(height: ManaSpacing.sm),
-                    _StatusFilterChips(state: state),
+                    _StatusFilterDropdown(state: state),
                     const SizedBox(height: ManaSpacing.md),
                     // A failed load previously looked identical to "no
                     // agents" — state.error was captured but never shown,
@@ -179,45 +179,47 @@ class _DashboardStrip extends ConsumerWidget {
   }
 }
 
-class _StatusFilterChips extends ConsumerWidget {
+/// Status filter as a dropdown, not a chip row.
+///
+/// This was the worst of the three: SEVEN translated ChoiceChips in a Wrap,
+/// including "Temporarily Disabled" and "Pending Acceptance". In Kannada at
+/// 2.0x text scale that is four rows of chips before the list even starts.
+/// A dropdown is one fixed-width control whatever the language.
+class _StatusFilterDropdown extends ConsumerWidget {
   final WorkforceState state;
-  const _StatusFilterChips({required this.state});
+  const _StatusFilterDropdown({required this.state});
 
-  static const _statuses = [
-    'Active',
-    'Pending Invitation',
-    'Pending Acceptance',
-    'Temporarily Disabled',
-    'Suspended',
-    'Removed',
-  ];
+  // 'Removed' deliberately absent: a removed agent is no longer workforce,
+  // and isolating a list of them is not something an Owner does. They still
+  // appear under "All" — this drops the filter option, not the people.
   static const _statusKeys = {
     'Active': 'active',
     'Pending Invitation': 'pending_invitation_status',
     'Pending Acceptance': 'pending_acceptance_status',
     'Temporarily Disabled': 'temporarily_disabled',
     'Suspended': 'suspended',
-    'Removed': 'removed',
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Wrap(
-      spacing: ManaSpacing.xs,
-      children: [
-        ChoiceChip(
-          label: ManaText.raw(ref.t('all')),
-          selected: state.statusFilter == null,
-          onSelected: (_) =>
-              ref.read(workforceProvider.notifier).setStatusFilter(null),
+    return DropdownButtonFormField<String?>(
+      initialValue: state.statusFilter,
+      // Without isExpanded the button sizes to the selected item's intrinsic
+      // width and a long translation overflows the Row it lays out in.
+      isExpanded: true,
+      decoration: InputDecoration(labelText: ref.t('status'), isDense: true),
+      items: [
+        DropdownMenuItem(
+          value: null,
+          child: ManaText.raw(ref.t('all'), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
-        ..._statuses.map((s) => ChoiceChip(
-              label: ManaText.raw(ref.t(_statusKeys[s]!)),
-              selected: state.statusFilter == s,
-              onSelected: (_) =>
-                  ref.read(workforceProvider.notifier).setStatusFilter(s),
+        ..._statusKeys.entries.map((e) => DropdownMenuItem(
+              value: e.key,
+              child: ManaText.raw(ref.t(e.value),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
             )),
       ],
+      onChanged: (v) => ref.read(workforceProvider.notifier).setStatusFilter(v),
     );
   }
 }
@@ -252,7 +254,23 @@ class _AgentRow extends StatelessWidget {
                 TextStyle(fontSize: 13, color: ManaColors.textSecondary),
           ),
         ),
-        trailing: ManaStatusPill(label: agent.status, status: _statusKind),
+        // Constrained: ListTile's trailing slot assumes a bounded width, and
+        // a status pill's width is a translated string — "Pending Acceptance"
+        // in Telugu at 1.3x consumed the entire tile and threw
+        // "Trailing widget consumes the entire tile width".
+        //
+        // Latent until now: the status filter used to be a Wrap of seven
+        // chips taking ~3 rows of vertical space, so fewer agent rows were
+        // ever laid out in a 360x640 test surface. Replacing it with a
+        // one-line dropdown freed the space, another row rendered, and the
+        // bug surfaced. Same failure OW-004's _CustomerRow comment describes.
+        trailing: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: ManaStatusPill(label: agent.status, status: _statusKind),
+          ),
+        ),
         onTap: onTap,
       ),
     );

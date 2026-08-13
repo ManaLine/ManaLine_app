@@ -110,7 +110,7 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                       onChanged: (v) => ref.read(investorWorkforceProvider.notifier).setSearchQuery(v),
                     ),
                     const SizedBox(height: ManaSpacing.sm),
-                    _StatusFilterChips(state: state),
+                    _StatusFilterDropdown(state: state),
                     const SizedBox(height: ManaSpacing.md),
                     // C4 — Pending requests surfaced at top since these need
                     // an Owner decision (Investor-initiated, per spec).
@@ -190,35 +190,44 @@ class _DashboardStrip extends ConsumerWidget {
   }
 }
 
-class _StatusFilterChips extends ConsumerWidget {
+/// Status filter as a dropdown, not a chip row — same reasoning as OW-002
+/// and OW-004: seven translated chips in a Wrap is a variable-width run of
+/// text that reflows to several rows in the longer languages at large text
+/// scale, and it pushes the list it filters off the screen.
+class _StatusFilterDropdown extends ConsumerWidget {
   final InvestorWorkforceState state;
-  const _StatusFilterChips({required this.state});
+  const _StatusFilterDropdown({required this.state});
 
+  // 'Removed' deliberately absent: a removed investor is no longer part of
+  // the business, and isolating a list of them is not something an Owner
+  // does. They still appear under "All" — this drops the filter option, not
+  // the people.
   static const _statusKeys = {
     'Active': 'active',
     'Pending Invitation': 'pending_invitation_status',
     'Pending Acceptance': 'pending_acceptance_status',
     'Temporarily Disabled': 'temporarily_disabled',
     'Suspended': 'suspended',
-    'Removed': 'removed',
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Wrap(
-      spacing: ManaSpacing.xs,
-      children: [
-        ChoiceChip(
-          label: ManaText.raw(ref.t('all')),
-          selected: state.statusFilter == null,
-          onSelected: (_) => ref.read(investorWorkforceProvider.notifier).setStatusFilter(null),
+    return DropdownButtonFormField<String?>(
+      initialValue: state.statusFilter,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: ref.t('status'), isDense: true),
+      items: [
+        DropdownMenuItem(
+          value: null,
+          child: ManaText.raw(ref.t('all'), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
-        ..._statusKeys.entries.map((e) => ChoiceChip(
-              label: ManaText.raw(ref.t(e.value)),
-              selected: state.statusFilter == e.key,
-              onSelected: (_) => ref.read(investorWorkforceProvider.notifier).setStatusFilter(e.key),
+        ..._statusKeys.entries.map((e) => DropdownMenuItem(
+              value: e.key,
+              child: ManaText.raw(ref.t(e.value),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
             )),
       ],
+      onChanged: (v) => ref.read(investorWorkforceProvider.notifier).setStatusFilter(v),
     );
   }
 }
@@ -310,7 +319,18 @@ class _InvestorRow extends StatelessWidget {
           '${investor.mlid} · ${_currency.format(investor.investmentBalance)} @ ${roiLabel(investor.roi)}',
           style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
-        trailing: ManaStatusPill(label: investor.membershipStatus, status: _statusKind),
+        // Constrained for the same reason as OW-002's agent row: ListTile's
+        // trailing slot assumes a bounded width, and a translated
+        // "Pending Acceptance" pill can consume the whole tile at raised text
+        // scale. Investors carry the same six statuses agents do.
+        trailing: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: ManaStatusPill(
+                label: investor.membershipStatus, status: _statusKind),
+          ),
+        ),
         onTap: onTap,
       ),
     );

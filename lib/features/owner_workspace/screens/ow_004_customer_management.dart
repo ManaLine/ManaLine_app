@@ -153,7 +153,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                               onChanged: (v) => ref.read(customerListProvider.notifier).setSearchQuery(v),
                             ),
                             const SizedBox(height: ManaSpacing.sm),
-                            _StatusFilterChips(state: state),
+                            _StatusFilterDropdown(state: state),
                             const SizedBox(height: ManaSpacing.sm),
                             _VillageFilterDropdown(state: state),
                             const SizedBox(height: ManaSpacing.xs),
@@ -191,29 +191,44 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
   }
 }
 
-class _StatusFilterChips extends ConsumerWidget {
+/// Status filter as a dropdown, not a chip row.
+///
+/// A Wrap of translated ChoiceChips is a horizontal run of text whose width
+/// is data, not a constant — the exact shape that reflows to three lines in
+/// Kannada at 2.0x text scale and pushes the list off the screen. A dropdown
+/// is one fixed-width control in every language, and it matches the village
+/// filter directly below it, which was already a dropdown.
+class _StatusFilterDropdown extends ConsumerWidget {
   final CustomerListState state;
-  const _StatusFilterChips({required this.state});
+  const _StatusFilterDropdown({required this.state});
 
-  static const _statuses = ['Active', 'Suspended', 'Removed'];
-  static const _statusKeys = {'Active': 'active', 'Suspended': 'suspended', 'Removed': 'removed'};
+  // 'Removed' deliberately absent: a removed customer is no longer part of
+  // the business, and isolating a list of them is not something anyone does.
+  // They still appear under "All" — this drops the filter option, not the
+  // people.
+  static const _statusKeys = {'Active': 'active', 'Suspended': 'suspended'};
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Wrap(
-      spacing: ManaSpacing.xs,
-      children: [
-        ChoiceChip(
-          label: ManaText.raw(ref.t('all')),
-          selected: state.customerStatusFilter == null,
-          onSelected: (_) => ref.read(customerListProvider.notifier).setCustomerStatusFilter(null),
+    return DropdownButtonFormField<String?>(
+      initialValue: state.customerStatusFilter,
+      // isExpanded for the same reason the village dropdown needs it: without
+      // it the button sizes to the selected item's intrinsic width and a long
+      // translation overflows the Row it lays out in.
+      isExpanded: true,
+      decoration: InputDecoration(labelText: ref.t('status'), isDense: true),
+      items: [
+        DropdownMenuItem(
+          value: null,
+          child: ManaText.raw(ref.t('all'), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
-        ..._statuses.map((s) => ChoiceChip(
-              label: ManaText.raw(ref.t(_statusKeys[s]!)),
-              selected: state.customerStatusFilter == s,
-              onSelected: (_) => ref.read(customerListProvider.notifier).setCustomerStatusFilter(s),
+        ..._statusKeys.entries.map((e) => DropdownMenuItem(
+              value: e.key,
+              child: ManaText.raw(ref.t(e.value),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
             )),
       ],
+      onChanged: (v) => ref.read(customerListProvider.notifier).setCustomerStatusFilter(v),
     );
   }
 }

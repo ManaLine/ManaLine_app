@@ -12,6 +12,7 @@ import '../../../design/components/mana_info_popup.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_header.dart';
 import '../../../design/components/mana_app_shell.dart';
+import '../../../shared/notification_bell.dart';
 import '../../../shared/person_identity.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/motion.dart';
@@ -155,11 +156,9 @@ class _OwnerHomeDashboardScreenState
     // the other, both showing the business name and both showing the date
     // — see the screenshots that prompted this. One bar now.
     final data = async.valueOrNull;
-    final unreadCount = data == null
-        ? 0
-        : data.notifications.where((n) => !n.read).length +
-            data.pendingInvitations +
-            data.pendingAcceptances;
+    // The header badge count moved to ManaNotificationBell, which counts
+    // actionable items from app.my_inbox_actions rather than summing this
+    // dashboard's own notification list with two pending counters.
 
     return ManaAppShell(
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
@@ -183,23 +182,12 @@ class _OwnerHomeDashboardScreenState
       ),
       onLeadingTap: () => context.push('/ow-012', extra: widget.businessId),
       actions: [
-        ManaHeaderAction(
-          icon: Icons.notifications_outlined,
-          label: 'Notifications',
-          badgeCount: unreadCount,
-          onPressed: data == null
-              ? null
-              : () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    builder: (_) => _NotificationsSheet(
-                      businessId: widget.businessId,
-                      notifications: data.notifications,
-                      pendingInvitations: data.pendingInvitations,
-                      pendingAcceptances: data.pendingAcceptances,
-                    ),
-                  ),
-        ),
+        // Was a bottom sheet carrying this dashboard's own notifications plus
+        // pendingInvitations/pendingAcceptances — one of six places
+        // invitations surfaced. It now opens the shared /notifications inbox,
+        // which reads both directions live via app.my_inbox_actions and works
+        // the same in every workspace.
+        const ManaNotificationBell(),
         ManaHeaderAction(
           icon: Icons.search,
           label: 'Universal Search',
@@ -414,101 +402,6 @@ class _SkeletonSection extends StatelessWidget {
   }
 }
 
-class _NotificationsSheet extends ConsumerWidget {
-  final String businessId;
-  final List<NotificationItem> notifications;
-  final int pendingInvitations;
-  final int pendingAcceptances;
-  const _NotificationsSheet({
-    required this.businessId,
-    required this.notifications,
-    required this.pendingInvitations,
-    required this.pendingAcceptances,
-  });
-
-  // Unchanged destination from the deleted status strip: OW-012's Members
-  // tab already holds the pending-invitation / pending-acceptance lists and
-  // the investor accept/reject queue.
-  void _openInvitations(BuildContext context) {
-    Navigator.of(context).pop();
-    context.push('/ow-012?tab=members', extra: businessId);
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      expand: false,
-      builder: (context, scrollController) => Padding(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ManaText.raw(ref.t('notifications'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: ManaSpacing.md),
-            if (pendingInvitations > 0)
-              _MembershipRow(
-                label: '$pendingInvitations Invitations',
-                subtitle: 'Sent, waiting for the person to respond',
-                onTap: () => _openInvitations(context),
-              ),
-            if (pendingAcceptances > 0)
-              _MembershipRow(
-                label: '$pendingAcceptances Acceptances',
-                subtitle: 'Waiting for you to accept',
-                onTap: () => _openInvitations(context),
-              ),
-            if (pendingInvitations > 0 || pendingAcceptances > 0)
-              const Divider(),
-            Expanded(
-              child: notifications.isEmpty
-                  ? Center(
-                      child: ManaText.raw(
-                        pendingInvitations > 0 || pendingAcceptances > 0
-                            ? ref.t('nothing_else_to_report')
-                            : ref.t('no_notifications_yet'),
-                        style: TextStyle(color: ManaColors.textSecondary),
-                      ),
-                    )
-                  : ListView.separated(
-                      controller: scrollController,
-                      itemCount: notifications.length,
-                      separatorBuilder: (_, __) => const Divider(),
-                      itemBuilder: (context, i) {
-                        final n = notifications[i];
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(
-                            n.read
-                                ? Icons.notifications_none
-                                : Icons.notifications_active,
-                            color: n.read
-                                ? ManaColors.textSecondary
-                                : ManaColors.brand,
-                          ),
-                          title: ManaText.raw(n.label,
-                              style: const TextStyle(fontSize: 13)),
-                          subtitle: ManaText.raw(n.type,
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: ManaColors.textSecondary)),
-                          trailing: ManaText.raw(
-                              DateFormat('d MMM, hh:mm a').format(n.timestamp),
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: ManaColors.textSecondary)),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // Reuses the same identity-search RPC already wired for OW-004/OW-005/
 // AG-007's customer search (owner_search_person, MLID/phone/Aadhaar/name)
 // — the only cross-role identity lookup this backend actually exposes.
@@ -686,60 +579,6 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
                 ),
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// C2 Business Status Bar was DELETED (item 2). The Open/Closed pill, the
-// Approvals pill and the Day Closure Pending pill went with it: the first
-// duplicated nothing an Owner acts on from here, and the other two are
-// already surfaced as tappable rows in Attention Required, which routes to
-// the screen that actions them. Only the Invitations/Acceptances counts
-// were kept, and they moved into _NotificationsSheet above.
-
-/// One pending-membership count inside the notifications sheet. Its own
-/// widget rather than a bare ListTile so the whole row is the tap target at
-/// the 48dp floor, and the count is spoken as part of the action.
-class _MembershipRow extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final VoidCallback onTap;
-  const _MembershipRow(
-      {required this.label, required this.subtitle, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '$label. $subtitle',
-      excludeSemantics: true,
-      child: ManaPressable(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: kManaMinTapTarget),
-          child: Row(
-            children: [
-              Icon(Icons.mark_email_unread_outlined,
-                  color: ManaColors.brand),
-              const SizedBox(width: ManaSpacing.md),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ManaText.raw(label,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ManaText.raw(subtitle,
-                        style: TextStyle(
-                            fontSize: 13, color: ManaColors.textSecondary)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: ManaColors.textSecondary),
-            ],
-          ),
         ),
       ),
     );

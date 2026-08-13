@@ -44,6 +44,7 @@ import '../features/owner_workspace/screens/subscription_screen.dart';
 import '../features/owner_workspace/screens/business_transfer_screen.dart';
 import '../features/owner_workspace/screens/loan_requests_screen.dart';
 import '../features/owner_workspace/screens/withdrawal_requests_screen.dart';
+import '../shared/notifications_screen.dart';
 import '../shared/settings_screen.dart';
 import '../shared/account_closure_screen.dart';
 import '../shared/about_screen.dart';
@@ -287,6 +288,11 @@ final manaRouter = GoRouter(
       path: '/ow-015',
       builder: (c, s) => GroupLoanManagementScreen(businessId: _resolveBusinessId(s)),
     ),
+    // One inbox for every workspace. Not under a workspace prefix on
+    // purpose: notifications are per PERSON, and someone who is an Agent in
+    // one business and a Customer in another should not have to switch
+    // workspace to see what is waiting.
+    GoRoute(path: '/notifications', builder: (c, s) => const NotificationsScreen()),
     GoRoute(path: '/ow-016', builder: (c, s) => const OwnerProfileScreen()),
     GoRoute(
       path: '/ow-017',

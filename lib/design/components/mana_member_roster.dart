@@ -355,14 +355,7 @@ class _MemberRow extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
-      // Flexible so a long translated status cannot push the row over.
-      trailing: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 110),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: ManaStatusPill(label: entry.status, status: entry.statusKind),
-        ),
-      ),
+      trailing: ManaTrailingStatus(label: entry.status, status: entry.statusKind),
     );
   }
 }

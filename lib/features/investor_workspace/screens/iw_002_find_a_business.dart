@@ -133,7 +133,10 @@ class _BusinessResultCard extends ConsumerWidget {
           '${business.mlbi}${business.operatingAreas.isNotEmpty ? ' · ${business.operatingAreas.join(', ')}' : ''}',
           style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
         ),
-        trailing: ManaStatusPill(
+        // "Not Accepting New Investors" is among the longest status strings
+        // in the app, in a ListTile trailing slot — the pair that throws
+        // "Trailing widget consumes the entire tile width".
+        trailing: ManaTrailingStatus(
           label: business.acceptingNewInvestors ? 'Active' : 'Not Accepting New Investors',
           status: business.acceptingNewInvestors ? ManaStatus.good : ManaStatus.warn,
         ),

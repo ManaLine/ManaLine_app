@@ -85,7 +85,53 @@ class ManaStatusPill extends StatelessWidget {
       decoration: BoxDecoration(color: c.bg, borderRadius: BorderRadius.circular(999)),
       child: ManaText(
         label,
+        // Ellipsis rather than wrap: a two-line pill changes the row height
+        // and looks like a different component. The width bound belongs to
+        // the caller — see ManaTrailingStatus for the ListTile case.
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(color: c.fg, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+/// A [ManaStatusPill] safe to hand to `ListTile.trailing`.
+///
+/// WHY THIS EXISTS: ListTile's trailing slot assumes a bounded width and
+/// asserts "Trailing widget consumes the entire tile width" when it does not
+/// get one. A status pill's width is a translated string, so it is unbounded
+/// by nature — "Pending Acceptance" in Telugu at 1.3x text scale fills the
+/// whole tile and the row throws during layout.
+///
+/// This shipped as a real failure on OW-002 and was latent in eight more
+/// places, hidden only because nothing had yet freed enough vertical space
+/// for those rows to be laid out on a small surface. Wrapping the fix in a
+/// named widget rather than repeating a ConstrainedBox at each call site
+/// means the next `trailing:` pill gets it for free.
+class ManaTrailingStatus extends StatelessWidget {
+  final String label;
+  final ManaStatus status;
+
+  /// Roughly a third of a 360dp row — enough for the longest status in the
+  /// five languages, and never enough to swallow the tile.
+  final double maxWidth;
+
+  const ManaTrailingStatus({
+    super.key,
+    required this.label,
+    required this.status,
+    this.maxWidth = 120,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Align(
+        alignment: Alignment.centerRight,
+        widthFactor: 1,
+        child: ManaStatusPill(label: label, status: status),
       ),
     );
   }

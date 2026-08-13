@@ -289,7 +289,8 @@ class _MembershipTile extends ConsumerWidget {
         // see fetchMemberships. Kept over main's ref.t('agent'), which was
         // translated but still asserted a single role that may be wrong.
         subtitle: ManaText.raw(membership.rolesLabel),
-        trailing: ManaStatusPill(label: membership.membershipStatus, status: _pillStatus),
+        trailing: ManaTrailingStatus(
+            label: membership.membershipStatus, status: _pillStatus),
         onTap: () => context.push('/ag-001', extra: membership.businessId),
       ),
     );

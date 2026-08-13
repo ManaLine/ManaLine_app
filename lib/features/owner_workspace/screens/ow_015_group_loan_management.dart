@@ -320,7 +320,7 @@ class GroupLoanDetailScreen extends ConsumerWidget {
                           .t('balance_emi_note')
                           .replaceAll('{balance}', _currency.format(m.remainingBalance))
                           .replaceAll('{emi}', _currency.format(m.installmentAmount))),
-                      trailing: ManaStatusPill(
+                      trailing: ManaTrailingStatus(
                         label: m.status,
                         status: m.status == 'Closed'
                             ? ManaStatus.good

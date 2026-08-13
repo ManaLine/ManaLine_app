@@ -141,7 +141,8 @@ class _BusinessResultCard extends ConsumerWidget {
         // MLBI-exact search on a non-accepting business the Owner still
         // allowed), the eligibility decision already happened
         // server-side — this screen doesn't re-filter it.
-        trailing: ManaStatusPill(
+        // Same shape as IW-002: a very long status in a trailing slot.
+        trailing: ManaTrailingStatus(
           label: business.acceptingNewCustomers ? 'Active' : 'Not Accepting New Customers',
           status: business.acceptingNewCustomers ? ManaStatus.good : ManaStatus.warn,
         ),

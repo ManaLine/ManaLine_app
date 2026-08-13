@@ -1071,7 +1071,7 @@ class _LoansTab extends ConsumerWidget {
                         .replaceAll('{amount}', _currency.format(l.outstanding)),
                     style: const TextStyle(fontSize: 16),
                   ),
-                  trailing: ManaStatusPill(
+                  trailing: ManaTrailingStatus(
                     label: l.status,
                     status: l.status == 'Active'
                         ? ManaStatus.good

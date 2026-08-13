@@ -254,23 +254,10 @@ class _AgentRow extends StatelessWidget {
                 TextStyle(fontSize: 13, color: ManaColors.textSecondary),
           ),
         ),
-        // Constrained: ListTile's trailing slot assumes a bounded width, and
-        // a status pill's width is a translated string — "Pending Acceptance"
-        // in Telugu at 1.3x consumed the entire tile and threw
-        // "Trailing widget consumes the entire tile width".
-        //
-        // Latent until now: the status filter used to be a Wrap of seven
-        // chips taking ~3 rows of vertical space, so fewer agent rows were
-        // ever laid out in a 360x640 test surface. Replacing it with a
-        // one-line dropdown freed the space, another row rendered, and the
-        // bug surfaced. Same failure OW-004's _CustomerRow comment describes.
-        trailing: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 120),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: ManaStatusPill(label: agent.status, status: _statusKind),
-          ),
-        ),
+        // ManaTrailingStatus, not a bare pill: this row threw "Trailing widget
+        // consumes the entire tile width" at 1.3x once the filter dropdown
+        // freed the vertical space for it to be laid out.
+        trailing: ManaTrailingStatus(label: agent.status, status: _statusKind),
         onTap: onTap,
       ),
     );

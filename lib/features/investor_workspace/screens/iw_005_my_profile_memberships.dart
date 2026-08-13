@@ -294,7 +294,8 @@ class _MembershipTile extends StatelessWidget {
       child: ListTile(
         title: ManaText.raw(membership.businessName),
         subtitle: ManaText(membership.role.label),
-        trailing: ManaStatusPill(label: membership.membershipStatus, status: _pillStatus),
+        trailing: ManaTrailingStatus(
+            label: membership.membershipStatus, status: _pillStatus),
         onTap: () => _switchRole(context),
       ),
     );

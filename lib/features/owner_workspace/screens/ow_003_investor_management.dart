@@ -319,18 +319,8 @@ class _InvestorRow extends StatelessWidget {
           '${investor.mlid} · ${_currency.format(investor.investmentBalance)} @ ${roiLabel(investor.roi)}',
           style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
-        // Constrained for the same reason as OW-002's agent row: ListTile's
-        // trailing slot assumes a bounded width, and a translated
-        // "Pending Acceptance" pill can consume the whole tile at raised text
-        // scale. Investors carry the same six statuses agents do.
-        trailing: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 120),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: ManaStatusPill(
-                label: investor.membershipStatus, status: _statusKind),
-          ),
-        ),
+        trailing: ManaTrailingStatus(
+            label: investor.membershipStatus, status: _statusKind),
         onTap: onTap,
       ),
     );

@@ -1197,7 +1197,11 @@ class _AttentionRequired extends ConsumerWidget {
                   subtitle: ManaText.raw(
                       'Updated ${DateFormat('d MMM, hh:mm a').format(c.lastUpdated)}',
                       style: const TextStyle(fontSize: 13)),
-                  trailing: ManaStatusPill(
+                  // A count, so bounded by nature and not actually at risk —
+                  // converted anyway so the whole codebase has one answer for
+                  // "pill in a trailing slot", and so changing this label to a
+                  // word later cannot quietly reintroduce the overflow.
+                  trailing: ManaTrailingStatus(
                     label: '${c.count}',
                     status:
                         c.priority == 'High' ? ManaStatus.bad : ManaStatus.warn,

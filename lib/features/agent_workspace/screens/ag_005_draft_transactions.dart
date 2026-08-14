@@ -179,9 +179,9 @@ class _DraftCard extends ConsumerWidget {
   }
 
   // Continue Draft routes by draft_type — not to one generic screen.
-  // Collection → AG-002, Loan Distribution → AG-007 (not built — TODO
-  // route), Customer Remark/Document Upload → AG-004 (not built by this
-  // chat — reference by route name only, per master brief).
+  // Collection → AG-002, Loan Distribution → AG-007, Customer Remark and
+  // Document Upload → AG-004. All four targets are built; each owns its own
+  // resume mechanics, which is why this hands off rather than reimplementing.
   void _continueDraft(BuildContext context) {
     switch (draft.draftType) {
       case DraftType.collection:

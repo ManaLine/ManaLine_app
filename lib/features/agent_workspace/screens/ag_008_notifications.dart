@@ -5,11 +5,12 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../owner_workspace/screens/ow_007_loan_details.dart';
 import '../state/agent_notifications_state.dart';
 import 'ag_004_customer_management.dart';
 import 'ag_006_owner_settlement.dart';
-import 'ag_007_loan_distribution.dart';
 
 final _dateTime = DateFormat('d MMM yyyy, h:mm a');
 
@@ -69,14 +70,16 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
     if (!mounted) return;
 
     // Per AG-008's own NAVIGATION section — routes by related_entity_type.
-    // Targets this chat doesn't own (AG-006, AG-004) are referenced by
-    // route name only, not reimplemented.
     switch (n.relatedEntityType) {
       case RelatedEntityType.accountPeriod:
         // Account Period Due/Overdue → AG-006 Owner Settlement, this
         // Agent's own current settlement (AG-006 has no per-period-id
         // param — it resolves the open settlement for businessId+agentId).
-        final now = DateTime.now();
+        //
+        // manaNowIst(), not DateTime.now(): this builds the settlement period
+        // bounds, and a handset whose clock is off by a timezone would ask for
+        // the wrong Indian day's settlement.
+        final now = manaNowIst();
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => OwnerSettlementScreen(
@@ -102,13 +105,16 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
         );
         return;
       case RelatedEntityType.loan:
-        if (n.notificationType == AgentNotificationType.penaltyApplied) {
-          // Penalty Applied → AG-007 (this chat's own screen) — wired
-          // live since the loan_id is available on the notification.
+        // Any loan-related notification opens THAT loan. Penalty Applied used
+        // to route to AG-007 instead — the loan-distribution wizard — which
+        // told an Agent nothing about the penalty they had just been notified
+        // of. OW-007 is read-mostly and RLS-scoped, so an Agent who does not
+        // cover the loan gets its own "could not load" state rather than a
+        // screen full of someone else's money.
+        final loanId = n.relatedEntityId;
+        if (loanId != null) {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => Ag007LoanDistributionScreen(agentId: widget.agentId, businessId: widget.businessId),
-            ),
+            MaterialPageRoute(builder: (_) => LoanDetailsScreen(loanId: loanId)),
           );
           return;
         }
@@ -116,8 +122,15 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
       case RelatedEntityType.unknown:
         break;
     }
+
+    // Reaching here is not necessarily a gap. New Device Login and the
+    // catch-all Other carry no entity at all — they are things to KNOW, not
+    // places to go, and telling someone their notification "isn't available"
+    // reads as a broken app rather than as a notice that has been read.
+    if (n.relatedEntityId == null) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: ManaText.raw(ref.t('open_target_not_available'))), // TODO stub
+      SnackBar(content: ManaText.raw(ref.t('open_target_not_available'))),
     );
   }
 

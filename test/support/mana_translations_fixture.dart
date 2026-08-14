@@ -253,6 +253,43 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
     'Tamil': 'உங்கள் எண்ணை உறுதிப்படுத்த அனுப்பப்பட்ட OTP-ஐ உள்ளிடவும்',
     'Telugu': 'మీ నంబర్‌ను ధృవీకరించడానికి పంపిన OTP నమోదు చేయండి',
   },
+  // Keys added with the roster rewrite. English and Telugu only — the other
+  // three languages are deferred to the second version, and a fixture entry
+  // that repeated English under a Hindi key would make a width test claim
+  // coverage it does not have.
+  //
+  // These belong here for the same reason every other entry does: without
+  // them the roster layout tests measured the raw key ("add_investor", 13
+  // narrow Latin characters) instead of the Telugu label that actually
+  // renders, which is exactly the overflow the harness exists to catch.
+  'add_agent': {
+    'English': 'Add Agent',
+    'Telugu': 'ఏజెంట్ జోడించండి',
+  },
+  'add_investor': {
+    'English': 'Add Investor',
+    'Telugu': 'పెట్టుబడిదారుని జోడించండి',
+  },
+  'roi': {
+    'English': 'ROI',
+    'Telugu': 'ROI',
+  },
+  'continue_label': {
+    'English': 'Continue',
+    'Telugu': 'కొనసాగించండి',
+  },
+  'amount_required_field': {
+    'English': 'Amount *',
+    'Telugu': 'మొత్తం *',
+  },
+  'full_name_field': {
+    'English': 'Full Name *',
+    'Telugu': 'పూర్తి పేరు *',
+  },
+  'welcome_back': {
+    'English': 'Welcome Back',
+    'Telugu': 'మళ్ళీ స్వాగతం',
+  },
   'enter_pin': {
     'English': 'Enter PIN',
     'Hindi': 'पिन दर्ज करें',

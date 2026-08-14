@@ -137,8 +137,10 @@ extension AgentNotificationTypeLabel on AgentNotificationType {
 }
 
 /// `related_entity_type` values this screen knows how to route on Open —
-/// per AG-008's own NAVIGATION section. Anything else falls back to a
-/// TODO stub rather than guessing an API/route that isn't defined yet.
+/// per AG-008's own NAVIGATION section. `unknown` covers both a value the
+/// server added that this build predates and the notifications that have no
+/// destination at all (New Device Login); AG-008 tells those apart by whether
+/// `related_entity_id` is set, and only complains about the first.
 enum RelatedEntityType { accountPeriod, loan, customer, unknown }
 
 RelatedEntityType relatedEntityTypeFromString(String? raw) {

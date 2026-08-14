@@ -78,8 +78,12 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
   bool _submitting = false;
   bool _biometricAttempted = false;
   String? _error;
-  final String _personName =
-      ''; // TODO: real profile fetch for header personalization
+  // No name here, deliberately. This header used to hold an always-empty
+  // _personName awaiting "a real profile fetch". LR-009 is the lock screen —
+  // it is what someone holding the unlocked handset of a person who is not
+  // them sees first, before any credential. Greeting them by that person's
+  // name confirms whose phone they are holding, and buys the person being
+  // greeted nothing they do not already know.
 
   /// The PIN is typed on the handset's own numeric keyboard now, not on a
   /// drawn keypad. This controller is the real input; the dots below are
@@ -525,9 +529,7 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               const ManaVerificationRing(isVerified: true, size: 64),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
-                _personName.isEmpty
-                    ? 'Welcome back'
-                    : 'Welcome back, $_personName',
+                ref.t('welcome_back'),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: ManaSpacing.xl),

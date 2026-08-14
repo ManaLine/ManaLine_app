@@ -220,6 +220,24 @@ class LoanApiService {
     }).eq('request_id', requestId);
   }
 
+  /// The grace period the template behind a loan request specifies, or null
+  /// when the request named no template (custom-amount requests) or the
+  /// template leaves it unset.
+  ///
+  /// Only reachable when the wizard was started from a request. A wizard
+  /// started from the customer roster has no template to read, which is why
+  /// this returns null rather than a default — 0 and "unknown" are different
+  /// facts, and the caller keeps its own 0 for the second one.
+  Future<int?> fetchRequestGracePeriodDays({required String requestId}) async {
+    final row = await _db
+        .from('loan_requests')
+        .select('loan_templates(default_grace_period_days)')
+        .eq('request_id', requestId)
+        .maybeSingle();
+    final template = row?['loan_templates'] as Map<String, dynamic>?;
+    return (template?['default_grace_period_days'] as num?)?.toInt();
+  }
+
   Future<void> resolveLoanRequest({required String requestId, required String resultingLoanId}) async {
     final personId = ref.read(authFlowProvider).personId;
     await _db.from('loan_requests').update({
@@ -335,7 +353,11 @@ class LoanWizardState {
     this.guarantorAddress,
     this.guarantorRemarks,
     this.livePhotoBytes,
-    this.gracePeriodDays = 0, // TODO: pre-fill from loan_templates.default_grace_period_days once Step 3 offers template selection — currently always starts at 0, owner overrides per BR-007/381
+    // Starts at 0 and is pre-filled from the request's template when the
+    // wizard was opened from a Loan Requests approval — see
+    // selectCustomerById. The Owner overrides it on Step 3 either way
+    // (BR-007/381).
+    this.gracePeriodDays = 0,
     this.submitting = false,
     this.error,
     this.createdLoanNumber,
@@ -444,10 +466,31 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
   Future<void> selectCustomerById({required String customerId, String? sourceRequestId}) async {
     final api = ref.read(customerApiServiceProvider);
     final profile = await api.fetchCustomerProfile(customerId: customerId);
+
+    // Grace period from the template the customer requested against, when
+    // there is one. The Owner still edits it on Step 3 — this only decides
+    // what the field starts at, and starting at the template's own figure
+    // beats starting at 0 and relying on the Owner to remember (BR-007/381).
+    //
+    // Non-fatal: a template lookup that fails must not stop an Owner
+    // approving a loan. The field falls back to its own default, which is
+    // exactly where it was before this existed.
+    int? templateGrace;
+    if (sourceRequestId != null) {
+      try {
+        templateGrace = await ref
+            .read(loanApiServiceProvider)
+            .fetchRequestGracePeriodDays(requestId: sourceRequestId);
+      } catch (_) {
+        templateGrace = null;
+      }
+    }
+
     state = state.copyWith(
       customer: profile.summary,
       step: LoanWizardStep.eligibility,
       sourceRequestId: sourceRequestId,
+      gracePeriodDays: templateGrace,
     );
   }
 

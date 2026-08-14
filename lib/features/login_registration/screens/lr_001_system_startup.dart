@@ -59,10 +59,24 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
     });
 
     try {
-      // TODO: real GET /system/health then GET /system/config, sequential
-      // per spec (Server Available → DB Connected → API Version Valid →
-      // Application Version Valid), then parallel non-blocking config load.
-      await Future.delayed(const Duration(milliseconds: 600));
+      // The spec asks for GET /system/health then GET /system/config. Neither
+      // endpoint exists, and neither is going to — this deployment has no
+      // application server, only Postgres behind PostgREST. What used to sit
+      // here was `Future.delayed(600ms)`, which passed unconditionally: a
+      // build pointed at a dead Supabase URL sailed through the screen whose
+      // entire job is to catch that, and only fell over several screens later
+      // as raw translation keys and a login claiming "No internet connection".
+      //
+      // Loading the translation cache IS the health check, and it is the
+      // honest one. It is a real round trip to the real project, so it proves
+      // in one call everything the four sequential checks were meant to prove
+      // — the URL resolves, PostgREST answers, the anon key is accepted, and
+      // the schema this build expects is there. It is also work the app has to
+      // do anyway before any screen can render a word, so this costs nothing
+      // and warms the cache the next screen needs.
+      final cache = ref.read(translationCacheProvider);
+      await cache.load();
+      if (cache.lastError != null) throw cache.lastError!;
       await slowTimer.timeout(Duration.zero, onTimeout: () {}).catchError((_) {});
 
       if (!mounted) return;

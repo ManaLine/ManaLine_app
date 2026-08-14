@@ -19,7 +19,14 @@
 import { supabaseAdmin } from "./supabaseAdmin.ts";
 import { istAgo } from "./time.ts";
 
-export async function rateLimit(
+/// Is this bucket still under its limit? Prunes stale rows and counts, but
+/// does NOT record the call.
+///
+/// Split out from rateLimit() because a lockout counter must only ever count
+/// FAILURES. Calling the combined check-and-record helper for that purpose
+/// records every attempt including the successful ones, so a legitimate admin
+/// logging in `limit` times locked themselves out — see admin-login.
+export async function rateLimitCheck(
   bucketKey: string,
   limit: number,
   windowMs: number = 5 * 60 * 1000
@@ -64,9 +71,23 @@ export async function rateLimit(
     console.error("rateLimit query failed (failing open)", error);
     return true;
   }
-  if ((count ?? 0) >= limit) return false; // rate-limited
+  return (count ?? 0) < limit;
+}
 
-  // Record this call.
-  await admin.from("auth_rate_limits").insert({ bucket_key: bucketKey });
+/// Record one occurrence in a bucket. Pair with rateLimitCheck when only some
+/// outcomes should count toward the limit.
+export async function rateLimitRecord(bucketKey: string): Promise<void> {
+  await supabaseAdmin().from("auth_rate_limits").insert({ bucket_key: bucketKey });
+}
+
+/// Check and, if still under the limit, record — the right shape when every
+/// call counts (per-IP throttling, OTP send caps).
+export async function rateLimit(
+  bucketKey: string,
+  limit: number,
+  windowMs: number = 5 * 60 * 1000
+): Promise<boolean> {
+  if (!(await rateLimitCheck(bucketKey, limit, windowMs))) return false;
+  await rateLimitRecord(bucketKey);
   return true;
 }

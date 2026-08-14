@@ -10,7 +10,7 @@ import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { compareSecret } from "../_shared/hashing.ts";
 import { mintAdminJwt } from "../_shared/jwt.ts";
-import { rateLimit } from "../_shared/rate_limit.ts";
+import { rateLimit, rateLimitCheck, rateLimitRecord } from "../_shared/rate_limit.ts";
 
 const LOGIN_RATE_LIMIT = 10; // per (username, IP) per 5 min
 const LOCKOUT_RATE_LIMIT = 5; // failed attempts per username per 15 min before lockout
@@ -53,16 +53,26 @@ Deno.serve(async (req: Request) => {
     // rather than a separate attempts column (admin_accounts has none —
     // this is a low-volume, single-admin table, an extra column is not
     // worth it; the rate-limit bucket already gives the same protection).
-    if (!(await rateLimit(`admin-lockout:${username}`, LOCKOUT_RATE_LIMIT, LOCKOUT_WINDOW_MS))) {
+    //
+    // BUG FIXED: this used to call rateLimit(), which checks AND records. The
+    // recording ran before the password was ever compared, so SUCCESSFUL
+    // logins filled the bucket too — five correct logins in fifteen minutes
+    // locked the only platform admin out of their own account, and the error
+    // said "too many failed attempts" when none had failed. Check without
+    // recording here; record below, only on the paths that actually failed.
+    const lockoutKey = `admin-lockout:${username}`;
+    if (!(await rateLimitCheck(lockoutKey, LOCKOUT_RATE_LIMIT, LOCKOUT_WINDOW_MS))) {
       return errorResponse(403, "ACCOUNT_LOCKED", "Too many failed attempts. Try again in a few minutes.");
     }
 
-    const genericFailure = () =>
-      jsonResponse({
+    const genericFailure = async () => {
+      await rateLimitRecord(lockoutKey);
+      return jsonResponse({
         data: { success: false, token: null, admin_id: null },
         meta: {},
         errors: [{ code: "UNAUTHENTICATED", message: "Invalid username or password." }],
       });
+    };
 
     const { data: account, error: lookupError } = await admin
       .from("admin_accounts")
@@ -74,10 +84,10 @@ Deno.serve(async (req: Request) => {
       console.error("admin-login lookup failed", lookupError);
       return errorResponse(500, "INTERNAL_ERROR", "Login failed.");
     }
-    if (!account) return genericFailure();
+    if (!account) return await genericFailure();
 
     const ok = await compareSecret(body.password, account.password_hash);
-    if (!ok) return genericFailure();
+    if (!ok) return await genericFailure();
 
     const token = await mintAdminJwt(account.admin_id);
 

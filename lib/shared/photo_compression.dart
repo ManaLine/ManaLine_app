@@ -76,6 +76,18 @@ class ManaPhotoPreset {
     targetBytes: 100 * 1024,
     hardLimitBytes: 512 * 1024,
   );
+
+  /// Customer identity and address documents. These accumulate like loan
+  /// photos, but unlike a face they have to stay READABLE — an Aadhaar card
+  /// compressed until the number is a smear is worth nothing at all, so this
+  /// preset trades bytes for legibility: a longer edge and higher quality than
+  /// any other preset here.
+  static const document = ManaPhotoPreset(
+    maxEdge: 1600,
+    quality: 80,
+    targetBytes: 300 * 1024,
+    hardLimitBytes: 1024 * 1024,
+  );
 }
 
 class PhotoTooLargeException implements Exception {

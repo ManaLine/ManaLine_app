@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../shared/live_photo_upload.dart';
+import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/photo_compression.dart';
 import '../../owner_workspace/state/customer_state.dart' show CustomerSummary, CustomerProfile, CustomerRemark;
 import '../../owner_workspace/state/collection_mode_state.dart' show CollectionDueRow;
 import '../../owner_workspace/screens/ow_006_collection_mode.dart' show CollectionEntryScreen;
@@ -520,8 +524,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
   Future<void> _showUploadDocumentSheet(BuildContext context, WidgetRef ref) async {
     // Document type is a single tap-to-pick-and-close action per option,
     // same list-of-ListTiles pattern as AG-003's Visit Outcome sheet — no
-    // Radio/RadioListTile, per convention. Document capture itself
-    // (camera/file picker) is stubbed, not built, in this pass.
+    // Radio/RadioListTile, per convention.
     final result = await showModalBottomSheet<AgentDocumentType>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -546,12 +549,76 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
       ),
     );
     if (result == null || !context.mounted) return;
+
+    // Camera first: an Agent doing this is standing in front of the customer
+    // holding the card. Gallery is the fallback for a photo already taken.
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.photo_camera_outlined, color: ManaColors.brand),
+              title: ManaText.raw(ref.t('take_photo')),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: Icon(Icons.image_outlined, color: ManaColors.brand),
+              title: ManaText.raw(ref.t('choose_file')),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !context.mounted) return;
+
+    final picked = await ImagePicker().pickImage(source: source);
+    if (picked == null || !context.mounted) return;
+    final bytes = await picked.readAsBytes();
+    if (!context.mounted) return;
+
+    // Compression rejects an image it cannot bring under the bucket ceiling,
+    // and that refusal carries the only message worth showing ("take it
+    // again"). NetworkErrorHandler would flatten it into the generic string,
+    // so it is caught here instead of being routed through it.
+    final String fileUrl;
+    try {
+      fileUrl = await CustomerDocumentUpload.upload(
+        bytes: bytes,
+        customerId: customerId,
+        documentType: result.displayLabel,
+        stamp: manaNowIst().millisecondsSinceEpoch,
+      );
+    } on PhotoTooLargeException catch (e) {
+      if (context.mounted) _snack(context, e.message);
+      return;
+    } on PhotoUnreadableException catch (e) {
+      if (context.mounted) _snack(context, e.message);
+      return;
+    } catch (e) {
+      // Anything else here is the storage upload itself — an RLS denial when
+      // can_upload_documents is off, or a dead connection. Say which.
+      if (context.mounted) {
+        _snack(context, ref.t('could_not_upload_document_note').replaceAll('{error}', '$e'));
+      }
+      return;
+    }
+    if (!context.mounted) return;
+
     await NetworkErrorHandler.run(context, () async {
       return ref.read(agentCustomerProfileProvider(customerId).notifier).uploadDocument(
             documentType: result,
-            fileUrl: 'stub-file-url', // TODO: wire actual capture/file-picker
+            fileUrl: fileUrl,
           );
     });
+  }
+
+  static void _snack(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: ManaText.raw(message)));
   }
 }
 

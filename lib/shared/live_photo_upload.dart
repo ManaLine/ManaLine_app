@@ -79,3 +79,40 @@ class ProfilePhotoUpload {
     return db.storage.from('profile-photos').createSignedUrl(path, expiresInSeconds);
   }
 }
+
+/// The same choke point for `customer-documents` — the bucket behind
+/// `customer_documents.file_url`.
+///
+/// The `<customer_id>/…` prefix is not cosmetic: the bucket's storage policies
+/// read the customer id back out of the object name to decide whether the
+/// caller covers that customer, so a path that does not start with the
+/// customer's uuid is rejected rather than silently stored somewhere unreadable.
+class CustomerDocumentUpload {
+  static Future<String> upload({
+    required Uint8List bytes,
+    required String customerId,
+    required String documentType,
+    required int stamp, // manaNowIst().millisecondsSinceEpoch — see below
+    int expiresInSeconds = 60 * 60 * 24 * 365,
+  }) async {
+    final db = Supabase.instance.client;
+    // Documents accumulate rather than overwrite: a customer can have an
+    // Aadhaar photo AND an address proof AND a re-take of either. The stamp is
+    // passed in rather than read here so this stays testable and so the IST
+    // rule is applied by the caller that owns a clock, not re-derived.
+    final slug = documentType.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+    final path = '$customerId/$slug-$stamp.jpg';
+
+    final compressed =
+        ManaPhotoCompressor.compress(bytes, ManaPhotoPreset.document);
+
+    await db.storage.from('customer-documents').uploadBinary(
+          path,
+          compressed,
+          fileOptions:
+              const FileOptions(contentType: 'image/jpeg', upsert: true),
+        );
+
+    return db.storage.from('customer-documents').createSignedUrl(path, expiresInSeconds);
+  }
+}

@@ -5,6 +5,8 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
+import '../../../design/components/mana_collection_search_field.dart';
+import '../../../shared/mana_time.dart';
 import '../../../shared/translation_service.dart';
 import '../../owner_workspace/state/collection_mode_state.dart';
 import '../../owner_workspace/screens/ow_006_collection_mode.dart' show CollectionEntryScreen;
@@ -28,6 +30,11 @@ class AgentCollectionModeScreen extends ConsumerStatefulWidget {
 }
 
 class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeScreen> {
+  /// Local, not in the notifier — see OW-006 for why: the summary strip
+  /// reports the day, and typing in a search box must not move those numbers.
+  String _query = '';
+  bool _searchOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -39,9 +46,27 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(collectionModeProvider);
+    final visible = manaFilterDueRows(state.sorted, _query);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('collection_mode'))),
+      appBar: AppBar(
+        title: ManaText.raw(ref.t('collection_mode')),
+        actions: [
+          IconButton(
+            icon: Icon(_searchOpen ? Icons.search_off : Icons.search),
+            tooltip: ref.t('search'),
+            onPressed: () => setState(() {
+              _searchOpen = !_searchOpen;
+              if (!_searchOpen) _query = '';
+            }),
+          ),
+        ],
+        bottom: _searchOpen
+            ? ManaCollectionSearchField(
+                onChanged: (v) => setState(() => _query = v),
+              )
+            : null,
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(collectionModeProvider.notifier).load(widget.businessId),
@@ -50,7 +75,11 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
-                    ManaText.raw(DateFormat('d MMM yyyy').format(DateTime.now()),
+                    // manaNowIst(), not DateTime.now(): this labels which
+                    // business day's round the Agent is standing in, and a
+                    // handset an hour either side of midnight in the wrong
+                    // zone would name the wrong one.
+                    ManaText.raw(DateFormat('d MMM yyyy').format(manaNowIst()),
                         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                     const SizedBox(height: ManaSpacing.sm),
                     _AgentSummaryStrip(state: state),
@@ -60,16 +89,20 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
-                    if (state.sorted.isEmpty)
+                    if (visible.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
-                          child: ManaText.raw(ref.t('no_customers_due_right_now'),
+                          child: ManaText.raw(
+                              _query.trim().isEmpty
+                                  ? ref.t('no_customers_due_right_now')
+                                  : ref.t('no_customers_match_view'),
+                              textAlign: TextAlign.center,
                               style: TextStyle(color: ManaColors.textSecondary)),
                         ),
                       )
                     else
-                      ...state.sorted.map((row) => _CustomerDueRow(
+                      ...visible.map((row) => _CustomerDueRow(
                             row: row,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: row, businessId: widget.businessId)),

@@ -191,10 +191,16 @@ class _OwnerHomeDashboardScreenState
         ManaHeaderAction(
           icon: Icons.search,
           label: 'Universal Search',
-          onPressed: () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => _UniversalSearchSheet(businessId: widget.businessId),
+          // A pushed screen, not a bottom sheet. As a sheet the field opened
+          // at the bottom of the display under the keyboard, so the thing you
+          // had come to type into was the last thing on screen and the results
+          // grew downwards off the edge — they were laid out in a plain
+          // non-scrolling Column, so a name search matching twenty people
+          // overflowed rather than scrolling.
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => UniversalSearchScreen(businessId: widget.businessId),
+            ),
           ),
         ),
       ],
@@ -408,29 +414,53 @@ class _SkeletonSection extends StatelessWidget {
 // After a match, resolves the person's role in THIS business via
 // business_members so the Owner lands on the right management screen
 // directly, instead of guessing between Customer/Workforce/Investor.
-class _UniversalSearchSheet extends ConsumerStatefulWidget {
+/// Universal Search — find a person anywhere in this business by phone, MLID,
+/// Aadhaar or name, then jump to whichever role they hold.
+///
+/// The search field lives in the app bar and the matches scroll beneath it,
+/// which is the only arrangement that works on a phone: the field stays put
+/// and visible above the keyboard while the list under it grows.
+class UniversalSearchScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const _UniversalSearchSheet({required this.businessId});
+  const UniversalSearchScreen({super.key, required this.businessId});
 
   @override
-  ConsumerState<_UniversalSearchSheet> createState() =>
-      _UniversalSearchSheetState();
+  ConsumerState<UniversalSearchScreen> createState() =>
+      _UniversalSearchScreenState();
 }
 
-class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
+class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   final _query = TextEditingController();
+  final _focus = FocusNode();
   bool _searching = false;
+  bool _searched = false;
   String? _error;
   /// All matches, with each one's roles in THIS business. A name is not
   /// unique, so a search for "sai" legitimately returns several people —
   /// showing only the first is how the Owner opens the wrong record.
   List<({CustomerSummary person, List<String> roles})> _found = const [];
 
+  @override
+  void initState() {
+    super.initState();
+    // Opening a search screen and then having to tap the field is a wasted
+    // tap on the only thing this screen does.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  @override
+  void dispose() {
+    _query.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
   Future<void> _search() async {
     final query = _query.text.trim();
     if (query.isEmpty) return;
     setState(() {
       _searching = true;
+      _searched = true;
       _error = null;
       _found = const [];
     });
@@ -503,83 +533,118 @@ class _UniversalSearchSheetState extends ConsumerState<_UniversalSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: MediaQuery.of(context).viewInsets,
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ManaText.raw(ref.t('search'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw(
-                ref.t('search_by_phone_mlid_aadhaar_name'),
-                style:
-                    TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-            const SizedBox(height: ManaSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _query,
-                    decoration: InputDecoration(labelText: ref.t('search')),
-                    onSubmitted: (_) => _search(),
-                  ),
-                ),
-                const SizedBox(width: ManaSpacing.sm),
-                FilledButton(
-                  onPressed: _searching ? null : _search,
-                  child: _searching
-                      ? const SizedBox(
+    return Scaffold(
+      appBar: AppBar(
+        title: ManaText.raw(ref.t('search')),
+        // The field sits in the app bar's bottom slot so it stays pinned at
+        // the top while the results scroll under it.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(64),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.sm),
+            child: TextField(
+              controller: _query,
+              focusNode: _focus,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+              decoration: InputDecoration(
+                hintText: ref.t('search_by_phone_mlid_aadhaar_name'),
+                filled: true,
+                prefixIcon: const Icon(Icons.search),
+                // The action lives inside the field rather than beside it.
+                // A button in a Row next to an Expanded field is this app's
+                // recurring overflow shape, and the translated label for
+                // "Search" is what widens.
+                suffixIcon: _searching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : ManaText.raw(ref.t('search')),
-                ),
-              ],
-            ),
-            const SizedBox(height: ManaSpacing.md),
-            if (_error != null)
-              ManaText.raw(_error!,
-                  style: TextStyle(
-                      color: ManaColors.statusBad, fontSize: 13)),
-            for (final match in _found)
-              Card(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      title: ManaText.raw(match.person.fullName),
-                      subtitle: ManaText.raw([
-                        match.person.mlid,
-                        if (match.person.fatherHusbandName.isNotEmpty)
-                          match.person.fatherHusbandName,
-                      ].join(' · ')),
-                    ),
-                    if (match.roles.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.md),
-                        child: ManaText.raw(ref.t('not_a_member_of_business'),
-                            style: TextStyle(
-                                color: ManaColors.textSecondary, fontSize: 13)),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       )
-                    else
-                      // A person can hold more than one role in the same
-                      // business (e.g. an Owner who is also an Agent) —
-                      // one tappable row per role rather than guessing.
-                      ...match.roles.map((role) => ListTile(
-                            title: ManaText.raw(role),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => _goToRoleScreen(context, role),
-                          )),
-                  ],
-                ),
+                    : IconButton(
+                        icon: const Icon(Icons.arrow_forward),
+                        tooltip: ref.t('search'),
+                        onPressed: _search,
+                      ),
+                border: const OutlineInputBorder(),
               ),
-          ],
+            ),
+          ),
         ),
+      ),
+      body: SafeArea(
+        child: _error != null
+            ? Padding(
+                padding: const EdgeInsets.all(ManaSpacing.lg),
+                child: ManaText.raw(_error!,
+                    style:
+                        TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+              )
+            : _found.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(ManaSpacing.xxl),
+                    child: Center(
+                      child: ManaText.raw(
+                        // Before a search has run this is an instruction, not
+                        // a result. Saying "no match" to someone who has not
+                        // yet typed anything reads as a broken search.
+                        _searched && !_searching
+                            ? ref.t('no_identity_found')
+                            : ref.t('search_by_phone_mlid_aadhaar_name'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: ManaColors.textSecondary),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(ManaSpacing.lg),
+                    itemCount: _found.length,
+                    itemBuilder: (context, i) {
+                      final match = _found[i];
+                      return Card(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              title: ManaText.raw(match.person.fullName),
+                              subtitle: ManaText.raw([
+                                match.person.mlid,
+                                if (match.person.fatherHusbandName.isNotEmpty)
+                                  match.person.fatherHusbandName,
+                              ].join(' · ')),
+                            ),
+                            if (match.roles.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                    ManaSpacing.lg,
+                                    0,
+                                    ManaSpacing.lg,
+                                    ManaSpacing.md),
+                                child: ManaText.raw(
+                                    ref.t('not_a_member_of_business'),
+                                    style: TextStyle(
+                                        color: ManaColors.textSecondary,
+                                        fontSize: 13)),
+                              )
+                            else
+                              // A person can hold more than one role in the
+                              // same business (e.g. an Owner who is also an
+                              // Agent) — one tappable row per role rather
+                              // than guessing.
+                              ...match.roles.map((role) => ListTile(
+                                    title: ManaText.raw(role),
+                                    trailing: const Icon(Icons.chevron_right),
+                                    onTap: () => _goToRoleScreen(context, role),
+                                  )),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
       ),
     );
   }

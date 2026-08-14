@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_006_collection_mode.dart';
 import 'package:mana_line/features/owner_workspace/state/collection_mode_state.dart';
@@ -101,5 +102,69 @@ void main() {
       overrides: [collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))],
     );
     expect(find.textContaining('Nagabhushanam'), findsWidgets);
+  });
+
+  // The search box drops into the app bar's bottom slot, which is a fixed
+  // height holding a hint that grows in Telugu at 2.0x — this app's exact
+  // overflow shape, and invisible until someone opens the box.
+  for (final scale in kManaTextScales) {
+    testWidgets('OW-006 search open survives text scale ${scale}x in Telugu',
+        (tester) async {
+      await pumpManaScreen(
+        tester,
+        const CollectionModeScreen(businessId: 'b1'),
+        textScale: scale,
+        language: ManaLanguage.telugu,
+        translations: _ow006TeluguTranslations,
+        overrides: [
+          collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))
+        ],
+      );
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pump();
+      expectNoLayoutFault(tester, 'OW-006 search open at ${scale}x in Telugu');
+    });
+  }
+
+  testWidgets('OW-006 search narrows the list and restores it', (tester) async {
+    await pumpManaScreen(
+      tester,
+      const CollectionModeScreen(businessId: 'b1'),
+      overrides: [
+        collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))
+      ],
+    );
+
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'Puttur');
+    await tester.pump();
+    expect(find.textContaining('Chalasani'), findsWidgets);
+    expect(find.textContaining('Nagabhushanam'), findsNothing);
+
+    // Closing the box must put the whole round back. A filter left applied
+    // behind a collapsed search is how an Agent finishes the day believing
+    // they visited everyone.
+    await tester.tap(find.byIcon(Icons.search_off));
+    await tester.pump();
+    expect(find.textContaining('Nagabhushanam'), findsWidgets);
+  });
+
+  testWidgets('OW-006 says nothing matched, not nobody is due', (tester) async {
+    await pumpManaScreen(
+      tester,
+      const CollectionModeScreen(businessId: 'b1'),
+      overrides: [
+        collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))
+      ],
+    );
+
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'nobody-by-this-name');
+    await tester.pump();
+
+    expect(find.text('Nobody due today.'), findsNothing);
   });
 }

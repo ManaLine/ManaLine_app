@@ -221,6 +221,35 @@ class PaymentSplit {
   PaymentSplit({required this.paymentMode, required this.amount});
 }
 
+/// Narrows an already-sorted due list to the rows matching [query].
+///
+/// Deliberately applied AFTER `sorted` and never inside it: the collection
+/// order is a business rule, not a display preference, and a filter that
+/// reordered what is left would quietly change which customer an Agent visits
+/// first. Filtering preserves the order it was handed.
+///
+/// Matches name, village, loan number, the line repayment index and the
+/// assigned agent — every field a row actually shows, so anything readable on
+/// screen is also findable. The LRI is included because it is the number
+/// called out on a route sheet, and it is what someone types when they have a
+/// paper list in front of them.
+List<CollectionDueRow> manaFilterDueRows(
+  List<CollectionDueRow> rows,
+  String query,
+) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return rows;
+  return [
+    for (final r in rows)
+      if (r.customerName.toLowerCase().contains(q) ||
+          r.village.toLowerCase().contains(q) ||
+          r.loanNumber.toLowerCase().contains(q) ||
+          r.collectionAgent.toLowerCase().contains(q) ||
+          '${r.lineRepaymentIndex}'.contains(q))
+        r,
+  ];
+}
+
 class CollectionDueRow {
   final String loanId;
   final String customerId;

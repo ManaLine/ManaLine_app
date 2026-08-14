@@ -76,7 +76,7 @@ extension TranslateRef on WidgetRef {
   /// returns the raw key until the cache loads, then a rebuild (from
   /// watching translationLoaderProvider) picks up the real value.
   String t(String key) {
-    final lang = read(authFlowProvider).language;
+    final lang = watch(authFlowProvider.select((s) => s.language));
     return read(translationCacheProvider).t(key, lang.enumValue);
   }
 }

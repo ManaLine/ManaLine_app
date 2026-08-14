@@ -177,6 +177,41 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
       memberships: memberships,
     );
     await ManaSession.instance.setSession(accessToken: token, personId: personId);
+    await _restorePreferredLanguage(personId);
+  }
+
+  /// Puts the person's saved language back on the session.
+  ///
+  /// Settings has always WRITTEN persons.preferred_language and nothing has
+  /// ever read it, so the choice survived exactly as long as the app stayed
+  /// open: pick Telugu, close the app, and it opened in English again with the
+  /// setting still showing Telugu. Restoring here rather than at first paint
+  /// because it needs the token, which is set on the line above.
+  ///
+  /// Non-fatal by design. A person who cannot be read still gets a working
+  /// app in the default language, which is where they were before this
+  /// existed; failing a login over a display preference would be far worse
+  /// than showing English.
+  Future<void> _restorePreferredLanguage(String personId) async {
+    try {
+      final row = await Supabase.instance.client
+          .from('persons')
+          .select('preferred_language')
+          .eq('person_id', personId)
+          .maybeSingle();
+      final stored = row?['preferred_language'] as String?;
+      if (stored == null) return;
+      // firstWhere with an orElse, not byName: preferred_language_enum still
+      // holds Hindi/Tamil/Kannada, and rows carrying those predate the app
+      // being cut down to two languages. Those people get English rather than
+      // an exception on the login path.
+      final match = ManaLanguage.values
+          .where((l) => l.enumValue == stored)
+          .firstOrNull;
+      if (match != null) state = state.copyWith(language: match);
+    } catch (_) {
+      // See above — a preference is not worth failing a login over.
+    }
   }
 
   void setMemberships(List<Membership> memberships) {

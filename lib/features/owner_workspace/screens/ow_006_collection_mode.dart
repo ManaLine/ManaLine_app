@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
+import '../../../design/components/mana_collection_search_field.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/widgets/address_check_banner.dart';
@@ -26,6 +27,13 @@ class CollectionModeScreen extends ConsumerStatefulWidget {
 }
 
 class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
+  /// Local, not in the notifier. The summary strip above the list reports the
+  /// DAY — total due, collected, pending — and those numbers must not move
+  /// because someone typed a village name into a search box. Filtering the
+  /// view here keeps the day's figures describing the day.
+  String _query = '';
+  bool _searchOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -37,11 +45,30 @@ class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(collectionModeProvider);
+    final visible = manaFilterDueRows(state.sorted, _query);
 
     return Scaffold(
       appBar: AppBar(
 leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.businessId)),
         title: ManaText.raw(ref.t('collection_mode')),
+        actions: [
+          IconButton(
+            icon: Icon(_searchOpen ? Icons.search_off : Icons.search),
+            tooltip: ref.t('search'),
+            onPressed: () => setState(() {
+              _searchOpen = !_searchOpen;
+              // Closing the search restores the full round. Leaving a filter
+              // applied behind a collapsed box is how an Agent finishes the
+              // day believing they visited everyone.
+              if (!_searchOpen) _query = '';
+            }),
+          ),
+        ],
+        bottom: _searchOpen
+            ? ManaCollectionSearchField(
+                onChanged: (v) => setState(() => _query = v),
+              )
+            : null,
 ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -58,16 +85,24 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                     ),
                     const SizedBox(height: ManaSpacing.md),
-                    if (state.sorted.isEmpty)
+                    if (visible.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                         child: Center(
-                          child: ManaText.raw(ref.t('nobody_due_today'),
+                          // "Nobody is due" and "nothing matched what you
+                          // typed" are different facts, and telling an Agent
+                          // the first when the second is true would read as an
+                          // empty round.
+                          child: ManaText.raw(
+                              _query.trim().isEmpty
+                                  ? ref.t('nobody_due_today')
+                                  : ref.t('no_customers_match_view'),
+                              textAlign: TextAlign.center,
                               style: TextStyle(color: ManaColors.textSecondary)),
                         ),
                       )
                     else
-                      ...state.sorted.map((row) => _DueRow(
+                      ...visible.map((row) => _DueRow(
                             row: row,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: row, businessId: widget.businessId)),

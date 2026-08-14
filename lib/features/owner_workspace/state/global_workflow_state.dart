@@ -88,8 +88,16 @@ class GlobalWorkflowApiService {
     String? areaLocality,
     String? remarks,
   }) async {
+    // OW-014 still collects one name box, because an Owner recording someone
+    // who predates the app is usually copying off a paper ledger that has one
+    // name on it. Split here with the same rule the database trigger uses —
+    // first word is the house name — so a person entered this way and one
+    // registered at LR-004 end up stored identically.
+    final trimmed = fullName.trim();
+    final firstSpace = trimmed.indexOf(' ');
     final result = await _authApi.register(
-      fullName: fullName,
+      surname: firstSpace == -1 ? trimmed : trimmed.substring(0, firstSpace),
+      givenName: firstSpace == -1 ? '' : trimmed.substring(firstSpace + 1).trim(),
       fatherHusbandName: fatherHusbandName,
       genderDigit: '0', // FLAGGED: this stub's own params never collected gender — same gap as the original stub, not introduced here
       mobileNumber: mobileNumber,

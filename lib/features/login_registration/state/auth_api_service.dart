@@ -127,7 +127,10 @@ class AuthApiService {
 
   /// auth-register (§1.1). Runs as `anon` — no session exists yet.
   Future<RegisterResult> register({
-    required String fullName,
+    required String surname,
+    required String givenName,
+    /// Telugu spelling. Display only — never matched, never on a KYC record.
+    String? fullNameLocal,
     required String fatherHusbandName,
     required String genderDigit,
     String? dob,
@@ -144,7 +147,9 @@ class AuthApiService {
   }) async {
     try {
       final res = await _client.functions.invoke(_Fn.register, headers: _anonAuth, body: {
-        'full_name': fullName,
+        'surname': surname,
+        'given_name': givenName,
+        'full_name_local': fullNameLocal,
         'father_husband_name': fatherHusbandName,
         'gender_digit': genderDigit,
         'dob': dob,

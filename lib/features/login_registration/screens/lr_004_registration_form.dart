@@ -29,8 +29,27 @@ class RegistrationFormScreen extends ConsumerStatefulWidget {
 
 class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _fullName = TextEditingController();
-  final _fullNameEnglish = TextEditingController();
+  // Surname and given name are entered separately so the app knows which part
+  // is the house name. Matching a person depends on that: "Karri Siri
+  // Manikanta Reddy" and "K S M Reddy" are the same person, and nothing can
+  // tell without knowing where the intiperu ends.
+  final _surname = TextEditingController();
+  final _givenName = TextEditingController();
+
+  /// The Telugu spelling, optional, display only. Replaces the old
+  /// "Full Name in English" field, which had the polarity backwards — it let
+  /// the Telugu spelling be canonical and asked for English as an
+  /// afterthought, then never submitted the answer (fixed here). The name on
+  /// the Aadhaar card is the one that has to match, so that one is entered
+  /// directly and this is the extra.
+  final _fullNameLocal = TextEditingController();
+
+  /// Surname + given name, exactly as it will be stored and printed. Shown
+  /// live under the two fields so the person checks the WHOLE string against
+  /// their card — Aadhaar has one name box, not two, so the split itself is
+  /// this app's idea and they should never have to reason about it.
+  String get _composedName =>
+      '${_surname.text.trim()} ${_givenName.text.trim()}'.trim();
 
   /// Detects Telugu, Devanagari (Hindi), Tamil, or Kannada script by
   /// Unicode code point range — real detection, not a heuristic guess.
@@ -112,9 +131,15 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   List<String> get _missingRequirements {
     final missing = <String>[];
     if (_livePhotoBytes == null) missing.add('Capture live photo');
-    if (_fullName.text.trim().length < 2) missing.add('Full Name');
-    if (_containsNonLatinScript(_fullName.text) && _fullNameEnglish.text.trim().length < 2) {
-      missing.add('Full Name in English');
+    if (_surname.text.trim().isEmpty) missing.add('Surname');
+    // Given name may be empty — single-name people exist here. The composed
+    // name is what has to be substantial.
+    if (_composedName.length < 2) missing.add('Name');
+    // The canonical name is the one that must match the Aadhaar card and the
+    // one every match key is built from, so it is Latin script. Telugu goes in
+    // its own field rather than being auto-transliterated into this one.
+    if (_containsNonLatinScript(_surname.text) || _containsNonLatinScript(_givenName.text)) {
+      missing.add('Surname and Name in English letters (use "Name in Telugu" below for తెలుగు)');
     }
     if (_fatherHusbandName.text.trim().length < 2) missing.add('Father / Husband Name');
     if (_gender == null) missing.add('Gender');
@@ -203,7 +228,14 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     final reached = await NetworkErrorHandler.run(context, () async {
       try {
         result = await ref.read(authApiServiceProvider).register(
-              fullName: _fullName.text.trim(),
+              surname: _surname.text.trim(),
+              givenName: _givenName.text.trim(),
+              // The Telugu spelling was collected and thrown away before this
+              // — the old field blocked the form until it was filled and then
+              // never reached the server.
+              fullNameLocal: _fullNameLocal.text.trim().isEmpty
+                  ? null
+                  : _fullNameLocal.text.trim(),
               fatherHusbandName: _fatherHusbandName.text.trim(),
               genderDigit: genderDigit,
               // Date only — persons.dob is a DATE column. Non-null here
@@ -375,26 +407,42 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               const _SectionLabel('identity'),
               _LivePhotoCapture(photoBytes: _livePhotoBytes, onCapture: _captureLivePhoto),
               const SizedBox(height: ManaSpacing.md),
+              // The notice sits ABOVE the fields, not as helper text under
+              // them: it changes how the person fills both boxes in, so they
+              // have to read it before typing, not after.
+              _AadhaarNameNotice(),
+              const SizedBox(height: ManaSpacing.sm),
               TextFormField(
-                controller: _fullName,
+                controller: _surname,
                 textCapitalization: TextCapitalization.words,
                 inputFormatters: [TitleCaseTextFormatter()],
-                decoration: const InputDecoration(labelText: 'Full Name *'),
+                decoration: InputDecoration(
+                  labelText: ref.t('surname_field'),
+                  helperText: ref.t('surname_helper'),
+                ),
                 onChanged: (_) => setState(() {}),
               ),
-              if (_containsNonLatinScript(_fullName.text)) ...[
+              const SizedBox(height: ManaSpacing.md),
+              TextFormField(
+                controller: _givenName,
+                textCapitalization: TextCapitalization.words,
+                inputFormatters: [TitleCaseTextFormatter()],
+                decoration: InputDecoration(labelText: ref.t('name_field')),
+                onChanged: (_) => setState(() {}),
+              ),
+              if (_composedName.isNotEmpty) ...[
                 const SizedBox(height: ManaSpacing.sm),
-                TextFormField(
-                  controller: _fullNameEnglish,
-                  textCapitalization: TextCapitalization.words,
-                  inputFormatters: [TitleCaseTextFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name in English *',
-                    helperText: 'Please type this yourself — used on official documents, never auto-translated.',
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
+                _ComposedNamePreview(name: _composedName),
               ],
+              const SizedBox(height: ManaSpacing.md),
+              TextFormField(
+                controller: _fullNameLocal,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: ref.t('name_in_telugu_optional_field'),
+                  helperText: ref.t('name_in_telugu_helper'),
+                ),
+              ),
               const SizedBox(height: ManaSpacing.md),
               TextFormField(
                 controller: _fatherHusbandName,
@@ -771,6 +819,70 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The Aadhaar warning that governs both name fields.
+///
+/// Worded "can lead to" rather than "leads to" on purpose: suspension is the
+/// outcome of a human comparing the name to the document, not something the
+/// app does on its own. Promising an automatic consequence that nothing
+/// implements is how a notice becomes background noise.
+class _AadhaarNameNotice extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(ManaSpacing.md),
+      decoration: BoxDecoration(
+        color: ManaColors.statusWarn.withValues(alpha: 0.10),
+        border: Border.all(color: ManaColors.statusWarn),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.badge_outlined, size: 18, color: ManaColors.statusWarn),
+          const SizedBox(width: ManaSpacing.sm),
+          // Expanded, not a bare Text: this is a long translated string beside
+          // a fixed-width icon, which is the exact shape that overflows here.
+          Expanded(
+            child: ManaText.raw(
+              ref.t('aadhaar_name_notice'),
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows surname and given name joined exactly as they will be stored.
+///
+/// Aadhaar has ONE name box. Splitting it into two is this app's idea, so the
+/// person is asked to check the joined result against their card rather than
+/// to reason about where their own name divides.
+class _ComposedNamePreview extends ConsumerWidget {
+  final String name;
+  const _ComposedNamePreview({required this.name});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.subdirectory_arrow_right,
+            size: 16, color: ManaColors.textSecondary),
+        const SizedBox(width: ManaSpacing.xs),
+        Expanded(
+          child: ManaText.raw(
+            '${ref.t('will_be_saved_as')} $name',
+            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          ),
+        ),
+      ],
     );
   }
 }

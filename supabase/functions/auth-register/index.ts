@@ -37,7 +37,13 @@ import { istDate, istNow } from "../_shared/time.ts";
 import { isValidDob } from "../_shared/validation.ts";
 
 interface RegisterBody {
-  full_name: string;
+  // The name arrives split. persons.surname and persons.given_name are
+  // authoritative and the trigger composes full_name from them, so this
+  // function never sends full_name at all — sending it would be ignored.
+  surname: string;
+  given_name?: string | null;
+  /// Telugu spelling. Display only: never matched, never on a KYC record.
+  full_name_local?: string | null;
   father_husband_name: string;
   gender_digit: string;
   dob?: string | null;
@@ -89,7 +95,7 @@ Deno.serve(async (req: Request) => {
   // --- Server-side validation. Never trust the Flutter client's own
   // validation (UX convenience only, not a security boundary — prompt §3). ---
   const errors: string[] = [];
-  if (!body.full_name?.trim()) errors.push("full_name is required");
+  if (!body.surname?.trim()) errors.push("surname is required");
   if (!body.father_husband_name?.trim()) errors.push("father_husband_name is required");
   if (body.gender_digit !== "0" && body.gender_digit !== "1") {
     errors.push("gender_digit must be '0' or '1'");
@@ -248,15 +254,33 @@ Deno.serve(async (req: Request) => {
     }
   }
   {
+    // This used to compare full_name for exact equality, which is why
+    // duplicate_suspects has never held a row: two spellings of the same
+    // person almost never match to the byte, and the case worth catching is
+    // exactly the one where they differ. Matching on the SURNAME plus the
+    // father/husband name instead casts a wider net — same house name, same
+    // father, in one business is a strong signal — and the given name is
+    // compared case- and space-insensitively rather than exactly.
+    //
+    // Still not a block. BR-228 is explicit that a suspected duplicate is
+    // flagged for the Owner, never refused at the counter, and a wider net is
+    // only safe because of that.
+    const surname = body.surname.trim();
+    const given = (body.given_name ?? "").trim();
     const { data: nameMatches } = await admin
       .from("persons")
-      .select("person_id")
-      .eq("full_name", body.full_name.trim())
-      .eq("father_husband_name", body.father_husband_name.trim());
+      .select("person_id, given_name")
+      .ilike("surname", surname)
+      .ilike("father_husband_name", body.father_husband_name.trim());
     if (nameMatches && nameMatches.length > 0) {
+      const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const exact = nameMatches.find(
+        (m: { given_name: string | null }) =>
+          squash(m.given_name ?? "") === squash(given),
+      );
       duplicateFlag = true;
-      matchedPersonId ??= nameMatches[0].person_id;
-      fuzzyMatchers.push("Name+FatherHusbandName");
+      matchedPersonId ??= (exact ?? nameMatches[0]).person_id;
+      fuzzyMatchers.push(exact ? "Name+FatherHusbandName" : "Surname+FatherHusbandName");
     }
   }
 
@@ -279,7 +303,11 @@ Deno.serve(async (req: Request) => {
       mlid,
       mlid_type: mlidType,
       gender_digit: genderDigit,
-      full_name: body.full_name.trim(),
+      // No full_name here on purpose — trg_sync_person_name composes it from
+      // these two, and the parts win over anything sent alongside them.
+      surname: body.surname.trim(),
+      given_name: (body.given_name ?? "").trim(),
+      full_name_local: body.full_name_local?.trim() || null,
       father_husband_name: body.father_husband_name.trim(),
       dob,
       aadhaar_number: body.aadhaar_number ?? null,

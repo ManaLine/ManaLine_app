@@ -112,11 +112,15 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                     const SizedBox(height: ManaSpacing.sm),
                     _StatusFilterDropdown(state: state),
                     const SizedBox(height: ManaSpacing.md),
-                    // C4 — Pending requests surfaced at top since these need
-                    // an Owner decision (Investor-initiated, per spec).
-                    ...state.investors
-                        .where((i) => i.membershipStatus == 'Pending Acceptance')
-                        .map((i) => _PendingRequestCard(businessId: widget.businessId, investor: i)),
+                    // The Approve/Reject cards that used to sit here moved to
+                    // the shared Notifications inbox. An Owner now decides on
+                    // membership requests in exactly one place, whichever
+                    // business or workspace they arrive from, instead of this
+                    // screen carrying its own copy of the decision UI.
+                    //
+                    // Pending rows are still excluded from the list below —
+                    // see the note there, which is about them not being real
+                    // members yet, not about where they are actioned.
                     // A failed load previously looked identical to "no
                     // investors" — state.error was captured but never
                     // shown, indistinguishable from a business that
@@ -140,12 +144,10 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                         ),
                       )
                     else
-                      // Pending Acceptance rows are excluded here — they
-                      // aren't real members yet (no investor_id, so this
-                      // row's onTap into InvestorProfileScreen would have
-                      // nothing to load), and the card loop above already
-                      // surfaces them with the correct approve/reject
-                      // actions.
+                      // Pending Acceptance rows are excluded here because they
+                      // aren't real members yet: no investor_id, so this row's
+                      // onTap into InvestorProfileScreen would have nothing to
+                      // load. They are actioned from Notifications.
                       ...state.filtered
                           .where((i) => i.membershipStatus != 'Pending Acceptance')
                           .map((i) => _InvestorRow(
@@ -228,70 +230,6 @@ class _StatusFilterDropdown extends ConsumerWidget {
             )),
       ],
       onChanged: (v) => ref.read(investorWorkforceProvider.notifier).setStatusFilter(v),
-    );
-  }
-}
-
-class _PendingRequestCard extends ConsumerWidget {
-  final String businessId;
-  final InvestorSummary investor;
-  const _PendingRequestCard({required this.businessId, required this.investor});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      color: ManaColors.statusWarnFaint,
-      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const ManaVerificationRing(isVerified: true, size: 36),
-                const SizedBox(width: ManaSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ManaText.raw(investor.mlid,
-                          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: ManaSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => NetworkErrorHandler.run(context, () async {
-                      return ref
-                          .read(investorWorkforceProvider.notifier)
-                          .rejectRequest(businessId, investor.requestId!);
-                    }),
-                    child: ManaText.raw(ref.t('reject')),
-                  ),
-                ),
-                const SizedBox(width: ManaSpacing.sm),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => NetworkErrorHandler.run(context, () async {
-                      return ref
-                          .read(investorWorkforceProvider.notifier)
-                          .approveRequest(businessId, investor.requestId!);
-                    }),
-                    child: ManaText.raw(ref.t('approve')),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

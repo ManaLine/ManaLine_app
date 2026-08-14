@@ -1337,37 +1337,6 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
     });
   }
 
-  Future<void> _decideInvestorRequest(MembershipRequestSummary request, bool approve) async {
-    String? reason;
-    if (!approve) {
-      reason = await showDialog<String>(
-        context: context,
-        builder: (_) {
-          final controller = TextEditingController();
-          return AlertDialog(
-            title: ManaText.raw(ref.t('reject_investor_request')),
-            content: TextField(controller: controller, decoration: InputDecoration(labelText: ref.t('reason_field'))),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: ManaText.raw(ref.t('cancel'))),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-                child: ManaText.raw(ref.t('reject')),
-              ),
-            ],
-          );
-        },
-      );
-      if (reason == null || !mounted) return;
-    }
-    await NetworkErrorHandler.run(context, () async {
-      return ref.read(businessDetailProvider(widget.businessId).notifier).decideInvestorRequest(
-            requestId: request.requestId,
-            approve: approve,
-            rejectionReason: reason,
-          );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(businessDetailProvider(widget.businessId));
@@ -1388,37 +1357,14 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
           ],
         ),
         const SizedBox(height: ManaSpacing.lg),
-        if (state.membershipRequests.isNotEmpty) ...[
-          ManaText.raw(ref.t('request_queue_investors'), style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: ManaSpacing.sm),
-          ...state.membershipRequests.map((r) => Card(
-                child: ListTile(
-                  leading: const ManaVerificationRing(isVerified: false, size: 36),
-                  title: ManaText.raw(r.fullName),
-                  subtitle: ManaText.raw(
-                    r.proposedInvestmentAmount != null
-                        ? ref
-                            .t('proposed_amount_note')
-                            .replaceAll('{amount}', r.proposedInvestmentAmount!.toStringAsFixed(0))
-                        : r.requestedRole,
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.close, color: ManaColors.statusBad),
-                        onPressed: () => _decideInvestorRequest(r, false),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.check, color: ManaColors.statusGood),
-                        onPressed: () => _decideInvestorRequest(r, true),
-                      ),
-                    ],
-                  ),
-                ),
-              )),
-          const SizedBox(height: ManaSpacing.lg),
-        ],
+        // The investor request queue with its tick/cross buttons used to sit
+        // here. It moved to the shared Notifications inbox so an Owner
+        // approves a membership request in one place rather than three.
+        //
+        // The pending GROUPINGS below stay: they are roster information —
+        // "who have I invited, who has not answered" — not a second copy of
+        // the decision. Reading that here is part of managing a business;
+        // deciding it belongs in the inbox.
         if (pendingInvitations.isNotEmpty) ...[
           ManaText.raw(ref.t('pending_invitations_header'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ...pendingInvitations.map((m) => _MemberRow(businessId: widget.businessId, member: m)),

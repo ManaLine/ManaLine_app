@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,11 +23,11 @@ class _BusinessGroup {
   });
 }
 
-/// LR-012 — Phase 4 Business Router. Per spec, the 0/1/>1 collapse rules
-/// are applied BEFORE rendering — this screen either never shows (0 or 1
+/// LR-012 â€” Phase 4 Business Router. Per spec, the 0/1/>1 collapse rules
+/// are applied BEFORE rendering â€” this screen either never shows (0 or 1
 /// distinct Active business) or shows the full card list (>1). Reached
 /// from LR-009/LR-008 (first login/daily login) via authFlowProvider's
-/// memberships, already in hand from the login response — no separate
+/// memberships, already in hand from the login response â€” no separate
 /// "list my businesses" call, per spec's DATA SOURCE section.
 class BusinessSelectorScreen extends ConsumerStatefulWidget {
   const BusinessSelectorScreen({super.key});
@@ -59,12 +59,12 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
             });
           }
         } catch (_) {
-          // Non-fatal — just shows the default icon instead of a photo.
+          // Non-fatal â€” just shows the default icon instead of a photo.
         }
       }
       final auth = ref.read(authFlowProvider);
       // Defensive fallback, not a routine refetch (that's still deliberately
-      // not done here, per the locked design below) — only fires if this
+      // not done here, per the locked design below) â€” only fires if this
       // screen is reached with a real personId but a suspiciously-empty
       // memberships cache, which shouldn't happen via the normal login flow
       // but can if this screen is reached some other way (e.g. direct
@@ -80,7 +80,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
 
   List<_BusinessGroup> _activeBusinessGroups() {
     final memberships = ref.read(authFlowProvider).memberships;
-    // Only 'Active' membership rows count toward routing/display (BR-192/203) —
+    // Only 'Active' membership rows count toward routing/display (BR-192/203) â€”
     // Pending/Suspended/Removed are excluded entirely, not shown-then-blocked.
     final active = memberships.where((m) => m.membershipStatus == 'Active');
 
@@ -105,42 +105,42 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
     return ref.read(authFlowProvider).memberships.where((m) => m.membershipStatus == 'Pending Invitation').toList();
   }
 
-  Future<void> _respondToRequest(Membership m, bool accept) async {
+  /// Re-reads memberships after the person has been to the Notifications
+  /// inbox, then re-applies the routing rule.
+  ///
+  /// This screen used to answer invitations itself, and on accept it
+  /// refreshed memberships and re-ran _applyRoutingRule so someone who had
+  /// just joined their only business was taken straight into it. The
+  /// decision moved to the inbox; that follow-through has to move with it,
+  /// or accepting an invitation would leave this list stale and the person
+  /// staring at "no business linked" for a business they just joined.
+  Future<void> _refreshAfterInbox() async {
+    final personId = ref.read(authFlowProvider).personId;
+    if (personId == null) return;
     try {
-      await Supabase.instance.client.schema('app').rpc('respond_to_membership_request', params: {
-        'p_membership_id': m.membershipId,
-        'p_accept': accept,
-      });
-      final memberships = await ref.read(authApiServiceProvider).fetchMemberships(ref.read(authFlowProvider).personId!);
+      final memberships =
+          await ref.read(authApiServiceProvider).fetchMemberships(personId);
       ref.read(authFlowProvider.notifier).setMemberships(memberships);
       if (!mounted) return;
       setState(() {});
-      if (accept) {
-        // Was the actual dead end — accepting a request refreshed the
-        // membership list but never re-checked whether the person should
-        // now be auto-routed into their new workspace (e.g. if this was
-        // their only business). WidgetsBinding defer, same reasoning as
-        // initState's own call.
-        WidgetsBinding.instance.addPostFrameCallback((_) => _applyRoutingRule());
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(accept ? 'Could not accept — please try again.' : 'Could not decline — please try again.')),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => _applyRoutingRule());
+    } catch (_) {
+      // Non-fatal: the list simply stays as it was. Pull-to-refresh and the
+      // next visit both recover, and a failed refresh must not block the
+      // selector.
     }
   }
 
   void _applyRoutingRule() {
     final groups = _activeBusinessGroups();
     if (groups.length == 1) {
-      // "Automatically Open Business" — LR-012 must never appear for a
+      // "Automatically Open Business" â€” LR-012 must never appear for a
       // single-business user.
       ref.read(authFlowProvider.notifier).selectBusiness(groups.first.businessId);
       context.go('/lr-013');
     }
-    // 0 groups → render S0 below (build() handles this, no navigation).
-    // >1 groups → render the card list below (build() handles this too).
+    // 0 groups â†’ render S0 below (build() handles this, no navigation).
+    // >1 groups â†’ render the card list below (build() handles this too).
   }
 
   void _selectBusiness(String businessId) {
@@ -154,7 +154,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
 
     if (groups.isEmpty) return _noBusinessLinked(context);
     if (groups.length == 1) {
-      // Transient frame before the postFrameCallback above fires — avoid
+      // Transient frame before the postFrameCallback above fires â€” avoid
       // flashing the card list for a single-business user.
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -167,7 +167,9 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
           child: Column(
             children: [
               if (_pendingInvitations().isNotEmpty) ...[
-                _PendingRequestsSection(pending: _pendingInvitations(), onRespond: _respondToRequest),
+                _InvitationsPrompt(
+                    count: _pendingInvitations().length,
+                    onReturn: _refreshAfterInbox),
                 const SizedBox(height: ManaSpacing.md),
               ],
               Expanded(
@@ -236,8 +238,8 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
       // Two lines, not "Welcome, <name>" on one.
       //
       // WHY: a single line put a fixed six-character greeting in front of the
-      // part that matters, so the name — which is user data and routinely
-      // three words in this region — was the half that got ellipsed. Names
+      // part that matters, so the name â€” which is user data and routinely
+      // three words in this region â€” was the half that got ellipsed. Names
       // here really do reach "Karri Siri Manikanta Reddy". Stacking a small
       // greeting over the name gives the name the full width.
       titleSpacing: 0,
@@ -271,7 +273,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
             customBorder: const CircleBorder(),
             // Settings is where Profile lives. It is reached from here with
             // no workspace chosen, so Settings resolves the Profile row from
-            // the last role this device used — see SettingsScreen's own
+            // the last role this device used â€” see SettingsScreen's own
             // _profileRoute note.
             onTap: () => context.push('/settings'),
             child: CircleAvatar(
@@ -326,8 +328,13 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // The stranding case: no active business at all. If the only
+              // membership is a pending invitation, this prompt is the only
+              // way forward â€” there is no dashboard here, so no notification
+              // bell. Removing the invitation UI without leaving a route to
+              // the inbox would lock these people out of the app entirely.
               if (pending.isNotEmpty) ...[
-                _PendingRequestsSection(pending: pending, onRespond: _respondToRequest),
+                _InvitationsPrompt(count: pending.length, onReturn: _refreshAfterInbox),
                 const SizedBox(height: ManaSpacing.xl),
               ],
               Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
@@ -340,7 +347,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
               ),
               const SizedBox(height: ManaSpacing.xl),
               ElevatedButton(
-                // OW-000 First Business Setup — reached with
+                // OW-000 First Business Setup â€” reached with
                 // isAdditionalBusiness=false since this is the 0-business
                 // path (per OW-000's own ENTRY POINT: "0 Businesses Linked").
                 onPressed: () => context.push('/ow-000', extra: false),
@@ -368,98 +375,57 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
   }
 }
 
-/// Shows pending business membership requests (business_members.
-/// membership_status = 'Pending Invitation') with real Accept/Decline
-/// actions. Deliberately separate from the main business list above —
-/// that list's "Active only" rule is a locked decision (never shown-
-/// then-blocked); this is a different, additive concept: a real request
-/// awaiting the recipient's own response, not a business option they
-/// can select into yet.
-class _PendingRequestsSection extends ConsumerStatefulWidget {
-  final List<Membership> pending;
-  final Future<void> Function(Membership, bool accept) onRespond;
-  const _PendingRequestsSection({required this.pending, required this.onRespond});
+/// Points at the shared Notifications inbox rather than answering the
+/// invitation here.
+///
+/// This screen used to carry its own Accept/Decline UI â€” one of several
+/// copies scattered across the app. The decision now happens in one place,
+/// but it still has to be REACHABLE from here: LR-012 is pre-workspace, so
+/// there is no dashboard and no notification bell, and someone whose only
+/// membership is a pending invitation would otherwise have no way into the
+/// app at all.
+class _InvitationsPrompt extends ConsumerWidget {
+  final int count;
+
+  /// Runs when the person comes back from the inbox â€” see
+  /// _BusinessSelectorScreenState._refreshAfterInbox.
+  final Future<void> Function() onReturn;
+
+  const _InvitationsPrompt({required this.count, required this.onReturn});
 
   @override
-  ConsumerState<_PendingRequestsSection> createState() => _PendingRequestsSectionState();
-}
-
-class _PendingRequestsSectionState extends ConsumerState<_PendingRequestsSection> {
-  String? _respondingTo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ManaText.raw(ref.t('pending_requests_header'), style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: ManaSpacing.sm),
-        ...widget.pending.map((m) {
-          final busy = _respondingTo == m.membershipId;
-          return Card(
-            color: ManaColors.statusWarnFaint,
-            child: Padding(
-              padding: const EdgeInsets.all(ManaSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ManaText.raw('${m.businessName} — as ${m.role}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  ManaText.raw(ref.t('waiting_for_your_response'), style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-                  const SizedBox(height: ManaSpacing.sm),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: busy
-                              ? null
-                              : () async {
-                                  setState(() => _respondingTo = m.membershipId);
-                                  await widget.onRespond(m, false);
-                                  if (mounted) setState(() => _respondingTo = null);
-                                },
-                          child: ManaText.raw(ref.t('decline')),
-                        ),
-                      ),
-                      const SizedBox(width: ManaSpacing.sm),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: busy
-                              ? null
-                              : () async {
-                                  setState(() => _respondingTo = m.membershipId);
-                                  await widget.onRespond(m, true);
-                                  if (mounted) setState(() => _respondingTo = null);
-                                },
-                          child: busy
-                              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : ManaText.raw(ref.t('accept')),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Card(
+      color: ManaColors.brandFaint,
+      child: ListTile(
+        leading: Icon(Icons.mark_email_unread_outlined, color: ManaColors.brand),
+        title: ManaText.raw(
+          ref.t('invitations_to_you'),
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: ManaText.raw(
+          ref.t('pending_invitations_count_note').replaceAll('{count}', '$count'),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push('/notifications').then((_) => onReturn()),
+      ),
     );
   }
 }
-
-/// "Request to Join a Business" — self-service reverse-direction flow.
-/// Flow order: role first, then search (by business name, partial match —
+/// "Request to Join a Business" â€” self-service reverse-direction flow.
+/// Flow order: role first, then search (by business name, partial match â€”
 /// or an exact MLBI, same field), pick from live suggestions, confirm the
 /// full business details, then apply.
 ///
 /// CHANGED (this batch): step 2 used to be an exact-MLBI-only text field
-/// (0046's search_business_by_mlbi) — unusable for someone who only knows
+/// (0046's search_business_by_mlbi) â€” unusable for someone who only knows
 /// the business by name, and typing a name into it just produced "No
 /// business found." Replaced with search_businesses_by_name (0051),
 /// partial/ILIKE match on name OR MLBI-prefix, live suggestions as you
 /// type (debounced), and a full confirm card (name, MLBI, owner, address)
-/// before sending the request — not just a name+MLBI chip like before.
+/// before sending the request â€” not just a name+MLBI chip like before.
 class _RequestJoinBusinessSheet extends ConsumerStatefulWidget {
   const _RequestJoinBusinessSheet();
 
@@ -474,7 +440,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
 
   List<Map<String, dynamic>> _suggestions = [];
   bool _searching = false;
-  Map<String, dynamic>? _foundBusiness; // set once a suggestion is tapped — confirm-card state
+  Map<String, dynamic>? _foundBusiness; // set once a suggestion is tapped â€” confirm-card state
   bool _applying = false;
   String? _error;
 
@@ -516,7 +482,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
       setState(() {
         _searching = false;
         _suggestions = [];
-        _error = 'Search failed — please try again.';
+        _error = 'Search failed â€” please try again.';
       });
     }
   }
@@ -568,7 +534,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
   Widget build(BuildContext context) {
     // SCROLLS. Padding alone accounted for the keyboard but the content
     // could not move, so once the role chips + search field + confirm card +
-    // button were taller than what the keyboard left behind, it overflowed —
+    // button were taller than what the keyboard left behind, it overflowed â€”
     // 24px on a real handset. Same class of bug as LR-002's Spacers.
     return SingleChildScrollView(
       padding: EdgeInsets.only(
@@ -616,7 +582,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
             onChanged: _onQueryChanged,
           ),
 
-          // Live suggestions — shown while typing, before a business is picked.
+          // Live suggestions â€” shown while typing, before a business is picked.
           if (_suggestions.isNotEmpty && _foundBusiness == null) ...[
             const SizedBox(height: ManaSpacing.xs),
             ConstrainedBox(
@@ -655,7 +621,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
                 style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
           ],
 
-          // Confirm card — full details, shown only once a suggestion is
+          // Confirm card â€” full details, shown only once a suggestion is
           // tapped. This is the actual gap being closed: previously only
           // name + MLBI were shown before applying; now owner name and
           // registered address are shown too, so the person can confirm
@@ -686,9 +652,9 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
                       ],
                     ),
                     const SizedBox(height: ManaSpacing.sm),
-                    _confirmRow('MLBI', _foundBusiness!['mlbi'] as String? ?? '—'),
-                    _confirmRow('Owner', _foundBusiness!['owner_name'] as String? ?? '—'),
-                    _confirmRow('Registered Address', _foundBusiness!['business_address'] as String? ?? '—'),
+                    _confirmRow('MLBI', _foundBusiness!['mlbi'] as String? ?? 'â€”'),
+                    _confirmRow('Owner', _foundBusiness!['owner_name'] as String? ?? 'â€”'),
+                    _confirmRow('Registered Address', _foundBusiness!['business_address'] as String? ?? 'â€”'),
                   ],
                 ),
               ),

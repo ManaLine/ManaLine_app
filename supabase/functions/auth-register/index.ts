@@ -36,6 +36,27 @@ import { hashSecret } from "../_shared/hashing.ts";
 import { istDate, istNow } from "../_shared/time.ts";
 import { isValidDob } from "../_shared/validation.ts";
 
+/// SHA-256 of the normalised twelve digits, hex — the same value
+/// app.aadhaar_hash() produces, and the trigger stores.
+///
+/// Computed here rather than by calling that function over PostgREST: the
+/// `app` schema is not reachable as an RPC from this client, and the version
+/// that tried returned a null hash, which compared equal to nothing and let
+/// every duplicate through while still answering 200. A pre-check that
+/// silently stops checking is worse than no pre-check.
+///
+/// The two implementations must agree exactly or duplicates slip past this
+/// into the UNIQUE index as a raw constraint error. Verified against the
+/// database for both '222233334444' and '2222 3333 4444'; the strip-non-digits
+/// normalisation is the only thing either side does before hashing.
+async function aadhaarHash(aadhaar: string): Promise<string> {
+  const digits = aadhaar.replace(/[^0-9]/g, "");
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(digits));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 interface RegisterBody {
   // The name arrives split. persons.surname and persons.given_name are
   // authoritative and the trigger composes full_name from them, so this
@@ -200,10 +221,15 @@ Deno.serve(async (req: Request) => {
   // (SP-001: never expose which existing account conflicts — generic 409
   // only, per prompt §2 item 1 / auth_api_service.dart architectural note #6). ---
   if (body.aadhaar_number) {
+    // Compared as a hash, because the column this used to read is now blanked
+    // by trg_hash_person_aadhaar inside the same statement that writes it —
+    // matching on aadhaar_number would silently match nothing and let every
+    // duplicate through to the UNIQUE index below, turning a clean 409 into a
+    // raw constraint error. app.aadhaar_hash normalises before hashing.
     const { data: aadhaarMatch } = await admin
       .from("persons")
       .select("person_id")
-      .eq("aadhaar_number", body.aadhaar_number)
+      .eq("aadhaar_hash", await aadhaarHash(body.aadhaar_number))
       .maybeSingle();
     if (aadhaarMatch) {
       return errorResponse(

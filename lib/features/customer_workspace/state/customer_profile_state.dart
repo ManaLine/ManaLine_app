@@ -29,7 +29,7 @@ class CustomerProfileApiService {
   Future<CustomerProfileSummary> fetchProfile({required String personId}) async {
     final row = await _db
         .from('persons')
-        .select('full_name, mlid, mobile_number, aadhaar_number, profile_photo_url, '
+        .select('full_name, mlid, mobile_number, aadhaar_last4, profile_photo_url, '
             'verification_ring, '
             'person_addresses(address_id, village_id, door_no, area_locality, pin_code, '
             'mandal, district, is_current, locations(village_town_name))')
@@ -42,15 +42,12 @@ class CustomerProfileApiService {
           orElse: () => addresses.isNotEmpty ? addresses.first : null,
         );
 
-    final aadhaar = row['aadhaar_number'] as String?;
-    // View-only last-4: `persons.aadhaar_number` is the only column the
-    // schema has (stored encrypted at the app layer per its own comment);
-    // there is no dedicated `aadhaar_last4` column, so this is derived
-    // client-side from whatever `aadhaar_number` returns. If the app-layer
-    // encryption means this column is never returned in cleartext to a
-    // Self-select caller, this derivation silently produces garbage —
-    // flagged rather than guessed around.
-    final aadhaarLast4 = (aadhaar != null && aadhaar.length >= 4) ? aadhaar.substring(aadhaar.length - 4) : null;
+    // Read straight from the column now. This used to select the full
+    // aadhaar_number and slice the last four off it client-side — which meant
+    // the whole number travelled to the handset to display four digits of it.
+    // persons.aadhaar_number is hashed at rest and always NULL on read, and
+    // aadhaar_last4 is the only readable part that exists.
+    final aadhaarLast4 = row['aadhaar_last4'] as String?;
 
     return CustomerProfileSummary(
       fullName: row['full_name'] as String? ?? '',

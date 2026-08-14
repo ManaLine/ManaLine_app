@@ -193,7 +193,14 @@ class _DeletePersonCardState extends ConsumerState<_DeletePersonCard> {
                   children: [
                     ManaText.raw('${_found!['full_name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ManaText.raw('MLID: ${_found!['mlid']}   Mobile: ${_found!['mobile_number']}', style: const TextStyle(fontSize: 13)),
-                    ManaText.raw('Aadhaar: ${_found!['aadhaar_number'] ?? 'Not provided'}', style: const TextStyle(fontSize: 13)),
+                    // Last four only. The RPC's out-parameter is still named
+                    // aadhaar_number, but the number itself no longer exists
+                    // to print — it is hashed at rest.
+                    ManaText.raw(
+                        _found!['aadhaar_number'] == null
+                            ? 'Aadhaar: Not provided'
+                            : 'Aadhaar: •••• •••• ${_found!['aadhaar_number']}',
+                        style: const TextStyle(fontSize: 13)),
                     ManaText.raw('Verification: ${_found!['verification_ring']}   Businesses: ${_found!['business_count']}',
                         style: const TextStyle(fontSize: 13)),
                   ],

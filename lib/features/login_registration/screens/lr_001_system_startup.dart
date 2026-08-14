@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_brand_mark.dart' show kManaAppName;
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 
@@ -31,6 +33,15 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
   /// but it is no longer the only way out.
   Timer? _retryTimer;
 
+  /// The 1.5s "this is taking a while" timer.
+  ///
+  /// A real Timer held in a field rather than a bare Future.delayed, so
+  /// dispose can cancel it. As a Future it kept running after the screen was
+  /// gone — harmless in the app because the callback checks `mounted`, but it
+  /// left a pending timer behind, which is a leak in the small and made the
+  /// screen impossible to write a widget test for at all.
+  Timer? _slowLoadTimer;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +51,7 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
   @override
   void dispose() {
     _retryTimer?.cancel();
+    _slowLoadTimer?.cancel();
     super.dispose();
   }
 
@@ -52,7 +64,8 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
 
   Future<void> _runHealthChecks() async {
     // Show the status indicator only if we cross 1.5s — per spec.
-    final slowTimer = Future.delayed(const Duration(milliseconds: 1500), () {
+    _slowLoadTimer?.cancel();
+    _slowLoadTimer = Timer(const Duration(milliseconds: 1500), () {
       if (mounted && _state == _StartupState.loading) {
         setState(() => _state = _StartupState.slowLoad);
       }
@@ -77,7 +90,12 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
       final cache = ref.read(translationCacheProvider);
       await cache.load();
       if (cache.lastError != null) throw cache.lastError!;
-      await slowTimer.timeout(Duration.zero, onTimeout: () {}).catchError((_) {});
+      // The check finished, so the "taking a while" indicator must not fire
+      // after the fact. This line used to be
+      // `await slowTimer.timeout(Duration.zero, ...)`, which read like it was
+      // waiting for something and did nothing at all — a zero timeout on a
+      // 1.5s future always elapses immediately, and the callback still ran.
+      _slowLoadTimer?.cancel();
 
       if (!mounted) return;
 
@@ -111,68 +129,30 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ManaColors.ink,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(ManaSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipOval(
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  // 1254x1254 source rendered at ~96px. cacheWidth decodes at
-                  // display size rather than holding a 2.4MB full-res bitmap
-                  // in memory — this is a cheap-Android target and the splash
-                  // is the first thing that runs.
-                  cacheWidth: 288,
-                  height: 96,
-                  width: 96,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(height: ManaSpacing.md),
-              Text(
-                'MANA LINE',
-                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      color: ManaColors.textOnDark,
-                    ),
-              ),
-              const SizedBox(height: ManaSpacing.sm),
-              // Tagline: EVERY ₹ COUNTS, with the rupee as the hero.
-              //
-              // The ₹ is `accent` gold and oversized. The WORDS are
-              // textOnDark, not black: this screen's background is
-              // ManaColors.ink (dark navy), so black-on-dark would be
-              // invisible. See the note in the build method below if the
-              // splash is ever moved to a light surface — `accent` is
-              // 1.76:1 on white and must never become ink there.
+      body: SafeArea(
+        // Scrollable, and not because the splash is long. At 2.0x text scale
+        // on a 360x640 handset the mark plus the failure card and its retry
+        // button do not fit, and a Column would simply clip the button — the
+        // one control someone with no signal actually needs. It scrolls
+        // instead, and centres whenever there is room, which is almost always.
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+              // The wordmark and the tagline used to be laid out again in text
+              // underneath a 96px logo. They are both already inside the mark
+              // — "MANA LINE" and "EVERY ₹ COUNTS" are drawn into it — so at
+              // this size that was the same two lines twice. The Semantics
+              // label keeps them available to a screen reader, which is the
+              // only reader that lost anything.
               Semantics(
-                label: ref.t('every_rupee_counts'),
-                excludeSemantics: true,
-                child: RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: TextStyle(
-                      color: ManaColors.textOnDark,
-                      letterSpacing: 3,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    children: [
-                      const TextSpan(text: 'EVERY '),
-                      TextSpan(
-                        text: '₹',
-                        style: TextStyle(
-                          color: ManaColors.accent,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                      const TextSpan(text: ' COUNTS'),
-                    ],
-                  ),
-                ),
+                label: '$kManaAppName. ${ref.t('every_rupee_counts')}',
+                image: true,
+                child: _SplashLogo(),
               ),
               const SizedBox(height: ManaSpacing.xxl),
               if (_state == _StartupState.slowLoad) ...[
@@ -180,12 +160,42 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
                 const SizedBox(height: ManaSpacing.md),
                 ManaText.raw(ref.t('loading_ellipsis'), style: TextStyle(color: ManaColors.textOnDark)),
               ],
-              if (_state == _StartupState.failure)
-                _FailureCard(onRetry: _retryNow),
-            ],
+                  if (_state == _StartupState.failure)
+                    _FailureCard(onRetry: _retryNow),
+                ],
+              ),
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The brand mark at opening size — as wide as the screen allows.
+///
+/// Width normally wins: the mark spans the display less one 12dp step either
+/// side. The height cap only bites on a short, wide screen — a landscape
+/// tablet — where a width-sized square would be taller than the display.
+class _SplashLogo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final side = math.min(
+      media.size.width - ManaSpacing.md * 2,
+      media.size.height * 0.7,
+    );
+    return Image.asset(
+      'assets/images/logo.png',
+      width: side,
+      height: side,
+      // Decode at display size rather than holding the full 1024² bitmap.
+      // This is the first thing that runs on a cheap Android.
+      cacheWidth: (side * media.devicePixelRatio).round(),
+      // contain, not cover: the asset is cropped to the circle's own edge, so
+      // cover would shave the rim off at any non-square box.
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => SizedBox(height: side),
     );
   }
 }

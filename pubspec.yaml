@@ -53,12 +53,17 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/logo.png"
   min_sdk_android: 21
-  # logo.png is a circle with a transparent surround. Android keeps the
-  # alpha, so the icon reads as a disc rather than a black square. The App
-  # Store rejects any alpha channel, so iOS gets it flattened onto the same
-  # navy the splash uses — never white, which would halo the gold rim.
+  # logo.png is a circle cropped to its own edge with a transparent surround.
+  # Android keeps the alpha, so the icon reads as a disc rather than a square.
+  # The App Store rejects any alpha channel, so iOS gets it flattened onto a
+  # solid colour instead.
+  #
+  # White, not the navy this used to be. That navy existed to stop a white
+  # halo forming around the old mark's gold rim; the current mark's rim is
+  # blue and its inner ring is already white, so navy would now read as a dark
+  # square with a blue coin floating on it.
   remove_alpha_ios: true
-  background_color_ios: "#12293D"
+  background_color_ios: "#FFFFFF"
 
 flutter:
   uses-material-design: true

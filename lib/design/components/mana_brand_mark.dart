@@ -46,7 +46,7 @@ class ManaBrandMark extends StatelessWidget {
             'assets/images/logo.png',
             height: logoSize,
             width: logoSize,
-            // 1254x1254 source. Decoding at display size instead of holding a
+            // 1024x1024 source. Decoding at display size instead of holding a
             // full-res bitmap matters on the cheap Androids this targets.
             cacheWidth: (logoSize * 3).round(),
             errorBuilder: (_, __, ___) => const SizedBox.shrink(),

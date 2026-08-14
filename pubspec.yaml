@@ -70,6 +70,12 @@ flutter:
   assets:
     - assets/icons/
     - assets/images/
+    # The Terms & Privacy PDF ships inside the app rather than being fetched.
+    # These are field users on 2G in villages, and the one document a person is
+    # entitled to read before agreeing to it must not depend on a signal.
+    # Updating the terms therefore means a new build — which is the right
+    # trade here, and legal_documents records which version shipped.
+    - assets/legal/
   # fonts pulled via google_fonts at runtime — no bundled font files needed
   # unless you want fully offline-safe first paint (recommended for V1
   # given the target network conditions — see design/tokens/typography.dart

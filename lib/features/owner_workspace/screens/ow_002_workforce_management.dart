@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
@@ -15,7 +16,7 @@ import '../state/business_management_state.dart' show businessManagementApiServi
 import '../state/investor_state.dart' show ProfitShareDeclaration;
 import '../../../shared/document_viewer.dart';
 
-/// OW-002 — Workforce Management (Agents). List view is the default landing
+/// OW-002 â€” Workforce Management (Agents). List view is the default landing
 /// state; Register/Add Existing are sub-flows reached from the header;
 /// selecting a row drills into the tabbed Agent Profile (C6).
 class WorkforceManagementScreen extends ConsumerStatefulWidget {
@@ -29,7 +30,7 @@ class WorkforceManagementScreen extends ConsumerStatefulWidget {
 
 class _WorkforceManagementScreenState
     extends ConsumerState<WorkforceManagementScreen> {
-  final _search = TextEditingController();
+  // Search field belongs to ManaMemberRoster now.
 
   @override
   void initState() {
@@ -45,28 +46,8 @@ class _WorkforceManagementScreenState
 
     return Scaffold(
       appBar: AppBar(
+        // The three add-paths moved into the roster's single Add FAB.
         title: ManaText.raw(ref.t('workforce_management')),
-        actions: [
-          IconButton(
-            tooltip: ref.t('register_agent'),
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () => _openRegisterNewAgent(context),
-          ),
-          IconButton(
-            tooltip: ref.t('add_existing_agent'),
-            icon: const Icon(Icons.badge_outlined),
-            onPressed: () => _openAddExistingAgent(context),
-          ),
-          // OW-014 Global Workflow — an agent who already worked for this
-          // business before it joined MANA LINE, so has no MANA LINE ID yet.
-          IconButton(
-            tooltip: ref.t('pre_existing_agent'),
-            icon: const Icon(Icons.history_edu_outlined),
-            onPressed: () => context
-                .push('/ow-014?type=agent', extra: widget.businessId)
-                .then((_) => ref.read(workforceProvider.notifier).load(widget.businessId)),
-          ),
-        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -74,53 +55,76 @@ class _WorkforceManagementScreenState
               ref.read(workforceProvider.notifier).load(widget.businessId),
           child: state.loading && state.agents.isEmpty
               ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(ManaSpacing.lg),
-                  children: [
-                    _DashboardStrip(state: state),
-                    const SizedBox(height: ManaSpacing.lg),
-                    TextField(
-                      controller: _search,
-                      decoration: InputDecoration(
-                        hintText: ref.t('search_by_name_or_mlid'),
-                        prefixIcon: const Icon(Icons.search),
+              : ManaMemberRoster(
+                  heading: ref.t('agents'),
+                  header: _DashboardStrip(state: state),
+                  members: [
+                    for (final a in state.filtered)
+                      MemberEntry(
+                        id: a.agentId,
+                        name: a.fullName,
+                        subtitle:
+                            [a.mlid, a.phoneNumber].where((s) => s.isNotEmpty).join(' Â· '),
+                        status: a.status,
                       ),
-                      onChanged: (v) => ref
-                          .read(workforceProvider.notifier)
-                          .setSearchQuery(v),
-                    ),
-                    const SizedBox(height: ManaSpacing.sm),
-                    _StatusFilterDropdown(state: state),
-                    const SizedBox(height: ManaSpacing.md),
-                    // A failed load previously looked identical to "no
-                    // agents" — state.error was captured but never shown,
-                    // so an RLS/query failure was indistinguishable from a
-                    // business that genuinely has zero agents.
-                    if (state.error != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          child: ManaText.raw(ref.t('could_not_load_agents').replaceAll('{error}', '${state.error}'),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
-                        ),
-                      )
-                    else if (state.filtered.isEmpty)
-                      Padding(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          child: ManaText.raw(ref.t('no_agents_match_view'),
-                              style:
-                                  TextStyle(color: ManaColors.textSecondary)),
-                        ),
-                      )
-                    else
-                      ...state.filtered.map((a) => _AgentRow(
-                            agent: a,
-                            onTap: () => _openAgentProfile(context, a),
-                          )),
                   ],
+                  filterLabels: [
+                    ref.t('all'),
+                    ref.t('active'),
+                    ref.t('pending_invitation_status'),
+                    ref.t('pending_acceptance_status'),
+                    ref.t('temporarily_disabled'),
+                    ref.t('suspended'),
+                  ],
+                  statusValues: const [
+                    'Active',
+                    'Pending Invitation',
+                    'Pending Acceptance',
+                    'Temporarily Disabled',
+                    'Suspended',
+                  ],
+                  statusValue: state.statusFilter,
+                  onStatusChanged: (v) =>
+                      ref.read(workforceProvider.notifier).setStatusFilter(v),
+                  onSearchChanged: (v) =>
+                      ref.read(workforceProvider.notifier).setSearchQuery(v),
+                  searchHint: ref.t('search_by_name_or_mlid'),
+                  // A failed load must not look like "no agents" â€” state.error
+                  // was captured but never shown before this screen surfaced
+                  // it, making an RLS/query failure indistinguishable from a
+                  // business that genuinely has none. The distinction is kept
+                  // by swapping the empty message.
+                  emptyLabel: state.error != null
+                      ? ref.t('could_not_load_agents').replaceAll('{error}', '${state.error}')
+                      : ref.t('no_agents_match_view'),
+                  addLabel: ref.t('add_agent'),
+                  addActions: [
+                    MemberAction(
+                      label: ref.t('register_agent'),
+                      icon: Icons.person_add_alt_1_outlined,
+                      onTap: () => _openRegisterNewAgent(context),
+                    ),
+                    MemberAction(
+                      label: ref.t('add_existing_agent'),
+                      icon: Icons.badge_outlined,
+                      onTap: () => _openAddExistingAgent(context),
+                    ),
+                    // An agent who worked for this business before it joined
+                    // MANA LINE, so has no MANA LINE ID yet.
+                    MemberAction(
+                      label: ref.t('pre_existing_agent'),
+                      icon: Icons.history_edu_outlined,
+                      onTap: () => context
+                          .push('/ow-014?type=agent', extra: widget.businessId)
+                          .then((_) =>
+                              ref.read(workforceProvider.notifier).load(widget.businessId)),
+                    ),
+                  ],
+                  rowBuilder: (entry, _) {
+                    final a = state.filtered.firstWhere((x) => x.agentId == entry.id);
+                    return _AgentRow(agent: a, onTap: () => _openAgentProfile(context, a));
+                  },
+                  onOpen: (_) {},
                 ),
         ),
       ),
@@ -179,51 +183,6 @@ class _DashboardStrip extends ConsumerWidget {
   }
 }
 
-/// Status filter as a dropdown, not a chip row.
-///
-/// This was the worst of the three: SEVEN translated ChoiceChips in a Wrap,
-/// including "Temporarily Disabled" and "Pending Acceptance". In Kannada at
-/// 2.0x text scale that is four rows of chips before the list even starts.
-/// A dropdown is one fixed-width control whatever the language.
-class _StatusFilterDropdown extends ConsumerWidget {
-  final WorkforceState state;
-  const _StatusFilterDropdown({required this.state});
-
-  // 'Removed' deliberately absent: a removed agent is no longer workforce,
-  // and isolating a list of them is not something an Owner does. They still
-  // appear under "All" — this drops the filter option, not the people.
-  static const _statusKeys = {
-    'Active': 'active',
-    'Pending Invitation': 'pending_invitation_status',
-    'Pending Acceptance': 'pending_acceptance_status',
-    'Temporarily Disabled': 'temporarily_disabled',
-    'Suspended': 'suspended',
-  };
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return DropdownButtonFormField<String?>(
-      initialValue: state.statusFilter,
-      // Without isExpanded the button sizes to the selected item's intrinsic
-      // width and a long translation overflows the Row it lays out in.
-      isExpanded: true,
-      decoration: InputDecoration(labelText: ref.t('status'), isDense: true),
-      items: [
-        DropdownMenuItem(
-          value: null,
-          child: ManaText.raw(ref.t('all'), maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-        ..._statusKeys.entries.map((e) => DropdownMenuItem(
-              value: e.key,
-              child: ManaText.raw(ref.t(e.value),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-            )),
-      ],
-      onChanged: (v) => ref.read(workforceProvider.notifier).setStatusFilter(v),
-    );
-  }
-}
-
 // --- C3 Agent List row ------------------------------------------------
 
 class _AgentRow extends StatelessWidget {
@@ -249,7 +208,7 @@ class _AgentRow extends StatelessWidget {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 2),
           child: ManaText.raw(
-            '${agent.mlid} · ${agent.phoneNumber}',
+            '${agent.mlid} Â· ${agent.phoneNumber}',
             style:
                 TextStyle(fontSize: 13, color: ManaColors.textSecondary),
           ),
@@ -285,7 +244,7 @@ class _RegisterNewAgentSheetState
   bool _submitting = false;
 
   // Global Rules Guide ADDENDUM v4: Aadhaar is mandatory at registration
-  // for all roles except OW-014's pre-existing-member migration path —
+  // for all roles except OW-014's pre-existing-member migration path â€”
   // Agent registration here is a normal registration path, so it applies.
   bool get _canSubmit =>
       _fullName.text.trim().length >= 2 &&
@@ -627,7 +586,7 @@ class _OverviewTab extends ConsumerStatefulWidget {
 class _OverviewTabState extends ConsumerState<_OverviewTab> {
   /// Three distinct states, deliberately not collapsed into one int:
   /// still loading, no BF row at all (the agent cannot lend yet), and a
-  /// real figure. Rendering "₹0" for "no row" would tell the Owner the
+  /// real figure. Rendering "â‚¹0" for "no row" would tell the Owner the
   /// agent is merely empty when in fact they have never been set up.
   bool _loadingBf = true;
   int? _bf;
@@ -674,11 +633,11 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
   }
 
   String _bfLabel(WidgetRef ref) {
-    if (_loadingBf) return '…';
+    if (_loadingBf) return 'â€¦';
     if (_bfError != null) return ref.t('could_not_read');
-    if (agent.membershipId == null) return '—';
+    if (agent.membershipId == null) return 'â€”';
     if (_bf == null) return ref.t('no_bf_granted_yet');
-    return '₹${_bf!}';
+    return 'â‚¹${_bf!}';
   }
 
   @override
@@ -699,7 +658,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         _infoRow(ref.t('phone_number'), agent.phoneNumber),
         _infoRow(ref.t('status'), agent.status),
         _infoRow(ref.t('business_access'), agent.businessAccess),
-        _infoRow(ref.t('current_route'), agent.currentRoute ?? '—'),
+        _infoRow(ref.t('current_route'), agent.currentRoute ?? 'â€”'),
         _infoRow(ref.t('cash_in_hand_bf'), _bfLabel(ref)),
         // The agent cannot be lent against without a float, and
         // create_loan_with_bf_check refuses with INSUFFICIENT_FLOAT until
@@ -717,11 +676,11 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
             ),
           ),
         _infoRow(ref.t('todays_collections_label'),
-            '₹${agent.todaysCollections.toStringAsFixed(0)}'),
-        _infoRow(ref.t('todays_loans'), '₹${agent.todaysLoans.toStringAsFixed(0)}'),
+            'â‚¹${agent.todaysCollections.toStringAsFixed(0)}'),
+        _infoRow(ref.t('todays_loans'), 'â‚¹${agent.todaysLoans.toStringAsFixed(0)}'),
         _infoRow(
             ref.t('joined_date'), DateFormat('d MMM yyyy').format(agent.joinedDate)),
-        // "Never" is only truthful for your OWN record — devices is
+        // "Never" is only truthful for your OWN record â€” devices is
         // self-only under RLS, so for any other agent the Owner simply
         // cannot see it. Saying "Never" there asserts something false.
         _infoRow(
@@ -758,7 +717,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
                   keyboardType: TextInputType.number,
                   autofocus: true,
                   decoration: InputDecoration(
-                    prefixText: '₹ ',
+                    prefixText: 'â‚¹ ',
                     labelText: ref.t('amount'),
                     errorText: error,
                   ),
@@ -771,7 +730,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
                   child: ManaText.raw(ref.t('cancel'))),
               ElevatedButton(
                 onPressed: () {
-                  // Whole rupees only — every money column is numeric(_,0),
+                  // Whole rupees only â€” every money column is numeric(_,0),
                   // so paise cannot be stored and must not be accepted.
                   final amount = int.tryParse(controller.text.trim());
                   if (amount == null || amount <= 0) {
@@ -790,8 +749,8 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
 
     if (granted == null || !mounted) return;
 
-    // NetworkErrorHandler surfaces the server's own refusal — notably
-    // "Owner BF is only X, cannot top up Y" — instead of a raw exception.
+    // NetworkErrorHandler surfaces the server's own refusal â€” notably
+    // "Owner BF is only X, cannot top up Y" â€” instead of a raw exception.
     final newFloat = await NetworkErrorHandler.run(context, () async {
       return ref.read(workforceProvider.notifier).grantAgentBf(
             businessId: widget.businessId,
@@ -843,12 +802,12 @@ class _PermissionsTab extends ConsumerStatefulWidget {
 
 class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
   // OFF by default per BR-236 pattern (can_apply_penalty, can_record_expenses,
-  // ADDENDUM v7 §13) — every toggle here defaults to whatever the profile
+  // ADDENDUM v7 Â§13) â€” every toggle here defaults to whatever the profile
   // reports, never silently assumed ON.
   // BUG FIXED: this listed 4 of the 20 permission columns, and NONE of the
   // ones AG-001 actually gates its Quick Action tiles on. The agent
   // dashboard shows "Collection Mode" only when can_access_collection_mode
-  // is true, "Customer List" on can_view_customers, and so on — columns
+  // is true, "Customer List" on can_view_customers, and so on â€” columns
   // the Owner had no way to switch on. That is why an agent had no way to
   // reach Collection Mode no matter what was granted here.
   //
@@ -928,7 +887,7 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
   // toggle showing OFF while the database already held true. On a screen that
   // decides what an agent is allowed to do with money, showing a value the
   // server does not hold is the same failure class as a confident wrong
-  // amount — the Owner cannot tell granted from not.
+  // amount â€” the Owner cannot tell granted from not.
   //
   // Resyncing UNCONDITIONALLY here would be a worse bug: any unrelated parent
   // rebuild would silently revert toggles the Owner had just flipped and not
@@ -939,7 +898,7 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
   void didUpdateWidget(covariant _PermissionsTab oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // A different agent entirely — never carry one agent's edits onto another.
+    // A different agent entirely â€” never carry one agent's edits onto another.
     if (oldWidget.agentId != widget.agentId) {
       _serverPermissions = Map.of(widget.profile.permissions);
       _permissions = Map.of(widget.profile.permissions);
@@ -1069,7 +1028,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
         // CORRECTED: this used to read "reduced from final salary (BR-046)",
         // which CALC BR-068's rewrite explicitly supersedes. Daily Allowance
         // is paid same-day in cash and has ZERO relationship to Payable
-        // Salary — it never appears in that formula in any form. Leaving the
+        // Salary â€” it never appears in that formula in any form. Leaving the
         // old wording would have told the Owner the opposite of what the
         // salary engine now does.
         ManaText.raw(
@@ -1109,7 +1068,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
           ...widget.profile.compensationHistory.map((c) => ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: ManaText.raw(
-                    '₹${c.fixedSalary.toStringAsFixed(0)} · ${c.salaryCycle}'),
+                    'â‚¹${c.fixedSalary.toStringAsFixed(0)} Â· ${c.salaryCycle}'),
                 subtitle: ManaText.raw(
                     ref.t('effective_note').replaceAll('{date}', DateFormat('d MMM yyyy').format(c.effectiveDate))),
               )),
@@ -1118,7 +1077,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
   }
 }
 
-/// CALC BR-232 — "Distribute Profit Share" on the Agent Profile.
+/// CALC BR-232 â€” "Distribute Profit Share" on the Agent Profile.
 ///
 /// Manual entry only. The Owner types the actual rupee amount; the % on the
 /// compensation structure above is never multiplied against anything, and
@@ -1259,10 +1218,10 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
         else
           ..._declarations.map((d) => Card(
                 child: ListTile(
-                  title: ManaText.raw('₹${d.declaredAmount.toStringAsFixed(0)}'),
+                  title: ManaText.raw('â‚¹${d.declaredAmount.toStringAsFixed(0)}'),
                   subtitle: ManaText.raw(
                       '${DateFormat('d MMM yyyy').format(d.businessDate)}'
-                      '${d.remarks == null ? '' : ' · ${d.remarks}'}',
+                      '${d.remarks == null ? '' : ' Â· ${d.remarks}'}',
                       style: const TextStyle(fontSize: 13)),
                   trailing: d.status == 'Declared'
                       ? FilledButton(
@@ -1283,7 +1242,7 @@ class _AreasTab extends ConsumerWidget {
   final AgentProfile profile;
   const _AreasTab({required this.businessId, required this.agent, required this.profile});
 
-  // BUG FIXED this pass: "add village" was onPressed: () {} — this is
+  // BUG FIXED this pass: "add village" was onPressed: () {} â€” this is
   // the same assign-area-to-agent capability built for OW-012's
   // Operating Areas tab (business_management_state.dart's
   // assignOperatingAreaToAgent), just reached from the Agent's own
@@ -1387,7 +1346,7 @@ class _DocumentsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Labels match customer_document_type_enum's real values (this table
-    // reuses Module 3's enum) — 'Employment Documents'/'Identity Proof'
+    // reuses Module 3's enum) â€” 'Employment Documents'/'Identity Proof'
     // aren't real values, they never had (and never could have had) a
     // matching document.
     return DocumentsListView(

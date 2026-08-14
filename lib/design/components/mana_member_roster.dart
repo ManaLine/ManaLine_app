@@ -122,6 +122,10 @@ class ManaMemberRoster extends StatefulWidget {
   /// Note under the filters, e.g. how the list is sorted.
   final String? footnote;
 
+  /// Shown above the heading — OW-002's workforce stats strip, for instance.
+  /// A slot rather than a fixed element: only one roster has one.
+  final Widget? header;
+
   /// Supplies a richer row than the default.
   ///
   /// WHY THIS EXISTS, and why it is not a failure of the shared component:
@@ -138,6 +142,26 @@ class ManaMemberRoster extends StatefulWidget {
   /// not.
   final Widget Function(MemberEntry entry, VoidCallback onTap)? rowBuilder;
 
+  /// CONTROLLED MODE. When these are supplied the roster stops filtering
+  /// [members] itself and simply renders what it is given, reporting changes
+  /// upward instead.
+  ///
+  /// WHY: all three rosters already filter in their notifier, and that code
+  /// also SORTS (see customer_state's `sorted`). Re-implementing search and
+  /// status inside this widget would duplicate working, tested logic and
+  /// silently drop the ordering. Uncontrolled mode is still the default, so a
+  /// screen with a plain list of members gets filtering for free.
+  final ValueChanged<String>? onSearchChanged;
+  final ValueChanged<String?>? onStatusChanged;
+
+  /// Current status filter in controlled mode; null means "All".
+  final String? statusValue;
+
+  /// Status values offered, parallel to [filterLabels] after the "All" entry.
+  final List<String> statusValues;
+
+  bool get _controlled => onSearchChanged != null && onStatusChanged != null;
+
   const ManaMemberRoster({
     super.key,
     required this.heading,
@@ -151,7 +175,12 @@ class ManaMemberRoster extends StatefulWidget {
     this.loading = false,
     this.extraFilter,
     this.footnote,
+    this.header,
     this.rowBuilder,
+    this.onSearchChanged,
+    this.onStatusChanged,
+    this.statusValue,
+    this.statusValues = const [],
   });
 
   @override
@@ -163,6 +192,9 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
   String _query = '';
 
   List<MemberEntry> get _visible {
+    // Controlled: the caller's notifier has already filtered and sorted these.
+    if (widget._controlled) return widget.members;
+
     final q = _query.trim().toLowerCase();
     return widget.members.where((m) {
       if (!_filter.matches(m.status)) return false;
@@ -202,6 +234,12 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
       children: [
         Column(
           children: [
+            if (widget.header != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, 0),
+                child: widget.header!,
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, ManaSpacing.sm),
@@ -222,24 +260,59 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
                   // a dropdown is fixed width whatever the language.
                   Flexible(
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<MemberFilter>(
-                        value: _filter,
-                        isDense: true,
-                        borderRadius: BorderRadius.circular(ManaRadius.md),
-                        onChanged: (v) => setState(() => _filter = v ?? MemberFilter.all),
-                        items: [
-                          for (var i = 0; i < MemberFilter.values.length; i++)
-                            DropdownMenuItem(
-                              value: MemberFilter.values[i],
-                              child: ManaText.raw(
-                                widget.filterLabels[i],
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 14),
-                              ),
+                      child: widget._controlled
+                          // Controlled: values are the caller's own status
+                          // strings, and null means All.
+                          ? DropdownButton<String?>(
+                              value: widget.statusValue,
+                              isDense: true,
+                              // isExpanded, or the button sizes to its
+                              // selected item's intrinsic width and overflows
+                              // the heading Row — 29px at 1.3x with a Telugu
+                              // label. Same trap the village dropdown records.
+                              isExpanded: true,
+                              borderRadius: BorderRadius.circular(ManaRadius.md),
+                              onChanged: widget.onStatusChanged,
+                              items: [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: ManaText.raw(widget.filterLabels.first,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 14)),
+                                ),
+                                for (var i = 0; i < widget.statusValues.length; i++)
+                                  DropdownMenuItem(
+                                    value: widget.statusValues[i],
+                                    child: ManaText.raw(
+                                      widget.filterLabels[i + 1],
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                              ],
+                            )
+                          : DropdownButton<MemberFilter>(
+                              value: _filter,
+                              isDense: true,
+                              isExpanded: true,
+                              borderRadius: BorderRadius.circular(ManaRadius.md),
+                              onChanged: (v) =>
+                                  setState(() => _filter = v ?? MemberFilter.all),
+                              items: [
+                                for (var i = 0; i < MemberFilter.values.length; i++)
+                                  DropdownMenuItem(
+                                    value: MemberFilter.values[i],
+                                    child: ManaText.raw(
+                                      widget.filterLabels[i],
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
                     ),
                   ),
                 ],
@@ -248,7 +321,7 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.lg),
               child: TextField(
-                onChanged: (v) => setState(() => _query = v),
+                onChanged: widget.onSearchChanged ?? (v) => setState(() => _query = v),
                 decoration: InputDecoration(
                   isDense: true,
                   prefixIcon: const Icon(Icons.search, size: 20),

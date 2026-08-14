@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart';
@@ -13,10 +14,10 @@ import '../../../shared/text_utils.dart';
 import '../../../shared/translation_service.dart';
 import '../state/investor_state.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+final _currency = NumberFormat.currency(locale: 'en_IN', symbol: 'â‚¹', decimalDigits: 0);
 
-/// OW-003 — Investor Management. Register New Investor is
-/// Investor-initiated (LOCKED CORRECTION in spec) — this screen's C4 is
+/// OW-003 â€” Investor Management. Register New Investor is
+/// Investor-initiated (LOCKED CORRECTION in spec) â€” this screen's C4 is
 /// therefore an Approve/Reject queue over incoming requests, not a create
 /// form; C5 Add Existing mirrors OW-002's MLID search pattern.
 class InvestorManagementScreen extends ConsumerStatefulWidget {
@@ -38,17 +39,17 @@ class InvestorManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScreen> {
-  final _search = TextEditingController();
+  // Search field belongs to ManaMemberRoster now.
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Setting the filter here rather than synchronously in initState —
+      // Setting the filter here rather than synchronously in initState â€”
       // a provider write during any widget's build phase (including
       // initState) throws Riverpod's "tried to modify a provider while the
       // widget tree was building" (hit this for real in the sibling
-      // OW-012 tab case — see that file's fix note).
+      // OW-012 tab case â€” see that file's fix note).
       if (widget.initialFilter != null) {
         ref.read(investorWorkforceProvider.notifier).setStatusFilter(widget.initialFilter);
       }
@@ -69,97 +70,100 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
 
     return Scaffold(
       appBar: AppBar(
+        // The two add-paths moved into the roster's single Add FAB.
         title: ManaText.raw(ref.t('investor_management')),
-        actions: [
-          IconButton(
-            tooltip: ref.t('add_existing_investor'),
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => _AddExistingInvestorSheet(businessId: widget.businessId),
-            ).then((_) => ref.read(investorWorkforceProvider.notifier).load(widget.businessId)),
-          ),
-          // OW-014 Global Workflow — an investor whose money predates this
-          // business joining MANA LINE.
-          IconButton(
-            tooltip: ref.t('pre_existing_investor'),
-            icon: const Icon(Icons.history_edu_outlined),
-            onPressed: () => context
-                .push('/ow-014?type=investor', extra: widget.businessId)
-                .then((_) => ref.read(investorWorkforceProvider.notifier).load(widget.businessId)),
-          ),
-        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(investorWorkforceProvider.notifier).load(widget.businessId),
           child: state.loading && state.investors.isEmpty
               ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(ManaSpacing.lg),
-                  children: [
-                    _DashboardStrip(state: state),
-                    const SizedBox(height: ManaSpacing.lg),
-                    TextField(
-                      controller: _search,
-                      decoration: InputDecoration(
-                        hintText: ref.t('search_by_name_or_mlid'),
-                        prefixIcon: const Icon(Icons.search),
+              : ManaMemberRoster(
+                  heading: ref.t('investors'),
+                  header: _DashboardStrip(state: state),
+                  members: [
+                    // Pending Acceptance rows are excluded because they are
+                    // not real members yet: no investor_id, so a row tap into
+                    // InvestorProfileScreen would have nothing to load. They
+                    // are actioned from Notifications.
+                    for (final i in state.filtered
+                        .where((i) => i.membershipStatus != 'Pending Acceptance'))
+                      MemberEntry(
+                        id: i.investorId,
+                        name: i.fullName,
+                        subtitle: i.mlid,
+                        status: i.membershipStatus,
                       ),
-                      onChanged: (v) => ref.read(investorWorkforceProvider.notifier).setSearchQuery(v),
-                    ),
-                    const SizedBox(height: ManaSpacing.sm),
-                    _StatusFilterDropdown(state: state),
-                    const SizedBox(height: ManaSpacing.md),
-                    // The Approve/Reject cards that used to sit here moved to
-                    // the shared Notifications inbox. An Owner now decides on
-                    // membership requests in exactly one place, whichever
-                    // business or workspace they arrive from, instead of this
-                    // screen carrying its own copy of the decision UI.
-                    //
-                    // Pending rows are still excluded from the list below —
-                    // see the note there, which is about them not being real
-                    // members yet, not about where they are actioned.
-                    // A failed load previously looked identical to "no
-                    // investors" — state.error was captured but never
-                    // shown, indistinguishable from a business that
-                    // genuinely has zero investors.
-                    if (state.error != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          child: ManaText.raw(
-                              ref.t('could_not_load_investors').replaceAll('{error}', '${state.error}'),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
-                        ),
-                      )
-                    else if (state.filtered.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          child: ManaText.raw(ref.t('no_investors_match_view'),
-                              style: TextStyle(color: ManaColors.textSecondary)),
-                        ),
-                      )
-                    else
-                      // Pending Acceptance rows are excluded here because they
-                      // aren't real members yet: no investor_id, so this row's
-                      // onTap into InvestorProfileScreen would have nothing to
-                      // load. They are actioned from Notifications.
-                      ...state.filtered
-                          .where((i) => i.membershipStatus != 'Pending Acceptance')
-                          .map((i) => _InvestorRow(
-                                investor: i,
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        InvestorProfileScreen(businessId: widget.businessId, investor: i),
-                                  ),
-                                ),
-                              )),
                   ],
+                  filterLabels: [
+                    ref.t('all'),
+                    ref.t('active'),
+                    ref.t('pending_invitation_status'),
+                    ref.t('pending_acceptance_status'),
+                    ref.t('temporarily_disabled'),
+                    ref.t('suspended'),
+                  ],
+                  statusValues: const [
+                    'Active',
+                    'Pending Invitation',
+                    'Pending Acceptance',
+                    'Temporarily Disabled',
+                    'Suspended',
+                  ],
+                  statusValue: state.statusFilter,
+                  onStatusChanged: (v) =>
+                      ref.read(investorWorkforceProvider.notifier).setStatusFilter(v),
+                  onSearchChanged: (v) =>
+                      ref.read(investorWorkforceProvider.notifier).setSearchQuery(v),
+                  searchHint: ref.t('search_by_name_or_mlid'),
+                  // A failed load must not read as "no investors" â€” the error
+                  // was captured but never shown before, making an RLS/query
+                  // failure indistinguishable from a business that has none.
+                  emptyLabel: state.error != null
+                      ? ref
+                          .t('could_not_load_investors')
+                          .replaceAll('{error}', '${state.error}')
+                      : ref.t('no_investors_match_view'),
+                  addLabel: ref.t('add_investor'),
+                  addActions: [
+                    MemberAction(
+                      label: ref.t('add_existing_investor'),
+                      icon: Icons.person_add_alt_1_outlined,
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (_) =>
+                            _AddExistingInvestorSheet(businessId: widget.businessId),
+                      ).then((_) => ref
+                          .read(investorWorkforceProvider.notifier)
+                          .load(widget.businessId)),
+                    ),
+                    // An investor whose money predates this business joining
+                    // MANA LINE.
+                    MemberAction(
+                      label: ref.t('pre_existing_investor'),
+                      icon: Icons.history_edu_outlined,
+                      onTap: () => context
+                          .push('/ow-014?type=investor', extra: widget.businessId)
+                          .then((_) => ref
+                              .read(investorWorkforceProvider.notifier)
+                              .load(widget.businessId)),
+                    ),
+                  ],
+                  rowBuilder: (entry, _) {
+                    final i =
+                        state.filtered.firstWhere((x) => x.investorId == entry.id);
+                    return _InvestorRow(
+                      investor: i,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => InvestorProfileScreen(
+                              businessId: widget.businessId, investor: i),
+                        ),
+                      ),
+                    );
+                  },
+                  onOpen: (_) {},
                 ),
         ),
       ),
@@ -192,48 +196,6 @@ class _DashboardStrip extends ConsumerWidget {
   }
 }
 
-/// Status filter as a dropdown, not a chip row — same reasoning as OW-002
-/// and OW-004: seven translated chips in a Wrap is a variable-width run of
-/// text that reflows to several rows in the longer languages at large text
-/// scale, and it pushes the list it filters off the screen.
-class _StatusFilterDropdown extends ConsumerWidget {
-  final InvestorWorkforceState state;
-  const _StatusFilterDropdown({required this.state});
-
-  // 'Removed' deliberately absent: a removed investor is no longer part of
-  // the business, and isolating a list of them is not something an Owner
-  // does. They still appear under "All" — this drops the filter option, not
-  // the people.
-  static const _statusKeys = {
-    'Active': 'active',
-    'Pending Invitation': 'pending_invitation_status',
-    'Pending Acceptance': 'pending_acceptance_status',
-    'Temporarily Disabled': 'temporarily_disabled',
-    'Suspended': 'suspended',
-  };
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return DropdownButtonFormField<String?>(
-      initialValue: state.statusFilter,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: ref.t('status'), isDense: true),
-      items: [
-        DropdownMenuItem(
-          value: null,
-          child: ManaText.raw(ref.t('all'), maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-        ..._statusKeys.entries.map((e) => DropdownMenuItem(
-              value: e.key,
-              child: ManaText.raw(ref.t(e.value),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-            )),
-      ],
-      onChanged: (v) => ref.read(investorWorkforceProvider.notifier).setStatusFilter(v),
-    );
-  }
-}
-
 class _InvestorRow extends StatelessWidget {
   final InvestorSummary investor;
   final VoidCallback onTap;
@@ -254,7 +216,7 @@ class _InvestorRow extends StatelessWidget {
         leading: const ManaVerificationRing(isVerified: true, size: 40),
         title: ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: ManaText.raw(
-          '${investor.mlid} · ${_currency.format(investor.investmentBalance)} @ ${roiLabel(investor.roi)}',
+          '${investor.mlid} Â· ${_currency.format(investor.investmentBalance)} @ ${roiLabel(investor.roi)}',
           style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
         trailing: ManaTrailingStatus(
@@ -446,7 +408,7 @@ class _OverviewTab extends ConsumerWidget {
         _row(ref.t('interest_due'), _currency.format(investor.interestDue)),
         _row(ref.t('membership_status'), investor.membershipStatus),
         _row(ref.t('last_transaction'),
-            investor.lastTransaction == null ? '—' : DateFormat('d MMM yyyy').format(investor.lastTransaction!)),
+            investor.lastTransaction == null ? 'â€”' : DateFormat('d MMM yyyy').format(investor.lastTransaction!)),
       ],
     );
   }
@@ -470,7 +432,7 @@ class _InvestmentsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // A Removed/Suspended/Pending investor should never be able to have
-    // a NEW investment recorded against them — that produced exactly the
+    // a NEW investment recorded against them â€” that produced exactly the
     // wrong-info case reported: recording an investment for a Removed
     // investor makes them show an active-looking balance while still
     // carrying Removed status everywhere else (Investor Management's
@@ -534,7 +496,7 @@ class _InvestmentsTab extends ConsumerWidget {
                         ],
                       ),
                       ManaText.raw(
-                        '${roiLabel(inv.roiRate)} · ${inv.interestMethod} · since ${DateFormat('d MMM yyyy').format(inv.effectiveDate)}',
+                        '${roiLabel(inv.roiRate)} Â· ${inv.interestMethod} Â· since ${DateFormat('d MMM yyyy').format(inv.effectiveDate)}',
                         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                       ),
                       const SizedBox(height: ManaSpacing.sm),
@@ -591,7 +553,7 @@ class _InvestmentsTab extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              // S7/S8 — enabled only when balance >= ₹1.00
+                              // S7/S8 â€” enabled only when balance >= â‚¹1.00
                               onPressed: inv.principalAmount >= 1
                                   ? () => _showWithdrawDialog(context, ref, inv)
                                   : null,
@@ -600,7 +562,7 @@ class _InvestmentsTab extends ConsumerWidget {
                           ),
                           // BUG FIXED this pass: declareProfitShare/
                           // payProfitShare were fully implemented in
-                          // investor_state.dart but never surfaced here —
+                          // investor_state.dart but never surfaced here â€”
                           // only shown when this investment actually has
                           // a profit-share agreement (percent > 0).
                           if ((inv.profitSharePercent ?? 0) > 0) ...[
@@ -666,7 +628,7 @@ class _InvestmentsTab extends ConsumerWidget {
   }
 
   /// Records a new investment, or corrects an existing one when `existing`
-  /// is supplied — same fields either way, so they share one dialog.
+  /// is supplied â€” same fields either way, so they share one dialog.
   Future<void> _showInvestDialog(BuildContext context, WidgetRef ref,
       {InvestmentRecord? existing}) async {
     final amount = TextEditingController(
@@ -674,11 +636,11 @@ class _InvestmentsTab extends ConsumerWidget {
     final roi =
         TextEditingController(text: existing == null ? '' : existing.roiRate.toString());
     String method = existing?.interestMethod ?? 'Simple';
-    // Defaults to today, but backdateable — a business onboarding onto
+    // Defaults to today, but backdateable â€” a business onboarding onto
     // this app after already running for years needs to record
     // investments that started well before "today" (e.g. this investor's
     // original entry date), not just brand-new ones.
-    // IST, not the handset clock — this is written as the investment's
+    // IST, not the handset clock â€” this is written as the investment's
     // effective_date. See lib/shared/mana_time.dart.
     DateTime effectiveDate = existing?.effectiveDate ?? manaNowIst();
     final result = await showDialog<bool>(
@@ -697,9 +659,9 @@ class _InvestmentsTab extends ConsumerWidget {
               ),
               TextField(
                 controller: roi,
-                // decimal:true — the plain number keyboard on Android has
+                // decimal:true â€” the plain number keyboard on Android has
                 // no decimal point, and this field is routinely a fraction
-                // (₹1.50 per 100).
+                // (â‚¹1.50 per 100).
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: '${ref.t('roi_per_100_label')} *',
@@ -754,7 +716,7 @@ class _InvestmentsTab extends ConsumerWidget {
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
             // Was always enabled, and the parse failure afterwards just
-            // `return`ed — a second silent no-op on top of the schema one.
+            // `return`ed â€” a second silent no-op on top of the schema one.
             // Gate the button on the values actually parsing instead.
             ElevatedButton(
               onPressed: (double.tryParse(amount.text.trim()) != null &&
@@ -955,7 +917,7 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
                         contentPadding: EdgeInsets.zero,
                         title: ManaText.raw(_currency.format(d.declaredAmount)),
                         subtitle: ManaText.raw(
-                            '${DateFormat('d MMM yyyy').format(d.businessDate)} · of ${_currency.format(d.totalProfitAmount)} total'),
+                            '${DateFormat('d MMM yyyy').format(d.businessDate)} Â· of ${_currency.format(d.totalProfitAmount)} total'),
                         trailing: d.status == 'Declared'
                             ? FilledButton(onPressed: () => _pay(d), child: ManaText.raw(ref.t('mark_paid')))
                             : ManaStatusPill(label: ref.t('paid'), status: ManaStatus.good),

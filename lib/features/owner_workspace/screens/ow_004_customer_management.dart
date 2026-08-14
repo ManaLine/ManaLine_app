@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/widgets/use_my_location_button.dart';
@@ -40,8 +41,8 @@ class CustomerManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScreen> {
-  final _search = TextEditingController();
-  final _searchFocus = FocusNode();
+  // The search controller and focus node went with the hand-rolled header —
+  // ManaMemberRoster owns the search field now.
 
   @override
   void initState() {
@@ -58,11 +59,44 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     });
   }
 
-  @override
-  void dispose() {
-    _searchFocus.dispose();
-    super.dispose();
-  }
+  void _reload() => ref.read(customerListProvider.notifier).load(widget.businessId);
+
+  /// The three ways to add a customer, in one sheet behind one FAB.
+  ///
+  /// These were three separate AppBar icon buttons — a person-add glyph, a
+  /// badge glyph and a history glyph — which is three unlabelled icons
+  /// competing for the same corner and no way to tell them apart without
+  /// long-pressing each. As sheet rows they carry their names.
+  List<MemberAction> _addActions() => [
+        MemberAction(
+          label: ref.t('add_customer'),
+          icon: Icons.person_add_alt_1_outlined,
+          onTap: () => showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => _AddCustomerSheet(businessId: widget.businessId),
+          ).then((_) => _reload()),
+        ),
+        // Locked to search-and-link: a customer who already holds a MANA LINE
+        // ID must never be re-registered as a new person, which is what the
+        // shared sheet does when a search comes back empty.
+        MemberAction(
+          label: ref.t('existing_customers'),
+          icon: Icons.badge_outlined,
+          onTap: () => showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => _AddCustomerSheet(businessId: widget.businessId, existingOnly: true),
+          ).then((_) => _reload()),
+        ),
+        MemberAction(
+          label: ref.t('pre_existing_customer'),
+          icon: Icons.history_edu_outlined,
+          onTap: () => context
+              .push('/ow-014?type=customer', extra: widget.businessId)
+              .then((_) => _reload()),
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -83,152 +117,66 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
               ? Navigator.of(context).pop()
               : context.go('/ow-001', extra: widget.businessId),
         ),
+        // The three add-paths moved out of here and into the roster's single
+        // Add FAB — see _addActions.
         title: ManaText.raw(ref.t('customer_management')),
-        actions: [
-          IconButton(
-            tooltip: ref.t('add_customer'),
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => _AddCustomerSheet(businessId: widget.businessId),
-            ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId)),
-          ),
-          // Item 4.2 — mirrors OW-002's "Add Existing Agent" header action.
-          // Same sheet, but locked to the search-and-link path: a customer
-          // who already holds a MANA LINE ID must never be re-registered as
-          // a new person, which is exactly what the shared sheet does today
-          // when a search comes back empty.
-          IconButton(
-            tooltip: ref.t('existing_customers'),
-            icon: const Icon(Icons.badge_outlined),
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => _AddCustomerSheet(businessId: widget.businessId, existingOnly: true),
-            ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId)),
-          ),
-          // OW-014 Global Workflow — for a customer who was already on the
-          // books before this business joined MANA LINE. The screen was
-          // fully built but had no link from anywhere in the app.
-          IconButton(
-            tooltip: ref.t('pre_existing_customer'),
-            icon: const Icon(Icons.history_edu_outlined),
-            onPressed: () => context
-                .push('/ow-014?type=customer', extra: widget.businessId)
-                .then((_) => ref.read(customerListProvider.notifier).load(widget.businessId)),
-          ),
-        ],
       ),
       body: SafeArea(
         child: state.loading && state.customers.isEmpty
             ? const ManaSkeletonList(itemHeight: 96)
-            // A fixed non-scrolling header above an Expanded list overflows
-            // vertically once the search field + filter chips + village
-            // dropdown + sorted-by note grow taller than the screen at large
-            // text scale (a real bug this screen's own first layout test
-            // caught — it never had one before). Folding the header into
-            // index 0 of the same scrollable list — same pattern already
-            // used for the transaction-history screens — lets it scroll
-            // away with everything else instead of demanding fixed space.
             : RefreshIndicator(
                 onRefresh: () => ref.read(customerListProvider.notifier).load(widget.businessId),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(ManaSpacing.lg),
-                  itemCount: 1 + (state.filtered.isEmpty ? 1 : state.filtered.length),
-                  itemBuilder: (context, i) {
-                    if (i == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: ManaSpacing.md),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TextField(
-                              controller: _search,
-                              focusNode: _searchFocus,
-                              decoration: InputDecoration(
-                                hintText: ref.t('search_by_name_mlid_phone'),
-                                prefixIcon: const Icon(Icons.search),
-                              ),
-                              onChanged: (v) => ref.read(customerListProvider.notifier).setSearchQuery(v),
-                            ),
-                            const SizedBox(height: ManaSpacing.sm),
-                            _StatusFilterDropdown(state: state),
-                            const SizedBox(height: ManaSpacing.sm),
-                            _VillageFilterDropdown(state: state),
-                            const SizedBox(height: ManaSpacing.xs),
-                            ManaText.raw(
-                              ref.t('sorted_by_note_customers'),
-                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    if (state.filtered.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          child: ManaText.raw(ref.t('no_customers_match_view'),
-                              style: TextStyle(color: ManaColors.textSecondary)),
-                        ),
-                      );
-                    }
-                    final c = state.filtered[i - 1];
+                // CONTROLLED roster: this screen's notifier already filters
+                // AND sorts (customer_state's `sorted`), so the roster renders
+                // state.filtered as-is and reports search/status changes back
+                // rather than re-filtering. Letting the widget filter would
+                // duplicate that logic and silently drop the ordering.
+                child: ManaMemberRoster(
+                  heading: ref.t('customers'),
+                  members: [
+                    for (final c in state.filtered)
+                      MemberEntry(
+                        id: c.customerId,
+                        name: c.fullName,
+                        subtitle: [c.mlid, c.village].where((s) => s.isNotEmpty).join(' · '),
+                        status: c.membershipStatus,
+                      ),
+                  ],
+                  filterLabels: [ref.t('all'), ref.t('active'), ref.t('suspended')],
+                  statusValues: const ['Active', 'Suspended'],
+                  statusValue: state.customerStatusFilter,
+                  onStatusChanged: (v) =>
+                      ref.read(customerListProvider.notifier).setCustomerStatusFilter(v),
+                  onSearchChanged: (v) =>
+                      ref.read(customerListProvider.notifier).setSearchQuery(v),
+                  searchHint: ref.t('search_by_name_mlid_phone'),
+                  emptyLabel: ref.t('no_customers_match_view'),
+                  extraFilter: _VillageFilterDropdown(state: state),
+                  footnote: ref.t('sorted_by_note_customers'),
+                  addLabel: ref.t('add_a_customer'),
+                  addActions: _addActions(),
+                  // The customer row carries money — outstanding amount and a
+                  // due date — and is deliberately not a ListTile: that
+                  // trailing slot stopped fitting a two-line amount column at
+                  // raised text scale, which this screen's first layout test
+                  // caught. Keeping its own row rather than losing the money
+                  // to the default one.
+                  rowBuilder: (entry, _) {
+                    final c = state.filtered.firstWhere((x) => x.customerId == entry.id);
                     return _CustomerRow(
                       customer: c,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => CustomerProfileScreen(businessId: widget.businessId, customer: c),
+                          builder: (_) =>
+                              CustomerProfileScreen(businessId: widget.businessId, customer: c),
                         ),
                       ),
                     );
                   },
+                  onOpen: (_) {},
                 ),
               ),
       ),
-    );
-  }
-}
-
-/// Status filter as a dropdown, not a chip row.
-///
-/// A Wrap of translated ChoiceChips is a horizontal run of text whose width
-/// is data, not a constant — the exact shape that reflows to three lines in
-/// Kannada at 2.0x text scale and pushes the list off the screen. A dropdown
-/// is one fixed-width control in every language, and it matches the village
-/// filter directly below it, which was already a dropdown.
-class _StatusFilterDropdown extends ConsumerWidget {
-  final CustomerListState state;
-  const _StatusFilterDropdown({required this.state});
-
-  // 'Removed' deliberately absent: a removed customer is no longer part of
-  // the business, and isolating a list of them is not something anyone does.
-  // They still appear under "All" — this drops the filter option, not the
-  // people.
-  static const _statusKeys = {'Active': 'active', 'Suspended': 'suspended'};
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return DropdownButtonFormField<String?>(
-      initialValue: state.customerStatusFilter,
-      // isExpanded for the same reason the village dropdown needs it: without
-      // it the button sizes to the selected item's intrinsic width and a long
-      // translation overflows the Row it lays out in.
-      isExpanded: true,
-      decoration: InputDecoration(labelText: ref.t('status'), isDense: true),
-      items: [
-        DropdownMenuItem(
-          value: null,
-          child: ManaText.raw(ref.t('all'), maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-        ..._statusKeys.entries.map((e) => DropdownMenuItem(
-              value: e.key,
-              child: ManaText.raw(ref.t(e.value),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-            )),
-      ],
-      onChanged: (v) => ref.read(customerListProvider.notifier).setCustomerStatusFilter(v),
     );
   }
 }

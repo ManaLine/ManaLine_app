@@ -4,72 +4,87 @@ import 'package:mana_line/features/owner_workspace/screens/ow_bulk_onboarding_wi
 
 import 'support/mana_harness.dart';
 
+/// Walks the wizard one page at a time. Every page is laid out at 2.0x on a
+/// 360dp surface, because overflow is this project's recurring bug class and it
+/// is invisible to `flutter analyze`.
+Future<void> _advance(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('next').last);
+  await tester.tap(find.text('next').last);
+  await tester.pump(const Duration(milliseconds: 50));
+  await tester.pump(const Duration(milliseconds: 50));
+}
+
 void main() {
   for (final scale in kManaTextScales) {
-    testWidgets('Bulk Onboarding Wizard survives text scale ${scale}x', (tester) async {
+    testWidgets('Pre-Existing Business Wizard survives text scale ${scale}x', (tester) async {
       await pumpManaScreen(
         tester,
         const BulkOnboardingWizardScreen(businessId: 'b1'),
         textScale: scale,
       );
-      expectNoLayoutFault(tester, 'Bulk Onboarding Wizard at ${scale}x');
+      expectNoLayoutFault(tester, 'Pre-Existing Business Wizard at ${scale}x');
 
-      // Step 1 is the first thing an Owner sees — its dedupe-review
-      // explanation is the sentence that tells them why some rows might not
-      // import immediately, so it must survive scaling.
-      expect(find.textContaining('flagged for you to'), findsOneWidget);
+      // Page 1 is the first thing an Owner sees, and the sentence that tells
+      // them nothing is saved yet is the one they must not miss.
+      expect(find.textContaining('Nothing is saved on this page'), findsOneWidget);
     });
   }
 
-  testWidgets('all four step chips are present on a surface that fits them', (tester) async {
+  testWidgets('the header names the page and its position', (tester) async {
     await pumpManaScreen(
       tester,
       const BulkOnboardingWizardScreen(businessId: 'b1'),
       surfaceSize: const Size(360, 1600),
     );
-    expectNoLayoutFault(tester, 'Bulk Onboarding Wizard fully laid out');
+    expectNoLayoutFault(tester, 'Pre-Existing Business Wizard fully laid out');
     expect(find.text('1. Identities'), findsOneWidget);
-    expect(find.text('2. Details'), findsOneWidget);
-    expect(find.text('3. EMI History'), findsOneWidget);
-    expect(find.text('Finish'), findsOneWidget);
+    expect(find.text('1/8'), findsOneWidget);
   });
 
-  testWidgets('import is not offered before a file is chosen', (tester) async {
+  testWidgets('nothing can be imported before a file is chosen', (tester) async {
     await pumpManaScreen(
       tester,
       const BulkOnboardingWizardScreen(businessId: 'b1'),
       surfaceSize: const Size(360, 1600),
     );
-    expect(find.text('Import Identities'), findsNothing);
+    expect(find.text('Save Areas And Import Identities'), findsNothing);
+    expect(find.text('Import Investments'), findsNothing);
+    expect(find.text('Import Loans And History'), findsNothing);
   });
 
-  testWidgets('step 2 (Details) survives at 2.0x once navigated to', (tester) async {
-    await pumpManaScreen(
-      tester,
-      const BulkOnboardingWizardScreen(businessId: 'b1'),
-      textScale: 2.0,
-      surfaceSize: const Size(360, 1600),
-    );
-    await tester.tap(find.text('next'));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump(const Duration(milliseconds: 50));
-    expectNoLayoutFault(tester, 'Bulk Onboarding Wizard step 2 at 2.0x');
-    expect(find.textContaining('prefilled with'), findsOneWidget);
-  });
-
-  testWidgets('step 3 (EMI History) survives at 2.0x once navigated to', (tester) async {
+  testWidgets('every page survives 2.0x once navigated to', (tester) async {
     await pumpManaScreen(
       tester,
       const BulkOnboardingWizardScreen(businessId: 'b1'),
       textScale: 2.0,
-      surfaceSize: const Size(360, 1600),
+      surfaceSize: const Size(360, 2400),
     );
-    await tester.tap(find.text('next'));
+
+    const expectations = <String, String>{
+      '2. Areas & Villages': 'No villages yet',
+      '3. Investors': 'equity',
+      '4. Customers': 'One sheet per repayment frequency',
+      '5. Agents': 'Which days each agent worked',
+      '6. Opening Snapshot': 'No cut-off date chosen',
+      '7. Weekly Account': 'one row per line',
+    };
+
+    for (final entry in expectations.entries) {
+      await _advance(tester);
+      expectNoLayoutFault(tester, 'Pre-Existing Business Wizard ${entry.key} at 2.0x');
+      expect(find.text(entry.key), findsOneWidget,
+          reason: 'expected to be on ${entry.key}');
+      expect(find.textContaining(entry.value), findsWidgets,
+          reason: 'expected ${entry.key} to explain itself');
+    }
+
+    // …and the Finish page, reached by the button that says so rather than
+    // "next".
+    await tester.ensureVisible(find.text('finish').last);
+    await tester.tap(find.text('finish').last);
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.text('next'));
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump(const Duration(milliseconds: 50));
-    expectNoLayoutFault(tester, 'Bulk Onboarding Wizard step 3 at 2.0x');
-    expect(find.textContaining('Optional.'), findsOneWidget);
+    expectNoLayoutFault(tester, 'Pre-Existing Business Wizard Finish at 2.0x');
+    expect(find.text('8. Finish'), findsOneWidget);
   });
 }

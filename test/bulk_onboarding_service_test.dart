@@ -33,7 +33,11 @@ void main() {
       expect(sheet[1].last, ''); // Anjali — no error
       expect(sheet[2].last, 'Pin Code must be numeric.'); // Bhanu — flagged
       expect(sheet[3].last, ''); // Chandra — no error
-      expect(sheet[2][sheet[2].length - 2], '5AB'); // original bad value preserved, not stripped
+      // By header index, not by position from the end — the sheet has grown a
+      // Village column since, and "second from the right" was only ever
+      // pin_code by accident.
+      final pinColumn = BulkOnboardingService.identityColumns.indexOf('pin_code');
+      expect(sheet[2][pinColumn], '5AB'); // original bad value preserved, not stripped
     });
   });
 

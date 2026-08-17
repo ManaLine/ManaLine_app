@@ -186,3 +186,11 @@ supabase/functions/**/.env
 
 # Supabase CLI version-check cache (churns on every run)
 supabase/.temp/cli-latest
+
+# LGD reference source data. These are the raw downloads the lgd_villages
+# table was loaded FROM — 145 MB of xlsx plus ~36 MB of split CSV. The data
+# lives in Postgres now (768,529 rows, indexed on pincode); the source files
+# are re-downloadable and one of them is above GitHub's hard 100 MB per-file
+# limit, so committing them would fail the push outright.
+assets/India Pincodes/
+supabase/seed/

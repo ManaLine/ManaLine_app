@@ -78,6 +78,7 @@ class CustomerLoansApiService {
           loan_id, loan_number, repayment_amount, remaining_balance, loan_status, template_id,
           repayment_type, duration_value, installment_amount, effective_date,
           loan_templates(template_name),
+          business_members!loans_collection_agent_membership_id_fkey(persons!business_members_person_id_fkey(full_name)),
           loan_schedule(installment_number, due_date, installment_amount, status),
           customer_online_payments(online_payment_id, amount, submitted_at, status),
           penalty_entries(penalty_amount_applied, is_waived_or_reduced)
@@ -124,8 +125,15 @@ class CustomerLoansApiService {
     final unwaived = penaltyEntries.where((p) => p['is_waived_or_reduced'] != true);
     final penaltyTotal = unwaived.fold<int>(0, (sum, p) => sum + (p['penalty_amount_applied'] as num).toInt());
 
+    // "Loan Given by" — the agent who carries this loan. The embed has to name
+    // its FK: business_members is reachable from loans by more than one path,
+    // and an unnamed embed is a PGRST201 error, not a null.
+    final agentMember = row['business_members'] as Map<String, dynamic>?;
+    final agentPerson = agentMember?['persons'] as Map<String, dynamic>?;
+
     return CustomerLoanDetail(
       summary: summary,
+      loanGivenBy: (agentPerson?['full_name'] as String?)?.trim(),
       repaymentType: row['repayment_type'] as String,
       durationValue: row['duration_value'] as int,
       installmentAmount: (row['installment_amount'] as num).toInt(),
@@ -283,9 +291,14 @@ class CustomerLoanDetail {
   final List<PendingOnlinePayment> pendingOnlinePayments;
   final int? penaltyAmount; // penalty_entries, if applicable
   final DateTime? gracePeriodEndDate; // if applicable
+  /// The collecting agent's name. Null when the embed came back empty rather
+  /// than "nobody" — the screen simply omits the row in that case instead of
+  /// showing a blank one.
+  final String? loanGivenBy;
 
   CustomerLoanDetail({
     required this.summary,
+    this.loanGivenBy,
     required this.repaymentType,
     required this.durationValue,
     required this.installmentAmount,

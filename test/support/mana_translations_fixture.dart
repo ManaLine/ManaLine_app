@@ -1012,6 +1012,7 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'repayment_type': {'English': 'Repayment Type', 'Telugu': 'తిరిగి చెల్లింపు రకం'},
   'installment_amount': {'English': 'Installment Amount', 'Telugu': 'వాయిదా మొత్తం'},
   'effective_date': {'English': 'Effective Date', 'Telugu': 'అమలు తేదీ'},
+  'loan_given_by': {'English': 'Loan Given By', 'Telugu': 'రుణం ఇచ్చినవారు'},
   'repayment_schedule': {'English': 'Repayment Schedule', 'Telugu': 'తిరిగి చెల్లింపు షెడ్యూల్'},
   'no_schedule_available': {'English': 'No schedule available.', 'Telugu': 'షెడ్యూల్ అందుబాటులో లేదు.'},
   'payment_history': {'English': 'Payment History', 'Telugu': 'చెల్లింపు చరిత్ర'},

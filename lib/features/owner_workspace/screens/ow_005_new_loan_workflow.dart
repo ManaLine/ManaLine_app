@@ -10,6 +10,8 @@ import '../../../shared/mana_time.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart';
 import '../state/loan_wizard_state.dart';
+import '../state/owner_api_service.dart';
+import '../state/owner_workspace_state.dart';
 
 /// OW-005 — New Loan Workflow. 6-step wizard: Customer Selection →
 /// Eligibility Check → Loan Details → Guarantor (conditional) → Live Photo
@@ -86,7 +88,7 @@ class _NewLoanWorkflowScreenState extends ConsumerState<NewLoanWorkflowScreen> {
       case LoanWizardStep.eligibility:
         return const _Step2Eligibility();
       case LoanWizardStep.loanDetails:
-        return const _Step3LoanDetails();
+        return _Step3LoanDetails(businessId: widget.businessId);
       case LoanWizardStep.guarantor:
         return const _Step4Guarantor();
       case LoanWizardStep.livePhoto:
@@ -355,7 +357,8 @@ class _Step2Eligibility extends ConsumerWidget {
 // --- Step 3 — Loan Details ------------------------------------------
 
 class _Step3LoanDetails extends ConsumerStatefulWidget {
-  const _Step3LoanDetails();
+  final String businessId;
+  const _Step3LoanDetails({required this.businessId});
 
   @override
   ConsumerState<_Step3LoanDetails> createState() => _Step3LoanDetailsState();
@@ -385,6 +388,59 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
       (int.tryParse(_duration.text) ?? 0) > 0 &&
       (int.tryParse(_installment.text) ?? 0) > 0 &&
       _agentId != null;
+
+  /// The real workforce list, not a stub. `_agentId` is the agent's
+  /// MEMBERSHIP id, not `agents.agent_id` — that is what reaches
+  /// `loans.collection_agent_membership_id`, and the two are different columns
+  /// on different tables.
+  Future<void> _pickAgent() async {
+    final notifier = ref.read(workforceProvider.notifier);
+    if (ref.read(workforceProvider).agents.isEmpty) {
+      await notifier.load(widget.businessId);
+    }
+    if (!mounted) return;
+
+    final agents = [
+      for (final a in ref.read(workforceProvider).agents)
+        if (a.status == 'Active' && a.membershipId != null) a,
+    ];
+
+    if (agents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: ManaText.raw(ref.t('no_active_agents_note'))),
+      );
+      return;
+    }
+
+    final chosen = await showModalBottomSheet<AgentSummary>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(ManaSpacing.md),
+              child: ManaText.raw(ref.t('select_collection_agent_field'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            for (final a in agents)
+              ListTile(
+                title: ManaText.raw(a.fullName),
+                subtitle: ManaText.raw(a.mlid),
+                onTap: () => Navigator.of(c).pop(a),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (chosen != null && mounted) {
+      setState(() {
+        _agentId = chosen.membershipId;
+        _agentName = chosen.fullName;
+      });
+    }
+  }
 
   void _submit() {
     ref.read(loanWizardProvider.notifier).setLoanDetails(
@@ -472,11 +528,7 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
         ),
         const SizedBox(height: ManaSpacing.md),
         OutlinedButton.icon(
-          // Stub Collection Agent picker — real build reuses OW-002's list.
-          onPressed: () => setState(() {
-            _agentId = 'stub-agent-id';
-            _agentName = 'Stub Agent';
-          }),
+          onPressed: _pickAgent,
           icon: Icon(_agentId == null ? Icons.badge_outlined : Icons.check_circle, size: 18),
           label: ManaText.raw(
               _agentId == null ? ref.t('select_collection_agent_field') : ref.t('agent_note').replaceAll('{name}', _agentName ?? '')),

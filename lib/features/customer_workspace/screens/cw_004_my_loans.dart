@@ -308,6 +308,8 @@ class _AgreementSummaryCard extends ConsumerWidget {
             _row(ref.t('repayment_type'), '${detail.durationValue} × ${detail.repaymentType}'),
             _row(ref.t('installment_amount'), _currency.format(detail.installmentAmount)),
             _row(ref.t('effective_date'), _dateFmt.format(detail.effectiveDate)),
+            if (detail.loanGivenBy != null && detail.loanGivenBy!.isNotEmpty)
+              _row(ref.t('loan_given_by'), detail.loanGivenBy!),
           ],
         ),
       ),

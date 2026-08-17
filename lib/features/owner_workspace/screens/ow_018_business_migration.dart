@@ -315,11 +315,19 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
               style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
             ),
             const SizedBox(height: ManaSpacing.md),
+            // Whole rupees, and the keyboard says so. It offered a decimal
+            // point before, and a decimal typed into it parsed to null through
+            // int.tryParse below — the dialog closed having declared nothing,
+            // with no error to explain why. Money columns are numeric(_,0);
+            // paise cannot be stored.
             TextField(
               controller: controller,
               autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: ref.t('cash_in_hand_field')),
+              keyboardType: const TextInputType.numberWithOptions(decimal: false),
+              decoration: InputDecoration(
+                labelText: ref.t('cash_in_hand_field'),
+                prefixText: '₹ ',
+              ),
             ),
           ],
         ),

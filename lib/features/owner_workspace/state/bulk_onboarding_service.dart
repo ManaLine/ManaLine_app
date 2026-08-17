@@ -52,8 +52,13 @@ class BulkOnboardingService {
     'gender_digit': {
       'English': 'Gender (M/F/O)*', 'Telugu': 'లింగం (M/F/O)*',
     },
+    // ONE name field, not two. The Owner's book writes the surname first and
+    // the given name after it, in one string, and asking them to split it is
+    // asking them to re-key 63 rows. persons carries surname/given_name
+    // separately, but trg_sync_person_name derives both from full_name on
+    // write, so a single column is the whole story here.
     'full_name': {
-      'English': 'Name*', 'Telugu': 'పేరు*',
+      'English': 'Name (Surname + Name)*', 'Telugu': 'పేరు (ఇంటిపేరు + పేరు)*',
     },
     'father_husband_name': {
       'English': 'C/O Name*', 'Telugu': 'తండ్రి/భర్త పేరు*',
@@ -70,14 +75,31 @@ class BulkOnboardingService {
     'pin_code': {
       'English': 'Pin Code*', 'Telugu': 'పిన్ కోడ్*',
     },
+    'village': {
+      'English': 'Village*', 'Telugu': 'గ్రామం*',
+    },
   };
 
-  static const identityRequired = ['gender_digit', 'full_name', 'father_husband_name', 'user_type', 'pin_code'];
+  static const identityRequired = [
+    'gender_digit', 'full_name', 'father_husband_name', 'user_type', 'pin_code', 'village',
+  ];
   static const identityOptional = ['aadhaar_number', 'mobile_number', 'door_no'];
   static const identityColumns = [
     'aadhaar_number', 'gender_digit', 'full_name', 'father_husband_name',
-    'user_type', 'mobile_number', 'door_no', 'pin_code',
+    'user_type', 'mobile_number', 'door_no', 'pin_code', 'village',
   ];
+
+  /// M/F/O as the Owner types it -> the MLID gender digit the database stores
+  /// (1 Male, 0 Female, 2 Others). Without this the sheet's own heading —
+  /// "Gender (M/F/O)" — produced a value the gender CHECK rejects, so every
+  /// row failed on a column the template told them to fill that way.
+  static const _genderDigits = <String, String>{
+    'm': '1', 'male': '1', 'పురుషుడు': '1', '1': '1',
+    'f': '0', 'female': '0', 'స్త్రీ': '0', '0': '0',
+    'o': '2', 'other': '2', 'others': '2', 'ఇతరులు': '2', '2': '2',
+  };
+
+  static String? genderDigit(String raw) => _genderDigits[raw.trim().toLowerCase()];
 
   /// Reverse lookup built once: every language's label, normalised, maps
   /// back to its canonical key. This is what lets a Telugu-filled sheet and
@@ -108,9 +130,13 @@ class BulkOnboardingService {
     final notes = excel['Notes'];
     for (final line in const [
       'One row per person — Agent, Customer or Investor, all in this file.',
-      'Gender, Name, C/O Name, User Type and Pin Code are required.',
+      'Gender, Name, C/O Name, User Type, Pin Code and Village are required.',
+      'Write the name the way your book does: surname first, then the name,',
+      'in the one Name column.',
       'User Type must be exactly Agent, Customer or Investor.',
-      'Aadhaar is required for Agent and Investor, optional for Customer.',
+      'Gender is M, F or O.',
+      'Phone and Aadhaar are both optional for a pre-existing book — a person',
+      'may have neither. You can complete them later from Global Workflow.',
       'Rows that look like an existing person will be shown to you to',
       'Merge (skip) or Ignore (import anyway) before anything is saved.',
     ]) {
@@ -124,7 +150,33 @@ class BulkOnboardingService {
 
   static ParsedSheet parseIdentityBytes(Uint8List bytes, String fileName) {
     final table = _decodeTable(bytes, fileName, preferredSheet: 'Identities');
-    return _parseTable(table, identityRequired, identityOptional, _aliasMap(_identityLabels));
+    final parsed = _parseTable(table, identityRequired, identityOptional, _aliasMap(_identityLabels));
+    for (final row in parsed.rows) {
+      final raw = row['gender_digit'];
+      if (raw is String) {
+        // An unrecognised value is passed through untouched so the server is
+        // still the one that rejects it, with its own wording.
+        row['gender_digit'] = genderDigit(raw) ?? raw;
+      }
+    }
+    return parsed;
+  }
+
+  /// The distinct (PIN, Village) pairs an identity sheet names, in the order
+  /// they first appear. This is what the Areas & Villages step works from —
+  /// there is no villages sheet, because India has ~664,000 villages and a
+  /// business operates in a dozen.
+  static List<VillageRef> villagePairs(List<Map<String, dynamic>> rows) {
+    final seen = <String>{};
+    final out = <VillageRef>[];
+    for (final r in rows) {
+      final pin = (r['pin_code'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+      final village = (r['village'] ?? '').toString().trim();
+      if (pin.isEmpty || village.isEmpty) continue;
+      final key = '$pin|${village.toLowerCase()}';
+      if (seen.add(key)) out.add(VillageRef(pinCode: pin, village: village));
+    }
+    return out;
   }
 
   /// Owner-review step, BEFORE anything is written — calls the read-only
@@ -279,54 +331,6 @@ class BulkOnboardingService {
   ];
   static const customerLoanOptional = ['grace_period_end_date', 'loan_end_date', 'processing_fee'];
 
-  /// Live-queries `business_members` per role rather than trusting Step 1's
-  /// in-memory result, so Step 2 can be re-run any time the Owner has the
-  /// business open — the file always reflects what is actually in the
-  /// database, not what happened to be imported in this app session.
-  Future<Uint8List> buildOnboardingTemplate({required String businessId, required String language}) async {
-    final excel = Excel.createExcel();
-    final prefillHeader = ['mlid', 'full_name', 'user_type', 'village']
-        .map((k) => _prefillLabels[k]![language] ?? _prefillLabels[k]!['English']!)
-        .toList();
-
-    for (final role in const ['Agent', 'Investor', 'Customer']) {
-      final rows = await _prefillRows(businessId, role);
-      // Village A-Z, blanks last, name as tiebreak — so the sheet reads in
-      // the same order as the Owner's paper ledger, which is organised by
-      // village.
-      rows.sort((a, b) {
-        final va = (a.village ?? '').trim();
-        final vb = (b.village ?? '').trim();
-        if (va.isEmpty != vb.isEmpty) return va.isEmpty ? 1 : -1;
-        final cmp = va.toLowerCase().compareTo(vb.toLowerCase());
-        return cmp != 0 ? cmp : a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase());
-      });
-      final sheet = excel[role];
-      final extraKeys = role == 'Investor'
-          ? investorRequired
-          : role == 'Customer'
-              ? [...customerLoanRequired, ...customerLoanOptional]
-              : const <String>[];
-      final extraLabels = role == 'Investor' ? _investorLabels : _customerLoanLabels;
-      sheet.appendRow([
-        for (final h in prefillHeader) TextCellValue(h),
-        for (final k in extraKeys) TextCellValue(extraLabels[k]![language] ?? extraLabels[k]!['English']!),
-      ]);
-      for (final r in rows) {
-        sheet.appendRow([
-          TextCellValue(r.mlid),
-          TextCellValue(r.fullName),
-          TextCellValue(role),
-          TextCellValue(r.village ?? ''),
-        ]);
-      }
-    }
-    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
-    final bytes = excel.save();
-    if (bytes == null) throw StateError('The template could not be generated.');
-    return Uint8List.fromList(bytes);
-  }
-
   Future<List<_PrefillRow>> _prefillRows(String businessId, String role) async {
     final members = await _db
         .from('business_members')
@@ -338,7 +342,9 @@ class BulkOnboardingService {
       for (final m in members)
         if (m['person_id'] != null) (m['person_id'] as num).toInt(),
     }.toList();
-    if (personIds.isEmpty) return const [];
+    // Growable, not const: every caller sorts this, and sorting a const list
+    // throws.
+    if (personIds.isEmpty) return <_PrefillRow>[];
 
     final addresses = personIds.isEmpty
         ? const <Map<String, dynamic>>[]
@@ -362,36 +368,6 @@ class BulkOnboardingService {
             village: villageByPerson[(m['person_id'] as num).toInt()],
           ),
     ];
-  }
-
-  /// Parses all three tabs from one workbook. A tab that is missing or has
-  /// no data rows returns an empty list rather than an error — the Owner may
-  /// only have new Investors this round, say, and an empty Agent tab is not
-  /// a mistake.
-  static Step2Parse parseOnboardingBytes(Uint8List bytes, String fileName) {
-    final Excel book;
-    try {
-      book = Excel.decodeBytes(bytes);
-    } catch (e) {
-      throw ImportFormatException('This file could not be read as a spreadsheet. ($e)');
-    }
-    final investorAliases = {..._aliasMap(_prefillLabels), ..._aliasMap(_investorLabels)};
-    final customerAliases = {..._aliasMap(_prefillLabels), ..._aliasMap(_customerLoanLabels)};
-
-    ParsedSheet parseTab(String name, List<String> required, List<String> optional, Map<String, String> aliases) {
-      final table = book.tables[name];
-      if (table == null || table.rows.isEmpty) return const ParsedSheet(rows: [], sheetColumns: []);
-      final grid = [
-        for (final row in table.rows) [for (final cell in row) _cellText(cell?.value)],
-      ];
-      return _parseTable(grid, required, optional, aliases, prefillColumns: ['mlid', 'full_name', 'user_type', 'village']);
-    }
-
-    return Step2Parse(
-      agent: parseTab('Agent', const [], const [], _aliasMap(_prefillLabels)),
-      investor: parseTab('Investor', investorRequired, const [], investorAliases),
-      customer: parseTab('Customer', customerLoanRequired, customerLoanOptional, customerAliases),
-    );
   }
 
   Future<ImportOutcome> submitInvestments({
@@ -465,53 +441,8 @@ class BulkOnboardingService {
     }
   }
 
-  /// Same all-or-nothing-per-tab problem as Step 1, doubled — Investor and
-  /// Customer submit independently, so either or both can come back
-  /// rejected. One workbook, one tab per rejected side, each annotated the
-  /// same way as [buildIdentityCorrectionFile].
-  static Uint8List buildStep2CorrectionFile({
-    required List<Map<String, dynamic>> investorRows,
-    required List<ImportRowError> investorErrors,
-    required List<Map<String, dynamic>> customerRows,
-    required List<ImportRowError> customerErrors,
-    required String language,
-  }) {
-    final excel = Excel.createExcel();
-    const prefillCols = ['mlid', 'full_name', 'user_type', 'village'];
-
-    void writeTab(
-      String name,
-      List<String> extraCols,
-      Map<String, Map<String, String>> extraLabels,
-      List<Map<String, dynamic>> rows,
-      List<ImportRowError> errors,
-    ) {
-      final sheet = excel[name];
-      final errorByRow = {for (final e in errors) e.row: e.message};
-      sheet.appendRow([
-        for (final k in prefillCols) TextCellValue(_prefillLabels[k]![language] ?? _prefillLabels[k]!['English']!),
-        for (final k in extraCols) TextCellValue(extraLabels[k]![language] ?? extraLabels[k]!['English']!),
-        TextCellValue('Error'),
-      ]);
-      for (var i = 0; i < rows.length; i++) {
-        final row = rows[i];
-        sheet.appendRow([
-          for (final k in prefillCols) TextCellValue((row[k] ?? '').toString()),
-          for (final k in extraCols) TextCellValue((row[k] ?? '').toString()),
-          TextCellValue(errorByRow[i + 1] ?? ''),
-        ]);
-      }
-    }
-
-    writeTab('Investor', investorRequired, _investorLabels, investorRows, investorErrors);
-    writeTab('Customer', [...customerLoanRequired, ...customerLoanOptional], _customerLoanLabels, customerRows, customerErrors);
-
-    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
-    final bytes = excel.save();
-    if (bytes == null) throw StateError('The corrected file could not be generated.');
-    return Uint8List.fromList(bytes);
-  }
-
+  /// MLID -> customer_id, scoped to this business. The Owner never sees a
+  /// UUID: every sheet is keyed by MLID, and the translation happens here.
   Future<Map<String, String>> _resolveCustomerIdsByMlid(String businessId, List<String> mlids) async {
     if (mlids.isEmpty) return {};
     final rows = await _db
@@ -528,60 +459,10 @@ class BulkOnboardingService {
   }
 
   // ---------------------------------------------------------------------
-  // Step 3 (optional) — EMI history, 1..100 amount+date pairs
+  // EMI history — the instalment pairs the customer grids carry
   // ---------------------------------------------------------------------
 
   static const emiCount = 100;
-
-  Uint8List buildEmiTemplate({required List<CustomerRef> customers, required String language}) {
-    final excel = Excel.createExcel();
-    final sheet = excel['EMI History'];
-    sheet.appendRow([
-      TextCellValue(_prefillLabels['mlid']![language] ?? 'MLID'),
-      TextCellValue(_prefillLabels['full_name']![language] ?? 'Name'),
-      for (var i = 1; i <= emiCount; i++) ...[
-        TextCellValue('EMI $i Amount'),
-        TextCellValue('EMI $i Date'),
-      ],
-    ]);
-    for (final c in customers) {
-      sheet.appendRow([TextCellValue(c.mlid), TextCellValue(c.fullName)]);
-    }
-    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
-    final bytes = excel.save();
-    if (bytes == null) throw StateError('The template could not be generated.');
-    return Uint8List.fromList(bytes);
-  }
-
-  /// Returns one schedule per MLID: an ordered list of (amount, date) pairs,
-  /// skipping any of the 100 pairs left blank. A row with no filled pairs at
-  /// all is dropped — an Owner who filled Step 2 for a customer with no
-  /// history yet should not see that customer flagged as an error here.
-  static List<EmiScheduleRow> parseEmiBytes(Uint8List bytes, String fileName) {
-    final table = _decodeTable(bytes, fileName, preferredSheet: 'EMI History');
-    if (table.isEmpty) return const [];
-    final out = <EmiScheduleRow>[];
-    for (final raw in table.skip(1)) {
-      if (raw.length < 2 || raw.every((c) => c.trim().isEmpty)) continue;
-      final mlid = raw[0].trim();
-      if (mlid.isEmpty) continue;
-      final entries = <EmiEntry>[];
-      for (var i = 0; i < emiCount; i++) {
-        final amountIdx = 2 + i * 2;
-        final dateIdx = amountIdx + 1;
-        if (amountIdx >= raw.length) break;
-        final amountText = raw[amountIdx].trim();
-        final dateText = dateIdx < raw.length ? raw[dateIdx].trim() : '';
-        if (amountText.isEmpty || dateText.isEmpty) continue;
-        final amount = int.tryParse(amountText);
-        final date = DateTime.tryParse(dateText);
-        if (amount == null || amount <= 0 || date == null) continue;
-        entries.add(EmiEntry(amount: amount, date: date));
-      }
-      if (entries.isNotEmpty) out.add(EmiScheduleRow(mlid: mlid, entries: entries));
-    }
-    return out;
-  }
 
   /// NOT all-or-nothing — unlike every other import in this wizard. Each
   /// instalment is its own `app.record_collection` call (there is no bulk
@@ -707,14 +588,442 @@ class BulkOnboardingService {
     return map;
   }
 
-  Future<List<CustomerRef>> fetchCustomerRefs(String businessId) async {
+  // ---------------------------------------------------------------------
+  // Areas & Villages
+  //
+  // There is no villages sheet. The wizard takes the distinct (PIN, Village)
+  // pairs out of the identity sheet, offers what the LGD reference knows about
+  // that PIN, and asks the Owner to confirm. It suggests; it never validates —
+  // 8.1% of PINs list two districts after the post-2022 splits, and both the
+  // version columns and the heuristics were proven wrong, so the Owner answers
+  // once per PIN.
+  // ---------------------------------------------------------------------
+
+  Future<List<VillageSuggestion>> suggestVillages(String pinCode) async {
+    final res = await _db.schema('app').rpc('suggest_villages', params: {'p_pincode': pinCode});
+    return [
+      for (final r in (res as List? ?? const []).cast<Map<String, dynamic>>())
+        VillageSuggestion(
+          village: (r['village'] ?? '').toString(),
+          mandal: (r['mandal'] ?? '').toString(),
+          district: (r['district'] ?? '').toString(),
+          state: (r['state'] ?? '').toString(),
+        ),
+    ];
+  }
+
+  Future<void> upsertVillages({
+    required String businessId,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    await _db.schema('app').rpc('migration_upsert_villages', params: {
+      'p_business_id': businessId,
+      'p_rows': rows,
+    });
+  }
+
+  Future<void> createAreas({
+    required String businessId,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    await _db.schema('app').rpc('migration_create_areas', params: {
+      'p_business_id': businessId,
+      'p_rows': rows,
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Investors
+  // ---------------------------------------------------------------------
+
+  Future<Uint8List> buildInvestorTemplate({required String businessId, required String language}) =>
+      _buildRolePrefillTemplate(
+        businessId: businessId,
+        language: language,
+        role: 'Investor',
+        extraKeys: investorRequired,
+        extraLabels: _investorLabels,
+        notes: const [
+          'One row per investor, including the Owner: owner capital is equity,',
+          'and it is entered here as an investment first.',
+          'ROI is Rupees per 100 per MONTH, not per year.',
+          'Profit % is the share of profit this investor is owed. It accrues at',
+          'the investment ROI until it is paid, and is 0 if it is paid the same',
+          'day it is declared.',
+        ],
+      );
+
+  static ParsedSheet parseInvestorBytes(Uint8List bytes, String fileName) {
+    final table = _decodeTable(bytes, fileName, preferredSheet: 'Investor');
+    return _parseTable(
+      table,
+      investorRequired,
+      const [],
+      {..._aliasMap(_prefillLabels), ..._aliasMap(_investorLabels)},
+      prefillColumns: const ['mlid', 'full_name', 'user_type', 'village'],
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Customers — one grid per repayment frequency
+  //
+  // Three sheets, because a Daily book and a Monthly book are different
+  // shapes on paper and mixing them in one grid is where an Owner
+  // mis-keys a frequency. The frequency is the SHEET, never a column, so it
+  // cannot be typed wrong. Each row carries its own EMI history as
+  // amount+date pairs, which is what a paper ledger's date columns are.
+  // ---------------------------------------------------------------------
+
+  static const customerFrequencies = ['Daily', 'Weekly', 'Monthly'];
+
+  Future<Uint8List> buildCustomerGridTemplate({
+    required String businessId,
+    required String language,
+  }) async {
     final rows = await _prefillRows(businessId, 'Customer');
-    return [for (final r in rows) CustomerRef(mlid: r.mlid, fullName: r.fullName)];
+    rows.sort((a, b) {
+      final va = (a.village ?? '').trim();
+      final vb = (b.village ?? '').trim();
+      if (va.isEmpty != vb.isEmpty) return va.isEmpty ? 1 : -1;
+      final cmp = va.toLowerCase().compareTo(vb.toLowerCase());
+      return cmp != 0 ? cmp : a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase());
+    });
+
+    final excel = Excel.createExcel();
+    final loanKeys = [
+      for (final k in [...customerLoanRequired, ...customerLoanOptional])
+        if (k != 'repayment_type') k,
+    ];
+
+    for (final frequency in customerFrequencies) {
+      final sheet = excel[frequency];
+      sheet.appendRow([
+        for (final k in const ['mlid', 'full_name', 'village'])
+          TextCellValue(_prefillLabels[k]![language] ?? _prefillLabels[k]!['English']!),
+        for (final k in loanKeys)
+          TextCellValue(_customerLoanLabels[k]![language] ?? _customerLoanLabels[k]!['English']!),
+        for (var i = 1; i <= emiCount; i++) ...[
+          TextCellValue('EMI $i Amount'),
+          TextCellValue('EMI $i Date'),
+        ],
+      ]);
+      for (final r in rows) {
+        sheet.appendRow([
+          TextCellValue(r.mlid),
+          TextCellValue(r.fullName),
+          TextCellValue(r.village ?? ''),
+        ]);
+      }
+    }
+
+    final notes = excel['Notes'];
+    for (final line in const [
+      'One sheet per repayment frequency — put each loan on the sheet that',
+      'matches how it is collected. The sheet IS the frequency; there is no',
+      'frequency column to get wrong.',
+      'Delete the rows of any customer who has no loan on that sheet.',
+      'Issued Date is required. Remaining Balance is what is still owed on the',
+      'cut-off date; if you fill in the EMI columns it is checked against them.',
+      'The EMI columns are the instalment history: every instalment ever paid,',
+      'one amount and one date per pair. Leave them blank if you are only',
+      'entering the balance.',
+      'Rupees only — paise cannot be stored.',
+    ]) {
+      notes.appendRow([TextCellValue(line)]);
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The template could not be generated.');
+    return Uint8List.fromList(bytes);
+  }
+
+  /// Loan rows (with `repayment_type` filled in from the sheet name) plus the
+  /// EMI schedule those same rows carry. A sheet with no data rows is not an
+  /// error: a business may run Daily loans only.
+  static CustomerGridParse parseCustomerGridBytes(Uint8List bytes, String fileName) {
+    final Excel book;
+    try {
+      book = Excel.decodeBytes(bytes);
+    } catch (e) {
+      throw ImportFormatException('This file could not be read as a spreadsheet. ($e)');
+    }
+
+    final aliases = {..._aliasMap(_prefillLabels), ..._aliasMap(_customerLoanLabels)};
+    final required = [for (final k in customerLoanRequired) if (k != 'repayment_type') k];
+    final loans = <Map<String, dynamic>>[];
+    final schedule = <EmiScheduleRow>[];
+
+    for (final frequency in customerFrequencies) {
+      final table = book.tables[frequency];
+      if (table == null || table.rows.isEmpty) continue;
+
+      final grid = [
+        for (final row in table.rows) [for (final cell in row) _cellText(cell?.value)],
+      ];
+      final parsed = _parseTable(
+        grid,
+        required,
+        customerLoanOptional,
+        aliases,
+        prefillColumns: const ['mlid', 'full_name', 'user_type', 'village'],
+      );
+      for (final row in parsed.rows) {
+        row['repayment_type'] = frequency;
+        loans.add(row);
+      }
+
+      // The EMI pairs sit past the named columns, so they are read positionally
+      // from the raw grid rather than through the header map.
+      final header = grid.first;
+      final firstEmiColumn = header.indexWhere((c) => normalise(c).startsWith('emi_1'));
+      if (firstEmiColumn < 0) continue;
+
+      var dataRow = 0;
+      for (final raw in grid.skip(1)) {
+        if (raw.every((c) => c.trim().isEmpty)) continue;
+        final row = parsed.rows.length > dataRow ? parsed.rows[dataRow] : null;
+        dataRow++;
+        final mlid = (row?['mlid'] ?? '').toString().trim();
+        if (mlid.isEmpty) continue;
+
+        final entries = <EmiEntry>[];
+        for (var i = 0; i < emiCount; i++) {
+          final amountIdx = firstEmiColumn + i * 2;
+          final dateIdx = amountIdx + 1;
+          if (amountIdx >= raw.length) break;
+          final amountText = raw[amountIdx].trim();
+          final dateText = dateIdx < raw.length ? raw[dateIdx].trim() : '';
+          if (amountText.isEmpty || dateText.isEmpty) continue;
+          final amount = int.tryParse(amountText);
+          final date = DateTime.tryParse(dateText);
+          if (amount == null || amount <= 0 || date == null) continue;
+          entries.add(EmiEntry(amount: amount, date: date));
+        }
+        if (entries.isNotEmpty) schedule.add(EmiScheduleRow(mlid: mlid, entries: entries));
+      }
+    }
+
+    return CustomerGridParse(loans: loans, schedule: schedule);
+  }
+
+  // ---------------------------------------------------------------------
+  // Agents — attendance only
+  // ---------------------------------------------------------------------
+
+  Future<Uint8List> buildAttendanceTemplate({
+    required String businessId,
+    required String language,
+  }) async {
+    final rows = await _prefillRows(businessId, 'Agent');
+    final excel = Excel.createExcel();
+    final sheet = excel['Attendance'];
+    sheet.appendRow([
+      TextCellValue(_prefillLabels['mlid']![language] ?? 'MLID'),
+      TextCellValue(_prefillLabels['full_name']![language] ?? 'Name'),
+      TextCellValue('Date (yyyy-mm-dd)'),
+      TextCellValue('Allowance'),
+    ]);
+    for (final r in rows) {
+      sheet.appendRow([TextCellValue(r.mlid), TextCellValue(r.fullName)]);
+    }
+
+    final notes = excel['Notes'];
+    for (final line in const [
+      'One row per agent per working day. Copy an agent down as many rows as',
+      'they worked days.',
+      'Salary and expenses are NOT entered here — they are declared in the',
+      'weekly account sheet, which is where your book records them.',
+    ]) {
+      notes.appendRow([TextCellValue(line)]);
+    }
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The template could not be generated.');
+    return Uint8List.fromList(bytes);
+  }
+
+  static List<Map<String, dynamic>> parseAttendanceBytes(Uint8List bytes, String fileName) {
+    final table = _decodeTable(bytes, fileName, preferredSheet: 'Attendance');
+    if (table.isEmpty) return const [];
+    final out = <Map<String, dynamic>>[];
+    for (final raw in table.skip(1)) {
+      if (raw.every((c) => c.trim().isEmpty)) continue;
+      if (raw.length < 3) continue;
+      final mlid = raw[0].trim();
+      final date = raw[2].trim();
+      if (mlid.isEmpty || date.isEmpty) continue;
+      out.add({
+        'mlid': mlid,
+        'business_date': date,
+        if (raw.length > 3 && raw[3].trim().isNotEmpty) 'allowance_amount': raw[3].trim(),
+      });
+    }
+    return out;
+  }
+
+  Future<int> recordAttendance({
+    required String businessId,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    final res = await _db.schema('app').rpc('migration_record_attendance', params: {
+      'p_business_id': businessId,
+      'p_rows': rows,
+    });
+    return ((res as Map)['recorded'] as num?)?.toInt() ?? 0;
+  }
+
+  // ---------------------------------------------------------------------
+  // Opening snapshot & reconciliation
+  // ---------------------------------------------------------------------
+
+  Future<Map<String, dynamic>> profitSummary({
+    required String businessId,
+    DateTime? asOf,
+  }) async {
+    final res = await _db.schema('app').rpc('migration_profit_summary', params: {
+      'p_business_id': businessId,
+      if (asOf != null) 'p_as_of': _isoDate(asOf),
+    });
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  Future<Map<String, dynamic>> recordOpeningSnapshot({
+    required String businessId,
+    required DateTime cutoffDate,
+    required int openingBf,
+    required int declaredLineBalance,
+    required int declaredProfit,
+  }) async {
+    final res = await _db.schema('app').rpc('record_opening_snapshot', params: {
+      'p_business_id': businessId,
+      'p_cutoff_date': _isoDate(cutoffDate),
+      'p_opening_bf': openingBf,
+      'p_declared_line_balance': declaredLineBalance,
+      'p_declared_profit': declaredProfit,
+    });
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  // ---------------------------------------------------------------------
+  // Weekly account sheet
+  // ---------------------------------------------------------------------
+
+  static const weeklyKinds = [
+    'Expense', 'Salary', 'Investor Interest', 'Investor Deposit', 'Investor Withdrawal',
+  ];
+
+  Uint8List buildWeeklyTemplate({required String language}) {
+    final excel = Excel.createExcel();
+    final sheet = excel['Weekly Account'];
+    sheet.appendRow([
+      TextCellValue('Date* (yyyy-mm-dd)'),
+      TextCellValue('Type*'),
+      TextCellValue('Amount*'),
+      TextCellValue('MLID'),
+      TextCellValue('Category'),
+      TextCellValue('Interest Portion'),
+      TextCellValue('Remarks'),
+    ]);
+
+    final notes = excel['Notes'];
+    for (final line in [
+      'One row per line of your weekly book.',
+      'Type must be one of: ${weeklyKinds.join(", ")}.',
+      'MLID is required for the three Investor types and ignored for the rest.',
+      'Category applies to Expense rows: General, Travel, Salary, Fuel, Other.',
+      'Interest Portion applies to Investor Withdrawal rows — how much of the',
+      'withdrawal was interest rather than principal.',
+      'Collections and loans are NOT entered here; they come from the customer',
+      'sheets.',
+    ]) {
+      notes.appendRow([TextCellValue(line)]);
+    }
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The template could not be generated.');
+    return Uint8List.fromList(bytes);
+  }
+
+  static List<Map<String, dynamic>> parseWeeklyBytes(Uint8List bytes, String fileName) {
+    final table = _decodeTable(bytes, fileName, preferredSheet: 'Weekly Account');
+    if (table.isEmpty) return const [];
+    final out = <Map<String, dynamic>>[];
+    for (final raw in table.skip(1)) {
+      if (raw.every((c) => c.trim().isEmpty)) continue;
+      if (raw.length < 3) continue;
+      String at(int i) => i < raw.length ? raw[i].trim() : '';
+      if (at(0).isEmpty && at(1).isEmpty) continue;
+      out.add({
+        'business_date': at(0),
+        'kind': at(1),
+        'amount': at(2),
+        if (at(3).isNotEmpty) 'mlid': at(3),
+        if (at(4).isNotEmpty) 'category': at(4),
+        if (at(5).isNotEmpty) 'interest_portion': at(5),
+        if (at(6).isNotEmpty) 'remarks': at(6),
+      });
+    }
+    return out;
+  }
+
+  Future<int> importWeeklyAccount({
+    required String businessId,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    final res = await _db.schema('app').rpc('import_weekly_account', params: {
+      'p_business_id': businessId,
+      'p_rows': rows,
+    });
+    return ((res as Map)['imported'] as num?)?.toInt() ?? 0;
   }
 
   // ---------------------------------------------------------------------
   // Shared plumbing
   // ---------------------------------------------------------------------
+
+  static String _isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// One sheet of the people already in a role, prefilled, plus that role's own
+  /// columns. Live-queried rather than trusted from an earlier step, so the
+  /// file always reflects what is actually in the database.
+  Future<Uint8List> _buildRolePrefillTemplate({
+    required String businessId,
+    required String language,
+    required String role,
+    required List<String> extraKeys,
+    required Map<String, Map<String, String>> extraLabels,
+    List<String> notes = const [],
+  }) async {
+    final rows = await _prefillRows(businessId, role);
+    final excel = Excel.createExcel();
+    final sheet = excel[role];
+    sheet.appendRow([
+      for (final k in const ['mlid', 'full_name', 'user_type', 'village'])
+        TextCellValue(_prefillLabels[k]![language] ?? _prefillLabels[k]!['English']!),
+      for (final k in extraKeys)
+        TextCellValue(extraLabels[k]![language] ?? extraLabels[k]!['English']!),
+    ]);
+    for (final r in rows) {
+      sheet.appendRow([
+        TextCellValue(r.mlid),
+        TextCellValue(r.fullName),
+        TextCellValue(role),
+        TextCellValue(r.village ?? ''),
+      ]);
+    }
+    if (notes.isNotEmpty) {
+      final notesSheet = excel['Notes'];
+      for (final line in notes) {
+        notesSheet.appendRow([TextCellValue(line)]);
+      }
+    }
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The template could not be generated.');
+    return Uint8List.fromList(bytes);
+  }
 
   Future<void> shareBytes(Uint8List bytes, String fileName) async {
     final dir = await getTemporaryDirectory();
@@ -863,13 +1172,6 @@ class ParsedSheet {
   const ParsedSheet({required this.rows, required this.sheetColumns});
 }
 
-class Step2Parse {
-  final ParsedSheet agent;
-  final ParsedSheet investor;
-  final ParsedSheet customer;
-  const Step2Parse({required this.agent, required this.investor, required this.customer});
-}
-
 class DuplicateMatch {
   final int row;
   final String reason; // 'existing_customer' | 'duplicate_in_file'
@@ -912,10 +1214,31 @@ class _PrefillRow {
   const _PrefillRow({required this.mlid, required this.fullName, this.village});
 }
 
-class CustomerRef {
-  final String mlid;
-  final String fullName;
-  const CustomerRef({required this.mlid, required this.fullName});
+/// A (PIN, Village) pair named by the identity sheet.
+class VillageRef {
+  final String pinCode;
+  final String village;
+  const VillageRef({required this.pinCode, required this.village});
+}
+
+/// What the LGD reference knows about a PIN. A suggestion, never a validation.
+class VillageSuggestion {
+  final String village;
+  final String mandal;
+  final String district;
+  final String state;
+  const VillageSuggestion({
+    required this.village,
+    required this.mandal,
+    required this.district,
+    required this.state,
+  });
+}
+
+class CustomerGridParse {
+  final List<Map<String, dynamic>> loans;
+  final List<EmiScheduleRow> schedule;
+  const CustomerGridParse({required this.loans, required this.schedule});
 }
 
 class LoanRef {

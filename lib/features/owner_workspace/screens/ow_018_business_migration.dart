@@ -532,9 +532,8 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   final _given = TextEditingController();
   final _interest = TextEditingController();
   final _fee = TextEditingController(text: '0');
-  final _pending = TextEditingController();
+  final _balance = TextEditingController();
   final _emi = TextEditingController();
-  final _penalty = TextEditingController(text: '0');
   String _frequency = 'Weekly';
   // IST, not the handset clock — a migrated loan's effective_date is the
   // business day it is booked against. See lib/shared/mana_time.dart.
@@ -552,7 +551,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   @override
   void dispose() {
     for (final c in [
-      _given, _interest, _fee, _pending, _emi, _penalty,
+      _given, _interest, _fee, _balance, _emi,
       _fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _villageSearch,
     ]) {
       c.dispose();
@@ -706,9 +705,8 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   int? get _givenV => int.tryParse(_given.text.trim());
   int? get _interestV => int.tryParse(_interest.text.trim());
   int get _feeV => int.tryParse(_fee.text.trim()) ?? 0;
-  int? get _pendingV => int.tryParse(_pending.text.trim());
+
   int? get _emiV => int.tryParse(_emi.text.trim());
-  int get _penaltyV => int.tryParse(_penalty.text.trim()) ?? 0;
 
   /// The whole obligation, DERIVED: the cash actually handed over plus the
   /// interest and fee that were withheld from it. Entering 19,600 given with
@@ -719,12 +717,27 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       ? _givenV! + _interestV! + _feeV
       : null;
 
-  /// Remaining balance is DERIVED, never typed. Typing it independently is
-  /// what let the two halves of this form disagree -- a repayment of 10,000
-  /// with 14,000 still owed was accepted into the fields and only caught at
-  /// the very bottom of the screen.
-  int? get _remainingV => (_pendingV != null && _emiV != null)
-      ? _pendingV! * _emiV! + _penaltyV
+  /// Remaining balance is TYPED, in rupees, exactly as the old book states it.
+  ///
+  /// It used to be derived as `pending instalments x EMI`, which is wrong for
+  /// a real book: 14% of loans in the Owner's own ledger have a PART-PAID
+  /// instalment, and that formula cannot express one. A customer who owes
+  /// 6,250 against a 500 instalment came out as either 6,000 or 6,500, and the
+  /// difference was silently written into the loan.
+  ///
+  /// Derived-vs-typed is settled the same way the spreadsheet import settles
+  /// it (app.import_migrated_loans): typed wins for a cut-off loan, and where
+  /// an instalment history exists the replay derives it instead. This screen
+  /// enters one loan at a time with no history behind it, so it is the typed
+  /// case.
+  int? get _remainingV => int.tryParse(_balance.text.trim());
+
+  /// How many instalments the schedule will hold, CEILING — the same rule
+  /// app.migrate_loan applies server-side, shown here so the number on screen
+  /// is the number that gets written. A 6,250 balance against a 500 instalment
+  /// is 13 rows, the last one short, not 12.
+  int? get _instalmentsToCreate => (_remainingV != null && _emiV != null && _emiV! > 0)
+      ? (_remainingV! / _emiV!).ceil()
       : null;
 
   /// What the customer has already handed over: the whole obligation minus
@@ -738,7 +751,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     } else if (_customer == null) {
       return 'Choose the customer this loan belongs to.';
     }
-    if (_givenV == null || _interestV == null || _pendingV == null || _emiV == null) {
+    if (_givenV == null || _interestV == null || _remainingV == null || _emiV == null) {
       return null; // incomplete, not wrong
     }
     if (_givenV! <= 0 || _emiV! <= 0) {
@@ -747,15 +760,12 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     if (_interestV! < 0 || _feeV < 0) {
       return 'Interest and fee cannot be negative.';
     }
-    if (_pendingV! <= 0) {
-      return 'There must be at least one pending instalment.';
-    }
-    if (_penaltyV < 0) {
-      return 'Penalty cannot be negative.';
+    if (_remainingV! < 0) {
+      return 'The remaining balance cannot be negative.';
     }
     if (_remainingV! > _issuedV!) {
-      return 'The pending instalments come to ${_currency.format(_remainingV!)}, '
-          'which is more than the ${_currency.format(_issuedV!)} issued.';
+      return 'The balance still owed, ${_currency.format(_remainingV!)}, is more '
+          'than the ${_currency.format(_issuedV!)} this loan was issued for.';
     }
     return null;
   }
@@ -764,7 +774,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       (_newPerson ? _personComplete : _customer != null) &&
       _givenV != null &&
       _interestV != null &&
-      _pendingV != null &&
+      _remainingV != null &&
       _emiV != null &&
       _validationError == null &&
       !_saving;
@@ -780,7 +790,95 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   ///
   /// [andAnother] keeps the form open with the loan fields cleared, because
   /// migrating a book is fifty of these in a row, not one.
+  /// Everything this is about to write, on one screen, before it is written.
+  ///
+  /// Migrating a book is fifty of these in a row, and the figures that matter
+  /// are DERIVED — the total issued, what counts as already collected, how
+  /// many instalment rows appear. Those were only visible as small computed
+  /// lines mixed in among the inputs, which is exactly where a mistyped digit
+  /// hides. Nothing is saved until this is confirmed.
+  Future<bool> _confirmPreview() async {
+    final person = _newPerson ? _fullName.text.trim() : (_customer?.fullName ?? '');
+    final village = _newPerson ? _villageSearch.text.trim() : null;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const ManaText.raw('Check This Loan'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ManaText.raw(person, style: const TextStyle(fontWeight: FontWeight.w700)),
+              if (village != null && village.isNotEmpty)
+                ManaText.raw(village,
+                    style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+              if (_newPerson)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: ManaText.raw('A new person will be registered.',
+                      style: TextStyle(fontSize: 12, color: ManaColors.statusWarn)),
+                ),
+              const Divider(),
+              _previewRow('Cash given', _givenV),
+              _previewRow('Interest', _interestV),
+              _previewRow('Processing fee', _feeV),
+              _previewRow('Total to repay', _issuedV, bold: true),
+              const Divider(),
+              _previewRow('Already collected', _collected),
+              _previewRow('Still owed', _remainingV, bold: true),
+              const Divider(),
+              ManaText.raw(
+                '$_frequency · ${_currency.format(_emiV ?? 0)} each · '
+                '${_instalmentsToCreate ?? 0} instalments',
+                style: const TextStyle(fontSize: 13),
+              ),
+              ManaText.raw(
+                'Issued ${_effectiveDate.toIso8601String().split("T").first}',
+                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const ManaText.raw('Go Back'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const ManaText.raw('Save This Loan'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  Widget _previewRow(String label, int? value, {bool bold = false}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(
+              child: ManaText.raw(label,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: ManaColors.textSecondary,
+                      fontWeight: bold ? FontWeight.w600 : null)),
+            ),
+            ManaText.raw(
+              value == null ? '—' : _currency.format(value),
+              style: TextStyle(
+                  fontSize: 13, fontWeight: bold ? FontWeight.w700 : FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+
   Future<void> _save({bool andAnother = false}) async {
+    if (!await _confirmPreview()) return;
+    if (!mounted) return;
     setState(() => _saving = true);
 
     String? customerId = _customer?.customerId;
@@ -851,11 +949,10 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       _villageId = null;
       _villageResults = [];
       _villageSearchAttempted = false;
-      for (final c in [_fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _villageSearch, _given, _interest, _pending, _emi]) {
+      for (final c in [_fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _villageSearch, _given, _interest, _balance, _emi]) {
         c.clear();
       }
       _fee.text = '0';
-      _penalty.text = '0';
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: ManaText.raw('Saved. Enter the next one.')),
@@ -923,10 +1020,10 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
               onChanged: (v) => setState(() => _frequency = v ?? 'Weekly'),
             ),
             const SizedBox(height: ManaSpacing.md),
-            _amountField(_pending, ref.t('pending_instalments_field')),
             _amountField(_emi, ref.t('instalment_amount_emi_field')),
-            _amountField(_penalty, ref.t('penalty_outstanding_field')),
-            _computedRow(ref.t('remaining_balance_label'), _remainingV, ref.t('remaining_balance_hint')),
+            // Rupees, as the book states it. See _remainingV for why this is
+            // typed and not counted out of instalments.
+            _amountField(_balance, 'Balance Still Owed *'),
             _computedRow(ref.t('already_paid'), _collected, ref.t('already_paid_hint')),
             const SizedBox(height: ManaSpacing.md),
             ListTile(
@@ -1020,11 +1117,13 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             const SizedBox(height: ManaSpacing.sm),
             _derived(ref.t('already_collected'), _collected),
             _derived(ref.t('still_owed'), _remainingV),
-            if (_pendingV != null && _pendingV! > 0)
+            if (_instalmentsToCreate != null && _instalmentsToCreate! > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: ManaText.raw(
-                  ref.t('instalments_created_note').replaceAll('{count}', '$_pendingV'),
+                  ref
+                      .t('instalments_created_note')
+                      .replaceAll('{count}', '$_instalmentsToCreate'),
                   style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                 ),
               ),

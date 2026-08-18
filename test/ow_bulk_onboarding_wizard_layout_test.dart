@@ -66,7 +66,7 @@ void main() {
       '4. Customers': 'One sheet per repayment frequency',
       '5. Agents': 'Which days each agent worked',
       '6. Opening Snapshot': 'No cut-off date chosen',
-      '7. Weekly Account': 'one row per line',
+      '7. Weekly Account': 'one row per account',
     };
 
     for (final entry in expectations.entries) {

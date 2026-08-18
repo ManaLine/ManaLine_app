@@ -148,43 +148,125 @@ void main() {
   });
 
   group('parseWeeklyBytes', () {
-    test('reads the weekly book positionally and drops empty lines', () {
+    /// The first two weeks of the Owner's real 2026 book. Week 1 is the one
+    /// that proves the gross-in/gross-out identity: 112,800 interest and 6,280
+    /// fee come back in against 626,800 of loans written out.
+    Uint8List realBook() {
       final excel = Excel.createExcel();
-      final sheet = excel['Weekly Account'];
-      sheet.appendRow([
+      final weeks = excel['Weeks'];
+      weeks.appendRow([
         TextCellValue('Date* (yyyy-mm-dd)'),
-        TextCellValue('Type*'),
-        TextCellValue('Amount*'),
-        TextCellValue('MLID'),
-        TextCellValue('Category'),
-        TextCellValue('Interest Portion'),
-        TextCellValue('Remarks'),
+        TextCellValue('Opening BF*'),
+        TextCellValue('Collection (vasool)'),
+        TextCellValue('Interest (vaddi)'),
+        TextCellValue('Processing Fee (agreement)'),
+        TextCellValue('Investor In'),
+        TextCellValue('Investor In - Interest'),
+        TextCellValue('Loans Out (gross repayment)'),
+        TextCellValue('Investor Out'),
+        TextCellValue('Investor Out - Interest'),
+        TextCellValue('Cheeti'),
+        TextCellValue('Expenses Total'),
+        TextCellValue('Closing BF*'),
       ]);
-      sheet.appendRow([
-        TextCellValue('2026-01-05'),
-        TextCellValue('Salary'),
-        TextCellValue('3000'),
+      weeks.appendRow([
+        TextCellValue('2026-01-02'), TextCellValue('0'), TextCellValue('0'),
+        TextCellValue('112800'), TextCellValue('6280'), TextCellValue('1000000'),
+        TextCellValue('39000'), TextCellValue('626800'), TextCellValue(''),
+        TextCellValue(''), TextCellValue(''), TextCellValue('900'),
+        TextCellValue('491380'),
       ]);
-      sheet.appendRow([
-        TextCellValue('2026-01-06'),
-        TextCellValue('Investor Withdrawal'),
-        TextCellValue('5000'),
-        TextCellValue('MLTI100000002'),
-        TextCellValue(''),
-        TextCellValue('500'),
-        TextCellValue('part'),
+      weeks.appendRow([
+        TextCellValue('2026-01-09'), TextCellValue('491380'), TextCellValue('33020'),
+        TextCellValue('76600'), TextCellValue('4940'), TextCellValue(''),
+        TextCellValue(''), TextCellValue('423600'), TextCellValue(''),
+        TextCellValue(''), TextCellValue(''), TextCellValue('900'),
+        TextCellValue('181440'),
       ]);
-      sheet.appendRow([TextCellValue(''), TextCellValue(''), TextCellValue('')]);
-      excel.delete('Sheet1');
+      weeks.appendRow([for (var i = 0; i < 13; i++) TextCellValue('')]);
 
-      final rows =
-          BulkOnboardingService.parseWeeklyBytes(Uint8List.fromList(excel.save()!), 'weekly.xlsx');
+      final expenses = excel['Expenses'];
+      expenses.appendRow([
+        TextCellValue('Date* (yyyy-mm-dd)'),
+        TextCellValue('What it was*'),
+        TextCellValue('Amount*'),
+      ]);
+      for (final e in const [
+        ['2026-01-02', 'Petrol', '500'],
+        ['2026-01-02', 'Sadaru', '400'],
+        ['2026-01-09', 'Petrol', '500'],
+        ['2026-01-09', 'Sadaru', '400'],
+      ]) {
+        expenses.appendRow([for (final c in e) TextCellValue(c)]);
+      }
+      excel.delete('Sheet1');
+      return Uint8List.fromList(excel.save()!);
+    }
+
+    test('one map per week, expense lines nested under their own date', () {
+      final rows = BulkOnboardingService.parseWeeklyBytes(realBook(), 'weekly.xlsx');
 
       expect(rows, hasLength(2));
-      expect(rows.first['kind'], 'Salary');
-      expect(rows.first.containsKey('mlid'), isFalse);
-      expect(rows[1]['interest_portion'], '500');
-      expect(rows[1]['remarks'], 'part');
+      expect(rows.first['account_date'], '2026-01-02');
+      expect(rows.first['interest'], '112800');
+      expect(rows.first['fee'], '6280');
+      expect(rows.first['loans_gross_out'], '626800');
+      expect(rows.first['closing_bf'], '491380');
+      expect(rows.first['expenses'], hasLength(2));
+      expect((rows.first['expenses'] as List).first['label'], 'Petrol');
+
+      // One week's closing is the next week's opening — the chain the server
+      // refuses to import without.
+      expect(rows[1]['opening_bf'], rows.first['closing_bf']);
+    });
+
+    test('a blank cell is left out rather than sent as zero', () {
+      final rows = BulkOnboardingService.parseWeeklyBytes(realBook(), 'weekly.xlsx');
+      expect(rows[1].containsKey('investor_in'), isFalse);
+      expect(rows[1].containsKey('investor_out_interest'), isFalse);
+    });
+
+    test('a workbook with no Weeks sheet is refused, not silently empty', () {
+      final excel = Excel.createExcel();
+      excel['Something Else'].appendRow([TextCellValue('x')]);
+      excel.delete('Sheet1');
+      expect(
+        () => BulkOnboardingService.parseWeeklyBytes(
+            Uint8List.fromList(excel.save()!), 'weekly.xlsx'),
+        throwsA(isA<ImportFormatException>()),
+      );
+    });
+  });
+
+  group('parseShareholderBytes', () {
+    test('reads the share list, skipping unnamed rows', () {
+      final excel = Excel.createExcel();
+      final sheet = excel['Shareholders'];
+      sheet.appendRow([
+        TextCellValue('Name*'),
+        TextCellValue('Share %*'),
+        TextCellValue('Share Amount'),
+        TextCellValue('ROI (Rs per 100 / month)'),
+        TextCellValue('Paid On (yyyy-mm-dd)'),
+        TextCellValue('Amount Received'),
+      ]);
+      sheet.appendRow([
+        TextCellValue('TADI SRINIVASA REDDY'), TextCellValue('15'), TextCellValue(''),
+        TextCellValue('1.5'), TextCellValue('2026-03-31'), TextCellValue('75300'),
+      ]);
+      sheet.appendRow([TextCellValue(''), TextCellValue('10')]);
+      excel.delete('Sheet1');
+
+      final rows = BulkOnboardingService.parseShareholderBytes(
+          Uint8List.fromList(excel.save()!), 'shareholders.xlsx');
+
+      expect(rows, hasLength(1));
+      expect(rows.first['full_name'], 'TADI SRINIVASA REDDY');
+      expect(rows.first['share_percent'], '15');
+      // Left blank: the server works it out from the percent and the declared
+      // profit rather than being handed a zero.
+      expect(rows.first.containsKey('share_amount'), isFalse);
+      expect(rows.first['amount_received'], '75300');
     });
   });
 

@@ -397,9 +397,16 @@ class BulkOnboardingService {
   /// the sheet asks for a date because that is what an Owner's paper ledger
   /// records, not a day-count. `loan_end_date` is read and then discarded:
   /// there is no column for it, by design (task brief).
+  /// `emiTotals` is what the instalment history on the same sheet adds up to,
+  /// per MLID. When a loan has history, the server opens it UNPAID and lets the
+  /// replayed instalments derive the balance; a typed balance is then checked
+  /// against that and disagreement rejects the row. Sending the typed balance
+  /// alone, with history replayed on top, is what used to land the loan at
+  /// typed - SUM(history).
   Future<ImportOutcome> submitCustomerLoans({
     required String businessId,
     required List<Map<String, dynamic>> rows,
+    Map<String, int> emiTotals = const {},
   }) async {
     final mlids = [for (final r in rows) r['mlid'] as String? ?? ''].where((m) => m.isNotEmpty).toSet().toList();
     final customerIdByMlid = await _resolveCustomerIdsByMlid(businessId, mlids);
@@ -422,6 +429,8 @@ class BulkOnboardingService {
         }
       }
       row['customer_id'] = customerIdByMlid[mlid];
+      final emiTotal = emiTotals[mlid];
+      if (emiTotal != null && emiTotal > 0) row['emi_total'] = emiTotal;
       payload.add(row);
       // ignore: unused_local_variable
       loanEndDate;
@@ -906,36 +915,164 @@ class BulkOnboardingService {
   }
 
   // ---------------------------------------------------------------------
-  // Weekly account sheet
+  // Weekly account sheet — the source of truth for a migrated period
+  //
+  // Two sheets, because a week has one line of totals and any number of expense
+  // lines under it. The server checks the week identity and the opening/closing
+  // chain and refuses the whole file if either breaks, so nothing is validated
+  // twice here.
   // ---------------------------------------------------------------------
 
-  static const weeklyKinds = [
-    'Expense', 'Salary', 'Investor Interest', 'Investor Deposit', 'Investor Withdrawal',
+  static const weekColumns = <String>[
+    'account_date', 'opening_bf', 'collection', 'interest', 'fee',
+    'investor_in', 'investor_in_interest', 'loans_gross_out',
+    'investor_out', 'investor_out_interest', 'cheeti', 'expenses_total', 'closing_bf',
+  ];
+
+  static const _weekHeadings = <String>[
+    'Date* (yyyy-mm-dd)', 'Opening BF*', 'Collection (vasool)', 'Interest (vaddi)',
+    'Processing Fee (agreement)', 'Investor In', 'Investor In - Interest',
+    'Loans Out (gross repayment)', 'Investor Out', 'Investor Out - Interest',
+    'Cheeti', 'Expenses Total', 'Closing BF*',
   ];
 
   Uint8List buildWeeklyTemplate({required String language}) {
     final excel = Excel.createExcel();
-    final sheet = excel['Weekly Account'];
-    sheet.appendRow([
+    final weeks = excel['Weeks'];
+    weeks.appendRow([for (final h in _weekHeadings) TextCellValue(h)]);
+
+    final expenses = excel['Expenses'];
+    expenses.appendRow([
       TextCellValue('Date* (yyyy-mm-dd)'),
-      TextCellValue('Type*'),
+      TextCellValue('What it was*'),
       TextCellValue('Amount*'),
-      TextCellValue('MLID'),
-      TextCellValue('Category'),
-      TextCellValue('Interest Portion'),
-      TextCellValue('Remarks'),
     ]);
 
     final notes = excel['Notes'];
-    for (final line in [
-      'One row per line of your weekly book.',
-      'Type must be one of: ${weeklyKinds.join(", ")}.',
-      'MLID is required for the three Investor types and ignored for the rest.',
-      'Category applies to Expense rows: General, Travel, Salary, Fuel, Other.',
-      'Interest Portion applies to Investor Withdrawal rows — how much of the',
-      'withdrawal was interest rather than principal.',
-      'Collections and loans are NOT entered here; they come from the customer',
-      'sheets.',
+    for (final line in const [
+      'One row per account in the Weeks sheet — the date is the day you closed',
+      'the account, which is the last working day of that schedule.',
+      '',
+      'Every expense line goes on the Expenses sheet against the same date.',
+      'Expenses Total is optional; fill it and it will be checked against the',
+      'lines you entered.',
+      '',
+      'Loans Out is the GROSS repayment written out, not the cash handed over —',
+      'the withheld interest and fee come back in on the Interest and Fee',
+      'columns, the way your book already does it.',
+      '',
+      'Each week must balance:',
+      '  opening + collection + interest + fee + investor in',
+      '    - loans - expenses - investor out - cheeti = closing',
+      'and one week closing must equal the next week opening. If either does',
+      'not hold, nothing is imported and you are told which week.',
+    ]) {
+      notes.appendRow([TextCellValue(line)]);
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The template could not be generated.');
+    return Uint8List.fromList(bytes);
+  }
+
+  /// One map per week, with its expense lines nested. A blank numeric cell is
+  /// left out rather than sent as 0 — the server treats absent and zero the
+  /// same, and this way a skipped column never looks like a declared nothing.
+  static List<Map<String, dynamic>> parseWeeklyBytes(Uint8List bytes, String fileName) {
+    final Excel book;
+    try {
+      book = Excel.decodeBytes(bytes);
+    } catch (e) {
+      throw ImportFormatException('This file could not be read as a spreadsheet. ($e)');
+    }
+
+    final weekTable = book.tables['Weeks'];
+    if (weekTable == null || weekTable.rows.length < 2) {
+      throw const ImportFormatException(
+          'The workbook has no Weeks sheet with any rows in it.');
+    }
+
+    final expensesByDate = <String, List<Map<String, dynamic>>>{};
+    final expenseTable = book.tables['Expenses'];
+    if (expenseTable != null) {
+      for (final raw in expenseTable.rows.skip(1)) {
+        final cells = [for (final c in raw) _cellText(c?.value)];
+        if (cells.every((c) => c.trim().isEmpty)) continue;
+        String at(int i) => i < cells.length ? cells[i].trim() : '';
+        final date = at(0);
+        final amount = at(2);
+        if (date.isEmpty || amount.isEmpty) continue;
+        expensesByDate.putIfAbsent(date, () => []).add({
+          'label': at(1),
+          'amount': amount,
+        });
+      }
+    }
+
+    final out = <Map<String, dynamic>>[];
+    for (final raw in weekTable.rows.skip(1)) {
+      final cells = [for (final c in raw) _cellText(c?.value)];
+      if (cells.every((c) => c.trim().isEmpty)) continue;
+      String at(int i) => i < cells.length ? cells[i].trim() : '';
+      final date = at(0);
+      if (date.isEmpty) continue;
+
+      final week = <String, dynamic>{'account_date': date};
+      for (var i = 1; i < weekColumns.length; i++) {
+        final v = at(i);
+        if (v.isNotEmpty) week[weekColumns[i]] = v;
+      }
+      week['expenses'] = expensesByDate[date] ?? const <Map<String, dynamic>>[];
+      out.add(week);
+    }
+    return out;
+  }
+
+  /// Returns the server's summary — how many weeks landed, and the opening and
+  /// closing BF of the imported span.
+  Future<Map<String, dynamic>> importWeeklyAccount({
+    required String businessId,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    final res = await _db.schema('app').rpc('import_weekly_account', params: {
+      'p_business_id': businessId,
+      'p_rows': rows,
+    });
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  // ---------------------------------------------------------------------
+  // Shareholders
+  //
+  // Deliberately not the investor list: in the real book 2 of the 5 profit
+  // shareholders hold no investment at all.
+  // ---------------------------------------------------------------------
+
+  static const shareholderColumns = <String>[
+    'full_name', 'share_percent', 'share_amount', 'roi_rate', 'paid_on', 'amount_received',
+  ];
+
+  Uint8List buildShareholderTemplate({required String language}) {
+    final excel = Excel.createExcel();
+    final sheet = excel['Shareholders'];
+    sheet.appendRow([
+      TextCellValue('Name*'),
+      TextCellValue('Share %*'),
+      TextCellValue('Share Amount'),
+      TextCellValue('ROI (Rs per 100 / month)'),
+      TextCellValue('Paid On (yyyy-mm-dd)'),
+      TextCellValue('Amount Received'),
+    ]);
+    final notes = excel['Notes'];
+    for (final line in const [
+      'Who shares in the profit. This is not the investor list — a shareholder',
+      'may hold no investment at all, and an investor may take no share.',
+      '',
+      'Share Amount is worked out from Share % and the profit you declare on',
+      'the page; fill it only to override.',
+      'A share accrues at its ROI from the day you declare it until the day it',
+      'is paid, and is nothing at all if both fall on the same day.',
     ]) {
       notes.appendRow([TextCellValue(line)]);
     }
@@ -945,37 +1082,37 @@ class BulkOnboardingService {
     return Uint8List.fromList(bytes);
   }
 
-  static List<Map<String, dynamic>> parseWeeklyBytes(Uint8List bytes, String fileName) {
-    final table = _decodeTable(bytes, fileName, preferredSheet: 'Weekly Account');
+  static List<Map<String, dynamic>> parseShareholderBytes(Uint8List bytes, String fileName) {
+    final table = _decodeTable(bytes, fileName, preferredSheet: 'Shareholders');
     if (table.isEmpty) return const [];
     final out = <Map<String, dynamic>>[];
     for (final raw in table.skip(1)) {
       if (raw.every((c) => c.trim().isEmpty)) continue;
-      if (raw.length < 3) continue;
       String at(int i) => i < raw.length ? raw[i].trim() : '';
-      if (at(0).isEmpty && at(1).isEmpty) continue;
-      out.add({
-        'business_date': at(0),
-        'kind': at(1),
-        'amount': at(2),
-        if (at(3).isNotEmpty) 'mlid': at(3),
-        if (at(4).isNotEmpty) 'category': at(4),
-        if (at(5).isNotEmpty) 'interest_portion': at(5),
-        if (at(6).isNotEmpty) 'remarks': at(6),
-      });
+      if (at(0).isEmpty) continue;
+      final row = <String, dynamic>{'full_name': at(0)};
+      for (var i = 1; i < shareholderColumns.length; i++) {
+        final v = at(i);
+        if (v.isNotEmpty) row[shareholderColumns[i]] = v;
+      }
+      out.add(row);
     }
     return out;
   }
 
-  Future<int> importWeeklyAccount({
+  Future<Map<String, dynamic>> importShareholders({
     required String businessId,
+    required DateTime declaredOn,
+    required int declaredProfit,
     required List<Map<String, dynamic>> rows,
   }) async {
-    final res = await _db.schema('app').rpc('import_weekly_account', params: {
+    final res = await _db.schema('app').rpc('import_shareholders', params: {
       'p_business_id': businessId,
+      'p_declared_on': _isoDate(declaredOn),
+      'p_declared_profit': declaredProfit,
       'p_rows': rows,
     });
-    return ((res as Map)['imported'] as num?)?.toInt() ?? 0;
+    return Map<String, dynamic>.from(res as Map);
   }
 
   // ---------------------------------------------------------------------

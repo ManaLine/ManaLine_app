@@ -120,8 +120,17 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   List<Map<String, dynamic>>? _weeklyRows;
   String? _weeklyFileName;
   String? _weeklyError;
-  int? _weeklyImported;
+  Map<String, dynamic>? _weeklyResult;
   Map<String, dynamic>? _profitSummary;
+
+  // 3b — shareholders, on the Investors page
+  List<Map<String, dynamic>>? _shareholders;
+  String? _shareholderFileName;
+  String? _shareholderError;
+  Map<String, dynamic>? _shareholderResult;
+  // Distinct from the Opening Snapshot's declared profit: this is the profit
+  // being shared out, which the Owner may declare lower than the computed one.
+  final _declaredShareProfit = TextEditingController();
 
   String get _language => ref.read(authFlowProvider).language.enumValue;
   BulkOnboardingService get _svc => ref.read(bulkOnboardingServiceProvider);
@@ -134,6 +143,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     _openingBf.dispose();
     _declaredLineBalance.dispose();
     _declaredProfit.dispose();
+    _declaredShareProfit.dispose();
     super.dispose();
   }
 
@@ -380,6 +390,68 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     });
   }
 
+  Future<void> _shareholderTemplate() async {
+    setState(() => _busy3 = true);
+    try {
+      final bytes = _svc.buildShareholderTemplate(language: _language);
+      await _svc.shareBytes(bytes, 'ManaLine-Shareholders-Template.xlsx');
+    } catch (e) {
+      _toast('Could not build the template: $e');
+    } finally {
+      if (mounted) setState(() => _busy3 = false);
+    }
+  }
+
+  Future<void> _shareholderPick() async {
+    final file = await _pickSpreadsheet(allowCsv: true);
+    if (file == null) return;
+    setState(() {
+      _busy3 = true;
+      _shareholderError = null;
+      _shareholders = null;
+      _shareholderResult = null;
+      _shareholderFileName = file.name;
+    });
+    try {
+      final bytes = await file.readAsBytes();
+      final rows = BulkOnboardingService.parseShareholderBytes(bytes, file.name);
+      if (!mounted) return;
+      setState(() => _shareholders = rows);
+    } on ImportFormatException catch (e) {
+      if (mounted) setState(() => _shareholderError = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _shareholderError = 'Could not read this file: $e');
+    } finally {
+      if (mounted) setState(() => _busy3 = false);
+    }
+  }
+
+  Future<void> _shareholderSubmit() async {
+    final rows = _shareholders;
+    final declared = int.tryParse(_declaredShareProfit.text.trim());
+    if (rows == null || rows.isEmpty) return;
+    if (declared == null) {
+      _toast('Enter the profit you are sharing out, in whole rupees.');
+      return;
+    }
+    setState(() => _busy3 = true);
+    final result = await NetworkErrorHandler.run(
+      context,
+      () => _svc.importShareholders(
+        businessId: widget.businessId,
+        declaredOn: _cutoffDate ?? manaNowIst(),
+        declaredProfit: declared,
+        rows: rows,
+      ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy3 = false;
+      _shareholderResult = result;
+      if (result != null) _shareholders = null;
+    });
+  }
+
   // -------------------------------------------------------------------
   // 4 — Customers
   // -------------------------------------------------------------------
@@ -433,9 +505,22 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       _emiProgressLabel = '';
     });
 
+    // What the history on the same sheet adds up to, per customer. The server
+    // uses it to decide whether the loan opens unpaid, and to check it against
+    // a typed balance if the Owner filled both.
+    final emiTotals = <String, int>{};
+    for (final row in parse.schedule) {
+      emiTotals[row.mlid] =
+          (emiTotals[row.mlid] ?? 0) + row.entries.fold<int>(0, (a, e) => a + e.amount);
+    }
+
     final loanOutcome = await NetworkErrorHandler.run(
       context,
-      () => _svc.submitCustomerLoans(businessId: widget.businessId, rows: parse.loans),
+      () => _svc.submitCustomerLoans(
+        businessId: widget.businessId,
+        rows: parse.loans,
+        emiTotals: emiTotals,
+      ),
     );
     if (!mounted) return;
     setState(() => _customerOutcome = loanOutcome);
@@ -602,7 +687,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       _busy7 = true;
       _weeklyError = null;
       _weeklyRows = null;
-      _weeklyImported = null;
+      _weeklyResult = null;
       _weeklyFileName = file.name;
     });
     try {
@@ -623,19 +708,20 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     final rows = _weeklyRows;
     if (rows == null || rows.isEmpty) return;
     setState(() => _busy7 = true);
-    final imported = await NetworkErrorHandler.run(
+    final result = await NetworkErrorHandler.run(
       context,
       () => _svc.importWeeklyAccount(businessId: widget.businessId, rows: rows),
     );
     if (!mounted) return;
     setState(() {
       _busy7 = false;
-      _weeklyImported = imported;
-      // Same reason as every other page: a second press would enter the week
-      // twice, and an expense has no natural key to catch that on.
-      if (imported != null) _weeklyRows = null;
+      _weeklyResult = result;
+      // Re-importing the same weeks is safe — each is keyed on its account date
+      // and upserted — but the parsed rows are dropped so a stray second press
+      // cannot re-send a file the Owner has since edited.
+      if (result != null) _weeklyRows = null;
     });
-    if (imported != null) await _refreshProfit();
+    if (result != null) await _refreshProfit();
   }
 
   Future<void> _refreshProfit() async {
@@ -1022,6 +1108,55 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           ),
         ],
         if (_investorOutcome != null && !_busy3) _outcomeBlock(_investorOutcome!, noun: 'investments'),
+        const Divider(height: ManaSpacing.xl),
+        _intro(
+          'Who shares in the profit. This is a different list from the one '
+          'above: a shareholder may hold no investment at all, and an investor '
+          'may take no share.',
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        TextField(
+          controller: _declaredShareProfit,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Profit being shared out *',
+            prefixText: '₹ ',
+          ),
+        ),
+        _fileButtons(
+          busy: _busy3,
+          onTemplate: _shareholderTemplate,
+          onPick: _shareholderPick,
+          fileName: _shareholderFileName,
+          error: _shareholderError,
+        ),
+        if (_shareholders != null && !_busy3) ...[
+          const SizedBox(height: ManaSpacing.lg),
+          ManaText.raw('${_shareholders!.length} shareholders ready',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: ManaSpacing.sm),
+          ElevatedButton.icon(
+            onPressed: _shareholders!.isEmpty ? null : _shareholderSubmit,
+            icon: const Icon(Icons.upload_outlined),
+            label: const ManaText.raw('Record Profit Shares'),
+          ),
+        ],
+        if (_shareholderResult != null && !_busy3) ...[
+          const SizedBox(height: ManaSpacing.md),
+          _amountRow('Declared profit', _shareholderResult!['declared_profit']),
+          _amountRow('Computed profit', _shareholderResult!['computed_profit']),
+          _amountRow('Carried forward', _shareholderResult!['carry_forward']),
+          const SizedBox(height: ManaSpacing.sm),
+          for (final s in (_shareholderResult!['shareholders'] as List? ?? const []))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: ManaText.raw(
+                '${s['full_name']} · ₹${s['share_amount']}'
+                '${s['accrued_to_paid_on'] == null ? "" : " + ₹${s['accrued_to_paid_on']} accrued"}',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+        ],
         _navBar(onNext: () => setState(() => _step = 3)),
       ],
     );
@@ -1223,10 +1358,10 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _intro(
-          'Your weekly book, one row per line: what was spent, what an agent '
-          'was paid, and what each investor put in, took out or was paid. '
-          'Collections and loans are not entered here — they came from the '
-          'customer sheets.',
+          'Your weekly book, one row per account — the date is the day you '
+          'closed it, the last working day of that schedule. Expense lines go '
+          'on the second sheet against the same date. This is what BF comes '
+          'from: it is imported as you wrote it, never recalculated.',
         ),
         _fileButtons(
           busy: _busy7,
@@ -1237,7 +1372,11 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         ),
         if (rows != null && !_busy7) ...[
           const SizedBox(height: ManaSpacing.lg),
-          ManaText.raw('${rows.length} entries ready', style: const TextStyle(fontWeight: FontWeight.w700)),
+          ManaText.raw(
+            '${rows.length} weeks ready · '
+            '${rows.fold<int>(0, (a, r) => a + ((r['expenses'] as List?)?.length ?? 0))} expense lines',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
             onPressed: rows.isEmpty ? null : _weeklySubmit,
@@ -1245,10 +1384,16 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             label: const ManaText.raw('Import Weekly Account'),
           ),
         ],
-        if (_weeklyImported != null && !_busy7) ...[
+        if (_weeklyResult != null && !_busy7) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw('$_weeklyImported entries imported.',
+          ManaText.raw('${_weeklyResult!['weeks']} weeks imported.',
               style: TextStyle(fontWeight: FontWeight.w700, color: ManaColors.statusGood)),
+          _amountRow('Opening BF', _weeklyResult!['opening_bf']),
+          _amountRow('Closing BF', _weeklyResult!['closing_bf']),
+          ManaText.raw(
+            'Book kept from ${_weeklyResult!['from']} through ${_weeklyResult!['through']}.',
+            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          ),
         ],
         const SizedBox(height: ManaSpacing.lg),
         OutlinedButton.icon(
@@ -1259,7 +1404,8 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         if (profit != null) ...[
           const SizedBox(height: ManaSpacing.md),
           _amountRow('Interest', profit['interest']),
-          _amountRow('Fee', profit['fee']),
+          _amountRow('Fee (your book)', profit['fee']),
+          _amountRow('Fee entered on loans', profit['fee_on_loans']),
           _amountRow('Expenses', profit['expenses']),
           _amountRow('Investor interest', profit['investor_interest']),
           _amountRow('Withdrawal interest', profit['withdrawal_interest']),
@@ -1289,7 +1435,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         _checklistRow('EMI instalments recorded', _emiResult?.recorded),
         _checklistRow('Attendance days recorded', _attendanceRecorded),
         _checklistRow('Opening snapshot saved', _snapshot == null ? null : 1),
-        _checklistRow('Weekly entries imported', _weeklyImported),
+        _checklistRow('Weeks imported', (_weeklyResult?['weeks'] as num?)?.toInt()),
         const SizedBox(height: ManaSpacing.lg),
         _intro(
           'Anything not shown above yet can still be added — every page in this '

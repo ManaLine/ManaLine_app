@@ -15,6 +15,7 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../../login_registration/state/auth_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
+import '../../../design/components/mana_info_hint.dart';
 
 /// OW-000 — First Business Setup. 6-step wizard shell over fields that
 /// already exist in OW-012/OW-014 (this screen introduces no new fields,
@@ -549,8 +550,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
             maxLength: 6,
             decoration: InputDecoration(
                 labelText: ref.t('pin_code_plain_field'),
-                helperText:
-                    'Enter PIN code first — villages shown are limited to this PIN'),
+                suffixIcon: const ManaInfoHint('Enter PIN code first — villages shown are limited to this PIN'),),
             onChanged: (_) {
               setState(() {
                 _selectedVillageId = null;

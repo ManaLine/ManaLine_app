@@ -18,6 +18,7 @@ import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/agent_customer_state.dart';
 import 'ag_007_loan_distribution.dart';
+import '../../../design/components/mana_call_button.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -638,7 +639,24 @@ class _SummaryTab extends ConsumerWidget {
         Center(child: ManaText.raw(s.mlid, style: TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
         _row(ref.t('village'), s.village),
-        _row(ref.t('phone'), s.phoneNumber),
+        // Tapping the number opens the handset's dialer with it keyed in —
+        // the agent still presses call themselves.
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Expanded(
+                  child: ManaText.raw(ref.t('phone'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+              const SizedBox(width: ManaSpacing.xs),
+              ManaText.raw(s.phoneNumber,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              ManaCallButton(s.phoneNumber),
+            ],
+          ),
+        ),
         _row(ref.t('assigned_agent'), profile.currentAgent ?? '—'),
         _row(ref.t('loan_count'), '${s.activeLoanCount}'),
         _row(ref.t('outstanding'), _currency.format(s.outstandingBalance)),

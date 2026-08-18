@@ -8,6 +8,7 @@ import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/customer_profile_state.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 /// CW-006 — My Profile / Business Memberships. Entry: CW-001 Customer
 /// Dashboard → My Profile / Memberships. Direct Customer-side
@@ -456,7 +457,7 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
             controller: _pinCode,
             keyboardType: TextInputType.number,
             maxLength: 6,
-            decoration: InputDecoration(labelText: ref.t('pin_code_plain_field'), helperText: ref.t('pin_code_first_helper')),
+            decoration: InputDecoration(labelText: ref.t('pin_code_plain_field'), suffixIcon: ManaInfoHint(ref.t('pin_code_first_helper')),),
             onChanged: (_) {
               setState(() {
                 _selectedVillage = null;

@@ -16,6 +16,8 @@ import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../shared/document_viewer.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart';
+import '../../../design/components/mana_info_hint.dart';
+import '../../../design/components/mana_call_button.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -690,7 +692,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           controller: _pinCode,
           keyboardType: TextInputType.number,
           maxLength: 6,
-          decoration: InputDecoration(labelText: '${ref.t("pin_code")} *', helperText: ref.t('pin_code_helper')),
+          decoration: InputDecoration(labelText: '${ref.t("pin_code")} *', suffixIcon: ManaInfoHint(ref.t('pin_code_helper')),),
           onChanged: (_) {
             setState(() {
               _villageId = null;
@@ -971,7 +973,13 @@ class _SummaryTab extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.lg),
         _row(ref.t('father_husband_name'), customer.fatherHusbandName),
         _row(ref.t('village'), customer.village),
-        _row(ref.t('phone_number'), customer.phoneNumber),
+        Row(
+          children: [
+            Expanded(child: _row(ref.t('phone_number'), customer.phoneNumber)),
+            // Opens the dialer with the number in it; the Owner presses call.
+            ManaCallButton(customer.phoneNumber),
+          ],
+        ),
         _row(ref.t('occupation'), profile.occupation ?? '—'),
         _row(ref.t('address'), profile.address ?? '—'),
         _row(ref.t('customer_since'), DateFormat('d MMM yyyy').format(profile.customerSince)),

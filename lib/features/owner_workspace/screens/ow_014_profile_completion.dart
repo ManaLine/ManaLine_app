@@ -10,6 +10,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../state/global_workflow_state.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 /// OW-014 Profile Completion sub-flow — the destination for the "Complete
 /// Profile" tile on OW-014's Incomplete step, which previously fired a
@@ -457,7 +458,7 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
                 decoration: InputDecoration(
                   labelText: ref.t('pin_code_required_field'),
                   isDense: true,
-                  helperText: ref.t('villages_limited_to_pin_helper'),
+                  suffixIcon: ManaInfoHint(ref.t('villages_limited_to_pin_helper')),
                 ),
                 onChanged: (_) {
                   setState(() => _selectedVillage = null);

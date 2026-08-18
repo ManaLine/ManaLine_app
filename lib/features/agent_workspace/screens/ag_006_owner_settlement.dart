@@ -9,6 +9,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/widgets/record_expense_sheet.dart';
 import '../state/agent_settlement_state.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('dd-MM-yyyy');
@@ -394,9 +395,9 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
             labelText: ref.t('cheque_count_field'),
-            helperText: ref
+            suffixIcon: ManaInfoHint(ref
                 .t('cheque_count_helper')
-                .replaceAll('{amount}', _currency.format(state.preview!.chequeCollected)),
+                .replaceAll('{amount}', _currency.format(state.preview!.chequeCollected))),
           ),
           onChanged: (v) => ref.read(agentSettlementProvider.notifier).setChequeCountTally(int.tryParse(v) ?? 0),
         ),

@@ -74,7 +74,7 @@ class CollectionApiService {
         .from('v_collection_due')
         .select('loan_id, customer_id, customer_name, village, loan_number, '
             'total_due, remaining_balance, next_installment_no, is_overdue, '
-            'penalty_eligible, loan_status, collection_agent_name')
+            'penalty_eligible, loan_status, collection_agent_name, repayment_type')
         .eq('business_id', businessId);
 
     return (rows as List).map((r) {
@@ -92,6 +92,7 @@ class CollectionApiService {
         penaltyEligible: r['penalty_eligible'] as bool? ?? false,
         gracePeriod: r['loan_status'] == 'Grace Period',
         isOverdue: r['is_overdue'] as bool? ?? false,
+        repaymentType: r['repayment_type'] as String? ?? '',
       );
     }).toList();
   }
@@ -235,12 +236,21 @@ class PaymentSplit {
 /// paper list in front of them.
 List<CollectionDueRow> manaFilterDueRows(
   List<CollectionDueRow> rows,
-  String query,
-) {
+  String query, {
+  /// Daily / Weekly / Monthly, or null for all of them. A separate argument
+  /// rather than another term in the text search: an Agent narrowing to the
+  /// Daily line is stating which round they are on, not searching for a word,
+  /// and typing "daily" must not also match a customer called Daily.
+  String? frequency,
+}) {
   final q = query.trim().toLowerCase();
-  if (q.isEmpty) return rows;
+  var out = rows;
+  if (frequency != null && frequency.isNotEmpty) {
+    out = [for (final r in out) if (r.repaymentType == frequency) r];
+  }
+  if (q.isEmpty) return out;
   return [
-    for (final r in rows)
+    for (final r in out)
       if (r.customerName.toLowerCase().contains(q) ||
           r.village.toLowerCase().contains(q) ||
           r.loanNumber.toLowerCase().contains(q) ||
@@ -265,6 +275,11 @@ class CollectionDueRow {
   final bool gracePeriod;
   final bool isOverdue;
 
+  /// Daily | Weekly | Monthly. Empty only if the view returned nothing for it,
+  /// which the frequency filter treats as "not this round" rather than
+  /// silently including the row in every round.
+  final String repaymentType;
+
   CollectionDueRow({
     required this.loanId,
     required this.customerId,
@@ -279,6 +294,7 @@ class CollectionDueRow {
     this.penaltyEligible = false,
     this.gracePeriod = false,
     this.isOverdue = false,
+    this.repaymentType = '',
   });
 }
 
@@ -321,17 +337,28 @@ final collectionApiServiceProvider = Provider<CollectionApiService>((ref) {
   return CollectionApiService(ref: ref);
 });
 
-/// Cascading sort per spec: Penalty → Grace Period → Today's Due →
-/// Village → Customer Name.
+/// VILLAGE FIRST, then the urgency order within it: Penalty → Grace Period →
+/// Today's Due → Customer Name.
+///
+/// The spec's original order put village fourth, which is right for a list you
+/// read and wrong for a list you WALK: a route is worked one village at a
+/// time, and penalty-first across the whole business sends an agent between
+/// villages and back again. Urgency still leads inside each village, so the
+/// row that matters most in the place you are standing is still at the top of
+/// that group. Villages sort alphabetically; a customer with no address on
+/// file sorts last rather than into a nameless group at the front.
 List<CollectionDueRow> _applyLockedSort(List<CollectionDueRow> list) {
   final sorted = [...list];
   sorted.sort((a, b) {
+    final av = a.village.trim();
+    final bv = b.village.trim();
+    if (av.isEmpty != bv.isEmpty) return av.isEmpty ? 1 : -1;
+    final byVillage = av.toLowerCase().compareTo(bv.toLowerCase());
+    if (byVillage != 0) return byVillage;
     if (a.penaltyEligible != b.penaltyEligible) return a.penaltyEligible ? -1 : 1;
     if (a.gracePeriod != b.gracePeriod) return a.gracePeriod ? -1 : 1;
     final byDue = b.installmentDue.compareTo(a.installmentDue);
     if (byDue != 0) return byDue;
-    final byVillage = a.village.compareTo(b.village);
-    if (byVillage != 0) return byVillage;
     return a.customerName.compareTo(b.customerName);
   });
   return sorted;

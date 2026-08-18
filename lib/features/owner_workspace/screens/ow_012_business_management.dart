@@ -15,6 +15,7 @@ import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
 import 'ow_018_business_migration.dart';
 import 'ow_019_cheti_management.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 // A failed load previously left every one of this screen's tabs looking
 // like a legitimate empty state ("No Operating Areas yet.", "No active
@@ -741,7 +742,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
           maxLength: 120,
           decoration: InputDecoration(
             labelText: ref.t('area_name_field'),
-            helperText: ref.t('area_name_helper'),
+            suffixIcon: ManaInfoHint(ref.t('area_name_helper')),
           ),
         ),
         TextField(

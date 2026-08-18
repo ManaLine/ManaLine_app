@@ -37,6 +37,7 @@ dependencies:
   geocoding: ^4.0.0
   local_auth: ^3.0.2
   cached_network_image: ^3.4.1
+  url_launcher: ^6.3.2
 
   # Offline sync layer (see mana_line_offline_sync package delivered earlier)
   # mana_line_offline_sync:

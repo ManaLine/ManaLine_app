@@ -42,10 +42,48 @@ class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
     });
   }
 
+
+  /// Daily / Weekly / Monthly, or null for the whole round. Kept in the screen
+  /// rather than the notifier because it is a view preference, not state the
+  /// collection itself depends on — reloading the round must not silently
+  /// re-narrow it.
+  String? _frequency;
+
+  Widget _frequencyChips(List<CollectionDueRow> all) {
+    // Only offer a frequency the round actually contains. A business that runs
+    // Daily lines only should not be shown three chips, two of which empty the
+    // list.
+    final present = <String>{for (final r in all) r.repaymentType}
+      ..removeWhere((f) => f.isEmpty);
+    if (present.length < 2) return const SizedBox.shrink();
+
+    const order = ['Daily', 'Weekly', 'Monthly'];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: ManaSpacing.sm),
+      child: Wrap(
+        spacing: ManaSpacing.sm,
+        children: [
+          ChoiceChip(
+            label: ManaText.raw(ref.t('all')),
+            selected: _frequency == null,
+            onSelected: (_) => setState(() => _frequency = null),
+          ),
+          for (final f in order)
+            if (present.contains(f))
+              ChoiceChip(
+                label: ManaText.raw(f),
+                selected: _frequency == f,
+                onSelected: (_) => setState(() => _frequency = f),
+              ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(collectionModeProvider);
-    final visible = manaFilterDueRows(state.sorted, _query);
+    final visible = manaFilterDueRows(state.sorted, _query, frequency: _frequency);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,6 +116,7 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
+                    _frequencyChips(state.sorted),
                     _SummaryStrip(state: state),
                     const SizedBox(height: ManaSpacing.xs),
                     ManaText.raw(

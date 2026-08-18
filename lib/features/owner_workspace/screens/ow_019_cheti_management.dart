@@ -9,6 +9,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/cheti_state.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
@@ -647,7 +648,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: ref.t('dividend_this_period_field'),
-                helperText: ref.t('dividend_helper'),
+                suffixIcon: ManaInfoHint(ref.t('dividend_helper')),
               ),
               onChanged: (_) => setState(() {}),
             ),

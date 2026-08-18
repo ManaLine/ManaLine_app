@@ -14,6 +14,7 @@ import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/mana_time.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 /// OW-016 — Owner Profile. NEW screen (extends beyond the original locked
 /// 15-screen OW inventory) — the Owner workspace previously had no
@@ -641,7 +642,7 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
                 decoration: InputDecoration(
                     labelText: ref.t('pin_code_required_field'),
                     isDense: true,
-                    helperText: ref.t('villages_limited_to_pin_helper')),
+                    suffixIcon: ManaInfoHint(ref.t('villages_limited_to_pin_helper')),),
                 onChanged: (_) {
                   setState(() {
                     _selectedVillage = null;

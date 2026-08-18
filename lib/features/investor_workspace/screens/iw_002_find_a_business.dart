@@ -7,6 +7,7 @@ import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/investor_discovery_state.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 /// IW-002 — Find A Business / Request To Invest. Self-service,
 /// no-money-moves-in-app model: "Request to Invest" only ever creates a
@@ -209,7 +210,7 @@ class _RequestToInvestSheetState extends ConsumerState<_RequestToInvestSheet> {
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: ref.t('proposed_investment_amount_field'),
-                helperText: ref.t('proposed_investment_helper'),
+                suffixIcon: ManaInfoHint(ref.t('proposed_investment_helper')),
               ),
             ),
             const SizedBox(height: ManaSpacing.md),

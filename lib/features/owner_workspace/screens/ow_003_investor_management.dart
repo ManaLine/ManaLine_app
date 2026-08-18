@@ -14,6 +14,8 @@ import '../../../shared/person_search_service.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/translation_service.dart';
 import '../state/investor_state.dart';
+import '../../../design/components/mana_info_hint.dart';
+import '../../../design/components/mana_call_button.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -313,7 +315,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       labelText: ref.t('search_by_name_or_mlid'),
-                      helperText: 'Name, MLID, phone, Aadhaar or PIN',
+                      suffixIcon: const ManaInfoHint('Name, MLID, phone, Aadhaar or PIN'),
                     ),
                     onChanged: (_) => setState(() {}),
                     onSubmitted: (_) => _search(),
@@ -484,7 +486,13 @@ class _OverviewTab extends ConsumerWidget {
                 ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
         Center(child: ManaText.raw(investor.mlid, style: TextStyle(color: ManaColors.textSecondary))),
         const SizedBox(height: ManaSpacing.lg),
-        _row(ref.t('phone_number'), investor.phoneNumber),
+        Row(
+          children: [
+            Expanded(child: _row(ref.t('phone_number'), investor.phoneNumber)),
+            // Opens the dialer with the number in it; the Owner presses call.
+            ManaCallButton(investor.phoneNumber),
+          ],
+        ),
         _row(ref.t('investment_balance'), _currency.format(investor.investmentBalance)),
         _row(ref.t('roi'), roiLabel(investor.roi)),
         _row(ref.t('roi_yearly_equivalent'), roiAnnualEquivalent(investor.roi)),
@@ -748,7 +756,7 @@ class _InvestmentsTab extends ConsumerWidget {
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: '${ref.t('roi_per_100_label')} *',
-                  helperText: ref.t('roi_per_100_helper'),
+                  suffixIcon: ManaInfoHint(ref.t('roi_per_100_helper')),
                 ),
                 onChanged: (_) => setState(() {}),
               ),

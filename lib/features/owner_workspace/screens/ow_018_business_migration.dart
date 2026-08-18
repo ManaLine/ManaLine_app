@@ -14,6 +14,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/business_management_state.dart';
 import '../state/customer_state.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -628,7 +629,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           // MLTI instead of an MLPI.
           decoration: const InputDecoration(
             labelText: 'Aadhaar Number (optional)',
-            helperText: 'Leave blank if you do not have it — they will get an MLTI id.',
+            suffixIcon: ManaInfoHint('Leave blank if you do not have it — they will get an MLTI id.'),
           ),
           onChanged: (_) => setState(() {}),
         ),
@@ -994,7 +995,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         child: InputDecorator(
           decoration: InputDecoration(
             labelText: label,
-            helperText: hint,
+            suffixIcon: ManaInfoHint(hint),
             helperMaxLines: 2,
             filled: true,
             fillColor: ManaColors.surfaceSunken,

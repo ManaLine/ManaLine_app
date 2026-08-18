@@ -16,6 +16,7 @@ import '../../../design/components/mana_text.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../design/components/mana_info_hint.dart';
 
 /// LR-004 — long single-scroll form, not a wizard. Register button
 /// disabled until mandatory fields + both acknowledgement checkboxes
@@ -504,7 +505,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 inputFormatters: [TitleCaseTextFormatter()],
                 decoration: InputDecoration(
                   labelText: ref.t('surname_field'),
-                  helperText: ref.t('surname_helper'),
+                  suffixIcon: ManaInfoHint(ref.t('surname_helper')),
                 ),
                 onChanged: (_) => setState(() {}),
               ),
@@ -526,7 +527,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
                   labelText: ref.t('name_in_telugu_optional_field'),
-                  helperText: ref.t('name_in_telugu_helper'),
+                  suffixIcon: ManaInfoHint(ref.t('name_in_telugu_helper')),
                 ),
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -639,7 +640,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 controller: _pinCode,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                decoration: const InputDecoration(labelText: 'PIN Code *', helperText: 'Enter PIN code first — villages shown are limited to this PIN'),
+                decoration: const InputDecoration(labelText: 'PIN Code *', suffixIcon: ManaInfoHint('Enter PIN code first — villages shown are limited to this PIN'),),
                 onChanged: (_) {
                   setState(() {
                     _villageId = null;

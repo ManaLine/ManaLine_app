@@ -10,6 +10,7 @@ import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/person_search_service.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/translation_service.dart';
 import '../state/investor_state.dart';
@@ -236,31 +237,59 @@ class _AddExistingInvestorSheet extends ConsumerStatefulWidget {
 }
 
 class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorSheet> {
-  final _mlid = TextEditingController();
-  InvestorSummary? _found;
+  // One free-text box plus two optional narrowers. It used to be MLID only,
+  // which meant the Owner had to already know a 13-character code for someone
+  // they were trying to look up by name.
+  final _query = TextEditingController();
+  final _pin = TextEditingController();
+  final _village = TextEditingController();
+  bool _filtersOpen = false;
+
+  List<PersonSearchResult> _results = const [];
+  bool _searched = false;
   bool _searching = false;
-  bool _adding = false;
+  String? _addingPersonId;
+
+  @override
+  void dispose() {
+    _query.dispose();
+    _pin.dispose();
+    _village.dispose();
+    super.dispose();
+  }
+
+  bool get _canSearch =>
+      _query.text.trim().isNotEmpty ||
+      _pin.text.trim().isNotEmpty ||
+      _village.text.trim().isNotEmpty;
 
   Future<void> _search() async {
+    if (!_canSearch) return;
     setState(() => _searching = true);
     final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(investorWorkforceProvider.notifier).searchByMlid(_mlid.text.trim());
+      return ref.read(personSearchServiceProvider).search(
+            query: _query.text,
+            pinCode: _pin.text,
+            village: _village.text,
+          );
     });
     if (!mounted) return;
     setState(() {
       _searching = false;
-      _found = result;
+      _results = result ?? const [];
+      // Only true once a search actually came back, so "nobody found" is
+      // never shown before one has run.
+      _searched = result != null;
     });
   }
 
-  Future<void> _add() async {
-    if (_found == null) return;
-    setState(() => _adding = true);
+  Future<void> _add(PersonSearchResult person) async {
+    setState(() => _addingPersonId = person.personId);
     final ok = await NetworkErrorHandler.run(context, () async {
-      return ref.read(investorWorkforceProvider.notifier).addExisting(widget.businessId, _found!.personId!);
+      return ref.read(investorWorkforceProvider.notifier).addExisting(widget.businessId, person.personId);
     });
     if (!mounted) return;
-    setState(() => _adding = false);
+    setState(() => _addingPersonId = null);
     if (ok == true && mounted) Navigator.of(context).pop();
   }
 
@@ -280,33 +309,87 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _mlid,
-                    decoration: InputDecoration(labelText: ref.t('enter_mlid')),
-                    onChanged: (_) => setState(() => _found = null),
+                    controller: _query,
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      labelText: ref.t('search_by_name_or_mlid'),
+                      helperText: 'Name, MLID, phone, Aadhaar or PIN',
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _search(),
                   ),
                 ),
                 const SizedBox(width: ManaSpacing.sm),
                 ElevatedButton(
-                  onPressed: (_mlid.text.trim().isNotEmpty && !_searching) ? _search : null,
+                  onPressed: (_canSearch && !_searching) ? _search : null,
                   child: _searching
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                       : ManaText.raw(ref.t('search')),
                 ),
               ],
             ),
-            const SizedBox(height: ManaSpacing.lg),
-            if (_found != null)
-              Card(
-                child: ListTile(
-                  leading: const ManaVerificationRing(isVerified: true, size: 40),
-                  title: ManaText.raw(_found!.fullName),
-                  subtitle: ManaText.raw(_found!.mlid),
-                  trailing: ElevatedButton(
-                    onPressed: _adding ? null : _add,
-                    child: _adding
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : ManaText.raw(ref.t('add')),
+            // Narrowers, folded away until wanted. Two people of the same name
+            // in one village is the case these exist for.
+            TextButton.icon(
+              onPressed: () => setState(() => _filtersOpen = !_filtersOpen),
+              icon: Icon(_filtersOpen ? Icons.expand_less : Icons.expand_more, size: 18),
+              label: const ManaText.raw('Narrow By Village Or PIN'),
+            ),
+            if (_filtersOpen)
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _village,
+                      decoration: const InputDecoration(labelText: 'Village'),
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ),
+                  const SizedBox(width: ManaSpacing.sm),
+                  Expanded(
+                    child: TextField(
+                      controller: _pin,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      decoration: const InputDecoration(labelText: 'PIN Code', counterText: ''),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: ManaSpacing.md),
+            if (_searched && _results.isEmpty)
+              ManaText.raw(
+                'Nobody matches that. Try fewer details, or add them as a new investor.',
+                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              ),
+            if (_results.isNotEmpty)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _results.length,
+                  itemBuilder: (_, i) {
+                    final person = _results[i];
+                    final place = person.placeLabel;
+                    return Card(
+                      child: ListTile(
+                        leading: const ManaVerificationRing(isVerified: true, size: 40),
+                        title: ManaText.raw(person.fullName),
+                        subtitle: ManaText.raw(
+                          place.isEmpty ? person.mlid : '${person.mlid} · $place',
+                          maxLines: 2,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing: ElevatedButton(
+                          onPressed: _addingPersonId == null ? () => _add(person) : null,
+                          child: _addingPersonId == person.personId
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : ManaText.raw(ref.t('add')),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
           ],

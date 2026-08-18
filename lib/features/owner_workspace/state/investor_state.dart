@@ -155,24 +155,6 @@ class InvestorApiService {
     });
   }
 
-  Future<InvestorSummary?> searchByMlid({required String mlid}) async {
-    final rows = await _db.schema('app').rpc('owner_search_person_by_mlid', params: {'p_mlid': mlid});
-    final list = (rows as List).cast<Map<String, dynamic>>();
-    if (list.isEmpty) return null;
-    final row = list.first;
-    return InvestorSummary(
-      investorId: '', // not yet a member of this business
-      personId: row['person_id']?.toString(),
-      fullName: titleCaseName(row['full_name'] as String? ?? ''),
-      mlid: row['mlid'] as String? ?? '',
-      phoneNumber: row['mobile_number'] as String? ?? '',
-      investmentBalance: 0,
-      roi: 0,
-      interestDue: 0,
-      membershipStatus: 'Pending Invitation',
-    );
-  }
-
   Future<void> addExistingInvestor({required String businessId, required String personId}) async {
     final memberRow = await _db
         .from('business_members')
@@ -764,15 +746,6 @@ class InvestorWorkforceNotifier extends Notifier<InvestorWorkforceState> {
     } catch (e) {
       state = state.copyWith(error: e.toString());
       return false;
-    }
-  }
-
-  Future<InvestorSummary?> searchByMlid(String mlid) async {
-    try {
-      return await ref.read(investorApiServiceProvider).searchByMlid(mlid: mlid);
-    } catch (e) {
-      state = state.copyWith(error: e.toString());
-      return null;
     }
   }
 

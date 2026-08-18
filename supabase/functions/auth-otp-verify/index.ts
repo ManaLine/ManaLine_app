@@ -57,7 +57,20 @@ Deno.serve(async (req: Request) => {
     return errorResponse(500, "INTERNAL_ERROR", "Could not verify OTP.");
   }
   if (!otpRow) {
-    return errorResponse(404, "NOT_FOUND", "No such otp_id.");
+    // 200 + verified:false, NOT 404, and this is a security fix as much as a
+    // usability one.
+    //
+    // auth-password-reset-request deliberately returns a DUMMY otp_id for an
+    // unregistered number so the endpoint cannot be used to enumerate
+    // accounts — and this 404 handed that information straight back, because a
+    // dummy id 404s here while a real one does not. Whoever probed the reset
+    // form could tell registered numbers from unregistered ones in two calls.
+    //
+    // It also dead-ended a legitimate person who simply mistyped their number:
+    // network_error_handler.dart maps ANY function 404 to "This action isn't
+    // available yet (server function not found)", so they were told the server
+    // was broken rather than that the code was wrong.
+    return jsonResponse({ data: { verified: false }, meta: {}, errors: [] });
   }
 
   if (otpRow.status === "Verified") {

@@ -26,22 +26,22 @@ import 'ag_009_profile.dart';
 import 'ag_010_transaction_history.dart';
 
 final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: 'â‚¹', decimalDigits: 0);
+    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _time = DateFormat('h:mm a');
 final _date = DateFormat('d MMM yyyy');
 
-/// AG-001 â€” Agent Home Dashboard. Entry sequence per spec: Opening BF
-/// Confirm/Update gate (S0, blocking) â†’ Area Selection (S1, no running
-/// session) â†’ populated dashboard (S2, session running).
+/// AG-001 — Agent Home Dashboard. Entry sequence per spec: Opening BF
+/// Confirm/Update gate (S0, blocking) → Area Selection (S1, no running
+/// session) → populated dashboard (S2, session running).
 ///
 /// CHANGED this batch: header menu now has "Create New Business" (same
 /// OW-000 flow LR-012's own S0 uses), and the Scaffold now carries a
-/// bottom nav bar â€” same Home/Customers/Collections pattern as OW-001's
+/// bottom nav bar — same Home/Customers/Collections pattern as OW-001's
 /// own footer, plus a 4th "History" tab (new AG-010 screen) since the
 /// Agent side has no existing equivalent of Owner's OW-017. Per the
 /// Owner-side precedent already established (OW-001 has this footer;
 /// OW-002/006/etc drill-down screens deliberately do not), this footer
-/// belongs on AG-001 only â€” not duplicated onto every AG-00x drill-down
+/// belongs on AG-001 only — not duplicated onto every AG-00x drill-down
 /// screen.
 class AgentHomeDashboardScreen extends ConsumerStatefulWidget {
   final String agentId;
@@ -91,7 +91,7 @@ class _AgentHomeDashboardScreenState
     ref.watch(translationLoaderProvider);
     final state = ref.watch(agentDashboardProvider);
 
-    // Notifications and Profile stay as header actions â€” they belong to this
+    // Notifications and Profile stay as header actions — they belong to this
     // screen. Switch / Settings / Logout move to the shell's global row, and
     // the rest of the old overflow menu becomes drawer rows, which is how they
     // stop being hidden behind a three-dot glyph.
@@ -163,14 +163,14 @@ class _AgentHomeDashboardScreenState
             ManaDrawerAction(
               labelKey: 'create_new_business',
               // Same OW-000 flow LR-012's S0 uses for a person's first
-              // business â€” this Agent already has an account and at least one
+              // business — this Agent already has an account and at least one
               // membership, so it is an *additional* business.
               onTap: () => context.push('/ow-000', extra: true),
             ),
           ],
         ),
         // Settings / Switch / Logout used to be icons in the header's second
-        // row. That row is gone â€” they are drawer rows now, shared with the
+        // row. That row is gone — they are drawer rows now, shared with the
         // other three workspaces so the order and labels cannot drift.
         ...manaGlobalDrawerSections(
           onProfile: () => context.push('/ag-009'),
@@ -220,7 +220,7 @@ class _AgentHomeDashboardScreenState
 /// Same Home/Customers/Collections pattern as OW-001's own `_FooterNav`,
 /// plus a 4th "History" tab (AG-010, new this batch) since the Agent
 /// side has no pre-existing equivalent of Owner's OW-017 Daily Record
-/// Book. Home (index 0) is a no-op â€” this screen already IS Home.
+/// Book. Home (index 0) is a no-op — this screen already IS Home.
 class _AgentFooterNav extends ConsumerWidget {
   final String businessId;
   final String agentId;
@@ -707,7 +707,7 @@ class _SectionCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: accent ?? ManaColors.textPrimary)),
             const SizedBox(height: ManaSpacing.sm),
-            // Neither side was flexible â€” a long real value (business name,
+            // Neither side was flexible — a long real value (business name,
             // assigned route, owner name) overflowed the Row outright, not
             // just at a scaled-up text size, and a first fix that only made
             // the value flexible still overflowed on long LABELS
@@ -744,11 +744,11 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-/// "MY COMPENSATION (Read-Only, Set By Owner)" â€” Fixed Salary, Salary
+/// "MY COMPENSATION (Read-Only, Set By Owner)" — Fixed Salary, Salary
 /// Cycle, Daily Allowance, Profit Share % (if enabled), Advances Deducted,
 /// Shorts Deducted, Pending Salary, Salary History. This is the single
 /// authoritative display AG-009 Profile links out to rather than
-/// duplicating â€” no second live copy should ever be built elsewhere.
+/// duplicating — no second live copy should ever be built elsewhere.
 class _CompensationSection extends ConsumerWidget {
   final AgentDashboardData d;
   const _CompensationSection({super.key, required this.d});
@@ -772,7 +772,7 @@ class _CompensationSection extends ConsumerWidget {
               (ref.t('fixed_salary'), _currency.format(d.fixedSalary)),
               (
                 ref.t('salary_cycle'),
-                d.salaryCycleStatus.isEmpty ? 'â€”' : d.salaryCycleStatus
+                d.salaryCycleStatus.isEmpty ? '—' : d.salaryCycleStatus
               ),
               (ref.t('daily_allowance'), _currency.format(d.dailyAllowance)),
               if (d.profitSharePercent != null)
@@ -827,9 +827,9 @@ class _QuickActions extends ConsumerWidget {
   const _QuickActions(
       {required this.visible, required this.businessId, required this.agentId});
 
-  // Hidden modules remain fully absent â€” not shown greyed-out â€” per
+  // Hidden modules remain fully absent — not shown greyed-out — per
   // OW-001's Quick Actions pattern that this screen mirrors. `$1` is the
-  // STABLE dispatch key â€” matched against `visible` (built from
+  // STABLE dispatch key — matched against `visible` (built from
   // agent_dashboard_state.dart's `tilePermissionColumns`, which is keyed on
   // these exact English strings) and against the switch below. It must
   // never be swapped for translated text, or this reintroduces the exact
@@ -947,7 +947,7 @@ class _QuickActions extends ConsumerWidget {
                             case 'Universal Search':
                               // AG-004 already has a real search box
                               // ("Search by name, MLID, or phone") over
-                              // this Agent's assigned customers â€” that's
+                              // this Agent's assigned customers — that's
                               // the only search surface actually built
                               // for the Agent role (unlike Owner's
                               // owner_search_person RPC, which is

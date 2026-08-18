@@ -22,16 +22,40 @@ class TranslationCache {
       // Only English/Telugu are ever looked up now (ManaLanguage was cut
       // down to those two) — the other three columns still exist in the
       // table but there's nothing left in the app that can select them.
-      final rows = await Supabase.instance.client
-          .from('ui_translations')
-          .select('translation_key, english, telugu')
-          .timeout(const Duration(seconds: 10));
-      for (final r in (rows as List).cast<Map<String, dynamic>>()) {
-        _rows[r['translation_key'] as String] = {
-          'English': r['english'] as String?,
-          'Telugu': r['telugu'] as String?,
-        };
+      // PAGED, and that is the whole point. PostgREST caps a response at
+      // 1,000 rows; ui_translations holds 1,456. A bare .select() therefore
+      // returned the first thousand and silently dropped 456 keys, so every
+      // key past that cap rendered as a RAW KEY on the handset — welcome_back,
+      // read_terms, add_investor, verify — while the same screens' earlier
+      // keys translated fine. It looked like missing translations for a year;
+      // the rows were there all along.
+      //
+      // Ordered by translation_key so the pages cannot overlap or skip: a
+      // range over an unordered relation is not stable between requests.
+      const pageSize = 1000;
+      var offset = 0;
+      var fetched = 0;
+      while (true) {
+        final page = await Supabase.instance.client
+            .from('ui_translations')
+            .select('translation_key, english, telugu')
+            .order('translation_key')
+            .range(offset, offset + pageSize - 1)
+            .timeout(const Duration(seconds: 10));
+
+        final rows = (page as List).cast<Map<String, dynamic>>();
+        for (final r in rows) {
+          _rows[r['translation_key'] as String] = {
+            'English': r['english'] as String?,
+            'Telugu': r['telugu'] as String?,
+          };
+        }
+        fetched += rows.length;
+        if (rows.length < pageSize) break;
+        offset += pageSize;
       }
+
+      loadedKeyCount = fetched;
       _loaded = true;
       lastError = null;
     } catch (e) {
@@ -47,6 +71,11 @@ class TranslationCache {
   /// Why the last load failed, or null. Non-null with an empty cache means
   /// every `t()` on screen is showing a raw key.
   Object? lastError;
+
+  /// How many keys the last successful load actually brought back. Exposed
+  /// because the failure this class was bitten by was a SILENT short read —
+  /// no error, no exception, just fewer keys than the table holds.
+  int loadedKeyCount = 0;
 
   bool get isLoaded => _loaded;
 

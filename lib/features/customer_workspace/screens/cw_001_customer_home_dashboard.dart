@@ -15,14 +15,14 @@ import '../state/customer_dashboard_state.dart';
 import '../../../shared/translation_service.dart';
 
 final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: 'â‚¹', decimalDigits: 0);
+    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
 
-/// CW-001 â€” Customer Home Dashboard. Primary entry point for a Customer,
+/// CW-001 — Customer Home Dashboard. Primary entry point for a Customer,
 /// reached from LR-013 Role Selector (Customer role chosen). Read-only
 /// aggregation screen; every write happens on the destination screens
 /// its Quick Actions link to. No Business Session / Area Selection / BF
-/// Gate concept applies here (that's Agent-only mechanics) â€” this is a
+/// Gate concept applies here (that's Agent-only mechanics) — this is a
 /// straightforward "load dashboard data, display" screen once a
 /// Business is selected. Polling refresh every 15-30s per the
 /// cross-cutting live-update decision, matching every other workspace
@@ -56,12 +56,12 @@ class _CustomerHomeDashboardScreenState
 
     // Switch / Settings / Logout were buried in an overflow menu behind a
     // three-dot glyph. The shell surfaces all three as labelled controls and
-    // adds the drawer, which is the point of P1 â€” this workspace previously
+    // adds the drawer, which is the point of P1 — this workspace previously
     // had no persistent navigation at all.
     return ManaAppShell(
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: businessNameFor(ref, widget.businessId),
-      // Customers had no notifications entry at all before this â€” the only
+      // Customers had no notifications entry at all before this — the only
       // notifications screen in the app was AG-008, agent-only. An invitation
       // to join a business reached them nowhere.
       actions: const [ManaNotificationBell()],
@@ -99,7 +99,7 @@ class _CustomerHomeDashboardScreenState
           ],
         ),
         // Settings / Switch / Logout used to be icons in the header's second
-        // row. That row is gone â€” they are drawer rows now, shared with the
+        // row. That row is gone — they are drawer rows now, shared with the
         // other three workspaces so the order and labels cannot drift.
         ...manaGlobalDrawerSections(
           onProfile: () => context.push('/cw-006'),
@@ -115,7 +115,7 @@ class _CustomerHomeDashboardScreenState
       ],
       body: SafeArea(
         child: async.when(
-          // Only shown on a genuine cold load â€” revisits keep the previous
+          // Only shown on a genuine cold load — revisits keep the previous
           // data on screen and revalidate behind it (see load()).
           loading: () => const ManaSkeletonList(itemCount: 5, itemHeight: 120),
           error: (e, _) => _errorState(e),
@@ -141,7 +141,7 @@ class _CustomerHomeDashboardScreenState
                     ),
                   ),
                 )
-              // S3 â€” No Memberships: a brand-new Customer with zero
+              // S3 — No Memberships: a brand-new Customer with zero
               // Active Business Memberships lands here and is directed
               // straight into CW-002, not shown an empty dashboard
               // shell (spec's own S3 wording).
@@ -185,7 +185,7 @@ class _CustomerHomeDashboardScreenState
 //
 // Full HEADER per spec also includes Business Logo, Language selector,
 // Notification Center, Universal Search, Profile, Switch Business, Switch
-// Role â€” those are shared app-chrome elements owned elsewhere (same split
+// Role — those are shared app-chrome elements owned elsewhere (same split
 // already established at IW-001: this screen renders the icon buttons as
 // no-op stubs, the actual shared header widget/drawer is a separate
 // integration task for master chat, flagged below).
@@ -256,8 +256,8 @@ class _MySummary extends ConsumerWidget {
       (
         ref.t('next_payment_due'),
         data.nextPaymentDueDate != null
-            ? '${_currency.format(data.nextPaymentDueAmount ?? 0)} Â· ${_dateFmt.format(data.nextPaymentDueDate!)}'
-            : 'â€”',
+            ? '${_currency.format(data.nextPaymentDueAmount ?? 0)} · ${_dateFmt.format(data.nextPaymentDueDate!)}'
+            : '—',
         ManaStatus.warn,
       ),
       (
@@ -308,9 +308,9 @@ class _MySummary extends ConsumerWidget {
 
 // --- QUICK ACTIONS -----------------------------------------------------
 //
-// Find A Business â†’ CW-002 (this chat, live route). Request New Loan â†’
-// CW-003, My Loans â†’ CW-004, Make A Payment â†’ CW-005, My Profile /
-// Memberships â†’ CW-006 â€” none of these screens exist yet; stubbed as
+// Find A Business → CW-002 (this chat, live route). Request New Loan →
+// CW-003, My Loans → CW-004, Make A Payment → CW-005, My Profile /
+// Memberships → CW-006 — none of these screens exist yet; stubbed as
 // named destinations, same pattern AG-001 used for AG-003..AG-009 before
 // those existed. Master chat wires the real routes once those chats land.
 class _QuickActions extends ConsumerWidget {
@@ -330,7 +330,7 @@ class _QuickActions extends ConsumerWidget {
         businessId
       ),
       (ref.t('make_a_payment'), Icons.payments_outlined, '/cw-004', businessId),
-      // My Profile/Memberships is scoped by personId, not businessId â€” it
+      // My Profile/Memberships is scoped by personId, not businessId — it
       // shows every membership across every business for this person
       // (same convention as IW-005).
       (

@@ -13,9 +13,9 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/investor_dashboard_state.dart';
 import '../../../shared/translation_service.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: 'â‚¹', decimalDigits: 0);
+final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
-/// IW-001 â€” Investor Home Dashboard. Primary entry point for an
+/// IW-001 — Investor Home Dashboard. Primary entry point for an
 /// Investor, reached from LR-013 Role Selector (Investor role chosen).
 /// Read-only aggregation screen; every write happens on the destination
 /// screens its Quick Actions link to. Polling refresh every 15-30s per
@@ -84,7 +84,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
           ],
         ),
         // Settings / Switch / Logout used to be icons in the header's second
-        // row. That row is gone â€” they are drawer rows now, shared with the
+        // row. That row is gone — they are drawer rows now, shared with the
         // other three workspaces so the order and labels cannot drift.
         ...manaGlobalDrawerSections(
           onProfile: () => context.push('/iw-005'),
@@ -100,7 +100,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
       ],
       body: SafeArea(
         child: async.when(
-          // Only shown on a genuine cold load â€” revisits keep the previous
+          // Only shown on a genuine cold load — revisits keep the previous
           // data on screen and revalidate behind it (see load()).
           loading: () => const ManaSkeletonList(itemCount: 5, itemHeight: 120),
           error: (e, _) => _errorState(e),
@@ -123,8 +123,8 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
                     ],
                   ),
                 )
-              // S3 â€” No Memberships: same default-state inference
-              // pattern as CW-001 S3 â€” direct straight to Find A
+              // S3 — No Memberships: same default-state inference
+              // pattern as CW-001 S3 — direct straight to Find A
               // Business rather than showing an empty dashboard shell.
               : _NoMembershipsState(businessId: widget.businessId),
         ),
@@ -143,7 +143,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw(ref.t('could_not_load_dashboard')),
             const SizedBox(height: ManaSpacing.sm),
-            // Was completely swallowed before â€” the real exception (e)
+            // Was completely swallowed before — the real exception (e)
             // was passed in but never actually shown, meaning every
             // failure looked identical regardless of real cause. Shown
             // here so it's reportable/screenshottable instead of guessed at.
@@ -323,14 +323,14 @@ class _QuickActions extends ConsumerWidget {
       // BUG FIXED this pass: this used to push straight to '/iw-004' with
       // `businessId` as `extra`, but IW-004 requires a specific
       // `investmentId` (router.dart builds
-      // RequestWithdrawalScreen(investmentId: s.extra as String?)) â€”
+      // RequestWithdrawalScreen(investmentId: s.extra as String?)) —
       // every tap failed with "Could not load this investment." since
       // there's no such investment. Withdrawal always needs a specific
       // investment picked first (which investment IW-003's own working
-      // "request withdrawal" button already does correctly) â€” routing
+      // "request withdrawal" button already does correctly) — routing
       // here to My Investments instead of a dead IW-004 hit.
       (ref.t('request_withdrawal'), Icons.request_page_outlined, '/iw-003', businessId),
-      // My Profile/Memberships is scoped by personId, not businessId â€” it
+      // My Profile/Memberships is scoped by personId, not businessId — it
       // shows every membership across every business for this person.
       (ref.t('my_profile_memberships'), Icons.badge_outlined, '/iw-005', personId ?? businessId),
     ];

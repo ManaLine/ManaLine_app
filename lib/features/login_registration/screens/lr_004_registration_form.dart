@@ -301,6 +301,11 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     context.push('/lr-005');
   }
 
+  /// Villages already known for this PIN, from the LGD reference. Fetched once
+  /// per PIN and filtered locally: a PIN averages about 45 villages and tops
+  /// out at 358, so this is one query and then instant typing.
+  final Map<String, List<Map<String, dynamic>>> _lgdByPin = {};
+
   Future<void> _searchVillages(String query) async {
     final pin = _pinCode.text.trim();
     if (pin.length != 6) {
@@ -318,16 +323,57 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
       return;
     }
     try {
-      final rows = await Supabase.instance.client
+      // `locations` holds only the villages some business already operates in
+      // — eleven rows for the whole app. Searching it alone is why typing a
+      // real village name returned nothing and every registrant was pushed
+      // into manual entry. lgd_villages is the reference for exactly this and
+      // has 768,529 rows, so the two are merged: places already in use first,
+      // because those carry a real location_id, then everything the reference
+      // knows about this PIN.
+      final known = await Supabase.instance.client
           .from('locations')
           .select('location_id, village_town_name, mandal, district, state')
           .eq('status', 'Active')
           .eq('pin_code', pin)
           .ilike('village_town_name', '%${query.trim()}%')
           .limit(10);
+
+      var lgd = _lgdByPin[pin];
+      if (lgd == null) {
+        final rows = await Supabase.instance.client
+            .schema('app')
+            .rpc('suggest_villages', params: {'p_pincode': pin});
+        lgd = (rows as List? ?? const []).cast<Map<String, dynamic>>();
+        _lgdByPin[pin] = lgd;
+      }
+
+      final needle = query.trim().toLowerCase();
+      final results = <Map<String, dynamic>>[
+        for (final r in (known as List).cast<Map<String, dynamic>>()) r,
+      ];
+      final alreadyListed = {
+        for (final r in results) (r['village_town_name'] as String? ?? '').toLowerCase(),
+      };
+
+      for (final r in lgd) {
+        if (results.length >= 15) break;
+        final name = (r['village'] as String? ?? '').trim();
+        if (name.isEmpty || !name.toLowerCase().contains(needle)) continue;
+        if (!alreadyListed.add(name.toLowerCase())) continue;
+        results.add({
+          // No location_id: this one is a suggestion, and the locations row is
+          // created only if the person actually picks it.
+          'location_id': null,
+          'village_town_name': name,
+          'mandal': r['mandal'],
+          'district': r['district'],
+          'state': r['state'],
+        });
+      }
+
       if (!mounted) return;
       setState(() {
-        _villageResults = (rows as List).cast<Map<String, dynamic>>();
+        _villageResults = results;
         _villageSearchAttempted = true;
       });
     } catch (e) {
@@ -342,6 +388,46 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
         _villageSearchAttempted = true;
       });
     }
+  }
+
+  /// Turns a chosen row into a real `locations` id. A row that came from the
+  /// LGD reference has none until now; `add_location_if_missing` is the same
+  /// call the manual-entry path uses, so both routes converge on one row per
+  /// (PIN, village) rather than two spellings of the same place.
+  Future<void> _selectVillage(Map<String, dynamic> v, String label) async {
+    final existing = v['location_id'] as String?;
+    if (existing != null) {
+      setState(() {
+        _villageId = existing;
+        _selectedVillageLabel = label;
+        _villageSearch.text = v['village_town_name'] as String;
+        _villageResults = [];
+      });
+      return;
+    }
+
+    setState(() => _savingManualVillage = true);
+    final result = await NetworkErrorHandler.run(context, () async {
+      final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
+        'p_pin_code': _pinCode.text.trim(),
+        'p_village_town_name': v['village_town_name'],
+        'p_area_type': 'Village',
+        'p_mandal': v['mandal'],
+        'p_district': v['district'],
+        'p_state': v['state'],
+      });
+      return (rows as List).first as Map<String, dynamic>;
+    });
+    if (!mounted) return;
+    setState(() => _savingManualVillage = false);
+    if (result == null) return; // network/RPC failure — SnackBar already shown
+
+    setState(() {
+      _villageId = result['location_id'] as String;
+      _selectedVillageLabel = label;
+      _villageSearch.text = v['village_town_name'] as String;
+      _villageResults = [];
+    });
   }
 
   Future<void> _saveManualVillage() async {
@@ -588,12 +674,15 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                       return ListTile(
                         dense: true,
                         title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
-                        onTap: () => setState(() {
-                          _villageId = v['location_id'] as String;
-                          _selectedVillageLabel = label;
-                          _villageSearch.text = v['village_town_name'] as String;
-                          _villageResults = [];
-                        }),
+                        // A row from the LGD reference has no location_id yet.
+                        // It gets one the moment it is chosen, not before —
+                        // otherwise browsing the list would seed `locations`
+                        // with every village someone scrolled past.
+                        subtitle: v['location_id'] == null
+                            ? ManaText.raw('From the village list',
+                                style: TextStyle(fontSize: 11, color: ManaColors.textSecondary))
+                            : null,
+                        onTap: () => _selectVillage(v, label),
                       );
                     },
                   ),

@@ -132,42 +132,27 @@ class InvestorApiService {
   /// Per OW-003's LOCKED CORRECTION, this is the Owner's ONLY side of
   /// bringing an investor on — the request itself always originates
   /// Investor-side (IW-002).
+  /// One RPC, not three table writes. It used to update the request, then
+  /// insert business_members, then insert investors, with nothing holding them
+  /// together — a failure after the first left a request marked Approved with
+  /// no membership behind it.
+  ///
+  /// It also tells the investor. That note could never have been written from
+  /// here: `notifications` has SELECT/UPDATE/DELETE policies and no INSERT
+  /// policy at all, so it has to come from the definer function.
   Future<void> approveInvestorRequest({required String requestId}) async {
-    final personId = ref.read(authFlowProvider).personId;
-    final req = await _db.from('membership_requests').select('person_id, business_id').eq('request_id', requestId).single();
-    await _db.from('membership_requests').update({
-      'status': 'Approved',
-      'reviewed_by_person_id': personId != null ? int.parse(personId) : null,
-      'reviewed_at': manaTimestamp(),
-    }).eq('request_id', requestId);
-
-    final memberRow = await _db
-        .from('business_members')
-        .insert({
-          'person_id': req['person_id'],
-          'business_id': req['business_id'],
-          'role': 'Investor',
-          'membership_status': 'Active',
-          'verification_status': 'Not Required', // Investor OTP verification (BR-190/191) happens IW-side before this
-          'onboarding_method': 'Direct Registration',
-          'joined_at': manaTimestamp(),
-        })
-        .select('membership_id')
-        .single();
-    await _db.from('investors').insert({
-      'membership_id': memberRow['membership_id'],
-      'person_id': req['person_id'],
+    await _db.schema('app').rpc('review_investor_request', params: {
+      'p_request_id': requestId,
+      'p_approve': true,
     });
   }
 
-  Future<void> rejectInvestorRequest({required String requestId}) async {
-    final personId = ref.read(authFlowProvider).personId;
-    await _db.from('membership_requests').update({
-      'status': 'Rejected',
-      'reviewed_by_person_id': personId != null ? int.parse(personId) : null,
-      'reviewed_at': manaTimestamp(),
-      'cooldown_until': manaTimestampPlus(const Duration(hours: 24)),
-    }).eq('request_id', requestId);
+  Future<void> rejectInvestorRequest({required String requestId, String? reason}) async {
+    await _db.schema('app').rpc('review_investor_request', params: {
+      'p_request_id': requestId,
+      'p_approve': false,
+      'p_rejection_reason': reason,
+    });
   }
 
   Future<InvestorSummary?> searchByMlid({required String mlid}) async {

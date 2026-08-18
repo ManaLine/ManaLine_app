@@ -24,7 +24,7 @@ class InvestorApiService {
             // Addendum item 2). my_investments_state.dart already used the
             // correct column; this file (and fetchInvestorProfile below)
             // did not, and threw PostgrestException 42703 on every load.
-            'investments(investment_id, principal_amount, roi_rate, last_interest_payment_date)')
+            'investments(investment_id, principal_amount, roi_rate, last_interest_payment_date, status, deleted_at)')
         .eq('business_members.business_id', businessId);
     final rows = await q;
 
@@ -59,9 +59,25 @@ class InvestorApiService {
     ];
     final accruedById = await _accruedFor(ids);
 
+    // Membership is implicit: an investor is in this business while they have
+    // money in it. Someone fully withdrawn drops out of the list on their own
+    // rather than sitting there forever as a name with a zero beside it — they
+    // are still in global search, and their own history is untouched, because
+    // the business_members row (which is what RLS reads) stays.
+    //
+    // Mirrors app.membership_is_active, which is the authority. Computed here
+    // from rows already fetched rather than one RPC per investor.
+    bool hasLiveMoney(Map<String, dynamic> r) {
+      final list = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
+      return list.any((i) =>
+          i['deleted_at'] == null &&
+          i['status'] == 'Active' &&
+          ((i['principal_amount'] as num?) ?? 0) > 0);
+    }
+
     return [
       ...pending,
-      ...investors.map((r) {
+      ...investors.where(hasLiveMoney).map((r) {
         final person = r['persons'] as Map<String, dynamic>;
         final investments = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
         final balance =
@@ -155,23 +171,30 @@ class InvestorApiService {
     });
   }
 
-  Future<void> addExistingInvestor({required String businessId, required String personId}) async {
-    final memberRow = await _db
-        .from('business_members')
-        .insert({
-          'person_id': int.parse(personId),
-          'business_id': businessId,
-          'role': 'Investor',
-          'membership_status': 'Active',
-          'verification_status': 'Not Required',
-          'onboarding_method': 'Direct Registration',
-          'joined_at': manaTimestamp(),
-        })
-        .select('membership_id')
-        .single();
-    await _db.from('investors').insert({
-      'membership_id': memberRow['membership_id'],
-      'person_id': int.parse(personId),
+  /// Attaching an investor and recording their first investment are one act.
+  ///
+  /// This used to insert a membership and an investors row and stop there,
+  /// which is how a business ended up holding members who had never done
+  /// anything in it. Membership is implicit now: it exists because there is
+  /// activity behind it, and the server refuses an attach with no amount.
+  Future<void> attachInvestorWithFirstInvestment({
+    required String businessId,
+    required String personId,
+    required int amount,
+    required double roiRate,
+    required String interestType,
+    required DateTime effectiveDate,
+    double? profitSharePercent,
+  }) async {
+    await _db.schema('app').rpc('attach_investor_with_first_investment', params: {
+      'p_business_id': businessId,
+      'p_person_id': int.parse(personId),
+      'p_amount': amount,
+      'p_roi_rate': roiRate,
+      'p_interest_type': interestType,
+      'p_effective_date':
+          '${effectiveDate.year.toString().padLeft(4, '0')}-${effectiveDate.month.toString().padLeft(2, '0')}-${effectiveDate.day.toString().padLeft(2, '0')}',
+      if (profitSharePercent != null) 'p_profit_share_percent': profitSharePercent,
     });
   }
 
@@ -749,9 +772,25 @@ class InvestorWorkforceNotifier extends Notifier<InvestorWorkforceState> {
     }
   }
 
-  Future<bool> addExisting(String businessId, String personId) async {
+  Future<bool> attachWithFirstInvestment({
+    required String businessId,
+    required String personId,
+    required int amount,
+    required double roiRate,
+    required String interestType,
+    required DateTime effectiveDate,
+    double? profitSharePercent,
+  }) async {
     try {
-      await ref.read(investorApiServiceProvider).addExistingInvestor(businessId: businessId, personId: personId);
+      await ref.read(investorApiServiceProvider).attachInvestorWithFirstInvestment(
+            businessId: businessId,
+            personId: personId,
+            amount: amount,
+            roiRate: roiRate,
+            interestType: interestType,
+            effectiveDate: effectiveDate,
+            profitSharePercent: profitSharePercent,
+          );
       await load(businessId);
       return true;
     } catch (e) {

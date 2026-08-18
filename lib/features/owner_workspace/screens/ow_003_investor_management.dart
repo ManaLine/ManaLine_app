@@ -257,6 +257,9 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
     _query.dispose();
     _pin.dispose();
     _village.dispose();
+    _amount.dispose();
+    _roi.dispose();
+    _profitShare.dispose();
     super.dispose();
   }
 
@@ -285,14 +288,54 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
     });
   }
 
+  // The first investment, collected in the same step. Membership is implicit
+  // now — someone is an investor in this business because they have money in
+  // it, not because they were once added to a list — so there is no way to
+  // attach a person without one.
+  final _amount = TextEditingController();
+  final _roi = TextEditingController(text: '1.5');
+  final _profitShare = TextEditingController();
+  String _interestType = 'Simple';
+  DateTime _investedOn = manaNowIst();
+
   Future<void> _add(PersonSearchResult person) async {
+    final amount = int.tryParse(_amount.text.trim());
+    final roi = double.tryParse(_roi.text.trim());
+    if (amount == null || amount <= 0 || roi == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: ManaText.raw('Enter the amount they invested and the ROI first.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _addingPersonId = person.personId);
     final ok = await NetworkErrorHandler.run(context, () async {
-      return ref.read(investorWorkforceProvider.notifier).addExisting(widget.businessId, person.personId);
+      return ref.read(investorWorkforceProvider.notifier).attachWithFirstInvestment(
+            businessId: widget.businessId,
+            personId: person.personId,
+            amount: amount,
+            roiRate: roi,
+            interestType: _interestType,
+            effectiveDate: _investedOn,
+            profitSharePercent: double.tryParse(_profitShare.text.trim()),
+          );
     });
     if (!mounted) return;
     setState(() => _addingPersonId = null);
     if (ok == true && mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _pickInvestedOn() async {
+    final today = manaNowIst();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _investedOn,
+      firstDate: DateTime(2000),
+      lastDate: today,
+    );
+    if (picked != null && mounted) setState(() => _investedOn = picked);
   }
 
   @override
@@ -359,6 +402,78 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                   ),
                 ],
               ),
+            const SizedBox(height: ManaSpacing.md),
+            // Asked before the person is chosen, because it is what makes them
+            // an investor at all — there is no attach-only step any more.
+            const Divider(height: ManaSpacing.xl),
+            const ManaText.raw('Their First Investment',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: ManaSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _amount,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Amount *', prefixText: '₹ '),
+                  ),
+                ),
+                const SizedBox(width: ManaSpacing.sm),
+                Expanded(
+                  child: TextField(
+                    controller: _roi,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'ROI *',
+                      suffixIcon: ManaInfoHint('Rupees per ₹100 per month, not per year.'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: ManaSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _interestType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Interest Type'),
+                    items: const [
+                      DropdownMenuItem(value: 'Simple', child: ManaText.raw('Simple')),
+                      DropdownMenuItem(
+                          value: 'Yearly Compound', child: ManaText.raw('Yearly Compound')),
+                    ],
+                    onChanged: (v) => setState(() => _interestType = v ?? 'Simple'),
+                  ),
+                ),
+                const SizedBox(width: ManaSpacing.sm),
+                Expanded(
+                  child: TextField(
+                    controller: _profitShare,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Profit % (optional)'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: ManaSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: ManaText.raw(
+                    'Invested on ${_investedOn.toIso8601String().split("T").first}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+                Flexible(
+                  child: OutlinedButton(
+                    onPressed: _pickInvestedOn,
+                    child: const ManaText.raw('Change Date'),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: ManaSpacing.md),
             if (_searched && _results.isEmpty)
               ManaText.raw(

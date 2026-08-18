@@ -145,6 +145,26 @@ BEGIN
 END;
 $test$;
 
+-- Interest over a period: whole calendar months, then leftover days at one
+-- thirtieth of the monthly rate. Every figure below was read off the Owner's
+-- own calculator (JMK Easy Apps) or their profit-share sheet.
+DO $test$
+BEGIN
+  PERFORM pg_temp.wk_log('11 days inside one month = 413',
+    app.mana_interest(75000, 1.5, DATE '2026-03-20', DATE '2026-03-31') = 413);
+  PERFORM pg_temp.wk_log('2 months 3 days = 2,363, not 2,400 (days/30 is wrong)',
+    app.mana_interest(75000, 1.5, DATE '2026-03-20', DATE '2026-05-23') = 2363);
+  PERFORM pg_temp.wk_log('4 months 5 days = 15,625',
+    app.mana_interest(250000, 1.5, DATE '2026-03-20', DATE '2026-07-25') = 15625);
+  PERFORM pg_temp.wk_log('1 month 3 days = 825',
+    app.mana_interest(50000, 1.5, DATE '2026-03-20', DATE '2026-04-23') = 825);
+  PERFORM pg_temp.wk_log('declared and paid the same day accrues nothing',
+    app.mana_interest(50000, 1.5, DATE '2026-03-20', DATE '2026-03-20') = 0);
+  PERFORM pg_temp.wk_log('a return date before the given date accrues nothing',
+    app.mana_interest(50000, 1.5, DATE '2026-03-20', DATE '2026-03-01') = 0);
+END;
+$test$;
+
 DO $$
 DECLARE v_failed INT;
 BEGIN

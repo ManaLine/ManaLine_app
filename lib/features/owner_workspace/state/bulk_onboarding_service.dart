@@ -599,6 +599,29 @@ class BulkOnboardingService {
   }
 
   // ---------------------------------------------------------------------
+  // Where the wizard had got to
+  //
+  // Server-side so it follows the Owner: migrating a book is eight pages and
+  // several file uploads, which is neither one sitting nor reliably one
+  // handset. A local key meant a reinstall or the other phone started page 1
+  // again on a half-migrated book.
+  // ---------------------------------------------------------------------
+
+  Future<int?> wizardStep(String businessId) async {
+    final res = await _db
+        .schema('app')
+        .rpc('migration_wizard_step', params: {'p_business_id': businessId});
+    return (res as num?)?.toInt();
+  }
+
+  Future<void> saveWizardStep(String businessId, int step) async {
+    await _db.schema('app').rpc('set_migration_wizard_step', params: {
+      'p_business_id': businessId,
+      'p_step': step,
+    });
+  }
+
+  // ---------------------------------------------------------------------
   // Areas & Villages
   //
   // There is no villages sheet. The wizard takes the distinct (PIN, Village)

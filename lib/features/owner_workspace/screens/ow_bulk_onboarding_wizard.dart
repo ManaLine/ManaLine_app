@@ -100,9 +100,11 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   // ever run, so "areas exist" would have marked page 2 done when it was not.
   // A pointer the wizard writes itself cannot lie about its own progress.
   //
-  // flutter_secure_storage rather than a new preferences dependency, matching
-  // appearance_state.dart's reasoning — it is heavier than this needs, but it
-  // is already here.
+  // THE SERVER HOLDS IT (businesses.migration_wizard_step) so it follows the
+  // Owner to another handset or through a reinstall. The secure-storage copy
+  // is kept as an OFFLINE FALLBACK ONLY: this app is used where the signal
+  // drops, and on a failed read the last place this device saw beats page 1.
+  // The server wins whenever it answers — it is the one both devices share.
   static const _storage = FlutterSecureStorage();
   String get _stepKey => 'mana_bulk_onboarding_step_${widget.businessId}';
 
@@ -110,36 +112,63 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   void initState() {
     super.initState();
     // After the first frame, not awaited: page 1 is a correct thing to show
-    // while the pointer is read, and blocking the first paint on a disk read
-    // to avoid one frame is a bad trade.
+    // while the pointer is fetched, and blocking the first paint on a network
+    // round trip is exactly the hang this app cannot afford.
     WidgetsBinding.instance.addPostFrameCallback((_) => _restoreStep());
   }
 
   Future<void> _restoreStep() async {
+    int? saved;
     try {
-      final saved = int.tryParse(await _storage.read(key: _stepKey) ?? '');
-      if (!mounted || saved == null || saved <= 0) return;
-      // Clamp: a pointer written by an older build with more pages must not
-      // index past the end of _pageTitles.
-      final target = saved.clamp(0, _pageTitles.length - 1);
-      if (target == 0) return;
-      setState(() {
-        _step = target;
-        _resumedAt = target;
-      });
+      saved = await _svc.wizardStep(widget.businessId);
     } catch (_) {
-      // An unreadable pointer is not worth a message — page 1 still works.
+      // Offline, or the call failed. Fall through to what this device
+      // remembers rather than silently restarting a half-finished migration.
+      saved = null;
+    }
+    saved ??= await _localStep();
+
+    if (!mounted || saved == null || saved <= 0) return;
+    // Clamp: a pointer written by a build with more pages must not index past
+    // the end of _pageTitles.
+    final target = saved.clamp(0, _pageTitles.length - 1);
+    if (target == 0) return;
+    setState(() {
+      _step = target;
+      _resumedAt = target;
+    });
+  }
+
+  Future<int?> _localStep() async {
+    try {
+      return int.tryParse(await _storage.read(key: _stepKey) ?? '');
+    } catch (_) {
+      return null;
     }
   }
 
-  /// Move to [step] and remember it. Every page change goes through here so
-  /// there is no route back to page 1 that forgets to write the pointer.
+  /// Move to [step] and remember it, on the server and on this device. Every
+  /// page change goes through here so there is no route back to page 1 that
+  /// forgets to write the pointer.
   void _goTo(int step) {
     setState(() {
       _step = step;
       _resumedAt = null; // they have navigated; the banner has done its job
     });
-    _storage.write(key: _stepKey, value: '$step').catchError((_) {});
+    // Neither write is awaited and neither blocks the page turn: a pointer
+    // that failed to save costs the Owner one page of re-navigation later,
+    // which is not worth making them wait on the network for.
+    //
+    // try/catch as well as catchError, because these can throw SYNCHRONOUSLY —
+    // reading the service provider builds it, and that touches
+    // Supabase.instance. A throw there took the page turn down with it, which
+    // is the opposite of "saving the pointer never blocks navigation".
+    try {
+      _storage.write(key: _stepKey, value: '$step').catchError((_) {});
+    } catch (_) {/* the server copy is the one that matters */}
+    try {
+      _svc.saveWizardStep(widget.businessId, step).catchError((_) {});
+    } catch (_) {/* they keep the page they are on either way */}
   }
 
   /// Deliberate restart, from the resumed banner.

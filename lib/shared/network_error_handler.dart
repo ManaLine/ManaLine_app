@@ -13,6 +13,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// and cutting a working request short would be worse than waiting.
 const Duration kManaQueryTimeout = Duration(seconds: 20);
 
+/// How long an error SnackBar stays up. Long enough to read a sentence on a
+/// handset held at arm's length, short enough not to sit over a button.
+const Duration kErrorSnackDuration = Duration(seconds: 6);
+
 /// One consistent way to run a network call from any screen and surface
 /// its failure. Every LR screen's submit/verify/send action should route
 /// through this rather than its own bespoke try/catch — the goal is that
@@ -64,16 +68,29 @@ class NetworkErrorHandler {
               : genericErrorMessage;
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
+      final controller = ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
           action: SnackBarAction(
             label: 'Retry',
             onPressed: () => run(context, action, genericErrorMessage: genericErrorMessage),
           ),
-          duration: const Duration(seconds: 6),
+          duration: kErrorSnackDuration,
         ),
       );
+
+      // A SnackBar carrying an action never starts its own auto-dismiss timer
+      // (Flutter 3.44) — `duration` is simply ignored and the bar stays up
+      // until something else replaces it. Found on a live handset: a failed
+      // save left the error sitting over the Save buttons on Add a Customer
+      // for six minutes, and swiping did not clear it, so the screen could
+      // not be used. Every error in the app goes out through here, so the
+      // timer is started here rather than at 75 call sites.
+      var closed = false;
+      unawaited(controller.closed.then((_) => closed = true));
+      Timer(kErrorSnackDuration, () {
+        if (!closed) controller.close();
+      });
       return null;
     }
   }
@@ -94,9 +111,42 @@ class NetworkErrorHandler {
     }
     if (e is PostgrestException) {
       if (isSessionExpired(e)) return sessionExpiredMessage;
+      final constraint = _constraintMessage(e);
+      if (constraint != null) return constraint;
       return e.message.isNotEmpty ? e.message : genericErrorMessage;
     }
     return genericErrorMessage;
+  }
+
+  /// Turns a Postgres integrity violation into something an Owner can act on.
+  ///
+  /// Without this, `e.message` reaches the screen verbatim and a field user
+  /// is shown
+  ///   duplicate key value violates unique constraint "uq_persons_mobile_number"
+  /// which names neither the person, nor the field, nor what to do next.
+  /// Seen live while entering a pre-existing loan for someone the book had
+  /// already registered. Anything not listed here still falls through to the
+  /// raw text — a wrong friendly message would be worse than a technical
+  /// true one.
+  static String? _constraintMessage(PostgrestException e) {
+    // 23505 unique_violation. Match on the constraint name inside the text,
+    // because PostgREST does not expose `constraint_name` separately.
+    if (e.code != '23505') return null;
+    final text = e.message;
+    if (text.contains('uq_persons_mobile_number')) {
+      return 'That mobile number is already registered to someone else. '
+          'Search for them by name instead of adding a new person.';
+    }
+    if (text.contains('uq_business_members_person_business_role')) {
+      return 'This person is already in this business in that role.';
+    }
+    if (text.contains('uq_oal_business_location')) {
+      return 'That village is already attached to an area in this business.';
+    }
+    if (text.contains('persons_mlid_key')) {
+      return 'Could not allocate an ID for this person. Please try again.';
+    }
+    return null;
   }
 
   /// The session token died mid-use.

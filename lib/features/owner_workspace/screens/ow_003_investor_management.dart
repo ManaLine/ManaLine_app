@@ -340,14 +340,26 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
 
   @override
   Widget build(BuildContext context) {
+    // SCROLLS, and is capped at nine tenths of the screen.
+    //
+    // This sheet carries a search box, two folded narrowers, a whole first
+    // investment (amount, ROI, interest type, profit %, date) and a results
+    // list. As a bare Column it fit only on a tall handset with the keyboard
+    // down — "bottom overflowed by 51 pixels" on a real phone. viewInsets
+    // padding alone cannot fix that: it moves the content up but never gives
+    // it anywhere to go.
     return Padding(
       padding: MediaQuery.of(context).viewInsets,
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(ManaSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             ManaText.raw(ref.t('add_existing_investor'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: ManaSpacing.lg),
             Row(
@@ -509,7 +521,8 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                   },
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

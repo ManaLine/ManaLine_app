@@ -43,6 +43,19 @@ class BulkOnboardingWizardScreen extends ConsumerStatefulWidget {
   ConsumerState<BulkOnboardingWizardScreen> createState() => _BulkOnboardingWizardScreenState();
 }
 
+/// Every flagged row gets [decision] — 'skip' merges each into the person
+/// already on file, 'keep' imports each as a separate person.
+///
+/// Deliberately REPLACES decisions already made rather than only filling the
+/// undecided ones. A "Merge All" that quietly left three earlier Ignores
+/// standing would not be all, and the Owner would only discover the
+/// disagreement as duplicate people after the import had run.
+Map<int, String> manaDecideAllDuplicates(
+  List<DuplicateMatch> duplicates,
+  String decision,
+) =>
+    {for (final d in duplicates) d.row: decision};
+
 const _pageTitles = [
   'Identities',
   'Areas & Villages',
@@ -187,6 +200,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         _seedVillages(parse.rows);
       });
       await _loadSuggestions();
+      await _loadExistingAreas();
     } on ImportFormatException catch (e) {
       if (mounted) setState(() => _identityFormatError = e.message);
     } catch (e) {
@@ -226,6 +240,29 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   /// One lookup per distinct PIN, not one per village — a PIN with forty
   /// villages in it is one query, and the Owner answers the district question
   /// once for that PIN rather than forty times.
+  /// Villages this business already walks, and in which round.
+  ///
+  /// Without this the Area field defaulted to "Main Area" for every row, which
+  /// proposed moving every village into one round — and since a village belongs
+  /// to exactly one area per business, the import then collided with the areas
+  /// the Owner had already set up by hand.
+  Future<void> _loadExistingAreas() async {
+    try {
+      final existing = await _svc.existingVillageAreas(widget.businessId);
+      if (!mounted || existing.isEmpty) return;
+      setState(() {
+        for (final v in _villages) {
+          final name = existing['${v.pinCode}|${v.village.toLowerCase()}'];
+          if (name != null && name.isNotEmpty) v.area.text = name;
+        }
+      });
+    } catch (_) {
+      // Not fatal: the Owner can still type the area. Defaulting to "Main Area"
+      // is only wrong, never destructive — the server refuses to move a village
+      // that already belongs somewhere.
+    }
+  }
+
   Future<void> _loadSuggestions() async {
     final pins = {for (final v in _villages) v.pinCode};
     for (final pin in pins) {
@@ -258,6 +295,51 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     final chosen = exact.isNotEmpty ? exact.first : (matches.isNotEmpty ? matches.first : null);
     v.mandal = chosen?.mandal ?? district;
     v.state = chosen?.state ?? '';
+  }
+
+  /// Leaving page 2 with people parsed but not imported is almost always a
+  /// mistake, so it has to be said out loud and chosen deliberately.
+  Future<void> _confirmLeavingUnimported() async {
+    final parse = _identityParse;
+    final alreadyImported = _identityOutcome != null && !_identityOutcome!.rejected;
+
+    if (parse == null || parse.rows.isEmpty || alreadyImported) {
+      setState(() => _step = 2);
+      return;
+    }
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const ManaText.raw('Import These People First?'),
+        content: ManaText.raw(
+          '${parse.rows.length} people are ready but have not been saved yet. '
+          'Nothing on the next pages can refer to them until they are.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('skip'),
+            child: const ManaText.raw('Skip For Now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop('import'),
+            child: const ManaText.raw('Import Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || choice == null) return;
+    if (choice == 'skip') {
+      setState(() => _step = 2);
+      return;
+    }
+    await _saveAreasAndIdentities();
+    // Only move on if it actually landed; a rejection keeps them on the page
+    // with the row-by-row errors in view.
+    if (mounted && _identityOutcome != null && !_identityOutcome!.rejected) {
+      setState(() => _step = 2);
+    }
   }
 
   Future<void> _saveAreasAndIdentities() async {
@@ -303,7 +385,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         final name = v.area.text.trim().isEmpty ? 'Main Area' : v.area.text.trim();
         byArea.putIfAbsent(name, () => []).add(v);
       }
-      await _svc.createAreas(
+      final areaResult = await _svc.createAreas(
         businessId: widget.businessId,
         rows: [
           for (final entry in byArea.entries)
@@ -315,6 +397,19 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             },
         ],
       );
+
+      final kept = (areaResult['left_in_existing_areas'] as List? ?? const []);
+      if (kept.isNotEmpty && mounted) {
+        // Said out loud rather than buried: these villages stayed in the round
+        // they were already in, which is not what the Area column asked for.
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: ManaText.raw(
+            '${kept.length} village(s) stayed in the area they already belong to: '
+            '${kept.map((k) => "${k['village']} in ${k['kept_in_area']}").join(", ")}',
+          ),
+          duration: const Duration(seconds: 6),
+        ));
+      }
 
       return _svc.submitIdentities(
         businessId: widget.businessId,
@@ -916,6 +1011,26 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw('${_duplicates.length} rows need review',
                 style: TextStyle(fontWeight: FontWeight.w700, color: ManaColors.statusWarn)),
+            // One decision per flagged row is fine for three; the live book
+            // flagged 55, and chip-by-chip is where an Owner gives up or
+            // mis-taps. These set every row at once and each card still shows
+            // what it landed on, so a single row can be changed back after.
+            const SizedBox(height: ManaSpacing.sm),
+            Wrap(
+              spacing: ManaSpacing.sm,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _decideAllDuplicates('skip'),
+                  icon: const Icon(Icons.merge_type, size: 18),
+                  label: ManaText.raw(ref.t('merge_all')),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _decideAllDuplicates('keep'),
+                  icon: const Icon(Icons.playlist_add_check, size: 18),
+                  label: ManaText.raw(ref.t('ignore_all')),
+                ),
+              ],
+            ),
             const SizedBox(height: ManaSpacing.sm),
             for (final d in _duplicates) _duplicateCard(d),
             if (undecided > 0) ...[
@@ -932,6 +1047,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         _navBar(onNext: () => setState(() => _step = 1)),
       ],
     );
+  }
+
+  void _decideAllDuplicates(String decision) {
+    setState(() {
+      _dedupeDecisions
+        ..clear()
+        ..addAll(manaDecideAllDuplicates(_duplicates, decision));
+    });
   }
 
   Widget _duplicateCard(DuplicateMatch d) {
@@ -1015,7 +1138,11 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               noun: 'identities',
               onDownloadCorrection:
                   _identityOutcome!.rejected ? _identityDownloadCorrection : null),
-        _navBar(onNext: () => setState(() => _step = 2)),
+        // This is the page that WRITES. Walking past it with a parsed file and
+        // nothing imported loses the whole sheet silently, and page 3 then
+        // looks like ordinary progress — which is exactly what happened on the
+        // first live run.
+        _navBar(onNext: _confirmLeavingUnimported),
       ],
     );
   }

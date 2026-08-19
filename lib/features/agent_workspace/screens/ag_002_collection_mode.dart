@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
-import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_collection_search_field.dart';
+import '../../../design/components/mana_frequency_picker.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/translation_service.dart';
 import '../../owner_workspace/state/collection_mode_state.dart';
@@ -30,8 +30,7 @@ class AgentCollectionModeScreen extends ConsumerStatefulWidget {
 }
 
 class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeScreen> {
-  /// Local, not in the notifier — see OW-006 for why: the summary strip
-  /// reports the day, and typing in a search box must not move those numbers.
+  /// Local, not in the notifier — see OW-006 for why.
   String _query = '';
   bool _searchOpen = false;
 
@@ -50,36 +49,10 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
   /// re-narrow it.
   String? _frequency;
 
-  Widget _frequencyChips(List<CollectionDueRow> all) {
-    // Only offer a frequency the round actually contains. A business that runs
-    // Daily lines only should not be shown three chips, two of which empty the
-    // list.
-    final present = <String>{for (final r in all) r.repaymentType}
-      ..removeWhere((f) => f.isEmpty);
-    if (present.length < 2) return const SizedBox.shrink();
-
-    const order = ['Daily', 'Weekly', 'Monthly'];
-    return Padding(
-      padding: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: Wrap(
-        spacing: ManaSpacing.sm,
-        children: [
-          ChoiceChip(
-            label: ManaText.raw(ref.t('all')),
-            selected: _frequency == null,
-            onSelected: (_) => setState(() => _frequency = null),
-          ),
-          for (final f in order)
-            if (present.contains(f))
-              ChoiceChip(
-                label: ManaText.raw(f),
-                selected: _frequency == f,
-                onSelected: (_) => setState(() => _frequency = f),
-              ),
-        ],
-      ),
-    );
-  }
+  Widget _frequencyPicker() => ManaFrequencyPicker(
+        value: _frequency,
+        onChanged: (f) => setState(() => _frequency = f),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +86,7 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
-                    _frequencyChips(state.sorted),
+                    _frequencyPicker(),
                     // manaNowIst(), not DateTime.now(): this labels which
                     // business day's round the Agent is standing in, and a
                     // handset an hour either side of midnight in the wrong
@@ -121,8 +94,6 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                     ManaText.raw(DateFormat('d MMM yyyy').format(manaNowIst()),
                         style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
                     const SizedBox(height: ManaSpacing.sm),
-                    _AgentSummaryStrip(state: state),
-                    const SizedBox(height: ManaSpacing.xs),
                     ManaText.raw(
                       ref.t('sorted_by_note_short'),
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -151,35 +122,6 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                 ),
         ),
       ),
-    );
-  }
-}
-
-/// AG-002's own dashboard strip: Customers Due, Collected, Pending, Skipped,
-/// Penalty, Grace, Today's Collection Total — per spec's COLLECTION
-/// DASHBOARD section (distinct labels from OW-006's strip, same underlying
-/// CollectionModeState fields).
-class _AgentSummaryStrip extends ConsumerWidget {
-  final CollectionModeState state;
-  const _AgentSummaryStrip({required this.state});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final stats = <(String, String, ManaStatus)>[
-      (ref.t('customers_due'), '${state.totalDue}', ManaStatus.neutral),
-      (ref.t('collected'), '${state.collected}', ManaStatus.good),
-      (ref.t('pending'), '${state.pending}', ManaStatus.warn),
-      (ref.t('skipped'), '${state.skipped}', ManaStatus.neutral),
-      (ref.t('penalty'), '${state.penaltyCount}', ManaStatus.bad),
-      (ref.t('grace'), '${state.graceCount}', ManaStatus.warn),
-      (ref.t('todays_collection_total'), _currency.format(state.liveCollectionAmount), ManaStatus.good),
-    ];
-    return ManaStatStrip(
-      valueFontSize: 16,
-      stats: [
-        for (final (label, value, status) in stats)
-          ManaStat(value: value, label: label, status: status),
-      ],
     );
   }
 }

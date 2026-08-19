@@ -941,6 +941,8 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'customer_refused': {'English': 'Customer Refused', 'Telugu': 'కస్టమర్ తిరస్కరించారు'},
   'requested_later_visit': {'English': 'Requested Later Visit', 'Telugu': 'తర్వాత సందర్శన కోరారు'},
   'other': {'English': 'Other', 'Telugu': 'ఇతర'},
+  'merge_all': {'English': 'Merge All (Skip)', 'Telugu': 'అన్నీ విలీనం (దాటవేయి)'},
+  'ignore_all': {'English': 'Ignore All (Import)', 'Telugu': 'అన్నీ పట్టించుకోవద్దు (దిగుమతి)'},
   'save_visit': {'English': 'Save Visit', 'Telugu': 'సందర్శన సేవ్ చేయండి'},
   'extension_note': {
     'English':

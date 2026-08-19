@@ -38,6 +38,8 @@ dependencies:
   local_auth: ^3.0.2
   cached_network_image: ^3.4.1
   url_launcher: ^6.3.2
+  archive: ^3.6.1
+  xml: ^6.6.1
 
   # Offline sync layer (see mana_line_offline_sync package delivered earlier)
   # mana_line_offline_sync:

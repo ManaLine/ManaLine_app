@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
-import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_collection_search_field.dart';
+import '../../../design/components/mana_frequency_picker.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/widgets/address_check_banner.dart';
@@ -27,10 +27,9 @@ class CollectionModeScreen extends ConsumerStatefulWidget {
 }
 
 class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
-  /// Local, not in the notifier. The summary strip above the list reports the
-  /// DAY — total due, collected, pending — and those numbers must not move
-  /// because someone typed a village name into a search box. Filtering the
-  /// view here keeps the day's figures describing the day.
+  /// Local, not in the notifier: searching narrows what is on screen, it does
+  /// not change the round. Keeping it out of the notifier is also what stops a
+  /// reload from silently re-applying it.
   String _query = '';
   bool _searchOpen = false;
 
@@ -49,36 +48,10 @@ class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
   /// re-narrow it.
   String? _frequency;
 
-  Widget _frequencyChips(List<CollectionDueRow> all) {
-    // Only offer a frequency the round actually contains. A business that runs
-    // Daily lines only should not be shown three chips, two of which empty the
-    // list.
-    final present = <String>{for (final r in all) r.repaymentType}
-      ..removeWhere((f) => f.isEmpty);
-    if (present.length < 2) return const SizedBox.shrink();
-
-    const order = ['Daily', 'Weekly', 'Monthly'];
-    return Padding(
-      padding: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: Wrap(
-        spacing: ManaSpacing.sm,
-        children: [
-          ChoiceChip(
-            label: ManaText.raw(ref.t('all')),
-            selected: _frequency == null,
-            onSelected: (_) => setState(() => _frequency = null),
-          ),
-          for (final f in order)
-            if (present.contains(f))
-              ChoiceChip(
-                label: ManaText.raw(f),
-                selected: _frequency == f,
-                onSelected: (_) => setState(() => _frequency = f),
-              ),
-        ],
-      ),
-    );
-  }
+  Widget _frequencyPicker() => ManaFrequencyPicker(
+        value: _frequency,
+        onChanged: (f) => setState(() => _frequency = f),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -116,9 +89,7 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
-                    _frequencyChips(state.sorted),
-                    _SummaryStrip(state: state),
-                    const SizedBox(height: ManaSpacing.xs),
+                    _frequencyPicker(),
                     ManaText.raw(
                       ref.t('sorted_by_note'),
                       style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
@@ -151,31 +122,6 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                 ),
         ),
       ),
-    );
-  }
-}
-
-class _SummaryStrip extends ConsumerWidget {
-  final CollectionModeState state;
-  const _SummaryStrip({required this.state});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final stats = <(String, String, ManaStatus)>[
-      (ref.t('total_due'), '${state.totalDue}', ManaStatus.neutral),
-      (ref.t('collected'), '${state.collected}', ManaStatus.good),
-      (ref.t('pending'), '${state.pending}', ManaStatus.warn),
-      (ref.t('skipped'), '${state.skipped}', ManaStatus.neutral),
-      (ref.t('penalty'), '${state.penaltyCount}', ManaStatus.bad),
-      (ref.t('grace_period_label'), '${state.graceCount}', ManaStatus.warn),
-      (ref.t('live_collected'), _currency.format(state.liveCollectionAmount), ManaStatus.good),
-    ];
-    return ManaStatStrip(
-      valueFontSize: 16,
-      stats: [
-        for (final (label, value, status) in stats)
-          ManaStat(value: value, label: label, status: status),
-      ],
     );
   }
 }

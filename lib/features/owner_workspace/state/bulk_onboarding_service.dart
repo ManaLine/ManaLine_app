@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/xlsx_fallback_reader.dart';
 import 'collection_mode_state.dart';
 
 /// P3 Bulk Migration Wizard — onboard a pre-existing business's whole book in
@@ -631,14 +632,40 @@ class BulkOnboardingService {
     });
   }
 
-  Future<void> createAreas({
+  Future<Map<String, dynamic>> createAreas({
     required String businessId,
     required List<Map<String, dynamic>> rows,
   }) async {
-    await _db.schema('app').rpc('migration_create_areas', params: {
+    final res = await _db.schema('app').rpc('migration_create_areas', params: {
       'p_business_id': businessId,
       'p_rows': rows,
     });
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  /// "517644|srikalahasti" -> the round that already walks it.
+  ///
+  /// A village belongs to exactly one area per business (unique index
+  /// uq_oal_business_location), so an Owner who set their areas up before
+  /// running the wizard must see those names here rather than a default that
+  /// would silently propose moving every village into one round.
+  Future<Map<String, String>> existingVillageAreas(String businessId) async {
+    final rows = await _db
+        .from('operating_area_locations')
+        .select('locations!inner(village_town_name, pin_code), operating_areas!inner(name)')
+        .eq('business_id', businessId)
+        .isFilter('removed_at', null);
+
+    final out = <String, String>{};
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      final loc = r['locations'] as Map<String, dynamic>?;
+      final area = r['operating_areas'] as Map<String, dynamic>?;
+      if (loc == null || area == null) continue;
+      final pin = (loc['pin_code'] ?? '').toString();
+      final village = (loc['village_town_name'] ?? '').toString().toLowerCase();
+      out['$pin|$village'] = (area['name'] ?? '').toString();
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------------
@@ -1179,8 +1206,13 @@ class BulkOnboardingService {
     try {
       book = Excel.decodeBytes(bytes);
     } catch (e) {
-      throw ImportFormatException('This file could not be read as a spreadsheet. '
-          'If it came from another app, save it as .xlsx or .csv and try again. ($e)');
+      // The `excel` package throws "Null check operator used on a null value"
+      // on any workbook whose text is stored as INLINE strings rather than in a
+      // shared-strings table. openpyxl writes that shape, and so do several
+      // exporters — so a sheet prepared in anything but Excel itself was
+      // rejected with a message blaming the Owner's file for the app's crash.
+      // Hit for real on the live test with a 55-row identity sheet.
+      return _decodeTableFallback(bytes, preferredSheet, e);
     }
     final sheet = book.tables[preferredSheet] ??
         book.tables.values.firstWhere(
@@ -1190,6 +1222,31 @@ class BulkOnboardingService {
     return [
       for (final row in sheet.rows) [for (final cell in row) _cellText(cell?.value)],
     ];
+  }
+
+  /// Second attempt with this app's own reader, which understands inline
+  /// strings. If it also fails, the original error is reported — by then the
+  /// file really is unreadable, and the first message is the informative one.
+  static List<List<String>> _decodeTableFallback(
+      Uint8List bytes, String preferredSheet, Object originalError) {
+    final Map<String, List<List<String>>> sheets;
+    try {
+      sheets = XlsxFallbackReader.decode(bytes).sheets;
+    } catch (_) {
+      throw ImportFormatException('This file could not be read as a spreadsheet. '
+          'If it came from another app, save it as .xlsx or .csv and try again. '
+          '($originalError)');
+    }
+
+    final rows = sheets[preferredSheet] ??
+        sheets.values.cast<List<List<String>>?>().firstWhere(
+              (r) => r != null && r.isNotEmpty,
+              orElse: () => null,
+            );
+    if (rows == null || rows.isEmpty) {
+      throw const ImportFormatException('The workbook has no sheet with any rows in it.');
+    }
+    return rows;
   }
 
   static ParsedSheet _parseTable(

@@ -18,6 +18,24 @@ import '../../../design/components/mana_info_hint.dart';
 
 final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
+/// Whether a mobile number entered on the pre-existing-business path may be
+/// saved.
+///
+/// Blank is allowed HERE AND NOWHERE ELSE: `persons.mobile_number` is
+/// nullable and `app.register_new_customer` NULLIFs an empty string, because
+/// an old paper book routinely has no phone number for its older customers.
+/// While the form demanded one, the only way to enter such a customer was to
+/// invent a number, and an invented number collides with whoever really owns
+/// it under `uq_persons_mobile_number`.
+///
+/// A PARTIAL number is still refused. Six digits is a typo, not a decision to
+/// leave the field out, and letting it through would store a number that can
+/// never be dialled.
+bool migrationMobileAcceptable(String raw) {
+  final trimmed = raw.trim();
+  return trimmed.isEmpty || trimmed.length == 10;
+}
+
 /// OW-018 — Pre-Existing Business Migration.
 ///
 /// For a business that was already running before it joined MANA LINE.
@@ -606,6 +624,11 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           items: const [
             DropdownMenuItem(value: '1', child: ManaText('male')),
             DropdownMenuItem(value: '0', child: ManaText('female')),
+            // '2' has been a legal gender_digit since the migration wizard
+            // landed (persons_gender_digit_check allows 0/1/2). Offering only
+            // two forced whoever entered the book to file a third person as
+            // one of the other two, and the MLID carries that digit for life.
+            DropdownMenuItem(value: '2', child: ManaText('other')),
           ],
           onChanged: (v) => setState(() => _gender = v),
         ),
@@ -614,7 +637,17 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           keyboardType: TextInputType.phone,
           maxLength: 10,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(labelText: 'Mobile Number *'),
+          // OPTIONAL on this path only. app.register_new_customer NULLIFs it
+          // and persons.mobile_number is nullable, because a pre-existing
+          // book routinely has no phone number for its older customers. The
+          // form demanded one anyway, so the only way to enter such a
+          // customer was to invent a number — which then collides with the
+          // real owner of that number under uq_persons_mobile_number.
+          decoration: const InputDecoration(
+            labelText: 'Mobile Number (optional)',
+            suffixIcon: ManaInfoHint(
+                'Leave blank if the old book does not have one. Do not invent a number.'),
+          ),
           onChanged: (_) => setState(() {}),
         ),
         TextField(
@@ -634,7 +667,9 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         ),
         TextField(
           controller: _doorNo,
-          decoration: const InputDecoration(labelText: 'Door / House No *'),
+          // Also optional, and for the same reason — the RPC's own comment
+          // says a migrated customer's paper record rarely has a door number.
+          decoration: const InputDecoration(labelText: 'Door / House No (optional)'),
           onChanged: (_) => setState(() {}),
         ),
         UseMyLocationButton(
@@ -697,8 +732,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       _fullName.text.trim().length >= 2 &&
       _fatherHusband.text.trim().length >= 2 &&
       _gender != null &&
-      _mobile.text.trim().length == 10 &&
-      _doorNo.text.trim().isNotEmpty &&
+      migrationMobileAcceptable(_mobile.text) &&
       _pinCode.text.trim().length == 6 &&
       _villageId != null;
 
@@ -797,16 +831,38 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   /// many instalment rows appear. Those were only visible as small computed
   /// lines mixed in among the inputs, which is exactly where a mistyped digit
   /// hides. Nothing is saved until this is confirmed.
+  Future<void> _pickEffectiveDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _effectiveDate,
+      // Backdating is the whole point here, unlike OW-005.
+      firstDate: DateTime(2000),
+      // "Today" is the IST business day, same clock as the default.
+      lastDate: manaNowIst(),
+    );
+    if (picked != null && mounted) setState(() => _effectiveDate = picked);
+  }
+
   Future<bool> _confirmPreview() async {
     final person = _newPerson ? _fullName.text.trim() : (_customer?.fullName ?? '');
     final village = _newPerson ? _villageSearch.text.trim() : null;
+
+    // Landscape, or a large text size, leaves the dialog short enough that
+    // only the first two rows show. It scrolled, but nothing said so — the
+    // point of a confirmation is that the whole of it gets read, so the
+    // thumb is pinned visible whenever there is more below the fold.
+    final scrollController = ScrollController();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const ManaText.raw('Check This Loan'),
-        content: SingleChildScrollView(
-          child: Column(
+        content: Scrollbar(
+          controller: scrollController,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -838,7 +894,8 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                 'Issued ${_effectiveDate.toIso8601String().split("T").first}',
                 style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
               ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -853,6 +910,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         ],
       ),
     );
+    scrollController.dispose();
     return confirmed == true;
   }
 
@@ -1030,19 +1088,17 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
               contentPadding: EdgeInsets.zero,
               title: ManaText.raw(ref.t('original_start_date')),
               subtitle: ManaText.raw(DateFormat('d MMM yyyy').format(_effectiveDate)),
-              trailing: const Icon(Icons.calendar_today, size: 18),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _effectiveDate,
-                  // Backdating is the whole point here, unlike OW-005.
-                  firstDate: DateTime(2000),
-                  // "Today" is the IST business day, same clock as the
-                  // default above.
-                  lastDate: manaNowIst(),
-                );
-                if (picked != null) setState(() => _effectiveDate = picked);
-              },
+              // An 18px Icon in the trailing slot is not a touch target: on a
+              // handset, tapping the one part of the row that looks like a
+              // button did nothing, while the text beside it opened the
+              // picker. An IconButton gets the 48px minimum and its own
+              // handler, so both halves of the row now do the same thing.
+              trailing: IconButton(
+                icon: const Icon(Icons.calendar_today, size: 18),
+                tooltip: 'Change the date',
+                onPressed: _pickEffectiveDate,
+              ),
+              onTap: _pickEffectiveDate,
             ),
             const Divider(height: ManaSpacing.xxl),
             _derivedCard(),

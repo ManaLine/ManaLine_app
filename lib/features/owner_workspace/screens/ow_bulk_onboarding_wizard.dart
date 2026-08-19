@@ -1,6 +1,7 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
@@ -81,6 +82,71 @@ class _VillageDraft {
 
 class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizardScreen> {
   int _step = 0;
+
+  /// The page this sitting resumed at, or null if it started at the beginning.
+  /// Only used to say so on screen — landing on page 5 with no explanation
+  /// reads as lost work.
+  int? _resumedAt;
+
+  // Where the wizard had got to, per business.
+  //
+  // Eight pages, several of them a file upload, is more than one sitting: the
+  // Owner puts the phone down, comes back, and the wizard used to drop them on
+  // page 1 with every page they had already finished looking untouched. That
+  // is also how a book gets imported twice.
+  //
+  // NOT derived from what is already in the database, which was the first
+  // instinct: this business had four operating areas before the wizard was
+  // ever run, so "areas exist" would have marked page 2 done when it was not.
+  // A pointer the wizard writes itself cannot lie about its own progress.
+  //
+  // flutter_secure_storage rather than a new preferences dependency, matching
+  // appearance_state.dart's reasoning — it is heavier than this needs, but it
+  // is already here.
+  static const _storage = FlutterSecureStorage();
+  String get _stepKey => 'mana_bulk_onboarding_step_${widget.businessId}';
+
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame, not awaited: page 1 is a correct thing to show
+    // while the pointer is read, and blocking the first paint on a disk read
+    // to avoid one frame is a bad trade.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreStep());
+  }
+
+  Future<void> _restoreStep() async {
+    try {
+      final saved = int.tryParse(await _storage.read(key: _stepKey) ?? '');
+      if (!mounted || saved == null || saved <= 0) return;
+      // Clamp: a pointer written by an older build with more pages must not
+      // index past the end of _pageTitles.
+      final target = saved.clamp(0, _pageTitles.length - 1);
+      if (target == 0) return;
+      setState(() {
+        _step = target;
+        _resumedAt = target;
+      });
+    } catch (_) {
+      // An unreadable pointer is not worth a message — page 1 still works.
+    }
+  }
+
+  /// Move to [step] and remember it. Every page change goes through here so
+  /// there is no route back to page 1 that forgets to write the pointer.
+  void _goTo(int step) {
+    setState(() {
+      _step = step;
+      _resumedAt = null; // they have navigated; the banner has done its job
+    });
+    _storage.write(key: _stepKey, value: '$step').catchError((_) {});
+  }
+
+  /// Deliberate restart, from the resumed banner.
+  void _startFromTheBeginning() {
+    _goTo(0);
+    setState(() => _resumedAt = null);
+  }
 
   // 1 — identities
   bool _busy1 = false;
@@ -304,7 +370,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     final alreadyImported = _identityOutcome != null && !_identityOutcome!.rejected;
 
     if (parse == null || parse.rows.isEmpty || alreadyImported) {
-      setState(() => _step = 2);
+      _goTo(2);
       return;
     }
 
@@ -331,14 +397,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
 
     if (!mounted || choice == null) return;
     if (choice == 'skip') {
-      setState(() => _step = 2);
+      _goTo(2);
       return;
     }
     await _saveAreasAndIdentities();
     // Only move on if it actually landed; a rejection keeps them on the page
     // with the row-by-row errors in view.
     if (mounted && _identityOutcome != null && !_identityOutcome!.rejected) {
-      setState(() => _step = 2);
+      _goTo(2);
     }
   }
 
@@ -908,6 +974,32 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               color: ManaColors.brand,
             ),
           ),
+          // Said out loud. Opening the wizard and finding yourself on page 5
+          // with no explanation reads as lost work, and the way back has to be
+          // one tap rather than five presses of Back.
+          if (_resumedAt != null) ...[
+            const SizedBox(height: ManaSpacing.xs),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: ManaSpacing.sm,
+              children: [
+                ManaText.raw(
+                  'Carried on where you stopped.',
+                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                ),
+                TextButton(
+                  onPressed: _startFromTheBeginning,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const ManaText.raw('Start From Page 1',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -924,7 +1016,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           if (_step > 0)
             Flexible(
               child: OutlinedButton(
-                onPressed: () => setState(() => _step -= 1),
+                onPressed: () => _goTo(_step - 1),
                 child: ManaText.raw(ref.t('back')),
               ),
             ),
@@ -1044,7 +1136,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           _outcomeBlock(outcome,
               noun: 'identities',
               onDownloadCorrection: outcome.rejected ? _identityDownloadCorrection : null),
-        _navBar(onNext: () => setState(() => _step = 1)),
+        _navBar(onNext: () => _goTo(1)),
       ],
     );
   }
@@ -1284,7 +1376,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               ),
             ),
         ],
-        _navBar(onNext: () => setState(() => _step = 3)),
+        _navBar(onNext: () => _goTo(3)),
       ],
     );
   }
@@ -1353,7 +1445,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             ),
           ],
         ],
-        _navBar(onNext: () => setState(() => _step = 4)),
+        _navBar(onNext: () => _goTo(4)),
       ],
     );
   }
@@ -1393,7 +1485,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           ManaText.raw('$_attendanceRecorded days recorded.',
               style: TextStyle(fontWeight: FontWeight.w700, color: ManaColors.statusGood)),
         ],
-        _navBar(onNext: () => setState(() => _step = 5)),
+        _navBar(onNext: () => _goTo(5)),
       ],
     );
   }
@@ -1471,7 +1563,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           _amountRow('Profit — computed', snap['computed_profit']),
           _amountRow('Carried forward', snap['profit_carry_forward']),
         ],
-        _navBar(onNext: () => setState(() => _step = 6)),
+        _navBar(onNext: () => _goTo(6)),
       ],
     );
   }
@@ -1541,7 +1633,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           _amountRow('Line balance', profit['line_balance']),
           _amountRow('Collections', profit['collections']),
         ],
-        _navBar(onNext: () => setState(() => _step = 7), nextLabel: 'finish'),
+        _navBar(onNext: () => _goTo(7), nextLabel: 'finish'),
       ],
     );
   }

@@ -1,0 +1,18 @@
+-- Superseded three minutes later by
+-- 20260820220711_request_bf_update_keeps_its_signature.sql, and left
+-- deliberately empty.
+--
+-- What this version did wrong: it wrote app.request_bf_update as (uuid) while
+-- the real function is (uuid, text DEFAULT NULL). CREATE OR REPLACE cannot
+-- change a signature — it created a SECOND overload, and the call became
+-- ambiguous, which PostgREST refuses. Caught by invoking it inside a
+-- rolled-back transaction, which is the only way to catch it: a plpgsql body
+-- applies cleanly either way.
+--
+-- The replacement carries the real change on the original argument list.
+-- Replaying this as a no-op reaches the same end state; recreating the broken
+-- overload would only leave a fresh database briefly wrong.
+--
+-- The version row stays so the local files and
+-- supabase_migrations.schema_migrations continue to line up.
+SELECT 1;

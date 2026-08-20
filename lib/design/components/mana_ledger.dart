@@ -20,18 +20,30 @@ import 'mana_text.dart';
 /// working as intended, so it takes ordinary text colour and only the arrow
 /// and the missing `+` mark it as outgoing. Using red for every debit would
 /// make a normal day look like a bad one.
-({Color tint, IconData icon, ManaAmountTone tone}) ledgerVisual(bool isMoneyIn) =>
-    isMoneyIn
+({Color tint, IconData icon, ManaAmountTone tone}) ledgerVisual(
+  bool isMoneyIn, {
+  bool isTransfer = false,
+}) =>
+    isTransfer
+        // Neither in nor out: cash moved between two pockets of the same
+        // business. A sideways arrow and no green, because reading a BF grant
+        // as income is exactly the mistake this direction exists to prevent.
         ? (
-            tint: ManaColors.statusGood,
-            icon: Icons.south_west,
-            tone: ManaAmountTone.positive,
-          )
-        : (
             tint: ManaColors.textSecondary,
-            icon: Icons.north_east,
+            icon: Icons.swap_horiz,
             tone: ManaAmountTone.neutral,
-          );
+          )
+        : isMoneyIn
+            ? (
+                tint: ManaColors.statusGood,
+                icon: Icons.south_west,
+                tone: ManaAmountTone.positive,
+              )
+            : (
+                tint: ManaColors.textSecondary,
+                icon: Icons.north_east,
+                tone: ManaAmountTone.neutral,
+              );
 
 /// An event's amount, toned and signed by its own direction.
 ///
@@ -51,8 +63,9 @@ class ManaLedgerAmount extends StatelessWidget {
   Widget build(BuildContext context) => ManaAmount(
         event.amount,
         size: size,
-        tone: ledgerVisual(event.isMoneyIn).tone,
-        showSign: event.isMoneyIn,
+        tone: ledgerVisual(event.isMoneyIn, isTransfer: event.isTransfer).tone,
+        // No sign on a transfer: a leading + would read as income.
+        showSign: event.isMoneyIn && !event.isTransfer,
       );
 }
 
@@ -85,7 +98,7 @@ class ManaLedgerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final v = ledgerVisual(event.isMoneyIn);
+    final v = ledgerVisual(event.isMoneyIn, isTransfer: event.isTransfer);
     // Time is always present; the other two often are not, and a row reading
     // "9:32 AM · · " would look broken.
     final detail = [
@@ -149,7 +162,7 @@ class ManaLedgerRow extends StatelessWidget {
             ManaAmount(
               event.amount,
               tone: v.tone,
-              showSign: event.isMoneyIn,
+              showSign: event.isMoneyIn && !event.isTransfer,
               semanticLabel: actionLabel,
             ),
           ],

@@ -263,6 +263,14 @@ class OwnerApiService {
           .eq('business_id', businessId)
           .order('created_at', ascending: false)
           .limit(20),
+      // Agents blocked on a disputed opening BF. See below for why this is
+      // read at all.
+      _db
+          .from('agent_bf_assignments')
+          .select('assignment_id, updated_at, '
+              'business_members!inner(business_id, role, persons(full_name))')
+          .eq('update_requested', true)
+          .eq('business_members.business_id', businessId),
     ]);
 
     final business = results[0] as Map<String, dynamic>;
@@ -270,6 +278,7 @@ class OwnerApiService {
     final loans = results[2] as List;
     final investments = results[3] as List;
     final notificationsRaw = results[4] as List;
+    final disputedBf = results[5] as List;
 
     // Opens today's day_ledger row if it does not exist yet, carrying
     // yesterday's closing balance forward, then reads it. Nothing in the
@@ -392,7 +401,26 @@ class OwnerApiService {
       investorPendingAcceptance: (members).where((m) => m['role'] == 'Investor' && m['membership_status'] == 'Pending Acceptance').length,
       investorBalance: activeInvestmentSum,
       liveActivity: const [], // audit_log/collections-derived feed — needs its own query design, deferred (Priority 4-adjacent, not attempted this pass)
-      attentionRequired: const [],
+      // WAS `const []` — the Owner's "Attention Required" panel was hardcoded
+      // empty, so it said "Nothing needs attention right now" no matter what
+      // was waiting. An Agent who disputes their opening BF is told the Owner
+      // has been notified and is then locked out of their round until the
+      // Owner acts, and the Owner had no way of knowing. That is the one card
+      // populated here; the other types the panel routes to still need their
+      // own queries and are honestly absent rather than faked.
+      attentionRequired: disputedBf.isEmpty
+          ? const []
+          : [
+              AttentionCard(
+                type: 'Disputed Opening BF',
+                count: disputedBf.length,
+                priority: 'High',
+                lastUpdated: disputedBf
+                    .map((r) => DateTime.parse(
+                        (r as Map<String, dynamic>)['updated_at'] as String))
+                    .reduce((a, b) => a.isAfter(b) ? a : b),
+              ),
+            ],
       notifications: notificationsRaw
           .map((n) => NotificationItem(
                 type: n['notification_type'] as String,

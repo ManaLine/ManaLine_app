@@ -51,8 +51,12 @@ void main() {
       expect(LedgerEventType.fromWire('bf_grant'), LedgerEventType.bfGrant);
     });
 
-    test('BF is money in — it funds the round', () {
-      expect(LedgerEventType.bfGrant.direction, LedgerDirection.moneyIn);
+    test('BF is a transfer, not income', () {
+      // Corrected: it was first written as moneyIn, which made a day of
+      // handing out float read as +11,000 of income while day_ledger — the
+      // business's actual book — showed the month flat at zero. Cash moved
+      // between two pockets of one business; nothing entered or left.
+      expect(LedgerEventType.bfGrant.direction, LedgerDirection.transfer);
     });
   });
 

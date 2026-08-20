@@ -53,18 +53,22 @@ void main() {
 
     test('money in and money out are assigned correctly', () {
       const moneyIn = {
-        LedgerEventType.bfGrant,
         LedgerEventType.collection,
         LedgerEventType.investorDeposit,
         LedgerEventType.chetiReceived,
         LedgerEventType.adjustmentExcess,
       };
+      // A BF grant is neither: it moves cash between two pockets of the same
+      // business and must reach no total.
+      const transfers = {LedgerEventType.bfGrant};
+
       for (final t in LedgerEventType.values) {
-        expect(
-          t.direction,
-          moneyIn.contains(t) ? LedgerDirection.moneyIn : LedgerDirection.moneyOut,
-          reason: '${t.wire} has the wrong direction',
-        );
+        final expected = transfers.contains(t)
+            ? LedgerDirection.transfer
+            : moneyIn.contains(t)
+                ? LedgerDirection.moneyIn
+                : LedgerDirection.moneyOut;
+        expect(t.direction, expected, reason: '${t.wire} has the wrong direction');
       }
     });
 

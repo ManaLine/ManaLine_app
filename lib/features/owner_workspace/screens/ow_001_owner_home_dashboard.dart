@@ -1071,6 +1071,8 @@ class _AttentionRequired extends ConsumerWidget {
       'Pending Customer Approval' => '/ow-004',
       'Pending Loan Approval' => '/ow-loan-requests',
       'Pending Day Closure' => '/ow-011',
+      // Where an Agent's float is corrected.
+      'Disputed Opening BF' => '/ow-002',
       _ => '/ow-010',
     };
     context.push(route, extra: businessId);

@@ -15,14 +15,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'mana_time.dart';
 
 /// Which way the cash went. Derived server-side, never inferred from sign.
-enum LedgerDirection { moneyIn, moneyOut }
+/// Which way money moved — or, for [transfer], that it did not.
+///
+/// `transfer` exists because a BF grant hands cash from the Owner's till to an
+/// Agent's pocket INSIDE one business. Nothing enters or leaves, so it must
+/// never reach a day or month net: marking it moneyIn made a day of handing
+/// out float read as +11,000 of income while day_ledger — which is the
+/// business's actual book — correctly showed the month flat at zero. Two
+/// sources disagreeing about money on the same screen is the failure this app
+/// cannot have.
+enum LedgerDirection { moneyIn, moneyOut, transfer }
 
 /// The eight things that move money, matching `day_ledger`'s columns.
 enum LedgerEventType {
-  // The float a round is funded by. First event of its day, because that is
-  // the order the money moves in — without it a day of lending reads as pure
-  // loss.
-  bfGrant('bf_grant', LedgerDirection.moneyIn),
+  // The float a round is funded by. Shown at the head of its day so an Agent
+  // can see their cash arrive, but a TRANSFER: it moves between two pockets of
+  // the same business and changes no total.
+  bfGrant('bf_grant', LedgerDirection.transfer),
   collection('collection', LedgerDirection.moneyIn),
   loanDistribution('loan_distribution', LedgerDirection.moneyOut),
   expense('expense', LedgerDirection.moneyOut),
@@ -90,9 +99,17 @@ class LedgerEvent {
 
   bool get isMoneyIn => type.direction == LedgerDirection.moneyIn;
 
+  /// Moves cash between two pockets of the same business without changing what
+  /// the business holds. Counted in no total.
+  bool get isTransfer => type.direction == LedgerDirection.transfer;
+
   /// Signed value, for arithmetic only. Never render this directly — the UI
   /// shows direction through position and tone, not a minus sign on a debit.
-  int get signedAmount => isMoneyIn ? amount : -amount;
+  int get signedAmount => isTransfer
+      ? 0
+      : isMoneyIn
+          ? amount
+          : -amount;
 
   factory LedgerEvent.fromRow(Map<String, dynamic> row) => LedgerEvent(
         id: row['event_id'] as String,
@@ -163,11 +180,13 @@ class LedgerDay {
   int get netOfLoadedEvents =>
       events.fold(0, (sum, e) => sum + e.signedAmount);
 
-  int get moneyIn =>
-      events.where((e) => e.isMoneyIn).fold(0, (s, e) => s + e.amount);
+  int get moneyIn => events
+      .where((e) => e.isMoneyIn && !e.isTransfer)
+      .fold(0, (s, e) => s + e.amount);
 
-  int get moneyOut =>
-      events.where((e) => !e.isMoneyIn).fold(0, (s, e) => s + e.amount);
+  int get moneyOut => events
+      .where((e) => !e.isMoneyIn && !e.isTransfer)
+      .fold(0, (s, e) => s + e.amount);
 }
 
 /// Groups a flat, newest-first feed into business days, preserving order.

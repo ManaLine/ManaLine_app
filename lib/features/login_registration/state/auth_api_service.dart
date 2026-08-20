@@ -361,10 +361,23 @@ class AuthApiService {
         .from('business_members')
         .select(
             'membership_id, business_id, role, membership_status, verification_status, '
-            'businesses(business_name, business_status)')
+            'businesses(business_name, business_status), investors(investor_id)')
         .eq('person_id', personId);
 
-    return (rows as List).map((row) {
+    return (rows as List)
+        // An Investor membership with no `investors` row behind it is not an
+        // investor. Membership used to be inserted on its own and left there
+        // (see the membership_follows_activity migration), and one such row
+        // survived: the workspace picker announced "Owner, Agent, Investor"
+        // for a business the person had never invested a rupee in. Filtered
+        // HERE rather than in the picker so routing, the memberships list and
+        // the picker cannot disagree about what someone is.
+        .where((row) {
+          final r = row as Map<String, dynamic>;
+          if (r['role'] != 'Investor') return true;
+          return ((r['investors'] as List?) ?? const []).isNotEmpty;
+        })
+        .map((row) {
       final r = row as Map<String, dynamic>;
       final business = r['businesses'] as Map<String, dynamic>?;
       return Membership(

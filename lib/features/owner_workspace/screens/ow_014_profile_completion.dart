@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -209,7 +210,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
                 child: ManaText.raw(
                   ref.t('could_not_load_profile_note').replaceAll('{error}', '${snapshot.error}'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: ManaColors.statusBad, fontSize: 13),
+                  style: ManaType.noteBad,
                 ),
               );
             }
@@ -219,7 +220,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
               children: [
                 ManaText.raw(c.fullName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
                 ManaText.raw('${c.mlid} · ${c.profileStatus}',
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: ManaType.note),
                 const SizedBox(height: ManaSpacing.lg),
                 ManaText.raw(ref.t('owner_captured'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: ManaSpacing.sm),
@@ -256,7 +257,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(
                   ref.t('member_completes_note'),
-                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                  style: ManaType.note,
                 ),
                 const SizedBox(height: ManaSpacing.sm),
                 _StepTile(
@@ -282,7 +283,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
                   const SizedBox(height: ManaSpacing.sm),
                   ManaText.raw(
                     ref.t('owner_steps_required_note'),
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                    style: ManaType.note,
                   ),
                 ],
               ],
@@ -316,7 +317,7 @@ class _StepTile extends StatelessWidget {
       child: ListTile(
         leading: Icon(icon, color: done ? ManaColors.statusGood : ManaColors.brand),
         title: ManaText.raw(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-        subtitle: ManaText.raw(subtitle, style: const TextStyle(fontSize: 13)),
+        subtitle: ManaText.raw(subtitle, style: ManaType.small),
         trailing: done
             ? Icon(Icons.check_circle, color: ManaColors.statusGood, size: 20)
             : (onTap == null ? null : const Icon(Icons.chevron_right)),
@@ -490,7 +491,7 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
                         dense: true,
                         title: ManaText.raw(
                           '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}',
-                          style: const TextStyle(fontSize: 13),
+                          style: ManaType.small,
                         ),
                         onTap: () => setState(() {
                           _selectedVillage = v;
@@ -573,7 +574,7 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
                   ref.t('selected_note').replaceAll('{value}',
                       '${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, '
                       '${_selectedVillage!['district']}, ${_selectedVillage!['state']}'),
-                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                  style: ManaType.note,
                 ),
               ],
             ],
@@ -642,7 +643,7 @@ class _ContactDialogState extends ConsumerState<_ContactDialog> {
           children: [
             ManaText.raw(
               ref.t('blank_fields_unchanged_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.sm),
             TextField(
@@ -679,7 +680,7 @@ class _ContactDialogState extends ConsumerState<_ContactDialog> {
                         ? ref.t('dob_not_set')
                         : ref.t('dob_value_note').replaceAll(
                             '{date}', _dob!.toIso8601String().split('T').first),
-                    style: const TextStyle(fontSize: 13),
+                    style: ManaType.small,
                   ),
                 ),
                 TextButton(

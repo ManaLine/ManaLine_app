@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_text.dart';
@@ -17,7 +18,6 @@ import '../state/investor_state.dart';
 import '../../../design/components/mana_info_hint.dart';
 import '../../../design/components/mana_call_button.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// OW-003 — Investor Management. Register New Investor is
 /// Investor-initiated (LOCKED CORRECTION in spec) — this screen's C4 is
@@ -186,8 +186,8 @@ class _DashboardStrip extends ConsumerWidget {
       (ref.t('pending_invitation_status'), '${state.pendingInvitations}', ManaStatus.warn),
       (ref.t('pending_acceptance_status'), '${state.pendingAcceptance}', ManaStatus.warn),
       (ref.t('suspended'), '${state.suspended}', ManaStatus.bad),
-      (ref.t('total_investment_balance'), _currency.format(state.totalInvestment), ManaStatus.neutral),
-      (ref.t('interest_payable'), _currency.format(state.interestPayable), ManaStatus.neutral),
+      (ref.t('total_investment_balance'), manaRupees(state.totalInvestment), ManaStatus.neutral),
+      (ref.t('interest_payable'), manaRupees(state.interestPayable), ManaStatus.neutral),
     ];
     return ManaStatStrip(
       valueFontSize: 16,
@@ -217,9 +217,9 @@ class _InvestorRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: ListTile(
         leading: const ManaVerificationRing(isVerified: true, size: 40),
-        title: ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: ManaText.raw(investor.fullName, style: ManaType.emphasis),
         subtitle: ManaText.raw(
-          '${investor.mlid} · ${_currency.format(investor.investmentBalance)} @ ${roiLabel(investor.roi)}',
+          '${investor.mlid} · ${manaRupees(investor.investmentBalance)} @ ${roiLabel(investor.roi)}',
           style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
         trailing: ManaTrailingStatus(
@@ -360,7 +360,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            ManaText.raw(ref.t('add_existing_investor'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('add_existing_investor'), style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.lg),
             Row(
               children: [
@@ -419,7 +419,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
             // an investor at all — there is no attach-only step any more.
             const Divider(height: ManaSpacing.xl),
             const ManaText.raw('Their First Investment',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.sm),
             Row(
               children: [
@@ -475,7 +475,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                 Expanded(
                   child: ManaText.raw(
                     'Invested on ${_investedOn.toIso8601String().split("T").first}',
-                    style: const TextStyle(fontSize: 13),
+                    style: ManaType.small,
                   ),
                 ),
                 Flexible(
@@ -490,7 +490,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
             if (_searched && _results.isEmpty)
               ManaText.raw(
                 'Nobody matches that. Try fewer details, or add them as a new investor.',
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                style: ManaType.note,
               ),
             if (_results.isNotEmpty)
               ConstrainedBox(
@@ -611,8 +611,8 @@ class _OverviewTab extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.md),
         Center(
             child:
-                ManaText.raw(investor.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-        Center(child: ManaText.raw(investor.mlid, style: TextStyle(color: ManaColors.textSecondary))),
+                ManaText.raw(investor.fullName, style: ManaType.sheetTitle)),
+        Center(child: ManaText.raw(investor.mlid, style: ManaType.secondary)),
         const SizedBox(height: ManaSpacing.lg),
         Row(
           children: [
@@ -621,10 +621,10 @@ class _OverviewTab extends ConsumerWidget {
             ManaCallButton(investor.phoneNumber),
           ],
         ),
-        _row(ref.t('investment_balance'), _currency.format(investor.investmentBalance)),
+        _row(ref.t('investment_balance'), manaRupees(investor.investmentBalance)),
         _row(ref.t('roi'), roiLabel(investor.roi)),
         _row(ref.t('roi_yearly_equivalent'), roiAnnualEquivalent(investor.roi)),
-        _row(ref.t('interest_due'), _currency.format(investor.interestDue)),
+        _row(ref.t('interest_due'), manaRupees(investor.interestDue)),
         _row(ref.t('membership_status'), investor.membershipStatus),
         _row(ref.t('last_transaction'),
             investor.lastTransaction == null ? '—' : DateFormat('d MMM yyyy').format(investor.lastTransaction!)),
@@ -636,7 +636,7 @@ class _OverviewTab extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            Expanded(child: ManaText.raw(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+            Expanded(child: ManaText.raw(label, style: ManaType.note)),
             ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           ],
         ),
@@ -670,12 +670,12 @@ class _InvestmentsTab extends ConsumerWidget {
             padding: const EdgeInsets.only(top: ManaSpacing.xs),
             child: ManaText.raw(
               ref.t('only_active_investors_note').replaceAll('{status}', profile.summary.membershipStatus),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
           ),
         const SizedBox(height: ManaSpacing.lg),
         if (profile.investments.isEmpty)
-          ManaText.raw(ref.t('no_investments_recorded_yet'), style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_investments_recorded_yet'), style: ManaType.secondary)
         else
           ...profile.investments.map((inv) => Card(
                 child: Padding(
@@ -686,8 +686,8 @@ class _InvestmentsTab extends ConsumerWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: ManaText.raw(_currency.format(inv.principalAmount),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            child: ManaText.raw(manaRupees(inv.principalAmount),
+                                style: ManaType.cardTitle),
                           ),
                           ManaStatusPill(
                             label: inv.status,
@@ -708,7 +708,7 @@ class _InvestmentsTab extends ConsumerWidget {
                               PopupMenuItem(
                                 value: 'delete',
                                 child: ManaText.raw(ref.t('delete_investment'),
-                                    style: TextStyle(color: ManaColors.statusBad)),
+                                    style: ManaType.bad),
                               ),
                             ],
                           ),
@@ -716,7 +716,7 @@ class _InvestmentsTab extends ConsumerWidget {
                       ),
                       ManaText.raw(
                         '${roiLabel(inv.roiRate)} · ${inv.interestMethod} · since ${DateFormat('d MMM yyyy').format(inv.effectiveDate)}',
-                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                        style: ManaType.note,
                       ),
                       const SizedBox(height: ManaSpacing.sm),
                       Row(
@@ -728,10 +728,10 @@ class _InvestmentsTab extends ConsumerWidget {
                           Expanded(
                             child: _small(
                               ref.t(inv.isCompound ? 'accrued_this_year' : 'accrued'),
-                              _currency.format(inv.interestAccrued),
+                              manaRupees(inv.interestAccrued),
                             ),
                           ),
-                          Expanded(child: _small(ref.t('paid'), _currency.format(inv.interestPaid))),
+                          Expanded(child: _small(ref.t('paid'), manaRupees(inv.interestPaid))),
                         ],
                       ),
                       // Where the compounded years went. Without this the
@@ -742,10 +742,10 @@ class _InvestmentsTab extends ConsumerWidget {
                         Row(
                           children: [
                             Expanded(
-                                child: _small(ref.t('invested'), _currency.format(inv.originalPrincipal))),
+                                child: _small(ref.t('invested'), manaRupees(inv.originalPrincipal))),
                             Expanded(
                                 child: _small(ref.t('added_to_principal'),
-                                    _currency.format(inv.principalAmount - inv.originalPrincipal))),
+                                    manaRupees(inv.principalAmount - inv.originalPrincipal))),
                           ],
                         ),
                       ],
@@ -761,7 +761,7 @@ class _InvestmentsTab extends ConsumerWidget {
                           children: [
                             Expanded(
                               child: ManaText.raw(ref.t('total_interest_earned'),
-                                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                  style: ManaType.note),
                             ),
                             ManaAmount(inv.totalInterestEarned, size: ManaAmountSize.compact),
                           ],
@@ -810,8 +810,8 @@ class _InvestmentsTab extends ConsumerWidget {
   Widget _small(String label, String value) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
-          ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          ManaText.raw(label, style: ManaType.note),
+          ManaText.raw(value, style: ManaType.smallStrong),
         ],
       );
 
@@ -824,7 +824,7 @@ class _InvestmentsTab extends ConsumerWidget {
         content: ManaText.raw(
           ref
               .t('delete_investment_confirm_note')
-              .replaceAll('{amount}', _currency.format(inv.principalAmount))
+              .replaceAll('{amount}', manaRupees(inv.principalAmount))
               .replaceAll('{roi}', roiLabel(inv.roiRate))
               .replaceAll('{date}', DateFormat('d MMM yyyy').format(inv.effectiveDate)),
         ),
@@ -899,7 +899,7 @@ class _InvestmentsTab extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: ManaText.raw(
                       '= ${roiAnnualEquivalent(double.parse(roi.text.trim()))}',
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                      style: ManaType.note,
                     ),
                   ),
                 ),
@@ -1057,7 +1057,7 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
                 ref
                     .t('percent_of_total_profit_note')
                     .replaceAll('{percent}', '${widget.investment.profitSharePercent}'),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: ManaType.note),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: amountController,
@@ -1108,7 +1108,7 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
           children: [
             Row(
               children: [
-                Expanded(child: ManaText.raw(ref.t('profit_share'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+                Expanded(child: ManaText.raw(ref.t('profit_share'), style: ManaType.sheetTitle)),
                 FilledButton.tonalIcon(onPressed: _declare, icon: const Icon(Icons.add, size: 18), label: ManaText.raw(ref.t('declare'))),
               ],
             ),
@@ -1123,7 +1123,7 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
                   final declarations = snapshot.data ?? const [];
                   if (declarations.isEmpty) {
                     return Center(
-                      child: ManaText.raw(ref.t('no_profit_share_declarations_yet'), style: TextStyle(color: ManaColors.textSecondary)),
+                      child: ManaText.raw(ref.t('no_profit_share_declarations_yet'), style: ManaType.secondary),
                     );
                   }
                   return ListView.separated(
@@ -1134,9 +1134,9 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
                       final d = declarations[i];
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: ManaText.raw(_currency.format(d.declaredAmount)),
+                        title: ManaText.raw(manaRupees(d.declaredAmount)),
                         subtitle: ManaText.raw(
-                            '${DateFormat('d MMM yyyy').format(d.businessDate)} · of ${_currency.format(d.totalProfitAmount)} total'),
+                            '${DateFormat('d MMM yyyy').format(d.businessDate)} · of ${manaRupees(d.totalProfitAmount)} total'),
                         trailing: d.status == 'Declared'
                             ? FilledButton(onPressed: () => _pay(d), child: ManaText.raw(ref.t('mark_paid')))
                             : ManaStatusPill(label: ref.t('paid'), status: ManaStatus.good),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../design/tokens/colors.dart';
+import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
@@ -99,13 +100,13 @@ class _AccountClosureScreenState extends ConsumerState<AccountClosureScreen> {
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             const ManaText('switch off my account',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
               'Your records stay exactly as they are. You will not be able to '
               'sign in until you switch it back on, which you can do at any '
               'time by signing in again.',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.sm),
             OutlinedButton(
@@ -130,7 +131,7 @@ class _AccountClosureScreenState extends ConsumerState<AccountClosureScreen> {
               'Your account is switched off straight away and scheduled for '
               'deletion in 90 days. You can still change your mind at any '
               'point in those 90 days by signing in again.',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.xs),
             // Said plainly rather than discovered at the point of failure: an
@@ -138,7 +139,7 @@ class _AccountClosureScreenState extends ConsumerState<AccountClosureScreen> {
             // and customers would have nobody able to administer them.
             ManaText.raw(
               'If you own a business, transfer or close it first.',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.sm),
             OutlinedButton(

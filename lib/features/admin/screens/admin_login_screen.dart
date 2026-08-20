@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -105,7 +106,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: ManaSpacing.md),
-                ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad)),
+                ManaText.raw(_error!, style: ManaType.bad),
               ],
               const SizedBox(height: ManaSpacing.lg),
               ElevatedButton(

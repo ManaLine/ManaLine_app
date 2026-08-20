@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -11,8 +13,6 @@ import '../../../shared/text_utils.dart';
 import '../../../shared/translation_service.dart';
 import '../state/my_investments_state.dart';
 
-final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
 
 /// IW-003 — My Investments. List (S1) + Detail View (S2, drilled in on
@@ -110,12 +110,12 @@ class _MyInvestmentsScreenState extends ConsumerState<MyInvestmentsScreen> {
                   const SizedBox(height: ManaSpacing.md),
                   ManaText.raw(ref.t('no_investments_recorded_yet'),
                       style:
-                          const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          ManaType.cardTitle),
                   const SizedBox(height: ManaSpacing.sm),
                   ManaText.raw(
                     ref.t('no_investments_note'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: ManaColors.textSecondary),
+                    style: ManaType.secondary,
                   ),
                 ],
               ),
@@ -165,7 +165,7 @@ class _InvestmentListCard extends ConsumerWidget {
         title: Row(
           children: [
             Expanded(
-              child: ManaText.raw(_currency.format(investment.principalAmount),
+              child: ManaText.raw(manaRupees(investment.principalAmount),
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 16)),
             ),
@@ -199,13 +199,13 @@ class _InvestmentListCard extends ConsumerWidget {
                     child: ManaText.raw(
                         ref
                             .t(investment.isCompound ? 'accrued_this_year_note' : 'accrued_note')
-                            .replaceAll('{amount}', _currency.format(investment.interestAccrued))
-                            .replaceAll('{total}', _currency.format(investment.totalInterestEarned)),
+                            .replaceAll('{amount}', manaRupees(investment.interestAccrued))
+                            .replaceAll('{total}', manaRupees(investment.totalInterestEarned)),
                         style: const TextStyle(fontSize: 16)),
                   ),
                   Expanded(
                     child: ManaText.raw(
-                        ref.t('paid_short_note').replaceAll('{amount}', _currency.format(investment.interestPaid)),
+                        ref.t('paid_short_note').replaceAll('{amount}', manaRupees(investment.interestPaid)),
                         style: const TextStyle(fontSize: 16)),
                   ),
                 ],
@@ -351,17 +351,17 @@ class _StatementSheet extends ConsumerWidget {
             : ListView(
                 controller: scrollController,
                 children: [
-                  ManaText.raw(ref.t('statement'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  ManaText.raw(ref.t('statement'), style: ManaType.sheetTitle),
                   const SizedBox(height: ManaSpacing.md),
                   ManaText.raw(ref.t('interest_ledger'), style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (ledger.isEmpty)
-                    ManaText.raw(ref.t('no_entries_yet'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
+                    ManaText.raw(ref.t('no_entries_yet'), style: ManaType.note)
                   else
                     ...ledger.map((e) => ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
-                          title: ManaText.raw('${e['entry_type']} · ${_currency.format((e['amount'] as num).toInt())}'),
+                          title: ManaText.raw('${e['entry_type']} · ${manaRupees((e['amount'] as num).toInt())}'),
                           subtitle: ManaText.raw('${e['business_date']}${e['remarks'] != null ? ' · ${e['remarks']}' : ''}',
                               style: const TextStyle(fontSize: 16)),
                         )),
@@ -369,28 +369,28 @@ class _StatementSheet extends ConsumerWidget {
                   ManaText.raw(ref.t('distributions'), style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (distributions.isEmpty)
-                    ManaText.raw(ref.t('no_entries_yet'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
+                    ManaText.raw(ref.t('no_entries_yet'), style: ManaType.note)
                   else
                     ...distributions.map((d) => ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: ManaText.raw(
-                              '${d['status']} · ${_currency.format((d['declared_amount'] as num).toInt())}'),
+                              '${d['status']} · ${manaRupees((d['declared_amount'] as num).toInt())}'),
                           subtitle: ManaText.raw(
-                              '${d['business_date']}${d['paid_amount'] != null ? ' · paid ${_currency.format((d['paid_amount'] as num).toInt())}' : ''}',
+                              '${d['business_date']}${d['paid_amount'] != null ? ' · paid ${manaRupees((d['paid_amount'] as num).toInt())}' : ''}',
                               style: const TextStyle(fontSize: 16)),
                         )),
                   const SizedBox(height: ManaSpacing.md),
                   ManaText.raw(ref.t('withdrawal_requests'), style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: ManaSpacing.xs),
                   if (withdrawals.isEmpty)
-                    ManaText.raw(ref.t('no_entries_yet'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
+                    ManaText.raw(ref.t('no_entries_yet'), style: ManaType.note)
                   else
                     ...withdrawals.map((w) => ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: ManaText.raw(
-                              '${w['withdrawal_type']} · ${_currency.format((w['requested_amount'] as num).toDouble())}'),
+                              '${w['withdrawal_type']} · ${manaRupees((w['requested_amount'] as num).toDouble())}'),
                           subtitle: ManaText.raw('${w['status']} · ${w['created_at']}', style: const TextStyle(fontSize: 16)),
                         )),
                 ],
@@ -417,15 +417,15 @@ class _AgreementSnapshotCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('agreement_snapshot'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: 4),
             ManaText.raw(
                 ref.t('frozen_terms_note'),
                 style:
-                    TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    ManaType.note),
             const SizedBox(height: ManaSpacing.md),
             _row(ref.t('original_principal_amount'),
-                _currency.format(snapshot.originalPrincipalAmount)),
+                manaRupees(snapshot.originalPrincipalAmount)),
             _row(ref.t('roi_rate'), roiLabel(snapshot.roiRate)),
             _row(ref.t('yearly_equivalent'), roiAnnualEquivalent(snapshot.roiRate)),
             _row(ref.t('interest_type'), snapshot.interestType),
@@ -448,7 +448,7 @@ class _AgreementSnapshotCard extends ConsumerWidget {
                         color: ManaColors.textSecondary, fontSize: 13))),
             ManaText.raw(value,
                 style:
-                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ManaType.smallStrong),
           ],
         ),
       );
@@ -469,11 +469,11 @@ class _InterestLedgerSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('interest_ledger'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
               ManaText.raw(ref.t('no_interest_ledger_entries_yet'),
-                  style: TextStyle(color: ManaColors.textSecondary))
+                  style: ManaType.secondary)
             else
               ...entries.map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -505,7 +505,7 @@ class _InterestLedgerSection extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              ManaText.raw(_currency.format(e.amount),
+                              ManaText.raw(manaRupees(e.amount),
                                   style: const TextStyle(
                                       fontWeight: FontWeight.w600)),
                               ManaStatusPill(
@@ -542,11 +542,11 @@ class _WithdrawalHistorySection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('withdrawal_history'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
               ManaText.raw(ref.t('no_withdrawals_recorded_yet'),
-                  style: TextStyle(color: ManaColors.textSecondary))
+                  style: ManaType.secondary)
             else
               ...entries.map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -582,7 +582,7 @@ class _WithdrawalHistorySection extends ConsumerWidget {
                           flex: 2,
                           child: Align(
                             alignment: Alignment.centerRight,
-                            child: ManaText.raw(_currency.format(e.amount),
+                            child: ManaText.raw(manaRupees(e.amount),
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w600)),
                           ),
@@ -612,16 +612,16 @@ class _DistributionHistorySection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('distribution_history'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: 4),
             ManaText.raw(
               ref.t('profit_share_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
               ManaText.raw(ref.t('no_profit_share_declarations_yet'),
-                  style: TextStyle(color: ManaColors.textSecondary))
+                  style: ManaType.secondary)
             else
               ...entries.map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -632,7 +632,7 @@ class _DistributionHistorySection extends ConsumerWidget {
                           children: [
                             Expanded(
                               child: ManaText.raw(
-                                  ref.t('declared_note').replaceAll('{amount}', _currency.format(e.declaredAmount)),
+                                  ref.t('declared_note').replaceAll('{amount}', manaRupees(e.declaredAmount)),
                                   style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 16)),
@@ -652,10 +652,10 @@ class _DistributionHistorySection extends ConsumerWidget {
                           ManaText.raw(
                             ref
                                     .t('paid_note')
-                                    .replaceAll('{amount}', _currency.format(e.paidAmount ?? 0))
+                                    .replaceAll('{amount}', manaRupees(e.paidAmount ?? 0))
                                     .replaceAll('{date}', _dateFmt.format(e.paidDate!)) +
                                 ((e.paidInterestAmount ?? 0) > 0
-                                    ? ref.t('paid_interest_extra').replaceAll('{amount}', _currency.format(e.paidInterestAmount!))
+                                    ? ref.t('paid_interest_extra').replaceAll('{amount}', manaRupees(e.paidInterestAmount!))
                                     : ''),
                             style: TextStyle(
                                 fontSize: 16, color: ManaColors.statusGood),

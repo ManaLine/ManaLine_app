@@ -33,6 +33,20 @@ import '../tokens/colors.dart';
 /// thousands). Matches the existing `_currency` formatters this replaces.
 final _inr = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
+/// The one string form of a rupee amount, for the places a widget cannot go —
+/// snackbar sentences, semantics labels, interpolated strings.
+///
+/// WHY: 21 files each declared their own `NumberFormat.currency(...)` and
+/// formatted money at 163 call sites. They happened to agree today; nothing
+/// made them keep agreeing, and the negative form NumberFormat produces —
+/// "₹-1,06,600" — puts the sign inside the currency mark where it is easy to
+/// miss. This renders −₹1,06,600: U+2212 minus, in front, unmissable.
+///
+/// Anything DISPLAYED as its own widget should be [ManaAmount], which adds
+/// tabular figures, a screen-reader label and no-wrap on top of this.
+String manaRupees(num value) =>
+    (value < 0 ? '−' : '') + _inr.format(value.abs());
+
 /// How prominent an amount is. Sizes are floors, not suggestions — see the
 /// typography rationale in the class doc.
 enum ManaAmountSize {

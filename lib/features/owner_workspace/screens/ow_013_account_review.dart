@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/account_review_state.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('dd-MM-yyyy');
 
 /// OW-013 — Account Review. CARD-based DISPLAY per 2026-07-19 mobile
@@ -75,7 +76,7 @@ class _ErrorBanner extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.sm),
         ManaText.raw(message,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+            style: ManaType.noteBad),
         const SizedBox(height: ManaSpacing.sm),
         Center(child: ElevatedButton(onPressed: onRetry, child: ManaText.raw(ref.t('retry')))),
       ],
@@ -112,7 +113,7 @@ class _AccountReviewTab extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                     child: Center(
                       child: ManaText.raw(ref.t('no_accounts_pending_review'),
-                          style: TextStyle(color: ManaColors.textSecondary)),
+                          style: ManaType.secondary),
                     ),
                   )
                 else
@@ -146,7 +147,7 @@ class _OwnerBfPanel extends ConsumerWidget {
             const SizedBox(height: 4),
             ManaText.raw(
               ref.t('provisional_until_approved_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
           ],
         ),
@@ -166,7 +167,7 @@ class _OwnerBfPanel extends ConsumerWidget {
         children: [
           Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style)),
           const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(_currency.format(amount), style: style),
+          ManaText.raw(manaRupees(amount), style: style),
         ],
       ),
     );
@@ -187,9 +188,9 @@ class _SettlementCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final breakdown = <String>[
-      if (settlement.handOverCash > 0) 'Cash ${_currency.format(settlement.handOverCash)}',
-      if (settlement.handOverUpi > 0) 'UPI ${_currency.format(settlement.handOverUpi)}',
-      if (settlement.handOverCheque > 0) 'Cheque ${_currency.format(settlement.handOverCheque)}',
+      if (settlement.handOverCash > 0) 'Cash ${manaRupees(settlement.handOverCash)}',
+      if (settlement.handOverUpi > 0) 'UPI ${manaRupees(settlement.handOverUpi)}',
+      if (settlement.handOverCheque > 0) 'Cheque ${manaRupees(settlement.handOverCheque)}',
     ];
 
     return Card(
@@ -206,14 +207,14 @@ class _SettlementCard extends ConsumerWidget {
                   child: ManaText.raw(_dateFmt.format(settlement.businessDate),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                      style: ManaType.note),
                 ),
                 const SizedBox(width: ManaSpacing.xs),
                 Flexible(child: ManaStatusPill(label: settlement.status, status: _statusKind)),
               ],
             ),
             const SizedBox(height: 4),
-            ManaText.raw(settlement.agentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(settlement.agentName, style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             _fieldRow(ref.t('total_collections'), settlement.totalCollections),
             _fieldRow(ref.t('total_loans_issued'), settlement.totalLoansIssued),
@@ -229,15 +230,15 @@ class _SettlementCard extends ConsumerWidget {
               children: [
                 Expanded(child: ManaText.raw(ref.t('hand_over_balance'), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 const SizedBox(width: ManaSpacing.xs),
-                ManaText.raw(_currency.format(settlement.handOverTotal),
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                ManaText.raw(manaRupees(settlement.handOverTotal),
+                    style: ManaType.strong),
               ],
             ),
             if (breakdown.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: ManaText.raw(breakdown.join(' / '),
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: ManaType.note),
               ),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
@@ -279,7 +280,7 @@ class _SettlementCard extends ConsumerWidget {
         children: [
           Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: color))),
           const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(_currency.format(amount), style: TextStyle(fontSize: 16, color: color)),
+          ManaText.raw(manaRupees(amount), style: TextStyle(fontSize: 16, color: color)),
         ],
       ),
     );
@@ -369,14 +370,14 @@ class _SettlementDetailSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw(detail.summary.agentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ManaText.raw(detail.summary.agentName, style: ManaType.sheetTitle),
           const SizedBox(height: ManaSpacing.md),
           if (detail.adjustments.isEmpty)
-            ManaText.raw(ref.t('no_short_excess_adjustments'), style: TextStyle(color: ManaColors.textSecondary))
+            ManaText.raw(ref.t('no_short_excess_adjustments'), style: ManaType.secondary)
           else
             ...detail.adjustments.map((a) => ListTile(
                   dense: true,
-                  title: ManaText.raw('${a.type} — ${_currency.format(a.amount)}'),
+                  title: ManaText.raw('${a.type} — ${manaRupees(a.amount)}'),
                   subtitle: ManaText.raw(ref.t('applied_to_note').replaceAll('{target}', a.appliedTo)),
                 )),
           if (detail.agentRemarks != null) ...[
@@ -402,7 +403,7 @@ class _DailyAllowanceTab extends ConsumerWidget {
       children: [
         ManaText.raw(
           ref.t('daily_allowance_tracking_note'),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.md),
         if (state.accessDays.isEmpty)
@@ -410,14 +411,14 @@ class _DailyAllowanceTab extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
             child: Center(
               child: ManaText.raw(ref.t('no_access_days_granted'),
-                  style: TextStyle(color: ManaColors.textSecondary)),
+                  style: ManaType.secondary),
             ),
           )
         else
           ...state.accessDays.map((a) => Card(
                 child: ListTile(
                   title: ManaText.raw(a.agentName),
-                  subtitle: ManaText.raw(ref.t('allowance_note').replaceAll('{amount}', _currency.format(a.allowanceAmount))),
+                  subtitle: ManaText.raw(ref.t('allowance_note').replaceAll('{amount}', manaRupees(a.allowanceAmount))),
                   trailing: IconButton(
                     icon: const Icon(Icons.close, size: 18),
                     onPressed: () =>

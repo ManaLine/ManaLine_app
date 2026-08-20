@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design/tokens/colors.dart';
+import '../../design/tokens/typography.dart';
 import '../../design/tokens/spacing.dart';
 import '../../design/components/mana_text.dart';
 import '../network_error_handler.dart';
@@ -134,7 +135,7 @@ class _RecordExpenseSheetState extends State<RecordExpenseSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const ManaText('record expense',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: ManaType.cardTitle),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(widget.payerNote,
                   style: TextStyle(

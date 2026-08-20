@@ -83,7 +83,7 @@ class _ErrorState extends StatelessWidget {
         child: ManaText.raw(
           message ?? 'Could not load this investment.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: ManaColors.statusBad),
+          style: ManaType.bad,
         ),
       ),
     );
@@ -227,7 +227,7 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                     child: ManaText.raw(
                       'Available Balance is below ₹1.00 — withdrawal requests are disabled.',
                       style:
-                          TextStyle(color: ManaColors.statusWarn, fontSize: 13),
+                          ManaType.noteWarn,
                     ),
                   ),
                 ],

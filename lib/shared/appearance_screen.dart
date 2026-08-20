@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../design/tokens/colors.dart';
+import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
 import '../design/components/mana_amount.dart';
@@ -37,12 +38,12 @@ class AppearanceScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             const ManaText('theme',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
               'Dark uses less battery on some phones, and is easier at night. '
               'Light is easier to read in direct sun.',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.md),
             RadioGroup<ManaThemeChoice>(
@@ -66,11 +67,11 @@ class AppearanceScreen extends ConsumerWidget {
 
             const SizedBox(height: ManaSpacing.lg),
             const ManaText('text size',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
               'This adds to whatever text size your phone is already set to.',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.md),
 
@@ -97,7 +98,7 @@ class AppearanceScreen extends ConsumerWidget {
 
             const SizedBox(height: ManaSpacing.lg),
             const ManaText('preview',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.sm),
             Container(
               padding: const EdgeInsets.all(ManaSpacing.md),
@@ -120,7 +121,7 @@ class AppearanceScreen extends ConsumerWidget {
                   const SizedBox(height: ManaSpacing.sm),
                   const ManaText.raw(
                     'Ravi Kumar — instalment due today',
-                    style: TextStyle(fontSize: 13),
+                    style: ManaType.small,
                   ),
                 ],
               ),
@@ -134,7 +135,7 @@ class AppearanceScreen extends ConsumerWidget {
             ManaText.raw(
               'Dark is new. If anything is hard to read outdoors, switch back '
               'to light and tell us which screen.',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
           ],
         ),

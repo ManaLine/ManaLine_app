@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -48,7 +49,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                       child: ManaText.raw(
                         state.error ?? 'Could not load profile.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: ManaColors.statusBad),
+                        style: ManaType.bad,
                       ),
                     ),
                   )
@@ -71,7 +72,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.lg),
                             child: ManaText.raw(
                               'No Business Memberships found.',
-                              style: TextStyle(color: ManaColors.textSecondary),
+                              style: ManaType.secondary,
                             ),
                           )
                         else
@@ -559,7 +560,7 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
                   final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
                   return ListTile(
                     dense: true,
-                    title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
+                    title: ManaText.raw(label, style: ManaType.small),
                     onTap: () => setState(() {
                       _selectedVillage = v;
                       _villageSearch.text = v['village_town_name'] as String;
@@ -573,7 +574,7 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
             const SizedBox(height: 4),
             ManaText.raw(
               'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
           ],
         ],

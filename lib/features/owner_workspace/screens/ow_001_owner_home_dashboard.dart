@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/auto_refresh.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_info_popup.dart';
@@ -24,8 +25,6 @@ import '../../../shared/translation_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 
-final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// The Owner's drawer. Supplied by the screen rather than baked into
 /// [ManaAppShell] because an Agent's "Customers" is not an Owner's — same
@@ -582,7 +581,7 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                 padding: const EdgeInsets.all(ManaSpacing.lg),
                 child: ManaText.raw(_error!,
                     style:
-                        TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                        ManaType.noteBad),
               )
             : _found.isEmpty
                 ? Padding(
@@ -596,7 +595,7 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                             ? ref.t('no_identity_found')
                             : ref.t('search_by_phone_mlid_aadhaar_name'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: ManaColors.textSecondary),
+                        style: ManaType.secondary,
                       ),
                     ),
                   )
@@ -710,7 +709,7 @@ class _BfRow extends ConsumerWidget {
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             ManaText.raw(ref.t('todays_business_summary'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.md),
             _TodaysSummary(data: data),
           ],
@@ -727,7 +726,7 @@ class _BfRow extends ConsumerWidget {
     return Semantics(
       button: true,
       excludeSemantics: true,
-      label: 'Brought forward, ${_currency.format(data.openingBalance)}. '
+      label: 'Brought forward, ${manaRupees(data.openingBalance)}. '
           "Opens today's business summary",
       child: ManaPressable(
         onTap: () => _openSheet(context, ref),
@@ -743,10 +742,10 @@ class _BfRow extends ConsumerWidget {
                 children: [
                   ManaInfoWord(ref.t('brought_forward'),
                       infoKey: 'bf',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: ManaType.strong),
                   const SizedBox(width: ManaSpacing.sm),
                   ManaText.raw('=',
-                      style: TextStyle(color: ManaColors.textSecondary)),
+                      style: ManaType.secondary),
                   const SizedBox(width: ManaSpacing.sm),
                   Expanded(
                     child: ManaAmount(data.openingBalance),
@@ -790,7 +789,7 @@ class _TodaysSummary extends ConsumerWidget {
                     children: [
                       Expanded(
                           child: ManaText.raw(r.$1,
-                              style: const TextStyle(fontSize: 13))),
+                              style: ManaType.small)),
                       // ManaAmount rather than a raw formatted string: tabular
                       // figures so this column of rupee values actually aligns
                       // digit-for-digit, and a spoken form ("Today's
@@ -816,7 +815,7 @@ class _TodaysSummary extends ConsumerWidget {
               children: [
                 Expanded(
                   child: ManaText.raw(ref.t('closing_balance'),
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: ManaType.strong),
                 ),
                 // The figure this card exists to deliver, so it gets the
                 // larger size rather than matching the rows above it.
@@ -1030,7 +1029,7 @@ class _LiveActivity extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: ManaText.raw(ref.t('no_activity_today'),
-              style: TextStyle(color: ManaColors.textSecondary)),
+              style: ManaType.secondary),
         ),
       );
     }
@@ -1042,7 +1041,7 @@ class _LiveActivity extends ConsumerWidget {
                   leading: Icon(Icons.circle,
                       size: 8, color: ManaColors.brand),
                   title: ManaText.raw(a.label,
-                      style: const TextStyle(fontSize: 13)),
+                      style: ManaType.small),
                   trailing: ManaText.raw(
                       DateFormat('hh:mm a').format(a.timestamp),
                       style: TextStyle(
@@ -1084,7 +1083,7 @@ class _AttentionRequired extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: ManaText.raw(ref.t('nothing_needs_attention'),
-              style: TextStyle(color: ManaColors.textSecondary)),
+              style: ManaType.secondary),
         ),
       );
     }
@@ -1097,10 +1096,10 @@ class _AttentionRequired extends ConsumerWidget {
                           ? ManaColors.statusBad
                           : ManaColors.statusWarn),
                   title: ManaText.raw(c.type,
-                      style: const TextStyle(fontSize: 13)),
+                      style: ManaType.small),
                   subtitle: ManaText.raw(
                       'Updated ${DateFormat('d MMM, hh:mm a').format(c.lastUpdated)}',
-                      style: const TextStyle(fontSize: 13)),
+                      style: ManaType.small),
                   // A count, so bounded by nature and not actually at risk —
                   // converted anyway so the whole codebase has one answer for
                   // "pill in a trailing slot", and so changing this label to a

@@ -13,6 +13,7 @@ import '../../../shared/translation_service.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../../../shared/gps_address_service.dart';
 import 'lr_005_otp_verification.dart';
+import 'package:mana_line/design/tokens/typography.dart';
 
 /// LR-007 — Mobile Number + Password auth. Branches by pin_exists in
 /// the response: false → LR-008 Create PIN; true → LR-012 Business
@@ -328,7 +329,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
           child: SingleChildScrollView(
             child: ManaText.raw(
               ref.t('terms_body'),
-              style: const TextStyle(fontSize: 13),
+              style: ManaType.small,
             ),
           ),
         ),
@@ -393,7 +394,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const ManaText.raw('Enter your password to continue',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                      style: ManaType.emphasis),
                 ),
               TextField(
                 controller: _mobile,
@@ -445,7 +446,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                   ref.t('accept_terms_to_continue'),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
+                  style: ManaType.small,
                 ),
                 subtitle: Align(
                   alignment: Alignment.centerLeft,

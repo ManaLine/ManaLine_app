@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'widgets/confirm_delete_dialog.dart';
 import 'soft_delete_service.dart';
 import '../design/tokens/colors.dart';
+import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
 
@@ -83,7 +84,7 @@ class _DocumentsListViewState extends ConsumerState<DocumentsListView> {
             child: Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw('Could not load documents.\n${snapshot.error}',
-                  textAlign: TextAlign.center, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                  textAlign: TextAlign.center, style: ManaType.noteBad),
             ),
           );
         }
@@ -104,7 +105,7 @@ class _DocumentsListViewState extends ConsumerState<DocumentsListView> {
                     color: doc != null ? ManaColors.brand : null),
                 title: ManaText(label),
                 subtitle: doc == null
-                    ? ManaText.raw('Not uploaded yet', style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))
+                    ? ManaText.raw('Not uploaded yet', style: ManaType.note)
                     : null,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

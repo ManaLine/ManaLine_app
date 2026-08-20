@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/translation_service.dart';
@@ -16,7 +17,6 @@ import '../state/business_management_state.dart';
 import '../state/customer_state.dart';
 import '../../../design/components/mana_info_hint.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// Whether a mobile number entered on the pre-existing-business path may be
 /// saved.
@@ -117,7 +117,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
             children: [
               ManaText.raw(
                 ref.t('reopen_migration_note'),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                style: ManaType.note,
               ),
               const SizedBox(height: ManaSpacing.md),
               TextField(
@@ -232,7 +232,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                             'one is saved on its own, so a mistake in the tenth never '
                             'undoes the first nine. The spreadsheet below is only worth '
                             'it if you already keep your book in Excel.',
-                            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                            style: ManaType.fine,
                           ),
                           const SizedBox(height: ManaSpacing.sm),
                           TextButton.icon(
@@ -263,7 +263,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(message,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+              style: ManaType.noteBad),
           const SizedBox(height: ManaSpacing.md),
           Center(child: ElevatedButton(onPressed: _load, child: ManaText.raw(ref.t('retry')))),
         ],
@@ -282,7 +282,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                   child: ManaText.raw(ref.t(s.migrationLocked ? 'migration_closed' : 'migration_open'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      style: ManaType.cardTitle),
                 ),
                 const SizedBox(width: ManaSpacing.xs),
                 Flexible(
@@ -301,7 +301,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                           ? ref.t('an_earlier_date')
                           : DateFormat('d MMM yyyy').format(s.businessStartedAt!))
                   : ref.t('migration_open_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.md),
             if (s.migrationLocked)
@@ -309,7 +309,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
             if (!s.migrationLocked)
               ManaText.raw(
                   ref.t('pre_existing_loans_entered_note').replaceAll('{count}', '${s.migratedLoanCount}'),
-                  style: const TextStyle(fontSize: 13)),
+                  style: ManaType.small),
           ],
         ),
       ),
@@ -331,7 +331,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
           children: [
             ManaText.raw(
               ref.t('declare_opening_bf_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.md),
             // Whole rupees, and the keyboard says so. It offered a decimal
@@ -395,7 +395,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                   child: ManaText.raw(ref.t('bf_cash_in_hand'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: ManaType.strong),
                 ),
                 const SizedBox(width: ManaSpacing.xs),
                 Flexible(child: ManaAmount(s.bf, semanticLabel: ref.t('bf_semantic_label'))),
@@ -437,7 +437,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                 children: [
                   Expanded(
                     child: ManaText.raw(ref.t('line_balance_label'),
-                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        style: ManaType.note),
                   ),
                   const SizedBox(width: ManaSpacing.xs),
                   Flexible(child: ManaAmount(s.lineBalance, size: ManaAmountSize.compact)),
@@ -447,7 +447,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
               ref.t('line_balance_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
           ],
         ),
@@ -472,7 +472,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('profit_and_investor_payable'), style: const TextStyle(fontWeight: FontWeight.bold)),
+            ManaText.raw(ref.t('profit_and_investor_payable'), style: ManaType.strong),
             const SizedBox(height: ManaSpacing.sm),
             if (payable != null)
               Row(
@@ -798,8 +798,8 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       return 'The remaining balance cannot be negative.';
     }
     if (_remainingV! > _issuedV!) {
-      return 'The balance still owed, ${_currency.format(_remainingV!)}, is more '
-          'than the ${_currency.format(_issuedV!)} this loan was issued for.';
+      return 'The balance still owed, ${manaRupees(_remainingV!)}, is more '
+          'than the ${manaRupees(_issuedV!)} this loan was issued for.';
     }
     return null;
   }
@@ -866,10 +866,10 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText.raw(person, style: const TextStyle(fontWeight: FontWeight.w700)),
+              ManaText.raw(person, style: ManaType.heavy),
               if (village != null && village.isNotEmpty)
                 ManaText.raw(village,
-                    style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                    style: ManaType.fine),
               if (_newPerson)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -886,13 +886,13 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
               _previewRow('Still owed', _remainingV, bold: true),
               const Divider(),
               ManaText.raw(
-                '$_frequency · ${_currency.format(_emiV ?? 0)} each · '
+                '$_frequency · ${manaRupees(_emiV ?? 0)} each · '
                 '${_instalmentsToCreate ?? 0} instalments',
-                style: const TextStyle(fontSize: 13),
+                style: ManaType.small,
               ),
               ManaText.raw(
                 'Issued ${_effectiveDate.toIso8601String().split("T").first}',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                style: ManaType.fine,
               ),
               ],
             ),
@@ -926,7 +926,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                       fontWeight: bold ? FontWeight.w600 : null)),
             ),
             ManaText.raw(
-              value == null ? '—' : _currency.format(value),
+              value == null ? '—' : manaRupees(value),
               style: TextStyle(
                   fontSize: 13, fontWeight: bold ? FontWeight.w700 : FontWeight.w600),
             ),
@@ -1028,7 +1028,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           children: [
             ManaText.raw(
               ref.t('add_existing_loan_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.lg),
             // Branch behaviour (pick an existing customer OR enter a new
@@ -1054,7 +1054,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                     .map((c) => DropdownMenuItem(
                           value: c,
                           child: ManaText.raw('${c.fullName} · ${c.mlid}',
-                              style: const TextStyle(fontSize: 13)),
+                              style: ManaType.small),
                         ))
                     .toList(),
                 onChanged: (v) => setState(() => _customer = v),
@@ -1105,7 +1105,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             if (_validationError != null && _customer != null) ...[
               const SizedBox(height: ManaSpacing.md),
               ManaText.raw(_validationError!,
-                  style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+                  style: ManaType.noteBad),
             ],
             const SizedBox(height: ManaSpacing.lg),
             // Migrating a book is fifty of these in a row. Save and Add
@@ -1154,7 +1154,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             fillColor: ManaColors.surfaceSunken,
           ),
           child: ManaText.raw(
-            value == null ? '—' : _currency.format(value),
+            value == null ? '—' : manaRupees(value),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),
@@ -1169,7 +1169,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('what_this_records'),
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+                style: ManaType.strong),
             const SizedBox(height: ManaSpacing.sm),
             _derived(ref.t('already_collected'), _collected),
             _derived(ref.t('still_owed'), _remainingV),
@@ -1180,7 +1180,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                   ref
                       .t('instalments_created_note')
                       .replaceAll('{count}', '$_instalmentsToCreate'),
-                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                  style: ManaType.note,
                 ),
               ),
           ],
@@ -1193,11 +1193,11 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            Expanded(child: ManaText.raw(label, style: const TextStyle(fontSize: 13))),
+            Expanded(child: ManaText.raw(label, style: ManaType.small)),
             ManaText.raw(
               value == null
                   ? '—'
-                  : '${signed && value > 0 ? '+' : ''}${_currency.format(value)}',
+                  : '${signed && value > 0 ? '+' : ''}${manaRupees(value)}',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

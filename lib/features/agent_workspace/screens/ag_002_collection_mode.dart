@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_collection_search_field.dart';
@@ -11,7 +13,6 @@ import '../../../shared/translation_service.dart';
 import '../../owner_workspace/state/collection_mode_state.dart';
 import '../../owner_workspace/screens/ow_006_collection_mode.dart' show CollectionEntryScreen;
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// AG-002 — Collection Mode (Agent Workspace). Per spec's own PURPOSE/API
 /// BINDING: this is the Agent-side entry point into the same Collection
@@ -92,11 +93,11 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                     // handset an hour either side of midnight in the wrong
                     // zone would name the wrong one.
                     ManaText.raw(DateFormat('d MMM yyyy').format(manaNowIst()),
-                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        style: ManaType.note),
                     const SizedBox(height: ManaSpacing.sm),
                     ManaText.raw(
                       ref.t('sorted_by_note_short'),
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                      style: ManaType.note,
                     ),
                     const SizedBox(height: ManaSpacing.md),
                     if (visible.isEmpty)
@@ -108,7 +109,7 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
                                   ? ref.t('no_customers_due_right_now')
                                   : ref.t('no_customers_match_view'),
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: ManaColors.textSecondary)),
+                              style: ManaType.secondary),
                         ),
                       )
                     else
@@ -172,7 +173,7 @@ class _CustomerDueRow extends ConsumerWidget {
                           child: ManaText.raw(row.customerName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600)),
+                              style: ManaType.emphasis),
                         ),
                         if (row.penaltyEligible) ...[
                           const SizedBox(width: ManaSpacing.xs),
@@ -187,14 +188,14 @@ class _CustomerDueRow extends ConsumerWidget {
                     ManaText.raw('${row.village} · ${row.loanNumber} · LRI ${row.lineRepaymentIndex}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        style: ManaType.note),
                     const SizedBox(height: ManaSpacing.xs),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: ManaText.raw(_currency.format(row.installmentDue),
+                      child: ManaText.raw(manaRupees(row.installmentDue),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          style: ManaType.cardTitle),
                     ),
                   ],
                 ),

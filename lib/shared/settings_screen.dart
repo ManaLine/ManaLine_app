@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../design/tokens/colors.dart';
+import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
 import 'widgets/language_selector.dart';
@@ -611,7 +612,7 @@ class _ComingSoon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ManaText(
         'coming soon',
-        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+        style: ManaType.note,
       );
 }
 
@@ -638,7 +639,7 @@ class _SettingsTile extends StatelessWidget {
       leading: Icon(icon, color: titleColor),
       title: ManaText.raw(title, style: TextStyle(color: titleColor)),
       subtitle: subtitle != null
-          ? ManaText.raw(subtitle!, style: const TextStyle(fontSize: 13))
+          ? ManaText.raw(subtitle!, style: ManaType.small)
           : null,
       trailing: trailing,
       onTap: onTap,

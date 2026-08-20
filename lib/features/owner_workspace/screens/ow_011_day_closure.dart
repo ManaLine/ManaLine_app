@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -12,8 +13,6 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/day_closure_state.dart';
 import '../state/owner_workspace_state.dart' show ownerApiServiceProvider;
 
-final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// OW-011 — Day Closure. Official closing of one business day. Owner only.
 ///
@@ -172,7 +171,7 @@ class _PreCheckBlocked extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
           ref.t('items_must_be_resolved_note'),
-          style: TextStyle(color: ManaColors.textSecondary),
+          style: ManaType.secondary,
         ),
         const SizedBox(height: ManaSpacing.lg),
         // A ListTile's trailing slot has a hard width assertion — a
@@ -195,7 +194,7 @@ class _PreCheckBlocked extends ConsumerWidget {
                           ManaText.raw(issue.type),
                           ManaText.raw(
                               ref.t('items_outstanding_note').replaceAll('{count}', '${issue.count}'),
-                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                              style: ManaType.note),
                         ],
                       ),
                     ),
@@ -215,7 +214,7 @@ class _PreCheckBlocked extends ConsumerWidget {
         if (state.warnings.isNotEmpty) ...[
           const SizedBox(height: ManaSpacing.lg),
           ManaText.raw(ref.t('warnings_may_proceed'),
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+              style: ManaType.strong),
           const SizedBox(height: ManaSpacing.xs),
           ...state.warnings.map((w) => Card(
                 color: ManaColors.statusWarnFaint,
@@ -275,7 +274,7 @@ class _CashVerificationState extends ConsumerState<_CashVerification> {
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
           ref.t('enter_physical_count_note'),
-          style: TextStyle(color: ManaColors.textSecondary),
+          style: ManaType.secondary,
         ),
         const SizedBox(height: ManaSpacing.lg),
         _AmountField(
@@ -291,7 +290,7 @@ class _CashVerificationState extends ConsumerState<_CashVerification> {
         const SizedBox(height: ManaSpacing.lg),
         if (expected != null) ...[
           ManaText.raw(ref.t('system_expected_computed'),
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+              style: ManaType.strong),
           const SizedBox(height: ManaSpacing.sm),
           _ExpectedRow(label: ref.t('expected_cash'), value: expected.expectedCash),
           _ExpectedRow(label: ref.t('expected_upi'), value: expected.expectedUpi),
@@ -346,10 +345,10 @@ class _ExpectedRow extends StatelessWidget {
             child: ManaText.raw(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: ManaColors.textSecondary)),
+                style: ManaType.secondary),
           ),
           const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(_currency.format(value),
+          ManaText.raw(manaRupees(value),
               style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
@@ -402,7 +401,7 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
-          ref.t('overall_difference_note').replaceAll('{amount}', _currency.format(state.difference)),
+          ref.t('overall_difference_note').replaceAll('{amount}', manaRupees(state.difference)),
           style: Theme.of(context)
               .textTheme
               .titleLarge
@@ -410,17 +409,17 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
         ),
         const SizedBox(height: ManaSpacing.lg),
         ManaText.raw(ref.t('difference_details'),
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+            style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         ...state.differenceLines.map((l) => Card(
               child: ListTile(
                 title: ManaText.raw(l.method),
                 subtitle: ManaText.raw(ref
                     .t('expected_actual_note')
-                    .replaceAll('{expected}', _currency.format(l.expected))
-                    .replaceAll('{actual}', _currency.format(l.actual))),
+                    .replaceAll('{expected}', manaRupees(l.expected))
+                    .replaceAll('{actual}', manaRupees(l.actual))),
                 trailing: ManaText.raw(
-                  _currency.format(l.delta),
+                  manaRupees(l.delta),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: l.delta == 0
@@ -433,12 +432,12 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
         const SizedBox(height: ManaSpacing.lg),
         ManaText.raw(
           ref.t('owner_must_resolve_note'),
-          style: TextStyle(color: ManaColors.textSecondary),
+          style: ManaType.secondary,
         ),
         const SizedBox(height: ManaSpacing.md),
         if (state.recordedAdjustments.isNotEmpty) ...[
           ManaText.raw(ref.t('adjustments_recorded_session'),
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+              style: ManaType.strong),
           ...state.recordedAdjustments.map((a) => ListTile(
                 leading: Icon(
                   a.adjustmentType == 'Short'
@@ -449,7 +448,7 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
                       : ManaColors.statusWarn,
                 ),
                 title: ManaText.raw(
-                    '${a.adjustmentType} · ${_currency.format(a.amount)}'),
+                    '${a.adjustmentType} · ${manaRupees(a.amount)}'),
                 subtitle: ManaText.raw(a.appliedTo),
               )),
         ],
@@ -674,7 +673,7 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             ManaText.raw(ref.t('difference'),
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+                style: ManaType.strong),
             const SizedBox(width: ManaSpacing.xs),
             Flexible(
               child: ManaStatusPill(label: '₹0.00 — ${ref.t('balanced')}', status: ManaStatus.good),
@@ -720,10 +719,10 @@ class _SummaryRow extends StatelessWidget {
             child: ManaText.raw(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: bold ? const TextStyle(fontWeight: FontWeight.bold) : null),
+                style: bold ? ManaType.strong : null),
           ),
           const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(_currency.format(value),
+          ManaText.raw(manaRupees(value),
               style: bold
                   ? Theme.of(context).textTheme.titleMedium
                   : Theme.of(context).textTheme.bodyMedium),
@@ -759,7 +758,7 @@ class _ClosedReceipt extends ConsumerWidget {
                 .t('closed_by_note')
                 .replaceAll('{date}', detail.businessDate)
                 .replaceAll('{name}', detail.closedByName),
-            style: TextStyle(color: ManaColors.textSecondary)),
+            style: ManaType.secondary),
         const SizedBox(height: ManaSpacing.lg),
         _SummaryRow(label: ref.t('opening_balance'), value: detail.openingBalance),
         _SummaryRow(label: ref.t('collections'), value: detail.collections),
@@ -776,7 +775,7 @@ class _ClosedReceipt extends ConsumerWidget {
         if (detail.remarks != null) ...[
           const SizedBox(height: ManaSpacing.md),
           ManaText.raw(ref.t('remarks_colon_note').replaceAll('{remarks}', detail.remarks!),
-              style: TextStyle(color: ManaColors.textSecondary)),
+              style: ManaType.secondary),
         ],
         if (detail.isReopened) ...[
           const SizedBox(height: ManaSpacing.md),
@@ -815,7 +814,7 @@ class _ClosedReceipt extends ConsumerWidget {
           children: [
             ManaText.raw(
               ref.t('reopen_note'),
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.md),
             TextField(
@@ -867,7 +866,7 @@ class _ReopenedAwaitingCloseAgain extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
           ref.t('reopened_awaiting_note'),
-          style: TextStyle(color: ManaColors.textSecondary),
+          style: ManaType.secondary,
         ),
         const SizedBox(height: ManaSpacing.xxl),
         FilledButton(

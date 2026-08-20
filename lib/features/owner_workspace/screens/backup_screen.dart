@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -83,11 +84,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             ManaText.raw(ref.t('export_to_excel'),
-                style: const TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               ref.t('export_to_excel_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton.icon(
@@ -102,7 +103,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
             if (r != null && !_busy) ...[
               const SizedBox(height: ManaSpacing.lg),
               ManaText.raw(r.fileName,
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                  style: ManaType.heavy),
               const SizedBox(height: ManaSpacing.sm),
               for (final e in r.counts.entries)
                 Padding(
@@ -111,7 +112,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                     children: [
                       Expanded(child: ManaText.raw(e.key)),
                       ManaText.raw('${e.value}',
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                          style: ManaType.heavy),
                     ],
                   ),
                 ),

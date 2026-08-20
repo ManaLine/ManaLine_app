@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -11,7 +13,6 @@ import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart' show customerApiServiceProvider;
 import '../state/loan_details_state.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// OW-007 — Loan Details. Entry: OW-004 Customer Profile (Loans tab), or
 /// OW-009's day-detail Loans sub-tab. Every action stays inline on this
@@ -97,9 +98,9 @@ class _Header extends ConsumerWidget {
               ManaText.raw(loan.loanNumber,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  style: ManaType.sheetTitle),
               ManaText.raw(loan.customerName,
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: ManaColors.textSecondary)),
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: ManaType.secondary),
             ],
           ),
         ),
@@ -122,11 +123,11 @@ class _SummaryCard extends ConsumerWidget {
         child: Column(
           children: [
             _row(ref.t('repayment_type'), loan.repaymentType),
-            _row(ref.t('installment_amount'), _currency.format(loan.installmentAmount)),
-            _row(ref.t('loan_amount'), _currency.format(loan.loanAmount)),
-            _row(ref.t('amount_given_locked'), _currency.format(loan.amountGiven)),
-            _row(ref.t('outstanding_balance'), _currency.format(loan.outstandingBalance)),
-            _row(ref.t('todays_due'), _currency.format(loan.todaysDue)),
+            _row(ref.t('installment_amount'), manaRupees(loan.installmentAmount)),
+            _row(ref.t('loan_amount'), manaRupees(loan.loanAmount)),
+            _row(ref.t('amount_given_locked'), manaRupees(loan.amountGiven)),
+            _row(ref.t('outstanding_balance'), manaRupees(loan.outstandingBalance)),
+            _row(ref.t('todays_due'), manaRupees(loan.todaysDue)),
             _row(ref.t('completed_installments'), '${loan.completedInstallments}'),
             _row(ref.t('remaining_installments'), '${loan.remainingInstallments}'),
             _row(ref.t('grace_status'), ref.t(loan.inGracePeriod ? 'in_grace_period' : 'normal')),
@@ -146,7 +147,7 @@ class _SummaryCard extends ConsumerWidget {
               child: ManaText.raw(label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                  style: ManaType.note),
             ),
             const SizedBox(width: ManaSpacing.xs),
             Flexible(
@@ -154,7 +155,7 @@ class _SummaryCard extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  style: ManaType.smallStrong),
             ),
           ],
         ),
@@ -170,7 +171,7 @@ class _GuarantorSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText.raw(ref.t('guarantor'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('guarantor'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         // Always renders the container, even with no guarantor, so the
         // Owner can see at a glance one was never added rather than
@@ -179,18 +180,18 @@ class _GuarantorSection extends ConsumerWidget {
           child: guarantor == null
               ? Padding(
                   padding: const EdgeInsets.all(ManaSpacing.md),
-                  child: ManaText.raw(ref.t('no_guarantor'), style: TextStyle(color: ManaColors.textSecondary)),
+                  child: ManaText.raw(ref.t('no_guarantor'), style: ManaType.secondary),
                 )
               : Padding(
                   padding: const EdgeInsets.all(ManaSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ManaText.raw(guarantor!.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ManaText.raw(guarantor!.relationship, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      ManaText.raw(guarantor!.name, style: ManaType.emphasis),
+                      ManaText.raw(guarantor!.relationship, style: ManaType.note),
                       const SizedBox(height: ManaSpacing.xs),
-                      ManaText.raw(guarantor!.phone, style: const TextStyle(fontSize: 13)),
-                      ManaText.raw(guarantor!.address, style: const TextStyle(fontSize: 13)),
+                      ManaText.raw(guarantor!.phone, style: ManaType.small),
+                      ManaText.raw(guarantor!.address, style: ManaType.small),
                       if (guarantor!.remarks != null && guarantor!.remarks!.isNotEmpty)
                         ManaText.raw(guarantor!.remarks!, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
                     ],
@@ -212,7 +213,7 @@ class _ActionsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText.raw(ref.t('available_actions'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('available_actions'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         Wrap(
           spacing: ManaSpacing.sm,
@@ -313,7 +314,7 @@ class _ActionsSection extends ConsumerWidget {
           children: [
             ManaText.raw(
               ref.t('edit_allowed_fields_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.md),
             TextField(controller: remarks, decoration: InputDecoration(labelText: ref.t('remarks'))),
@@ -364,7 +365,7 @@ class _ActionsSection extends ConsumerWidget {
         content: ManaText.raw(
           ref
               .t(isWriteOff ? 'write_off_note' : 'close_loan_confirm_note')
-              .replaceAll('{amount}', _currency.format(loan.outstandingBalance)),
+              .replaceAll('{amount}', manaRupees(loan.outstandingBalance)),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
@@ -383,7 +384,7 @@ class _ActionsSection extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: ManaText.raw(result.recognisedPenalty
-            ? ref.t('penalty_recognised_note').replaceAll('{amount}', _currency.format(result.penaltyRecognised))
+            ? ref.t('penalty_recognised_note').replaceAll('{amount}', manaRupees(result.penaltyRecognised))
             : ref.t(result.writtenOff ? 'written_off_note' : 'loan_closed_note')),
       ),
     );
@@ -452,15 +453,15 @@ class _PaymentHistorySection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText.raw(ref.t('payment_history'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('payment_history'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         if (loan.paymentHistory.isEmpty)
-          ManaText.raw(ref.t('no_payments_yet'), style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_payments_yet'), style: ManaType.secondary)
         else
           ...loan.paymentHistory.map((p) => Card(
                 child: ListTile(
                   leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
-                  title: ManaText.raw(_currency.format(p.amount)),
+                  title: ManaText.raw(manaRupees(p.amount)),
                   subtitle: ManaText.raw('${p.paymentMode} · ${p.collector} · #${p.receiptNumber}'),
                   trailing: ManaText.raw(DateFormat('d MMM').format(p.businessDate),
                       style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
@@ -482,7 +483,7 @@ class _PenaltySection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText.raw(ref.t('penalty_entries'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('penalty_entries'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         ...loan.penaltyEntries.map((p) => Card(
               child: ListTile(
@@ -490,7 +491,7 @@ class _PenaltySection extends ConsumerWidget {
                   p.isWaivedOrReduced ? Icons.remove_circle_outline : Icons.report_gmailerrorred,
                   color: p.isWaivedOrReduced ? ManaColors.textSecondary : ManaColors.statusBad,
                 ),
-                title: ManaText.raw('${_currency.format(p.penaltyAmount)} · ${p.penaltyOption}'),
+                title: ManaText.raw('${manaRupees(p.penaltyAmount)} · ${p.penaltyOption}'),
                 subtitle: ManaText.raw(
                   '${DateFormat('d MMM yyyy').format(p.appliedDate)}${p.isWaivedOrReduced ? ' · ${ref.t('waived_reduced')}' : ''}',
                   style: const TextStyle(fontSize: 16),
@@ -521,7 +522,7 @@ class _PenaltySection extends ConsumerWidget {
             children: [
               ManaText.raw(
                 ref.t('waive_note'),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                style: ManaType.note,
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,

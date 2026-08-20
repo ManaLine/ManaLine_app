@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -11,7 +13,6 @@ import '../../../shared/widgets/record_expense_sheet.dart';
 import '../state/agent_settlement_state.dart';
 import '../../../design/components/mana_info_hint.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('dd-MM-yyyy');
 
 /// AG-006 — Owner Settlement.
@@ -169,7 +170,7 @@ class _StatusOnlyView extends StatelessWidget {
         const SizedBox(height: ManaSpacing.sm),
         Center(
           child: ManaText.raw(body,
-              textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
+              textAlign: TextAlign.center, style: ManaType.secondary),
         ),
         if (s != null) ...[
           const SizedBox(height: ManaSpacing.xl),
@@ -203,7 +204,7 @@ class _ReturnedView extends ConsumerWidget {
                     const SizedBox(width: ManaSpacing.sm),
                     Expanded(
                       child: ManaText.raw(ref.t('returned_correction_required'),
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                          style: ManaType.strong),
                     ),
                   ],
                 ),
@@ -291,7 +292,7 @@ class _SummaryCard extends ConsumerWidget {
               child: ManaText.raw(label,
                   maxLines: 1, overflow: TextOverflow.ellipsis, style: style)),
           const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(_currency.format(amount), style: style),
+          ManaText.raw(manaRupees(amount), style: style),
         ],
       ),
     );
@@ -346,7 +347,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: ManaText.raw(ref.t('unable_to_load_settlement'), style: TextStyle(color: ManaColors.textSecondary)),
+          child: ManaText.raw(ref.t('unable_to_load_settlement'), style: ManaType.secondary),
         ),
       );
     }
@@ -361,7 +362,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
               child: ManaText.raw('${_dateFmt.format(widget.periodStart)} – ${_dateFmt.format(widget.periodEnd)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                  style: ManaType.note),
             ),
             const SizedBox(width: ManaSpacing.xs),
             // cycle_type is Business-level/Owner-set (OW-012 Account Cycle
@@ -397,7 +398,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
             labelText: ref.t('cheque_count_field'),
             suffixIcon: ManaInfoHint(ref
                 .t('cheque_count_helper')
-                .replaceAll('{amount}', _currency.format(state.preview!.chequeCollected))),
+                .replaceAll('{amount}', manaRupees(state.preview!.chequeCollected))),
           ),
           onChanged: (v) => ref.read(agentSettlementProvider.notifier).setChequeCountTally(int.tryParse(v) ?? 0),
         ),

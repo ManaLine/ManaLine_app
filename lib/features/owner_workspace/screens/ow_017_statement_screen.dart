@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/ledger_statement_service.dart';
 import '../../../shared/mana_time.dart';
@@ -110,7 +111,7 @@ class _StatementScreenState extends ConsumerState<StatementScreen> {
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             ManaText(ref.t('statement_period'),
-                style: const TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.sm),
             SegmentedButton<_Mode>(
               segments: [
@@ -145,12 +146,12 @@ class _StatementScreenState extends ConsumerState<StatementScreen> {
             // about which 90 days it means.
             ManaText.raw(
               '${manaDisplayDate(_period.from)} — ${manaDisplayDate(_period.to)}',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
               ref.t('statement_excel_note'),
-              style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+              style: ManaType.fine,
             ),
             const SizedBox(height: ManaSpacing.xl),
             ElevatedButton(

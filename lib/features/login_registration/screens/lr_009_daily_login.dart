@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_brand_mark.dart';
 import '../../../design/components/mana_text.dart';
@@ -546,7 +547,7 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                 if (_error != null) ...[
                   const SizedBox(height: ManaSpacing.sm),
                   ManaText.raw(_error!,
-                      style: TextStyle(color: ManaColors.statusBad)),
+                      style: ManaType.bad),
                 ],
                 if (_submitting) ...[
                   const SizedBox(height: ManaSpacing.lg),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -9,7 +11,6 @@ import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/investor_state.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// Owner-side review queue for IW-004's "Request Withdrawal" — not part
 /// of the original locked screen inventory (no OW-0xx number), added to
@@ -77,7 +78,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
             children: [
               ManaText.raw(ref
                   .t('requested_amount_type_note')
-                  .replaceAll('{amount}', _currency.format(r.requestedAmount))
+                  .replaceAll('{amount}', manaRupees(r.requestedAmount))
                   .replaceAll('{type}', r.withdrawalType),
                   style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
               const SizedBox(height: ManaSpacing.md),
@@ -96,7 +97,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
               ),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
-                ref.t('total_note').replaceAll('{amount}', _currency.format((double.tryParse(principalController.text) ?? 0) + (double.tryParse(interestController.text) ?? 0))),
+                ref.t('total_note').replaceAll('{amount}', manaRupees((double.tryParse(principalController.text) ?? 0) + (double.tryParse(interestController.text) ?? 0))),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
@@ -147,7 +148,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                     Padding(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       child: ManaText.raw(ref.t('could_not_load_withdrawal_requests_note').replaceAll('{error}', '${snapshot.error}'),
-                          textAlign: TextAlign.center, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                          textAlign: TextAlign.center, style: ManaType.noteBad),
                     ),
                   ],
                 );
@@ -158,7 +159,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                   padding: const EdgeInsets.all(ManaSpacing.xxl),
                   children: [
                     Center(
-                      child: ManaText.raw(ref.t('no_pending_withdrawal_requests'), style: TextStyle(color: ManaColors.textSecondary)),
+                      child: ManaText.raw(ref.t('no_pending_withdrawal_requests'), style: ManaType.secondary),
                     ),
                   ],
                 );
@@ -179,19 +180,19 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                                       child: ManaText.raw(r.investorName,
                                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                                     ),
-                                    ManaText.raw(_currency.format(r.requestedAmount),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    ManaText.raw(manaRupees(r.requestedAmount),
+                                        style: ManaType.cardTitle),
                                   ],
                                 ),
                                 ManaText.raw('${r.investorMlid} · ${r.withdrawalType}',
-                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                    style: ManaType.note),
                                 if (r.remarks != null && r.remarks!.isNotEmpty) ...[
                                   const SizedBox(height: ManaSpacing.xs),
-                                  ManaText.raw(r.remarks!, style: const TextStyle(fontSize: 13)),
+                                  ManaText.raw(r.remarks!, style: ManaType.small),
                                 ],
                                 const SizedBox(height: ManaSpacing.xs),
                                 ManaText.raw('Requested ${DateFormat('d MMM yyyy').format(r.createdAt)}',
-                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                    style: ManaType.note),
                                 const SizedBox(height: ManaSpacing.sm),
                                 Row(
                                   children: [

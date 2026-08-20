@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
@@ -229,7 +230,7 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
       children: [
         Icon(Icons.fingerprint, size: 56, color: ManaColors.brand),
         const SizedBox(height: ManaSpacing.md),
-        ManaText.raw(ref.t('enable_biometric_q'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('enable_biometric_q'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.xl),
         SizedBox(
           width: double.infinity,

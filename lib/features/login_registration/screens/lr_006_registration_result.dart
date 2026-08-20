@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -55,7 +56,7 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
                 Icon(Icons.check_circle, color: ManaColors.statusGood, size: 64),
                 const SizedBox(height: ManaSpacing.lg),
                 ManaText.raw(ref.t('your_mana_line_id'),
-                    style: TextStyle(color: ManaColors.textSecondary)),
+                    style: ManaType.secondary),
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw(
                   auth.mlid ?? '—',
@@ -71,7 +72,7 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
                   ManaText.raw(
                     ref.t('temp_id_issued_note'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: ManaColors.statusWarn, fontSize: 13),
+                    style: ManaType.noteWarn,
                   ),
                 ],
                 const SizedBox(height: ManaSpacing.xxl),

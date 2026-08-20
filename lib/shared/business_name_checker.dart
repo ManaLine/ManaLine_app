@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
+import 'package:mana_line/design/tokens/typography.dart';
 
 /// Checks whether a business name is already taken (case-insensitive,
 /// matching the real DB constraint — uq_businesses_name_ci) and, if so,
@@ -56,7 +57,7 @@ class BusinessNameTakenDialog extends StatelessWidget {
           ManaText.raw('"$name" is already in use by another business.'),
           if (alternatives.isNotEmpty) ...[
             const SizedBox(height: ManaSpacing.md),
-            const ManaText('available alternatives:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const ManaText('available alternatives:', style: ManaType.strong),
             const SizedBox(height: ManaSpacing.sm),
             ...alternatives.map((alt) => ListTile(
                   contentPadding: EdgeInsets.zero,

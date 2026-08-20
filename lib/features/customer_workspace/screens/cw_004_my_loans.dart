@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_loans_state.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
 
 /// CW-004 — My Loans. Two entry paths both land here with an explicit
@@ -116,7 +117,7 @@ class _LoanCard extends ConsumerWidget {
         title: Row(
           children: [
             Flexible(
-              child: ManaText.raw(loan.loanNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
+              child: ManaText.raw(loan.loanNumber, style: ManaType.emphasis),
             ),
             const SizedBox(width: ManaSpacing.xs),
             ManaStatusPill(label: loan.loanStatus, status: _pillStatus),
@@ -128,19 +129,19 @@ class _LoanCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (loan.templateName != null)
-                ManaText.raw(loan.templateName!, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                ManaText.raw(loan.templateName!, style: ManaType.note),
               ManaText.raw(
                 ref
                     .t('outstanding_of_principal_note')
-                    .replaceAll('{outstanding}', _currency.format(loan.outstandingBalance))
-                    .replaceAll('{principal}', _currency.format(loan.principalAmount)),
+                    .replaceAll('{outstanding}', manaRupees(loan.outstandingBalance))
+                    .replaceAll('{principal}', manaRupees(loan.principalAmount)),
                 style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
               ),
               if (loan.nextDueDate != null)
                 ManaText.raw(
                   ref
                       .t('next_due_note')
-                      .replaceAll('{amount}', _currency.format(loan.nextDueAmount ?? 0))
+                      .replaceAll('{amount}', manaRupees(loan.nextDueAmount ?? 0))
                       .replaceAll('{date}', _dateFmt.format(loan.nextDueDate!)),
                   style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
                 ),
@@ -171,12 +172,12 @@ class _EmptyState extends ConsumerWidget {
           children: [
             Icon(Icons.account_balance_wallet_outlined, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            ManaText.raw(ref.t('no_loans_yet'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('no_loans_yet'), style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               ref.t('no_loans_in_business_note'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.lg),
             // Inferred default-state handling per CW-004's own S3 note
@@ -289,7 +290,7 @@ class _AgreementSummaryCard extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Flexible(child: ManaText.raw(s.loanNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                Flexible(child: ManaText.raw(s.loanNumber, style: ManaType.cardTitle)),
                 const SizedBox(width: ManaSpacing.xs),
                 ManaStatusPill(
                   label: s.loanStatus,
@@ -303,10 +304,10 @@ class _AgreementSummaryCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
-            _row(ref.t('principal_amount'), _currency.format(s.principalAmount)),
-            _row(ref.t('outstanding_balance'), _currency.format(s.outstandingBalance)),
+            _row(ref.t('principal_amount'), manaRupees(s.principalAmount)),
+            _row(ref.t('outstanding_balance'), manaRupees(s.outstandingBalance)),
             _row(ref.t('repayment_type'), '${detail.durationValue} × ${detail.repaymentType}'),
-            _row(ref.t('installment_amount'), _currency.format(detail.installmentAmount)),
+            _row(ref.t('installment_amount'), manaRupees(detail.installmentAmount)),
             _row(ref.t('effective_date'), _dateFmt.format(detail.effectiveDate)),
             if (detail.loanGivenBy != null && detail.loanGivenBy!.isNotEmpty)
               _row(ref.t('loan_given_by'), detail.loanGivenBy!),
@@ -321,8 +322,8 @@ class _AgreementSummaryCard extends ConsumerWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            ManaText.raw(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
-            ManaText.raw(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            ManaText.raw(label, style: ManaType.note),
+            ManaText.raw(value, style: ManaType.smallStrong),
           ],
         ),
       );
@@ -343,7 +344,7 @@ class _ScheduleCard extends ConsumerWidget {
             ManaText.raw(ref.t('repayment_schedule'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: ManaSpacing.sm),
             if (schedule.isEmpty)
-              ManaText.raw(ref.t('no_schedule_available'), style: TextStyle(color: ManaColors.textSecondary))
+              ManaText.raw(ref.t('no_schedule_available'), style: ManaType.secondary)
             else
               ...schedule.map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -351,10 +352,10 @@ class _ScheduleCard extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ManaText.raw('#${e.installmentNumber} · ${_dateFmt.format(e.dueDate)}',
-                            style: const TextStyle(fontSize: 13)),
+                            style: ManaType.small),
                         Row(
                           children: [
-                            ManaText.raw(_currency.format(e.installmentAmount),
+                            ManaText.raw(manaRupees(e.installmentAmount),
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                             const SizedBox(width: ManaSpacing.xs),
                             ManaStatusPill(
@@ -403,7 +404,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
                 child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
               )
             else if (history.isEmpty)
-              ManaText.raw(ref.t('no_confirmed_payments_yet'), style: TextStyle(color: ManaColors.textSecondary))
+              ManaText.raw(ref.t('no_confirmed_payments_yet'), style: ManaType.secondary)
             else
               ...history.map((h) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -411,10 +412,10 @@ class _PaymentHistoryCard extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ManaText.raw('${_dateFmt.format(h.businessDate)} · ${h.receiptNumber}',
-                            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                            style: ManaType.note),
                         Row(
                           children: [
-                            ManaText.raw(_currency.format(h.collectedAmount),
+                            ManaText.raw(manaRupees(h.collectedAmount),
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                             const SizedBox(width: ManaSpacing.xs),
                             ManaStatusPill(
@@ -449,15 +450,15 @@ class _PendingOnlinePaymentsCard extends ConsumerWidget {
             ManaText.raw(ref.t('pending_online_payments'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(ref.t('awaiting_owner_agent_confirmation'),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: ManaType.note),
             const SizedBox(height: ManaSpacing.sm),
             ...pending.map((p) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ManaText.raw(_dateFmt.format(p.submittedAt), style: const TextStyle(fontSize: 13)),
-                      ManaText.raw(_currency.format(p.amount), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      ManaText.raw(_dateFmt.format(p.submittedAt), style: ManaType.small),
+                      ManaText.raw(manaRupees(p.amount), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 )),
@@ -484,8 +485,8 @@ class _PenaltyGraceCard extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  ManaText.raw(ref.t('penalty'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
-                  ManaText.raw(_currency.format(detail.penaltyAmount!),
+                  ManaText.raw(ref.t('penalty'), style: ManaType.note),
+                  ManaText.raw(manaRupees(detail.penaltyAmount!),
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ManaColors.statusBad)),
                 ],
               ),
@@ -495,8 +496,8 @@ class _PenaltyGraceCard extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ManaText.raw(ref.t('grace_period_end_date'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
-                    ManaText.raw(_dateFmt.format(detail.gracePeriodEndDate!), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ManaText.raw(ref.t('grace_period_end_date'), style: ManaType.note),
+                    ManaText.raw(_dateFmt.format(detail.gracePeriodEndDate!), style: ManaType.smallStrong),
                   ],
                 ),
               ),

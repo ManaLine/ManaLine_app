@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -12,7 +14,6 @@ import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/record_book_state.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('dd MMM yyyy');
 
 /// OW-009 — Daily Record Book. One row per Business Day (`day_ledger`),
@@ -83,7 +84,7 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
                           padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                           child: Center(
                             child: ManaText.raw(ref.t('no_business_days_yet'),
-                                style: TextStyle(color: ManaColors.textSecondary)),
+                                style: ManaType.secondary),
                           ),
                         ),
                       ],
@@ -141,7 +142,7 @@ class _LedgerRowCard extends ConsumerWidget {
                       _dateFmt.format(row.businessDate),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      style: ManaType.heavy,
                     ),
                   ),
                   const SizedBox(width: ManaSpacing.xs),
@@ -185,7 +186,7 @@ class _LedgerRowCard extends ConsumerWidget {
               if (row.remarks != null && row.remarks!.isNotEmpty) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(row.remarks!,
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: ManaType.note),
               ],
             ],
           ),
@@ -198,9 +199,9 @@ class _LedgerRowCard extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText.raw(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+        ManaText.raw(label, style: ManaType.note),
         ManaText.raw(
-          _currency.format(amount),
+          manaRupees(amount),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -279,7 +280,7 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                     alignment: Alignment.centerLeft,
                     child: ManaText.raw(
                       ref.t('read_only_day_closed_note'),
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                      style: ManaType.note,
                     ),
                   ),
                 ),
@@ -303,7 +304,7 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                     : state.detailError != null
                         ? Center(
                             child: ManaText.raw(state.detailError!,
-                                style: TextStyle(color: ManaColors.statusBad)),
+                                style: ManaType.bad),
                           )
                         : detail == null
                             ? const SizedBox.shrink()
@@ -427,7 +428,7 @@ class _EntryList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (entries.isEmpty) {
       return Center(
-        child: ManaText.raw(emptyLabel, style: TextStyle(color: ManaColors.textSecondary)),
+        child: ManaText.raw(emptyLabel, style: ManaType.secondary),
       );
     }
     return ListView.separated(
@@ -454,8 +455,8 @@ class _EntryList extends ConsumerWidget {
               ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.timestamp),
                   style: TextStyle(
                       fontSize: 13, color: ManaColors.textSecondary)),
-              ManaText.raw(_currency.format(e.amount),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              ManaText.raw(manaRupees(e.amount),
+                  style: ManaType.emphasis),
               if (e.isCorrection)
                 ManaStatusPill(label: ref.t('correction'), status: ManaStatus.warn),
             ],
@@ -487,7 +488,7 @@ class _EntryList extends ConsumerWidget {
       context,
       entity: deletableAs!,
       recordId: e.id,
-      description: '${e.label} — ${_currency.format(e.amount)}',
+      description: '${e.label} — ${manaRupees(e.amount)}',
     );
     if (!deleted || !context.mounted || businessId == null) return;
     // The day's figures moved, and so did every day after it. Reload rather
@@ -509,7 +510,7 @@ class _AuditList extends ConsumerWidget {
     if (entries.isEmpty) {
       return Center(
         child: ManaText.raw(ref.t('no_admin_security_events_this_day'),
-            style: TextStyle(color: ManaColors.textSecondary)),
+            style: ManaType.secondary),
       );
     }
     return ListView.separated(
@@ -522,9 +523,9 @@ class _AuditList extends ConsumerWidget {
           contentPadding: EdgeInsets.zero,
           title: ManaText(e.actionType),
           subtitle: ManaText.raw('${e.entityType} · ${e.entityId}',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: ManaType.note),
           trailing: ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.entryTimestamp),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: ManaType.note),
         );
       },
     );

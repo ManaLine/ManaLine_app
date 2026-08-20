@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -11,7 +13,6 @@ import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/cheti_state.dart';
 import '../../../design/components/mana_info_hint.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
 
 /// OW-019 — Cheti Management.
@@ -63,7 +64,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                         child: ManaText.raw(
                           ref.t('no_chetis_yet_note'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: ManaColors.textSecondary),
+                          style: ManaType.secondary,
                         ),
                       ),
                     ...state.chetis.map(_card),
@@ -86,11 +87,11 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
               child: ManaText.raw(ref.t('cheti_net_position'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  style: ManaType.note),
             ),
             const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(
-              _currency.format(net),
+              manaRupees(net),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -129,7 +130,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                   child: ManaText.raw(
                     '${c.type.dbValue} · ${c.frequency.dbValue}',
                     textAlign: TextAlign.end,
-                    style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                    style: ManaType.fine,
                   ),
                 ),
               ],
@@ -139,20 +140,20 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
               spacing: ManaSpacing.lg,
               runSpacing: ManaSpacing.xs,
               children: [
-                _figure(ref.t('face_value'), _currency.format(c.faceValue)),
+                _figure(ref.t('face_value'), manaRupees(c.faceValue)),
                 _figure(
                     ref.t('instalments'),
                     ref
                         .t('instalments_x_of_y')
                         .replaceAll('{paid}', '${c.instalmentsPaid}')
                         .replaceAll('{total}', '${c.totalInstalments}')),
-                _figure(ref.t('paid_in'), _currency.format(c.totalPaid)),
+                _figure(ref.t('paid_in'), manaRupees(c.totalPaid)),
                 if (c.isAvailed)
-                  _figure(ref.t('availed'), _currency.format(c.totalReceived)),
-                _figure(ref.t('net_position'), _currency.format(net),
+                  _figure(ref.t('availed'), manaRupees(c.totalReceived)),
+                _figure(ref.t('net_position'), manaRupees(net),
                     warn: net < 0),
                 if (c.finalProfit != null)
-                  _figure(ref.t('final_profit'), _currency.format(c.finalProfit!),
+                  _figure(ref.t('final_profit'), manaRupees(c.finalProfit!),
                       warn: c.finalProfit! < 0),
               ],
             ),
@@ -167,7 +168,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                               .t('instalments_still_to_pay_suffix')
                               .replaceAll('{count}', '${c.instalmentsRemaining}')
                           : ''),
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  style: ManaType.fine,
                 ),
               ),
             const SizedBox(height: ManaSpacing.sm),
@@ -221,7 +222,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                       ListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
-                        title: ManaText.raw(_currency.format(p.netPaid)),
+                        title: ManaText.raw(manaRupees(p.netPaid)),
                         subtitle: ManaText.raw(
                           _dateFmt.format(p.businessDate),
                           style: TextStyle(
@@ -293,7 +294,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
       context,
       entity: DeletableEntity.cheti,
       recordId: c.chetiId,
-      description: 'Cheti ${c.name} — ${_currency.format(c.faceValue)}',
+      description: 'Cheti ${c.name} — ${manaRupees(c.faceValue)}',
     );
     if (deleted && mounted) await _reload();
   }
@@ -305,7 +306,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
       context,
       entity: DeletableEntity.chetiPayment,
       recordId: p.paymentId,
-      description: '${c.name} instalment — ${_currency.format(p.netPaid)} '
+      description: '${c.name} instalment — ${manaRupees(p.netPaid)} '
           'on ${_dateFmt.format(p.businessDate)}',
     );
     if (deleted && mounted) await _reload();
@@ -430,7 +431,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('add_cheti'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.md),
             _field(_name, ref.t('cheti_name_field'), number: false),
             Row(
@@ -483,7 +484,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
             const Divider(height: ManaSpacing.xl),
             ManaText.raw(
               ref.t('cheti_partway_note'),
-              style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+              style: ManaType.fine,
             ),
             const SizedBox(height: ManaSpacing.md),
             _field(_openingCount, ref.t('instalments_already_paid_field')),
@@ -496,13 +497,13 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
                       ? ref
                           .t('opening_matches_note')
                           .replaceAll('{count}', '$_openCountV')
-                          .replaceAll('{amount}', _currency.format(_instV!))
+                          .replaceAll('{amount}', manaRupees(_instV!))
                       : ref
                           .t('opening_gap_note')
                           .replaceAll('{count}', '$_openCountV')
-                          .replaceAll('{amount}', _currency.format(_instV!))
-                          .replaceAll('{implied}', _currency.format(_openingImplied!)),
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                          .replaceAll('{amount}', manaRupees(_instV!))
+                          .replaceAll('{implied}', manaRupees(_openingImplied!)),
+                  style: ManaType.fine,
                 ),
               ),
             SwitchListTile(
@@ -532,7 +533,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
             if (_error != null) ...[
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(_error!,
-                  style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+                  style: ManaType.noteBad),
             ],
             const SizedBox(height: ManaSpacing.lg),
             FilledButton(
@@ -630,7 +631,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(ref.t('record_payment_for_note').replaceAll('{name}', widget.cheti.name),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              style: ManaType.cardTitle),
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _gross,
@@ -659,16 +660,16 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                   child: ManaText.raw(ref.t('cash_out_of_bf'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary))),
+                      style: ManaType.note)),
               const SizedBox(width: ManaSpacing.xs),
-              ManaText.raw(_netV == null ? '—' : _currency.format(_netV),
+              ManaText.raw(_netV == null ? '—' : manaRupees(_netV!),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ],
           ),
           if (_error != null) ...[
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(_error!,
-                style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+                style: ManaType.noteBad),
           ],
           const SizedBox(height: ManaSpacing.lg),
           FilledButton(
@@ -736,13 +737,13 @@ class _AvailingSheetState extends ConsumerState<_AvailingSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(ref.t('record_availing_for_note').replaceAll('{name}', widget.cheti.name),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              style: ManaType.cardTitle),
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(
             ref
                 .t('availing_adds_to_bf_note')
                 .replaceAll('{count}', '${widget.cheti.instalmentsRemaining}'),
-            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+            style: ManaType.fine,
           ),
           const SizedBox(height: ManaSpacing.md),
           TextField(

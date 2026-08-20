@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -20,7 +22,6 @@ import '../state/agent_customer_state.dart';
 import 'ag_007_loan_distribution.dart';
 import '../../../design/components/mana_call_button.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// AG-004 — Customer Management (Agent Workspace). Agent-side counterpart to
 /// OW-004, scoped to only this Agent's assigned customers, with every
@@ -72,7 +73,7 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
             child: ManaText.raw(
               ref.t('no_permission_view_customers'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
           ),
         ),
@@ -133,7 +134,7 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
                                   padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                                   child: Center(
                                     child: ManaText.raw(ref.t('no_assigned_customers_match'),
-                                        style: TextStyle(color: ManaColors.textSecondary)),
+                                        style: ManaType.secondary),
                                   ),
                                 ),
                               ],
@@ -249,7 +250,7 @@ class _CustomerRow extends ConsumerWidget {
         leading: const ManaVerificationRing(isVerified: true, size: 40),
         title: Row(
           children: [
-            Flexible(child: ManaText.raw(customer.fullName, style: const TextStyle(fontWeight: FontWeight.w600))),
+            Flexible(child: ManaText.raw(customer.fullName, style: ManaType.emphasis)),
             if (flagged) ...[
               const SizedBox(width: ManaSpacing.xs),
               ManaStatusPill(label: customer.membershipStatus, status: ManaStatus.bad),
@@ -258,16 +259,16 @@ class _CustomerRow extends ConsumerWidget {
         ),
         subtitle: ManaText.raw(
           '${customer.fatherHusbandName} · ${customer.village} · LRI ${customer.lineRepaymentIndex}',
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            ManaText.raw(_currency.format(customer.outstandingBalance),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(manaRupees(customer.outstandingBalance),
+                style: ManaType.cardTitle),
             if (customer.todaysDue > 0)
-              ManaText.raw(ref.t('due_note').replaceAll('{amount}', _currency.format(customer.todaysDue)),
+              ManaText.raw(ref.t('due_note').replaceAll('{amount}', manaRupees(customer.todaysDue)),
                   style: TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
           ],
         ),
@@ -440,7 +441,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ManaText.raw(ref.t('update_contact_info'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ManaText.raw(ref.t('update_contact_info'), style: ManaType.cardTitle),
                   const SizedBox(height: ManaSpacing.md),
                   TextField(
                     controller: phoneController,
@@ -448,7 +449,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                     decoration: InputDecoration(labelText: ref.t('phone_number_plain_field')),
                   ),
                   const SizedBox(height: ManaSpacing.lg),
-                  ManaText.raw(ref.t('address'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ManaText.raw(ref.t('address'), style: ManaType.emphasis),
                   const SizedBox(height: ManaSpacing.sm),
                   TextField(
                     controller: doorNoController,
@@ -483,7 +484,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                           final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
                           return ListTile(
                             dense: true,
-                            title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
+                            title: ManaText.raw(label, style: ManaType.small),
                             onTap: () => setSheetState(() {
                               selectedVillageId = v['location_id'] as String;
                               selectedVillageLabel = label;
@@ -497,7 +498,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                   if (selectedVillageLabel != null) ...[
                     const SizedBox(height: ManaSpacing.xs),
                     ManaText.raw(ref.t('selected_note').replaceAll('{value}', '$selectedVillageLabel'),
-                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        style: ManaType.note),
                   ],
                   const SizedBox(height: ManaSpacing.lg),
                   ElevatedButton(
@@ -535,7 +536,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText.raw(ref.t('upload_document'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ManaText.raw(ref.t('upload_document'), style: ManaType.cardTitle),
               const SizedBox(height: ManaSpacing.md),
               for (final type in AgentDocumentType.values)
                 ListTile(
@@ -635,8 +636,8 @@ class _SummaryTab extends ConsumerWidget {
       children: [
         const Center(child: ManaVerificationRing(isVerified: true, size: 72)),
         const SizedBox(height: ManaSpacing.md),
-        Center(child: ManaText.raw(s.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-        Center(child: ManaText.raw(s.mlid, style: TextStyle(color: ManaColors.textSecondary))),
+        Center(child: ManaText.raw(s.fullName, style: ManaType.sheetTitle)),
+        Center(child: ManaText.raw(s.mlid, style: ManaType.secondary)),
         const SizedBox(height: ManaSpacing.lg),
         _row(ref.t('village'), s.village),
         // Tapping the number opens the handset's dialer with it keyed in —
@@ -649,22 +650,22 @@ class _SummaryTab extends ConsumerWidget {
                   child: ManaText.raw(ref.t('phone'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+                      style: ManaType.note)),
               const SizedBox(width: ManaSpacing.xs),
               ManaText.raw(s.phoneNumber,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  style: ManaType.smallStrong),
               ManaCallButton(s.phoneNumber),
             ],
           ),
         ),
         _row(ref.t('assigned_agent'), profile.currentAgent ?? '—'),
         _row(ref.t('loan_count'), '${s.activeLoanCount}'),
-        _row(ref.t('outstanding'), _currency.format(s.outstandingBalance)),
-        _row(ref.t('todays_due'), _currency.format(s.todaysDue)),
+        _row(ref.t('outstanding'), manaRupees(s.outstandingBalance)),
+        _row(ref.t('todays_due'), manaRupees(s.todaysDue)),
         const SizedBox(height: ManaSpacing.md),
         ManaText.raw(
           ref.t('read_only_figures_note'),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
       ],
     );
@@ -678,9 +679,9 @@ class _SummaryTab extends ConsumerWidget {
                 child: ManaText.raw(label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+                    style: ManaType.note)),
             const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            ManaText.raw(value, style: ManaType.smallStrong),
           ],
         ),
       );
@@ -694,7 +695,7 @@ class _LoanInformationTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (profile.loans.isEmpty) {
-      return Center(child: ManaText.raw(ref.t('no_loans_yet'), style: TextStyle(color: ManaColors.textSecondary)));
+      return Center(child: ManaText.raw(ref.t('no_loans_yet'), style: ManaType.secondary));
     }
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -708,7 +709,7 @@ class _LoanInformationTab extends ConsumerWidget {
                       Row(
                         children: [
                           Expanded(
-                              child: ManaText.raw(l.loanNumber, style: const TextStyle(fontWeight: FontWeight.w600))),
+                              child: ManaText.raw(l.loanNumber, style: ManaType.emphasis)),
                           ManaStatusPill(
                             label: l.status,
                             status: l.status == 'Active'
@@ -720,8 +721,8 @@ class _LoanInformationTab extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: ManaSpacing.sm),
-                      _row('Outstanding', _currency.format(l.outstanding)),
-                      _row("Today's Due", _currency.format(l.todaysDue)),
+                      _row('Outstanding', manaRupees(l.outstanding)),
+                      _row("Today's Due", manaRupees(l.todaysDue)),
                       _row('Issued', DateFormat('d MMM yyyy').format(l.issueDate)),
                       _row('Progress', '${l.progressPercent.toStringAsFixed(0)}%'),
                     ],
@@ -740,9 +741,9 @@ class _LoanInformationTab extends ConsumerWidget {
                 child: ManaText.raw(label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+                    style: ManaType.note)),
             const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            ManaText.raw(value, style: ManaType.smallStrong),
           ],
         ),
       );
@@ -758,14 +759,14 @@ class _CollectionHistoryTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (profile.collections.isEmpty) {
       return Center(
-          child: ManaText.raw(ref.t('no_collections_yet'), style: TextStyle(color: ManaColors.textSecondary)));
+          child: ManaText.raw(ref.t('no_collections_yet'), style: ManaType.secondary));
     }
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: profile.collections
           .map((c) => ListTile(
                 leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
-                title: ManaText.raw(_currency.format(c.amount)),
+                title: ManaText.raw(manaRupees(c.amount)),
                 subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
                 trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),
                     style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
@@ -828,7 +829,7 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
           child: ListView(
             padding: const EdgeInsets.all(ManaSpacing.lg),
             children: widget.profile.remarks.isEmpty
-                ? [ManaText.raw(ref.t('no_remarks_yet'), style: TextStyle(color: ManaColors.textSecondary))]
+                ? [ManaText.raw(ref.t('no_remarks_yet'), style: ManaType.secondary)]
                 : widget.profile.remarks
                     .map((r) => Card(
                           child: ListTile(

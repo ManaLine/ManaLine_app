@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -53,7 +54,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                       child: ManaText.raw(
                         state.error ?? 'Could not load profile.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: ManaColors.statusBad),
+                        style: ManaType.bad,
                       ),
                     ),
                   )
@@ -69,14 +70,14 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                     children: [
                       _SummaryCard(personId: widget.personId, profile: state.profile!),
                       const SizedBox(height: ManaSpacing.xl),
-                      ManaText.raw(ref.t('business_memberships'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ManaText.raw(ref.t('business_memberships'), style: ManaType.cardTitle),
                       const SizedBox(height: ManaSpacing.sm),
                       if (state.memberships.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: ManaSpacing.lg),
                           child: ManaText.raw(
                             'No Business Memberships found.',
-                            style: TextStyle(color: ManaColors.textSecondary),
+                            style: ManaType.secondary,
                           ),
                         )
                       else
@@ -184,7 +185,7 @@ class _SummaryCard extends ConsumerWidget {
                     children: [
                       ManaText.raw(profile.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                       const SizedBox(height: 2),
-                      ManaText.raw(profile.mlid, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      ManaText.raw(profile.mlid, style: ManaType.note),
                     ],
                   ),
                 ),
@@ -345,7 +346,7 @@ class _BusinessMembershipCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(business.businessName,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+                style: ManaType.emphasis),
             const SizedBox(height: ManaSpacing.xs),
             for (final m in business.roles) _MembershipTile(membership: m),
           ],
@@ -611,7 +612,7 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
                   final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
                   return ListTile(
                     dense: true,
-                    title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
+                    title: ManaText.raw(label, style: ManaType.small),
                     onTap: () => setState(() {
                       _selectedVillage = v;
                       _villageSearch.text = v['village_town_name'] as String;
@@ -625,7 +626,7 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
             const SizedBox(height: 4),
             ManaText.raw(
               'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
           ],
         ],

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -196,7 +197,7 @@ class _BusinessTransferScreenState
                 children: [
                   if (incoming.isNotEmpty) ...[
                     ManaText.raw(ref.t('offered_to_you'),
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                        style: ManaType.heavy),
                     const SizedBox(height: ManaSpacing.sm),
                     for (final t in incoming)
                       _OfferCard(
@@ -211,7 +212,7 @@ class _BusinessTransferScreenState
                   ],
                   if (outgoing.isNotEmpty) ...[
                     ManaText.raw(ref.t('waiting_to_be_accepted'),
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                        style: ManaType.heavy),
                     const SizedBox(height: ManaSpacing.sm),
                     for (final t in outgoing)
                       _OfferCard(
@@ -224,7 +225,7 @@ class _BusinessTransferScreenState
                   ],
 
                   ManaText.raw(ref.t('hand_business_to_someone'),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                      style: ManaType.heavy),
                   const SizedBox(height: ManaSpacing.xs),
                   ManaText.raw(
                     ref.t('transfer_business_note'),
@@ -266,10 +267,10 @@ class _BusinessTransferScreenState
                               style: const TextStyle(
                                   fontWeight: FontWeight.w700)),
                           ManaText.raw(_found!.mlid,
-                              style: const TextStyle(fontSize: 13)),
+                              style: ManaType.small),
                           if (_found!.mobile.isNotEmpty)
                             ManaText.raw(_found!.mobile,
-                                style: const TextStyle(fontSize: 13)),
+                                style: ManaType.small),
                         ],
                       ),
                     ),
@@ -332,7 +333,7 @@ class _OfferCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(transfer.businessName,
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: ManaType.heavy),
           ManaText.raw(transfer.mlbi,
               style: TextStyle(
                   fontSize: 13, color: ManaColors.textSecondary)),
@@ -341,7 +342,7 @@ class _OfferCard extends StatelessWidget {
             transfer.isIncoming
                 ? 'From ${transfer.counterparty} (${transfer.counterpartyMlid})'
                 : 'To ${transfer.counterparty} (${transfer.counterpartyMlid})',
-            style: const TextStyle(fontSize: 13),
+            style: ManaType.small,
           ),
           if (transfer.note != null && transfer.note!.isNotEmpty) ...[
             const SizedBox(height: ManaSpacing.xs),

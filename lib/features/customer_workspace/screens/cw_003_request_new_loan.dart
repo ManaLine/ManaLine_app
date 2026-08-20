@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/loan_request_state.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy, h:mm a');
 
 /// CW-003 — Request New Loan. Reached from CW-001 Quick Actions. A Loan
@@ -132,13 +133,13 @@ class _NotAllowedState extends ConsumerWidget {
             Icon(Icons.block, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw(ref.t('not_available_for_business'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               'This Business does not currently accept Customer-initiated '
               'loan requests. Please speak with the Owner or Agent directly.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
@@ -171,11 +172,11 @@ class _CooldownState extends ConsumerWidget {
             Icon(Icons.hourglass_top, size: 48, color: ManaColors.statusWarn),
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw(ref.t('resubmission_not_available'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             if (state.lastResult?.rejectionReason != null) ...[
               ManaText.raw(ref.t('previous_request_rejected_note').replaceAll('{reason}', '${state.lastResult!.rejectionReason}'),
-                  textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
+                  textAlign: TextAlign.center, style: ManaType.secondary),
               const SizedBox(height: ManaSpacing.sm),
             ],
             ManaText.raw(
@@ -183,7 +184,7 @@ class _CooldownState extends ConsumerWidget {
                   ? 'You may submit a new request to this Business after ${_dateFmt.format(cooldown.toLocal())}.'
                   : 'You may submit a new request to this Business after a 24-hour cooldown.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
@@ -208,11 +209,11 @@ class _TemplateSelectionStep extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText.raw(ref.t('select_a_loan_template'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        ManaText.raw(ref.t('select_a_loan_template'), style: ManaType.cardTitle),
         const SizedBox(height: ManaSpacing.sm),
         ManaText.raw(
           'Choose a template, or request a custom amount.',
-          style: TextStyle(color: ManaColors.textSecondary),
+          style: ManaType.secondary,
         ),
         const SizedBox(height: ManaSpacing.md),
         ...state.templates.map((t) => _TemplateTile(
@@ -249,9 +250,9 @@ class _TemplateTile extends StatelessWidget {
           selected ? Icons.check_circle : Icons.radio_button_unchecked,
           color: selected ? ManaColors.brand : ManaColors.textSecondary,
         ),
-        title: ManaText.raw(template.templateName, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: ManaText.raw(template.templateName, style: ManaType.emphasis),
         subtitle: ManaText.raw(
-          '${_currency.format(template.defaultAmount)} · ${template.durationValue} × ${template.repaymentFrequency}',
+          '${manaRupees(template.defaultAmount)} · ${template.durationValue} × ${template.repaymentFrequency}',
           style: TextStyle(fontSize: 16, color: ManaColors.textSecondary),
         ),
         onTap: onTap,
@@ -276,7 +277,7 @@ class _CustomAmountTile extends ConsumerWidget {
         title: ManaText.raw(ref.t('request_custom_amount')),
         subtitle: ManaText.raw(
           'Not tied to a template — enter your own amount and frequency.',
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         onTap: onTap,
       ),
@@ -326,7 +327,7 @@ class _RequestDetailsStep extends ConsumerWidget {
           state.selectedTemplate != null
               ? 'template: ${state.selectedTemplate!.templateName}'
               : 'custom amount request',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: ManaType.cardTitle,
         ),
         const SizedBox(height: ManaSpacing.lg),
         TextField(
@@ -345,7 +346,7 @@ class _RequestDetailsStep extends ConsumerWidget {
         ),
         if (state.requestingCustomAmount) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw(ref.t('preferred_repayment_frequency'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          ManaText.raw(ref.t('preferred_repayment_frequency'), style: ManaType.smallStrong),
           const SizedBox(height: ManaSpacing.xs),
           ...['Daily', 'Weekly', 'Monthly'].map((f) => _FrequencyTile(
                 label: f,
@@ -363,7 +364,7 @@ class _RequestDetailsStep extends ConsumerWidget {
               children: [
                 ManaText.raw(ref.t('review_summary'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 const SizedBox(height: ManaSpacing.sm),
-                _SummaryRow(label: ref.t('amount'), value: _currency.format(double.tryParse(state.requestedAmountText) ?? 0)),
+                _SummaryRow(label: ref.t('amount'), value: manaRupees(double.tryParse(state.requestedAmountText) ?? 0)),
                 if (state.purposeRemark.trim().isNotEmpty)
                   _SummaryRow(label: ref.t('purpose'), value: state.purposeRemark.trim()),
                 _SummaryRow(
@@ -376,7 +377,7 @@ class _RequestDetailsStep extends ConsumerWidget {
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (state.error != null) ...[
-          ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
+          ManaText.raw(state.error!, style: ManaType.bad),
           const SizedBox(height: ManaSpacing.sm),
         ],
         SizedBox(
@@ -429,8 +430,8 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ManaText(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
-          Flexible(child: ManaText.raw(value, textAlign: TextAlign.right, style: const TextStyle(fontSize: 13))),
+          ManaText(label, style: ManaType.note),
+          Flexible(child: ManaText.raw(value, textAlign: TextAlign.right, style: ManaType.small)),
         ],
       ),
     );
@@ -531,9 +532,9 @@ class _ResultState extends StatelessWidget {
           children: [
             Icon(icon, size: 56, color: iconColor),
             const SizedBox(height: ManaSpacing.md),
-            ManaText(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText(title, style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(body, textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
+            ManaText.raw(body, textAlign: TextAlign.center, style: ManaType.secondary),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(onPressed: onPrimary, child: ManaText(primaryLabel)),
           ],

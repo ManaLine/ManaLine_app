@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -13,7 +15,6 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/investor_dashboard_state.dart';
 import '../../../shared/translation_service.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// IW-001 — Investor Home Dashboard. Primary entry point for an
 /// Investor, reached from LR-013 Role Selector (Investor role chosen).
@@ -152,7 +153,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
               child: ManaText.raw(
                 e.toString(),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: ManaColors.statusBad),
+                style: ManaType.noteBad,
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -188,8 +189,8 @@ class _Header extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText.raw(businessName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ManaText.raw(investorName, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+              ManaText.raw(businessName, style: ManaType.sheetTitle),
+              ManaText.raw(investorName, style: ManaType.note),
             ],
           ),
         ),
@@ -226,12 +227,12 @@ class _NotificationsSheet extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('notifications'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('notifications'), style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.md),
             Expanded(
               child: notifications.isEmpty
                   ? Center(
-                      child: ManaText.raw(ref.t('no_notifications_yet'), style: TextStyle(color: ManaColors.textSecondary)),
+                      child: ManaText.raw(ref.t('no_notifications_yet'), style: ManaType.secondary),
                     )
                   : ListView.separated(
                       controller: scrollController,
@@ -245,10 +246,10 @@ class _NotificationsSheet extends ConsumerWidget {
                             n.read ? Icons.notifications_none : Icons.notifications_active,
                             color: n.read ? ManaColors.textSecondary : ManaColors.brand,
                           ),
-                          title: ManaText.raw(n.message, style: const TextStyle(fontSize: 13)),
-                          subtitle: ManaText.raw(n.type, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                          title: ManaText.raw(n.message, style: ManaType.small),
+                          subtitle: ManaText.raw(n.type, style: ManaType.note),
                           trailing: ManaText.raw(DateFormat('d MMM, hh:mm a').format(n.timestamp),
-                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                              style: ManaType.note),
                         );
                       },
                     ),
@@ -269,10 +270,10 @@ class _MySummary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = <(String, String, ManaStatus)>[
-      (ref.t('total_investment_balance'), _currency.format(data.totalInvestmentBalance), ManaStatus.neutral),
+      (ref.t('total_investment_balance'), manaRupees(data.totalInvestmentBalance), ManaStatus.neutral),
       (ref.t('active_investments'), '${data.activeInvestmentCount}', ManaStatus.good),
-      (ref.t('interest_accrued'), _currency.format(data.totalInterestAccrued), ManaStatus.neutral),
-      (ref.t('interest_paid_to_date'), _currency.format(data.interestPaidToDate), ManaStatus.good),
+      (ref.t('interest_accrued'), manaRupees(data.totalInterestAccrued), ManaStatus.neutral),
+      (ref.t('interest_paid_to_date'), manaRupees(data.interestPaidToDate), ManaStatus.good),
       (ref.t('pending_withdrawal_requests'), '${data.pendingWithdrawalRequests}', ManaStatus.warn),
       (ref.t('pending_interest_payment_requests'), '${data.pendingInterestPaymentRequests}', ManaStatus.warn),
     ];
@@ -282,7 +283,7 @@ class _MySummary extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('my_summary'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('my_summary'), style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
               spacing: ManaSpacing.lg,
@@ -293,7 +294,7 @@ class _MySummary extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ManaText.raw(s.$2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            ManaText.raw(s.$2, style: ManaType.cardTitle),
                             const SizedBox(height: 2),
                             ManaStatusPill(label: s.$1, status: s.$3),
                           ],
@@ -340,7 +341,7 @@ class _QuickActions extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('quick_actions'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('quick_actions'), style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             ...actions.map((a) => ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -372,12 +373,12 @@ class _NoMembershipsState extends ConsumerWidget {
           children: [
             Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
-            ManaText.raw(ref.t('no_business_memberships_yet'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ManaText.raw(ref.t('no_business_memberships_yet'), style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               ref.t('find_investor_membership_note'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton.icon(

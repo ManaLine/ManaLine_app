@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -180,7 +180,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: ManaSpacing.md),
-                ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad),
+                ManaText.raw(_error!, style: ManaType.bad,
                     textAlign: TextAlign.center),
               ],
               const SizedBox(height: ManaSpacing.lg),

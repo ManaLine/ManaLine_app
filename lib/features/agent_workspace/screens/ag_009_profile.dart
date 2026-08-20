@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/agent_dashboard_state.dart' show AgentAreaAssignment;
 import '../state/agent_profile_state.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _date = DateFormat('d MMM yyyy');
 
 /// AG-009 — Profile. Last of the routed Agent Workspace screens; AG-010
@@ -69,7 +70,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
                         child: ManaText.raw(
                           state.error ?? ref.t('could_not_load_profile_plain'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: ManaColors.statusBad),
+                          style: ManaType.bad,
                         ),
                       ),
                     )
@@ -94,7 +95,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
                           const SizedBox(height: ManaSpacing.xs),
                           ManaText.raw(
                             ref.t('tenancy_isolation_note'),
-                            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                            style: ManaType.note,
                           ),
                           const SizedBox(height: ManaSpacing.sm),
                           ...state.memberships.map((m) => _MembershipTile(membership: m)),
@@ -209,7 +210,7 @@ class _RouteAreaSummary extends ConsumerWidget {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: ManaText.raw(ref.t('no_operating_areas_assigned'), style: TextStyle(color: ManaColors.textSecondary)),
+          child: ManaText.raw(ref.t('no_operating_areas_assigned'), style: ManaType.secondary),
         ),
       );
     }
@@ -249,8 +250,8 @@ class _CompensationLinkOutRow extends ConsumerWidget {
     return Card(
       child: ListTile(
         leading: Icon(Icons.account_balance_wallet_outlined, color: ManaColors.brand),
-        title: ManaText.raw(s != null ? _currency.format(s.fixedSalary) : '—',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: ManaText.raw(s != null ? manaRupees(s.fixedSalary) : '—',
+            style: ManaType.strong),
         subtitle: ManaText.raw(s?.salaryCycleStatus ?? ref.t('compensation_not_available'),
             style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
         trailing: const Icon(Icons.chevron_right),

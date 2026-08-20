@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -122,12 +123,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           children: [
             ManaText.raw(
               ref.t('import_records_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.lg),
 
             ManaText.raw(ref.t('step_1'),
-                style: const TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.xs),
             OutlinedButton.icon(
               onPressed: _busy ? null : _template,
@@ -137,7 +138,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             const SizedBox(height: ManaSpacing.lg),
 
             ManaText.raw(ref.t('step_2'),
-                style: const TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             const SizedBox(height: ManaSpacing.xs),
             OutlinedButton.icon(
               onPressed: _busy ? null : _pick,
@@ -147,7 +148,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             if (_fileName != null) ...[
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(_fileName!,
-                  style: const TextStyle(fontSize: 13)),
+                  style: ManaType.small),
             ],
             if (_formatError != null) ...[
               const SizedBox(height: ManaSpacing.sm),
@@ -166,10 +167,10 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             if (parse != null && !_busy) ...[
               const SizedBox(height: ManaSpacing.lg),
               ManaText.raw(ref.t('step_3'),
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                  style: ManaType.heavy),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(ref.t('rows_ready_to_import').replaceAll('{count}', '${parse.rows.length}'),
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                  style: ManaType.heavy),
               const SizedBox(height: ManaSpacing.sm),
               ElevatedButton.icon(
                 onPressed: parse.rows.isEmpty ? null : _import,
@@ -203,7 +204,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                           .t('row_error_note')
                           .replaceAll('{row}', '${e.row}')
                           .replaceAll('{message}', e.message),
-                      style: const TextStyle(fontSize: 13),
+                      style: ManaType.small,
                     ),
                   ),
               ],

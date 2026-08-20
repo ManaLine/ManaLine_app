@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/auth_flow_state.dart';
@@ -196,7 +197,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
                   // tiles below already constrain their label this way.
                   Expanded(
                     child: ManaText.raw(result.businessName,
-                        style: TextStyle(color: ManaColors.textSecondary)),
+                        style: ManaType.secondary),
                   ),
                 ],
               ),

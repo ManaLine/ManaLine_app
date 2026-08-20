@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -217,7 +218,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       child: ManaText.raw(_error ?? ref.t('could_not_load_profile_plain'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: ManaColors.statusBad)),
+                          style: ManaType.bad),
                     ),
                   )
                 : RefreshIndicator(
@@ -266,7 +267,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                               const EdgeInsets.symmetric(vertical: ManaSpacing.lg),
                           child: ManaText.raw(ref.t('no_businesses_found'),
                               style:
-                                  TextStyle(color: ManaColors.textSecondary)),
+                                  ManaType.secondary),
                         )
                       else
                         ..._businesses.map((b) => Card(
@@ -291,7 +292,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
                         icon: Icon(Icons.logout,
                             color: ManaColors.statusBad),
                         label: ManaText.raw('logout',
-                            style: TextStyle(color: ManaColors.statusBad)),
+                            style: ManaType.bad),
                       ),
                     ],
                   ),
@@ -349,7 +350,7 @@ class _IdentityCard extends ConsumerWidget {
                 title: ManaText.raw(ref.t('view_live_photo')),
                 subtitle: ManaText.raw(
                   ref.t('live_photo_from_registration_note'),
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  style: ManaType.fine,
                 ),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -471,7 +472,7 @@ class _AddressCard extends ConsumerWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.md),
         child: ManaText.raw(ref.t('no_address_on_file'),
-            style: TextStyle(color: ManaColors.textSecondary)),
+            style: ManaType.secondary),
       );
     }
     final village = (address!['locations']
@@ -678,7 +679,7 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
                       return ListTile(
                         dense: true,
                         title: ManaText.raw(label,
-                            style: const TextStyle(fontSize: 13)),
+                            style: ManaType.small),
                         onTap: () => setState(() {
                           _selectedVillage = v;
                           _villageSearch.text =

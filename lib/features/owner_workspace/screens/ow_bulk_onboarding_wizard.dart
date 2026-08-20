@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -989,7 +990,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               ),
               ManaText.raw(
                 '${_step + 1}/${_pageTitles.length}',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                style: ManaType.fine,
               ),
             ],
           ),
@@ -1014,7 +1015,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               children: [
                 ManaText.raw(
                   'Carried on where you stopped.',
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  style: ManaType.fine,
                 ),
                 TextButton(
                   onPressed: _startFromTheBeginning,
@@ -1059,7 +1060,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
 
   Widget _intro(String text) => ManaText.raw(
         text,
-        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+        style: ManaType.note,
       );
 
   Widget _fileButtons({
@@ -1086,11 +1087,11 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         ),
         if (fileName != null) ...[
           const SizedBox(height: ManaSpacing.sm),
-          ManaText.raw(fileName, style: const TextStyle(fontSize: 13)),
+          ManaText.raw(fileName, style: ManaType.small),
         ],
         if (error != null) ...[
           const SizedBox(height: ManaSpacing.sm),
-          ManaText.raw(error, style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+          ManaText.raw(error, style: ManaType.noteBad),
         ],
         if (busy) ...[
           const SizedBox(height: ManaSpacing.lg),
@@ -1127,7 +1128,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         if (parse != null && !_busy1) ...[
           const SizedBox(height: ManaSpacing.lg),
           ManaText.raw('${parse.rows.length} rows ready · ${_villages.length} villages named',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: ManaType.heavy),
           if (_duplicates.isNotEmpty) ...[
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw('${_duplicates.length} rows need review',
@@ -1157,7 +1158,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             if (undecided > 0) ...[
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw('$undecided row(s) still need a decision.',
-                  style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+                  style: ManaType.noteBad),
             ],
           ],
         ],
@@ -1193,10 +1194,10 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                     d.reason == "duplicate_in_file"
                         ? ref.t('duplicate_in_file')
                         : ref.t('looks_like_existing_customer')),
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                style: ManaType.smallStrong),
             if (d.candidates.isNotEmpty)
               ManaText.raw(d.candidates.join(' · '),
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                  style: ManaType.fine),
             const SizedBox(height: ManaSpacing.xs),
             Wrap(
               spacing: ManaSpacing.sm,
@@ -1235,12 +1236,12 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         if (_villages.isEmpty)
           ManaText.raw(
             'No villages yet — upload the identity file on the previous page.',
-            style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
+            style: ManaType.noteWarn,
           ),
         for (final v in _villages) _villageCard(v),
         if (_villageError != null) ...[
           const SizedBox(height: ManaSpacing.sm),
-          ManaText.raw(_villageError!, style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+          ManaText.raw(_villageError!, style: ManaType.noteBad),
         ],
         if (_busy2) ...[
           const SizedBox(height: ManaSpacing.lg),
@@ -1284,7 +1285,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             const SizedBox(height: ManaSpacing.xs),
             if (suggestions == null)
               ManaText.raw('Looking up this PIN…',
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary))
+                  style: ManaType.fine)
             else if (districts.isEmpty)
               TextField(
                 decoration: const InputDecoration(labelText: 'District *'),
@@ -1311,7 +1312,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                 padding: const EdgeInsets.only(top: 4),
                 child: ManaText.raw(
                   '${v.mandal}${v.state.isEmpty ? "" : " · ${v.state}"}',
-                  style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                  style: ManaType.fine,
                 ),
               ),
             const SizedBox(height: ManaSpacing.xs),
@@ -1347,7 +1348,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         if (parse != null && !_busy3) ...[
           const SizedBox(height: ManaSpacing.lg),
           ManaText.raw('${parse.rows.length} investment rows ready',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: ManaType.heavy),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
             onPressed: parse.rows.isEmpty ? null : _investorSubmit,
@@ -1381,7 +1382,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         if (_shareholders != null && !_busy3) ...[
           const SizedBox(height: ManaSpacing.lg),
           ManaText.raw('${_shareholders!.length} shareholders ready',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: ManaType.heavy),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
             onPressed: _shareholders!.isEmpty ? null : _shareholderSubmit,
@@ -1401,7 +1402,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               child: ManaText.raw(
                 '${s['full_name']} · ₹${s['share_amount']}'
                 '${s['accrued_to_paid_on'] == null ? "" : " + ₹${s['accrued_to_paid_on']} accrued"}',
-                style: const TextStyle(fontSize: 13),
+                style: ManaType.small,
               ),
             ),
         ],
@@ -1433,14 +1434,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         ),
         if (_busy4 && _emiProgressLabel.isNotEmpty) ...[
           const SizedBox(height: ManaSpacing.sm),
-          Center(child: ManaText.raw(_emiProgressLabel, style: const TextStyle(fontSize: 13))),
+          Center(child: ManaText.raw(_emiProgressLabel, style: ManaType.small)),
         ],
         if (parse != null && !_busy4) ...[
           const SizedBox(height: ManaSpacing.lg),
           ManaText.raw(
             '${parse.loans.length} loans · '
             '${parse.schedule.fold<int>(0, (a, r) => a + r.entries.length)} instalments ready',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: ManaType.heavy,
           ),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
@@ -1463,7 +1464,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: ManaText.raw(
                   '${e.mlid}${e.instalment > 0 ? " · instalment ${e.instalment}" : ""}: ${e.message}',
-                  style: const TextStyle(fontSize: 13),
+                  style: ManaType.small,
                 ),
               ),
             const SizedBox(height: ManaSpacing.sm),
@@ -1501,7 +1502,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         if (rows != null && !_busy5) ...[
           const SizedBox(height: ManaSpacing.lg),
           ManaText.raw('${rows.length} attendance rows ready',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: ManaType.heavy),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
             onPressed: rows.isEmpty ? null : _attendanceSubmit,
@@ -1623,7 +1624,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           ManaText.raw(
             '${rows.length} weeks ready · '
             '${rows.fold<int>(0, (a, r) => a + ((r['expenses'] as List?)?.length ?? 0))} expense lines',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: ManaType.heavy,
           ),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
@@ -1640,7 +1641,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           _amountRow('Closing BF', _weeklyResult!['closing_bf']),
           ManaText.raw(
             'Book kept from ${_weeklyResult!['from']} through ${_weeklyResult!['through']}.',
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+            style: ManaType.note,
           ),
         ],
         const SizedBox(height: ManaSpacing.lg),
@@ -1706,7 +1707,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               size: 18, color: done ? ManaColors.statusGood : ManaColors.textSecondary),
           const SizedBox(width: ManaSpacing.sm),
           Expanded(child: ManaText.raw(label, style: const TextStyle(fontSize: 14))),
-          ManaText.raw(done ? '$value' : '—', style: const TextStyle(fontWeight: FontWeight.w600)),
+          ManaText.raw(done ? '$value' : '—', style: ManaType.emphasis),
         ],
       ),
     );
@@ -1720,7 +1721,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           Expanded(child: ManaText.raw(label, style: const TextStyle(fontSize: 14))),
           ManaText.raw(
             value == null ? '—' : '₹${value.toString()}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: ManaType.heavy,
           ),
         ],
       ),
@@ -1747,7 +1748,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                             .t('row_error_note')
                             .replaceAll('{row}', '${e.row}')
                             .replaceAll('{message}', e.message),
-                        style: const TextStyle(fontSize: 13)),
+                        style: ManaType.small),
                   ),
                 if (onDownloadCorrection != null) ...[
                   const SizedBox(height: ManaSpacing.sm),

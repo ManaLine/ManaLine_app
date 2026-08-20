@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_stat_strip.dart';
@@ -12,7 +14,6 @@ import '../../owner_workspace/screens/ow_006_collection_mode.dart' show Collecti
 import '../state/todays_route_state.dart';
 import 'ag_004_customer_management.dart' show AgentCustomerProfileScreen;
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// AG-003 — Today's Route. Display-only ordered visit sequence for the
 /// active Business Session's enabled Area(s) — grouped by village, ordered
@@ -116,7 +117,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       children: [
                         ManaText.raw(DateFormat('d MMM yyyy').format(DateTime.now()),
-                            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                            style: ManaType.note),
                         const SizedBox(height: ManaSpacing.sm),
                         _RouteSummaryCard(state: state),
                         const SizedBox(height: ManaSpacing.md),
@@ -124,7 +125,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
                         const SizedBox(height: ManaSpacing.xs),
                         ManaText.raw(
                           ref.t('village_customer_order_note'),
-                          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                          style: ManaType.note,
                         ),
                         const SizedBox(height: ManaSpacing.md),
                         if (state.stops.isEmpty)
@@ -132,7 +133,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
                             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                             child: Center(
                               child: ManaText.raw(ref.t('no_route_assigned'),
-                                  style: TextStyle(color: ManaColors.textSecondary)),
+                                  style: ManaType.secondary),
                             ),
                           )
                         else ...[
@@ -204,8 +205,8 @@ class _RouteSummaryCard extends ConsumerWidget {
       (ref.t('assigned'), '${state.customersAssigned}', ManaStatus.neutral),
       (ref.t('completed'), '${state.customersCompleted}', ManaStatus.good),
       (ref.t('pending_label'), '${state.customersPending}', ManaStatus.warn),
-      (ref.t('est_collection'), _currency.format(state.estimatedCollection), ManaStatus.neutral),
-      (ref.t('collected'), _currency.format(state.collectedAmount), ManaStatus.good),
+      (ref.t('est_collection'), manaRupees(state.estimatedCollection), ManaStatus.neutral),
+      (ref.t('collected'), manaRupees(state.collectedAmount), ManaStatus.good),
     ];
     return ManaStatStrip(
       valueFontSize: 16,
@@ -247,17 +248,17 @@ class _RouteProgress extends ConsumerWidget {
               children: [
                 ManaText.raw(
                     ref.t('visit_percent').replaceAll('{percent}', (state.visitPercent * 100).toStringAsFixed(0)),
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: ManaType.note),
                 ManaText.raw(
                     ref
                         .t('collection_percent')
                         .replaceAll('{percent}', (state.collectionPercent * 100).toStringAsFixed(0)),
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: ManaType.note),
                 ManaText.raw(
                     ref
                         .t('remaining_percent')
                         .replaceAll('{percent}', (state.remainingPercent * 100).toStringAsFixed(0)),
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: ManaType.note),
               ],
             ),
           ],
@@ -352,13 +353,13 @@ class _RouteStopRow extends ConsumerWidget {
                     ManaText.raw(stop.customerName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                        style: ManaType.emphasis),
                     const SizedBox(height: 2),
                     ManaText.raw(
                       '${stop.loanNumber} · LRI ${stop.lineRepaymentIndex}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                      style: ManaType.note,
                     ),
                     const SizedBox(height: ManaSpacing.xs),
                     Row(
@@ -367,11 +368,11 @@ class _RouteStopRow extends ConsumerWidget {
                         Flexible(child: ManaStatusPill(label: ref.t(v.labelKey), status: v.pillStatus)),
                         const SizedBox(width: ManaSpacing.sm),
                         Flexible(
-                          child: ManaText.raw(_currency.format(stop.todaysDue),
+                          child: ManaText.raw(manaRupees(stop.todaysDue),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.right,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              style: ManaType.cardTitle),
                         ),
                       ],
                     ),
@@ -401,8 +402,8 @@ class _VisitOutcomeSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(stop.customerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ManaText.raw(ref.t('visit_outcome'), style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+            ManaText.raw(stop.customerName, style: ManaType.cardTitle),
+            ManaText.raw(ref.t('visit_outcome'), style: ManaType.note),
             const SizedBox(height: ManaSpacing.md),
             for (final outcome in VisitOutcome.values)
               ListTile(
@@ -437,7 +438,7 @@ class _EndRouteBar extends ConsumerWidget {
       return Center(
         child: ManaText.raw(
           ref.t('customers_left_to_visit').replaceAll('{count}', '${state.customersPending}'),
-          style: TextStyle(color: ManaColors.textSecondary),
+          style: ManaType.secondary,
         ),
       );
     }

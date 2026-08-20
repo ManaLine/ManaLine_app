@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -105,7 +106,7 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
         const SizedBox(height: ManaSpacing.xs),
         if (state.memberType != null)
           ManaText.raw(ref.t('type_note').replaceAll('{type}', state.memberType!.label),
-              style: TextStyle(color: ManaColors.textSecondary)),
+              style: ManaType.secondary),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _mobileController,
@@ -113,7 +114,7 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
           decoration: InputDecoration(labelText: ref.t('mobile_number_field')),
         ),
         const SizedBox(height: ManaSpacing.sm),
-        ManaText.raw(ref.t('or_separator'), style: TextStyle(color: ManaColors.textSecondary), textAlign: TextAlign.center),
+        ManaText.raw(ref.t('or_separator'), style: ManaType.secondary, textAlign: TextAlign.center),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _mlidController,
@@ -134,7 +135,7 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
         ),
         if (state.error != null) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
+          ManaText.raw(state.error!, style: ManaType.bad),
         ],
       ],
     );
@@ -372,7 +373,7 @@ class _IncompleteStep extends ConsumerWidget {
         const SizedBox(height: ManaSpacing.md),
         ManaText.raw(
           ref.t('incomplete_profile_note'),
-          style: TextStyle(color: ManaColors.textSecondary),
+          style: ManaType.secondary,
         ),
         const SizedBox(height: ManaSpacing.lg),
         Card(
@@ -380,7 +381,7 @@ class _IncompleteStep extends ConsumerWidget {
             title: ManaText.raw(ref.t('complete_profile')),
             subtitle: ManaText.raw(
               ref.t('complete_profile_note'),
-              style: const TextStyle(fontSize: 13),
+              style: ManaType.small,
             ),
             trailing: const Icon(Icons.chevron_right),
             enabled: _canOpen,
@@ -397,7 +398,7 @@ class _IncompleteStep extends ConsumerWidget {
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(
             ref.t('no_member_selected_note'),
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+            style: ManaType.note,
           ),
         ],
       ],

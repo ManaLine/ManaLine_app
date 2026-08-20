@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../design/tokens/colors.dart';
+import '../../design/components/mana_amount.dart';
+import '../../design/tokens/typography.dart';
 import '../../design/tokens/spacing.dart';
 import '../../design/components/mana_text.dart';
 import '../network_error_handler.dart';
 import '../soft_delete_service.dart';
 
-final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
 
 /// Recent Deletes — the 30-day bin, for the Owner and any agent the Owner
@@ -118,11 +118,11 @@ class _DeletedRowState extends ConsumerState<_DeletedRow> {
               children: [
                 Expanded(
                   child: ManaText.raw(r.label,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                      style: ManaType.emphasis),
                 ),
                 if (r.amount != null)
-                  ManaText.raw(_currency.format(r.amount),
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ManaText.raw(manaRupees(r.amount!),
+                      style: ManaType.strong),
               ],
             ),
             const SizedBox(height: ManaSpacing.xs),

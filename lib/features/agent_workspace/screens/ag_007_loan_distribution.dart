@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -16,7 +17,6 @@ import '../../owner_workspace/state/loan_wizard_state.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/mana_time.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// AG-007 — Loan Distribution. Per spec's own PURPOSE/WIZARD STEPS: this
 /// is NOT a new wizard. The 5-step flow (Customer Selection → Eligibility
@@ -87,11 +87,11 @@ class _Ag007LoanDistributionScreenState extends ConsumerState<Ag007LoanDistribut
                 label: ManaText.raw(ref.t('start_new_loan')),
               ),
               const SizedBox(height: ManaSpacing.xxl),
-              ManaText.raw(ref.t('bf_cash_transfer'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ManaText.raw(ref.t('bf_cash_transfer'), style: ManaType.cardTitle),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
                 ref.t('bf_cash_transfer_note'),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                style: ManaType.note,
               ),
               const SizedBox(height: ManaSpacing.md),
               _SendBfCashCard(agentId: widget.agentId),
@@ -102,7 +102,7 @@ class _Ag007LoanDistributionScreenState extends ConsumerState<Ag007LoanDistribut
                   margin: const EdgeInsets.only(bottom: ManaSpacing.md),
                   decoration:
                       BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
-                  child: ManaText.raw(distState.error!, style: TextStyle(color: ManaColors.statusBad)),
+                  child: ManaText.raw(distState.error!, style: ManaType.bad),
                 ),
               _TransferList(
                 title: 'awaiting your confirmation',
@@ -139,7 +139,7 @@ class _BfCashPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('bf_cash_panel'), style: const TextStyle(fontWeight: FontWeight.bold)),
+            ManaText.raw(ref.t('bf_cash_panel'), style: ManaType.strong),
             const SizedBox(height: ManaSpacing.sm),
             Row(
               children: [
@@ -147,12 +147,12 @@ class _BfCashPanel extends ConsumerWidget {
                   child: ManaText.raw(ref.t('current_bf_cash_balance'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: ManaColors.textSecondary)),
+                      style: ManaType.secondary),
                 ),
                 const SizedBox(width: ManaSpacing.xs),
                 ManaText.raw(
-                  bfAssignment == null ? '—' : _currency.format(bfAssignment!.openingBf),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  bfAssignment == null ? '—' : manaRupees(bfAssignment!.openingBf),
+                  style: ManaType.sheetTitle,
                 ),
               ],
             ),
@@ -160,7 +160,7 @@ class _BfCashPanel extends ConsumerWidget {
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
                 ref.t('no_bf_assignment_note'),
-                style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
+                style: ManaType.noteWarn,
               ),
             ],
           ],
@@ -225,7 +225,7 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('send_bf_cash'), style: const TextStyle(fontWeight: FontWeight.w600)),
+            ManaText.raw(ref.t('send_bf_cash'), style: ManaType.emphasis),
             const SizedBox(height: ManaSpacing.sm),
             TextField(
               controller: _toAgentName,
@@ -297,7 +297,7 @@ class _TransferList extends ConsumerWidget {
       context,
       entity: DeletableEntity.cashTransfer,
       recordId: t.transferId,
-      description: '${_currency.format(t.amount)} with $other on ${t.businessDate}',
+      description: '${manaRupees(t.amount)} with $other on ${t.businessDate}',
     );
     if (!deleted || !context.mounted) return;
     await ref.read(loanDistributionProvider.notifier).loadTransfers(agentId: agentId);
@@ -307,7 +307,7 @@ class _TransferList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (transfers.isEmpty) {
       return ManaText.raw(ref.t('no_transfers_note').replaceAll('{title}', title),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary));
+          style: ManaType.note);
     }
     // BUG FIXED this pass: the Confirm button had no in-flight guard at
     // all — confirmTransfer() does a real balance-affecting write, and a
@@ -319,7 +319,7 @@ class _TransferList extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ManaText.raw(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        ManaText.raw(title, style: ManaType.smallStrong),
         const SizedBox(height: ManaSpacing.sm),
         ...transfers.map((t) => Card(
               margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
@@ -329,9 +329,9 @@ class _TransferList extends ConsumerWidget {
                   t.direction(agentId) == 'Incoming'
                       ? ref.t('from_agent_note').replaceAll('{name}', t.fromAgentName)
                       : ref.t('to_agent_note').replaceAll('{name}', t.toAgentName),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: ManaType.emphasis,
                 ),
-                subtitle: ManaText.raw('${t.businessDate} · ${_currency.format(t.amount)}',
+                subtitle: ManaText.raw('${t.businessDate} · ${manaRupees(t.amount)}',
                     style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -422,7 +422,7 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
                           .t('step_x_of_y')
                           .replaceAll('{current}', '${stepIndex + 1}')
                           .replaceAll('{total}', '${_steps.length}'),
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      style: ManaType.note),
                 ],
               ),
             ),
@@ -505,7 +505,7 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
         ManaText.raw(ref.t('select_customer'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(ref.t('select_customer_note'),
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            style: ManaType.note),
         const SizedBox(height: ManaSpacing.lg),
         Row(
           children: [
@@ -530,7 +530,7 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
           Card(
             child: ListTile(
               leading: const ManaVerificationRing(isVerified: true, size: 44),
-              title: ManaText.raw(_found!.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: ManaText.raw(_found!.fullName, style: ManaType.strong),
               subtitle: ManaText.raw('${_found!.mlid} · ${_found!.village}'),
               trailing: ElevatedButton(
                 onPressed: () => ref.read(loanWizardProvider.notifier).selectCustomer(_found!),
@@ -545,11 +545,11 @@ class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelec
           ManaText.raw(
             '$_ambiguousCount people match that name. Search by MANA LINE ID, '
             'Aadhaar or mobile number to pick the right one.',
-            style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
+            style: ManaType.noteWarn,
           )
         else if (_query.text.trim().isNotEmpty && !_searching)
           ManaText.raw(ref.t('no_matching_customer'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: ManaType.note),
       ],
     );
   }
@@ -582,7 +582,7 @@ class _AgStep2Eligibility extends ConsumerWidget {
         ManaText.raw(ref.t('eligibility_check'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(ref.t('customer_note').replaceAll('{name}', state.customer?.fullName ?? ''),
-            style: TextStyle(color: ManaColors.textSecondary)),
+            style: ManaType.secondary),
         const SizedBox(height: ManaSpacing.lg),
         Card(
           child: Padding(
@@ -595,7 +595,7 @@ class _AgStep2Eligibility extends ConsumerWidget {
                           children: [
                             Icon(Icons.check_circle, size: 16, color: ManaColors.statusGood),
                             const SizedBox(width: ManaSpacing.sm),
-                            Expanded(child: ManaText.raw(ref.t(c), style: const TextStyle(fontSize: 13))),
+                            Expanded(child: ManaText.raw(ref.t(c), style: ManaType.small)),
                           ],
                         ),
                       ))
@@ -612,12 +612,12 @@ class _AgStep2Eligibility extends ConsumerWidget {
             children: [
               ManaText.raw(
                 ref.t('bf_cash_validation_note'),
-                style: const TextStyle(fontSize: 13),
+                style: ManaType.small,
               ),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
                 ref.t('current_bf_cash_balance_note').replaceAll(
-                    '{amount}', bf == null ? '—' : _currency.format(bf.openingBf)),
+                    '{amount}', bf == null ? '—' : manaRupees(bf.openingBf)),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
@@ -629,7 +629,7 @@ class _AgStep2Eligibility extends ConsumerWidget {
             padding: const EdgeInsets.all(ManaSpacing.md),
             decoration: BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
             child: ManaText.raw(state.eligibilityFailureReason!,
-                style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                style: ManaType.noteBad),
           ),
         ],
         const SizedBox(height: ManaSpacing.lg),
@@ -769,11 +769,11 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
             children: [
               Expanded(
                 child: ManaText.raw(ref.t('amount_given_derived_label'),
-                    style: const TextStyle(fontSize: 13)),
+                    style: ManaType.small),
               ),
               const SizedBox(width: ManaSpacing.xs),
               ManaText.raw('₹$_amountGiven',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: ManaType.cardTitle),
             ],
           ),
         ),
@@ -823,9 +823,9 @@ class _AgStep4GuarantorState extends ConsumerState<_AgStep4Guarantor> {
         ManaText.raw(ref.t('guarantor'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(ref.t('guarantor_loan_scoped_note'),
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            style: ManaType.note),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText.raw(ref.t('need_guarantor_question'), style: const TextStyle(fontWeight: FontWeight.w600)),
+        ManaText.raw(ref.t('need_guarantor_question'), style: ManaType.emphasis),
         const SizedBox(height: ManaSpacing.sm),
         Row(
           children: [
@@ -901,7 +901,7 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
           ref.t('live_photo_note'),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (state.livePhotoBytes == null)
@@ -923,11 +923,11 @@ class _AgStep4bLivePhotoState extends ConsumerState<_AgStep4bLivePhoto> {
             ],
           ),
         const SizedBox(height: ManaSpacing.xl),
-        ManaText.raw(ref.t('grace_period_days_header'), style: const TextStyle(fontWeight: FontWeight.w600)),
+        ManaText.raw(ref.t('grace_period_days_header'), style: ManaType.emphasis),
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
           ref.t('grace_period_note'),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.sm),
         TextFormField(
@@ -1017,12 +1017,12 @@ class _AgStep5Confirm extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
+                ManaText.raw(state.error!, style: ManaType.bad),
                 if (blocked) ...[
                   const SizedBox(height: ManaSpacing.sm),
                   ManaText.raw(
                     ref.t('loan_creation_blocked_note'),
-                    style: const TextStyle(fontSize: 13),
+                    style: ManaType.small,
                   ),
                 ],
               ],
@@ -1067,9 +1067,9 @@ class _AgStep5Confirm extends ConsumerWidget {
                 child: ManaText.raw(label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
+                    style: ManaType.note)),
             const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            ManaText.raw(value, style: ManaType.smallStrong),
           ],
         ),
       );

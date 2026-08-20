@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_brand_mark.dart';
 import '../../../design/components/mana_text.dart';
@@ -87,7 +88,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: ManaSpacing.xxl),
-              ManaText.raw(ref.t('choose_workspace'), style: const TextStyle(fontWeight: FontWeight.bold)),
+              ManaText.raw(ref.t('choose_workspace'), style: ManaType.strong),
               const SizedBox(height: ManaSpacing.lg),
               _ProductCard(
                 code: 'MLF',
@@ -168,7 +169,7 @@ class _ProductCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 22,
                   backgroundColor: enabled ? ManaColors.brandFaint : ManaColors.surfaceSunken,
-                  child: ManaText.raw(code, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: ManaText.raw(code, style: ManaType.strong),
                 ),
                 const SizedBox(width: ManaSpacing.md),
                 Expanded(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../design/tokens/colors.dart';
+import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
@@ -53,7 +54,7 @@ class AboutScreen extends ConsumerWidget {
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(versionLabel,
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: ManaType.note),
             const SizedBox(height: ManaSpacing.lg),
 
             const _Point(
@@ -95,7 +96,7 @@ class AboutScreen extends ConsumerWidget {
             const SizedBox(height: ManaSpacing.lg),
             ManaText.raw(
               'Questions: manaline.in@gmail.com',
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             ],
             const TermsAcceptance(),
@@ -228,7 +229,7 @@ class _Point extends StatelessWidget {
           // raw: this copy is already written as sentences, and title-casing
           // a sentence would mangle it.
           ManaText.raw(title,
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: ManaType.heavy),
           const SizedBox(height: ManaSpacing.xs),
           ManaText.raw(body,
               style: const TextStyle(fontSize: 13, height: 1.4)),

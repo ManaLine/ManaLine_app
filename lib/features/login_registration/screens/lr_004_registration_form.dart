@@ -11,6 +11,7 @@ import '../../../shared/mana_location.dart';
 import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/widgets/language_selector.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/auth_flow_state.dart';
@@ -705,7 +706,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                       final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
                       return ListTile(
                         dense: true,
-                        title: ManaText.raw(label, style: const TextStyle(fontSize: 13)),
+                        title: ManaText.raw(label, style: ManaType.small),
                         // A row from the LGD reference has no location_id yet.
                         // It gets one the moment it is chosen, not before —
                         // otherwise browsing the list would seed `locations`
@@ -793,7 +794,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                       const SizedBox(height: ManaSpacing.sm),
                       ManaText.raw(
                         'PIN Code above (${_pinCode.text.trim().isEmpty ? "not yet entered" : _pinCode.text.trim()}) will be used for this village.',
-                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                        style: ManaType.note,
                       ),
                       const SizedBox(height: ManaSpacing.sm),
                       Row(
@@ -825,7 +826,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               if (_selectedVillageLabel != null) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw('Selected: $_selectedVillageLabel',
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: ManaType.note),
               ],
               const SizedBox(height: ManaSpacing.xl),
 
@@ -868,13 +869,13 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: ManaText.raw(_aadhaarError!,
-                      style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                      style: ManaType.noteBad),
                 ),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
                 'Enter your Aadhaar Number carefully. Incorrect entry may result '
                 'in account suspension until resolved.',
-                style: TextStyle(fontSize: 13, color: ManaColors.statusWarn),
+                style: ManaType.noteWarn,
               ),
               const SizedBox(height: ManaSpacing.lg),
 
@@ -910,7 +911,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 4),
                       ..._missingRequirements.map(
-                        (m) => ManaText.raw('• $m', style: const TextStyle(fontSize: 13)),
+                        (m) => ManaText.raw('• $m', style: ManaType.small),
                       ),
                     ],
                   ),
@@ -972,7 +973,7 @@ class _AadhaarNameNotice extends ConsumerWidget {
           Expanded(
             child: ManaText.raw(
               ref.t('aadhaar_name_notice'),
-              style: const TextStyle(fontSize: 13),
+              style: ManaType.small,
             ),
           ),
         ],
@@ -1001,7 +1002,7 @@ class _ComposedNamePreview extends ConsumerWidget {
         Expanded(
           child: ManaText.raw(
             '${ref.t('will_be_saved_as')} $name',
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+            style: ManaType.note,
           ),
         ),
       ],

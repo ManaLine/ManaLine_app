@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -40,7 +41,7 @@ class _ErrorBanner extends ConsumerWidget {
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw(ref.t('could_not_load_data')),
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(message, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: ManaColors.statusBad)),
+            ManaText.raw(message, textAlign: TextAlign.center, style: ManaType.noteBad),
             const SizedBox(height: ManaSpacing.sm),
             ElevatedButton(onPressed: onRetry, child: ManaText.raw(ref.t('retry'))),
           ],
@@ -137,7 +138,7 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
                         Center(
                           child: ManaText.raw(
                             ref.t('no_businesses_yet_note'),
-                            style: TextStyle(color: ManaColors.textSecondary),
+                            style: ManaType.secondary,
                           ),
                         ),
                       ],
@@ -202,7 +203,7 @@ class _BusinessSummaryCard extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.titleLarge),
                         ManaText.raw(business.mlbi,
-                            style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                            style: ManaType.note),
                       ],
                     ),
                   ),
@@ -255,7 +256,7 @@ class _StatChip extends StatelessWidget {
           child: ManaText.raw(label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: ManaType.note),
         ),
       ],
     );
@@ -362,7 +363,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
           children: [
             ManaText.raw(
               ref.t('create_business_repeat_note'),
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.lg),
             Center(
@@ -734,7 +735,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
       children: [
         ManaText.raw(
           ref.t('operating_area_intro_note'),
-          style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
@@ -782,10 +783,10 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
         const SizedBox(height: ManaSpacing.lg),
         const Divider(),
         const SizedBox(height: ManaSpacing.sm),
-        ManaText.raw(ref.t('current_operating_areas'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('current_operating_areas'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         if (areas.isEmpty)
-          ManaText.raw(ref.t('no_operating_areas_yet'), style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_operating_areas_yet'), style: ManaType.secondary)
         else
           ...areas.map((a) => Card(
                 child: Column(
@@ -829,7 +830,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                           PopupMenuItem(
                             value: 'remove',
                             child: ManaText.raw(ref.t('remove_area'),
-                                style: TextStyle(color: ManaColors.statusBad)),
+                                style: ManaType.bad),
                           ),
                         ],
                       ),
@@ -851,7 +852,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                             for (final v in a.villages)
                               InputChip(
                                 label: ManaText.raw('${v.villageTownName} — ${v.pinCode}',
-                                    style: const TextStyle(fontSize: 13)),
+                                    style: ManaType.small),
                                 onDeleted: () => _removeVillage(a, v),
                                 deleteIcon: const Icon(Icons.close, size: 18),
                                 deleteButtonTooltipMessage: 'Remove ${v.villageTownName} from ${a.name}',
@@ -957,7 +958,7 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
             ManaText.raw(ref.t('add_village_to_note').replaceAll('{area}', widget.areaName),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _pinCode,
@@ -973,7 +974,7 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
             if (search.searching) const Center(child: CircularProgressIndicator()),
             if (!search.searching && search.matches.isEmpty && _pinCode.text.trim().length == 6)
               ManaText.raw(ref.t('no_villages_found_for_pin'),
-                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                  style: ManaType.note),
             ...search.matches.map((m) => ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.location_on_outlined, color: ManaColors.brand),
@@ -1016,9 +1017,9 @@ class _AssignAgentSheet extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ManaText.raw(area.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    style: ManaType.cardTitle),
                 ManaText.raw(area.villagesLabel,
-                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    style: ManaType.note),
               ],
             ),
           ),
@@ -1057,7 +1058,7 @@ class _AssignAgentSheet extends ConsumerWidget {
               padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw(
                   ref.t('no_active_agents_note'),
-                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                  style: ManaType.note),
             )
           else
             // Anyone already on the round is filtered out — assigning the
@@ -1067,7 +1068,7 @@ class _AssignAgentSheet extends ConsumerWidget {
                 .map((agent) => ListTile(
                       leading: const ManaVerificationRing(isVerified: true, size: 32),
                       title: ManaText.raw(agent.fullName),
-                      subtitle: ManaText.raw(agent.mlid, style: const TextStyle(fontSize: 13)),
+                      subtitle: ManaText.raw(agent.mlid, style: ManaType.small),
                       onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.agent(agent)),
                     )),
           const SizedBox(height: ManaSpacing.md),
@@ -1186,7 +1187,7 @@ class _AgreementsTabState extends ConsumerState<_AgreementsTab> {
       children: [
         ManaText.raw(
           ref.t('business_agreements_note'),
-          style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.md),
         FilledButton.tonalIcon(
@@ -1196,7 +1197,7 @@ class _AgreementsTabState extends ConsumerState<_AgreementsTab> {
         ),
         const SizedBox(height: ManaSpacing.lg),
         if (agreements.isEmpty)
-          ManaText.raw(ref.t('no_agreements_yet'), style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_agreements_yet'), style: ManaType.secondary)
         else
           ...agreements.map((a) => Card(
                 child: ListTile(
@@ -1367,18 +1368,18 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         // the decision. Reading that here is part of managing a business;
         // deciding it belongs in the inbox.
         if (pendingInvitations.isNotEmpty) ...[
-          ManaText.raw(ref.t('pending_invitations_header'), style: const TextStyle(fontWeight: FontWeight.bold)),
+          ManaText.raw(ref.t('pending_invitations_header'), style: ManaType.strong),
           ...pendingInvitations.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
           const SizedBox(height: ManaSpacing.lg),
         ],
         if (pendingAcceptance.isNotEmpty) ...[
-          ManaText.raw(ref.t('pending_acceptance_status'), style: const TextStyle(fontWeight: FontWeight.bold)),
+          ManaText.raw(ref.t('pending_acceptance_status'), style: ManaType.strong),
           ...pendingAcceptance.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
           const SizedBox(height: ManaSpacing.lg),
         ],
-        ManaText.raw(ref.t('active_members'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ManaText.raw(ref.t('active_members'), style: ManaType.strong),
         if (active.isEmpty)
-          ManaText.raw(ref.t('no_active_members_yet'), style: TextStyle(color: ManaColors.textSecondary))
+          ManaText.raw(ref.t('no_active_members_yet'), style: ManaType.secondary)
         else
           ...active.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
       ],
@@ -1489,11 +1490,11 @@ class _AccountPeriodsEmptyState extends ConsumerWidget {
           const SizedBox(height: ManaSpacing.md),
           ManaText.raw(headline,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              style: ManaType.cardTitle),
           const SizedBox(height: ManaSpacing.sm),
           ManaText.raw(detail,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+              style: ManaType.note),
           const SizedBox(height: ManaSpacing.lg),
           FilledButton.tonalIcon(
             // Same DefaultTabController this tab is already inside, so this
@@ -1573,7 +1574,7 @@ class _AccountPeriodsTab extends ConsumerWidget {
                             ManaText.raw(
                               '${p.businessStartDate.toIso8601String().split("T").first} → '
                               '${p.plannedBusinessEndDate.toIso8601String().split("T").first}',
-                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                              style: ManaType.note,
                             ),
                           ],
                         ),

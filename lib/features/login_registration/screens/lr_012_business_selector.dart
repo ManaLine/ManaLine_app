@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -211,7 +212,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                       children: [
                         Flexible(
                           child: ManaText.raw(g.businessName,
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                              style: ManaType.strong),
                         ),
                         if (suspended) ...[
                           const SizedBox(width: ManaSpacing.sm),
@@ -221,7 +222,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                     ),
                     const SizedBox(height: 2),
                     ManaText.raw(g.roles.join(', '),
-                        style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                        style: ManaType.note),
                   ],
                 ),
               ),
@@ -339,7 +340,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
               ],
               Icon(Icons.storefront_outlined, size: 48, color: ManaColors.textSecondary),
               const SizedBox(height: ManaSpacing.md),
-              ManaText.raw(ref.t('no_business_linked'), style: const TextStyle(fontWeight: FontWeight.bold)),
+              ManaText.raw(ref.t('no_business_linked'), style: ManaType.strong),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
                 ref.t('no_business_linked_note'),
@@ -401,7 +402,7 @@ class _InvitationsPrompt extends ConsumerWidget {
         leading: Icon(Icons.mark_email_unread_outlined, color: ManaColors.brand),
         title: ManaText.raw(
           ref.t('invitations_to_you'),
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: ManaType.emphasis,
         ),
         subtitle: ManaText.raw(
           ref.t('pending_invitations_count_note').replaceAll('{count}', '$count'),
@@ -547,10 +548,10 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw(ref.t('request_to_join_a_business'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ManaText.raw(ref.t('request_to_join_a_business'), style: ManaType.cardTitle),
           const SizedBox(height: ManaSpacing.md),
 
-          ManaText.raw(ref.t('step_1_select_role'), style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ManaText.raw(ref.t('step_1_select_role'), style: ManaType.note),
           const SizedBox(height: ManaSpacing.xs),
           Wrap(
             spacing: ManaSpacing.sm,
@@ -565,7 +566,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
           ),
           const SizedBox(height: ManaSpacing.md),
 
-          ManaText.raw(ref.t('step_2_find_the_business'), style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+          ManaText.raw(ref.t('step_2_find_the_business'), style: ManaType.note),
           const SizedBox(height: ManaSpacing.xs),
           TextField(
             controller: _queryController,
@@ -603,7 +604,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
                         child: b['logo_url'] == null ? const Icon(Icons.storefront_outlined, size: 16) : null,
                       ),
                       title: ManaText.raw(b['business_name'] as String? ?? '', style: const TextStyle(fontSize: 14)),
-                      subtitle: ManaText.raw(b['mlbi'] as String? ?? '', style: const TextStyle(fontSize: 13)),
+                      subtitle: ManaText.raw(b['mlbi'] as String? ?? '', style: ManaType.small),
                       onTap: () => _pickSuggestion(b),
                     );
                   },
@@ -618,7 +619,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
               _foundBusiness == null) ...[
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(ref.t('no_matching_business_note'),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: ManaType.note),
           ],
 
           // Confirm card — full details, shown only once a suggestion is
@@ -628,7 +629,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
           // it's genuinely the business they mean before sending a request.
           if (_foundBusiness != null) ...[
             const SizedBox(height: ManaSpacing.md),
-            ManaText.raw(ref.t('step_3_confirm_business'), style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            ManaText.raw(ref.t('step_3_confirm_business'), style: ManaType.note),
             const SizedBox(height: ManaSpacing.xs),
             Card(
               child: Padding(
@@ -663,7 +664,7 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
 
           if (_error != null) ...[
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(_error!, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+            ManaText.raw(_error!, style: ManaType.noteBad),
           ],
 
           const SizedBox(height: ManaSpacing.lg),
@@ -686,10 +687,10 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
         children: [
           SizedBox(
             width: 120,
-            child: ManaText.raw(label, style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            child: ManaText.raw(label, style: ManaType.note),
           ),
           Expanded(
-            child: ManaText.raw(value, style: const TextStyle(fontSize: 13)),
+            child: ManaText.raw(value, style: ManaType.small),
           ),
         ],
       ),

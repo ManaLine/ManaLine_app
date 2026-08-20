@@ -22,6 +22,7 @@ import '../design/components/mana_amount.dart';
 import '../design/components/mana_skeleton.dart';
 import '../design/components/mana_text.dart';
 import '../design/tokens/colors.dart';
+import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
 import 'inbox_service.dart';
 import 'inbox_state.dart';
@@ -154,7 +155,7 @@ class _SectionHeader extends StatelessWidget {
           ),
           if (count != null)
             ManaText.raw('$count',
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                style: ManaType.fine),
         ],
       ),
     );
@@ -204,7 +205,7 @@ class _ActionCard extends ConsumerWidget {
             ManaText.raw(detail,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: ManaType.note),
             if (action.amount != null) ...[
               const SizedBox(height: ManaSpacing.xs),
               ManaAmount.compact(action.amount!,

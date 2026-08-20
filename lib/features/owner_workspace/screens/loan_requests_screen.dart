@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/loan_wizard_state.dart';
+import 'package:mana_line/design/components/mana_amount.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// Owner-side review queue for CW-003's "Request New Loan" — not part of
 /// the original locked screen inventory (no OW-0xx number), added to
@@ -97,7 +97,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                     Padding(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       child: ManaText.raw(ref.t('could_not_load_loan_requests_note').replaceAll('{error}', '${snapshot.error}'),
-                          textAlign: TextAlign.center, style: TextStyle(color: ManaColors.statusBad, fontSize: 13)),
+                          textAlign: TextAlign.center, style: ManaType.noteBad),
                     ),
                   ],
                 );
@@ -108,7 +108,7 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                   padding: const EdgeInsets.all(ManaSpacing.xxl),
                   children: [
                     Center(
-                      child: ManaText.raw(ref.t('no_pending_loan_requests'), style: TextStyle(color: ManaColors.textSecondary)),
+                      child: ManaText.raw(ref.t('no_pending_loan_requests'), style: ManaType.secondary),
                     ),
                   ],
                 );
@@ -129,19 +129,19 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                                       child: ManaText.raw(r.customerName,
                                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                                     ),
-                                    ManaText.raw(_currency.format(r.requestedAmount),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    ManaText.raw(manaRupees(r.requestedAmount),
+                                        style: ManaType.cardTitle),
                                   ],
                                 ),
                                 ManaText.raw(r.customerMlid,
-                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                    style: ManaType.note),
                                 if (r.purposeRemark != null && r.purposeRemark!.isNotEmpty) ...[
                                   const SizedBox(height: ManaSpacing.xs),
-                                  ManaText.raw(r.purposeRemark!, style: const TextStyle(fontSize: 13)),
+                                  ManaText.raw(r.purposeRemark!, style: ManaType.small),
                                 ],
                                 const SizedBox(height: ManaSpacing.xs),
                                 ManaText.raw('Requested ${DateFormat('d MMM yyyy').format(r.createdAt)}',
-                                    style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                                    style: ManaType.note),
                                 const SizedBox(height: ManaSpacing.sm),
                                 Row(
                                   children: [

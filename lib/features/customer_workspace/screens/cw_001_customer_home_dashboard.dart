@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/auto_refresh.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -14,8 +16,6 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/customer_dashboard_state.dart';
 import '../../../shared/translation_service.dart';
 
-final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _dateFmt = DateFormat('d MMM yyyy');
 
 /// CW-001 — Customer Home Dashboard. Primary entry point for a Customer,
@@ -169,7 +169,7 @@ class _CustomerHomeDashboardScreenState
                 e.toString(),
                 textAlign: TextAlign.center,
                 style:
-                    TextStyle(fontSize: 13, color: ManaColors.statusBad),
+                    ManaType.noteBad,
               ),
             ),
             const SizedBox(height: ManaSpacing.sm),
@@ -250,13 +250,13 @@ class _MySummary extends ConsumerWidget {
       (ref.t('active_loans'), '${data.activeLoansCount}', ManaStatus.good),
       (
         ref.t('total_outstanding'),
-        _currency.format(data.totalOutstanding),
+        manaRupees(data.totalOutstanding),
         ManaStatus.neutral
       ),
       (
         ref.t('next_payment_due'),
         data.nextPaymentDueDate != null
-            ? '${_currency.format(data.nextPaymentDueAmount ?? 0)} · ${_dateFmt.format(data.nextPaymentDueDate!)}'
+            ? '${manaRupees(data.nextPaymentDueAmount ?? 0)} · ${_dateFmt.format(data.nextPaymentDueDate!)}'
             : '—',
         ManaStatus.warn,
       ),
@@ -278,7 +278,7 @@ class _MySummary extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('my_summary'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
               spacing: ManaSpacing.lg,
@@ -347,7 +347,7 @@ class _QuickActions extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('quick_actions'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             ...actions.map((a) => ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -381,12 +381,12 @@ class _NoMembershipsState extends ConsumerWidget {
                 size: 48, color: ManaColors.textSecondary),
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw(ref.t('no_business_memberships_yet'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               ref.t('find_business_membership_note'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton.icon(

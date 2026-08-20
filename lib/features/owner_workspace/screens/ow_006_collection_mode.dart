@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_collection_search_field.dart';
@@ -13,7 +14,6 @@ import '../../../shared/translation_service.dart';
 import '../state/collection_mode_state.dart';
 import 'package:go_router/go_router.dart';
 
-final _currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
 /// OW-006 — Collection Mode. Dashboard (due list) is the default landing
 /// state; tapping a customer opens Collection Entry for their due loan.
@@ -92,7 +92,7 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                     _frequencyPicker(),
                     ManaText.raw(
                       ref.t('sorted_by_note'),
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                      style: ManaType.note,
                     ),
                     const SizedBox(height: ManaSpacing.md),
                     if (visible.isEmpty)
@@ -108,7 +108,7 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
                                   ? ref.t('nobody_due_today')
                                   : ref.t('no_customers_match_view'),
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: ManaColors.textSecondary)),
+                              style: ManaType.secondary),
                         ),
                       )
                     else
@@ -180,7 +180,7 @@ class _DueRow extends ConsumerWidget {
                           child: ManaText.raw(row.customerName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600)),
+                              style: ManaType.emphasis),
                         ),
                         if (row.penaltyEligible) ...[
                           const SizedBox(width: ManaSpacing.xs),
@@ -200,7 +200,7 @@ class _DueRow extends ConsumerWidget {
                     ManaText.raw('${row.village} · ${row.loanNumber}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                        style: ManaType.note),
                     const SizedBox(height: ManaSpacing.xs),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -209,14 +209,14 @@ class _DueRow extends ConsumerWidget {
                           child: ManaText.raw('LRI ${row.lineRepaymentIndex}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                              style: ManaType.note),
                         ),
                         const SizedBox(width: ManaSpacing.sm),
                         Flexible(
-                          child: ManaText.raw(_currency.format(row.installmentDue),
+                          child: ManaText.raw(manaRupees(row.installmentDue),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              style: ManaType.cardTitle),
                         ),
                       ],
                     ),
@@ -267,8 +267,8 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
                 child: Column(
                   children: [
                     _row(ref.t('loan_number'), row.loanNumber),
-                    _row(ref.t('installment_due'), _currency.format(row.installmentDue)),
-                    _row(ref.t('outstanding_balance'), _currency.format(row.outstandingBalance)),
+                    _row(ref.t('installment_due'), manaRupees(row.installmentDue)),
+                    _row(ref.t('outstanding_balance'), manaRupees(row.outstandingBalance)),
                     _row(ref.t('line_repayment_index'), '${row.lineRepaymentIndex}'),
                     _row(ref.t('grace_status'), row.gracePeriod ? ref.t('in_grace_period') : ref.t('normal')),
                     _row(ref.t('penalty_status'), row.penaltyEligible ? ref.t('penalty_eligible') : ref.t('none')),
@@ -309,8 +309,8 @@ class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Expanded(child: ManaText.raw(label, style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            Expanded(child: ManaText.raw(label, style: ManaType.note)),
+            ManaText.raw(value, style: ManaType.smallStrong),
           ],
         ),
       );
@@ -413,7 +413,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           ref
               .t('already_collected_note')
               .replaceAll('{by}', by)
-              .replaceAll('{amount}', _currency.format(amount)),
+              .replaceAll('{amount}', manaRupees(amount)),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: ManaText.raw(ref.t('close'))),
@@ -440,8 +440,8 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('receipt_number').replaceAll('{number}', result.receiptNumber)),
-            ManaText.raw('${result.resultType} · ${_currency.format(result.collectedAmount)}'),
-            ManaText.raw(ref.t('new_balance').replaceAll('{amount}', _currency.format(result.newOutstandingBalance))),
+            ManaText.raw('${result.resultType} · ${manaRupees(result.collectedAmount)}'),
+            ManaText.raw(ref.t('new_balance').replaceAll('{amount}', manaRupees(result.newOutstandingBalance))),
           ],
         ),
         actions: [
@@ -526,7 +526,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: ManaSpacing.xs),
-          ManaText.raw(ref.t('split_sum_note').replaceAll('{amount}', _currency.format(_splitSum)),
+          ManaText.raw(ref.t('split_sum_note').replaceAll('{amount}', manaRupees(_splitSum)),
               style: TextStyle(
                 fontSize: 16,
                 color: (_splitSum - _collected) != 0 ? ManaColors.statusBad : ManaColors.statusGood,
@@ -686,7 +686,7 @@ class _ExtensionFormState extends ConsumerState<_ExtensionForm> {
       children: [
         ManaText.raw(
           ref.t('extension_note'),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.lg),
         Row(

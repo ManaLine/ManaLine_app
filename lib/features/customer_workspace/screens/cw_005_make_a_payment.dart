@@ -218,7 +218,7 @@ class _PaymentEntryFormState extends ConsumerState<_PaymentEntryForm> {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: ManaSpacing.md),
-                  ManaText.raw(ref.t('waiting_for_upi_app'), style: TextStyle(color: ManaColors.textSecondary)),
+                  ManaText.raw(ref.t('waiting_for_upi_app'), style: ManaType.secondary),
                 ],
               ),
             ),
@@ -253,7 +253,7 @@ class _SubmittedState extends ConsumerWidget {
           children: [
             Icon(Icons.hourglass_top, size: 56, color: ManaColors.statusWarn),
             const SizedBox(height: ManaSpacing.md),
-            ManaText.raw(ref.t('payment_submitted'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('payment_submitted'), style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.sm),
             if (record != null)
               ManaText.raw(
@@ -262,13 +262,13 @@ class _SubmittedState extends ConsumerWidget {
                     .replaceAll('{amount}', _moneyFormat.format(record.amount))
                     .replaceAll('{date}', _dateFmt.format(record.submittedAt.toLocal())),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: ManaColors.textSecondary),
+                style: ManaType.secondary,
               ),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               ref.t('submitted_status_note'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.lg),
             OutlinedButton(
@@ -307,13 +307,13 @@ class _ConfirmedState extends ConsumerWidget {
           children: [
             Icon(Icons.check_circle, size: 56, color: ManaColors.statusGood),
             const SizedBox(height: ManaSpacing.md),
-            ManaText.raw(ref.t('payment_confirmed'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText.raw(ref.t('payment_confirmed'), style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.sm),
             if (record != null)
               ManaText.raw(
                 ref.t('posted_to_loan_note').replaceAll('{amount}', _moneyFormat.format(record.amount)),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: ManaColors.textSecondary),
+                style: ManaType.secondary,
               ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(
@@ -345,7 +345,7 @@ class _DisputedState extends ConsumerWidget {
             Icon(Icons.error_outline, size: 56, color: ManaColors.statusBad),
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw(ref.t('payment_could_not_be_confirmed'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.sm),
             // No Customer-side retry/resubmit action exists for a
             // Disputed payment per CW-005's own rule — stays open
@@ -353,7 +353,7 @@ class _DisputedState extends ConsumerWidget {
             ManaText.raw(
               ref.t('contact_business_note'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: ManaColors.textSecondary),
+              style: ManaType.secondary,
             ),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(

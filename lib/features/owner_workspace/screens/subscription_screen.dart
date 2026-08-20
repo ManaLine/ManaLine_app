@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -51,24 +52,24 @@ class SubscriptionScreen extends ConsumerWidget {
               ManaText.raw(
                 ref.t('planned_prices_note'),
                 style:
-                    TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                    ManaType.note,
               ),
               const SizedBox(height: ManaSpacing.lg),
               _UsageCard(usage: u),
               const SizedBox(height: ManaSpacing.lg),
               ManaText.raw(ref.t('plans'),
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                  style: ManaType.heavy),
               const SizedBox(height: ManaSpacing.sm),
               for (final t in kOwnerTiers)
                 _TierCard(tier: t, isCurrent: t.name == u.currentTier.name),
               const SizedBox(height: ManaSpacing.lg),
               ManaText.raw(ref.t('customers_and_investors'),
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                  style: ManaType.heavy),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
                 ref.t('customers_investors_free_note'),
                 style:
-                    TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                    ManaType.note,
               ),
             ],
           ),
@@ -95,7 +96,7 @@ class _UsageCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(ref.t('your_business_today'),
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+              style: ManaType.heavy),
           const SizedBox(height: ManaSpacing.sm),
           _UsageRow(label: ref.t('agents'), value: usage.agents, cap: t.agents),
           _UsageRow(label: ref.t('customers'), value: usage.customers, cap: t.customers),
@@ -129,7 +130,7 @@ class _UsageRow extends StatelessWidget {
           Expanded(child: ManaText.raw(label)),
           ManaText.raw(
             cap == null ? '$value' : '$value of $cap',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: ManaType.heavy,
           ),
         ],
       ),
@@ -177,7 +178,7 @@ class _TierCard extends StatelessWidget {
                 tier.isCustom
                     ? tier.monthly
                     : '${tier.monthly}/mo  ·  ${tier.yearly}/yr',
-                style: const TextStyle(fontSize: 13),
+                style: ManaType.small,
               ),
             ],
           ),

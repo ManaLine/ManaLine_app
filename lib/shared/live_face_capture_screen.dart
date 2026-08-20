@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../design/tokens/colors.dart';
+import '../design/tokens/typography.dart';
 import '../design/components/mana_text.dart';
 
 /// Reusable live-capture screen for every "Live Photo Capture (MANDATORY,
@@ -210,7 +211,7 @@ class _LiveFaceCaptureScreenState extends State<LiveFaceCaptureScreen> {
                               icon: const Icon(Icons.camera_alt, size: 28),
                               label: ManaText.raw(
                                 _busyCapturing ? 'capturing...' : 'capture',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                style: ManaType.sheetTitle,
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: ManaColors.accent,

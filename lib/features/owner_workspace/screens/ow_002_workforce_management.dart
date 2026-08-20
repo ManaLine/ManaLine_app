@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_text.dart';
@@ -204,13 +205,13 @@ class _AgentRow extends StatelessWidget {
       child: ListTile(
         leading: const ManaVerificationRing(isVerified: true, size: 40),
         title: ManaText.raw(agent.fullName,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+            style: ManaType.emphasis),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 2),
           child: ManaText.raw(
             '${agent.mlid} · ${agent.phoneNumber}',
             style:
-                TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                ManaType.note,
           ),
         ),
         // ManaTrailingStatus, not a bare pill: this row threw "Trailing widget
@@ -290,11 +291,11 @@ class _RegisterNewAgentSheetState
             controller: scrollController,
             children: [
               ManaText.raw(ref.t('register_new_agent'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  style: ManaType.sheetTitle),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
                 ref.t('register_new_agent_note'),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                style: ManaType.note,
               ),
               const SizedBox(height: ManaSpacing.lg),
               TextField(
@@ -418,11 +419,11 @@ class _AddExistingAgentSheetState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('add_existing_agent'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
               ref.t('add_existing_agent_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.lg),
             Row(
@@ -471,7 +472,7 @@ class _AddExistingAgentSheetState
               ManaText.raw(
                   ref.t('no_match_found_note'),
                   style:
-                      TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      ManaType.note),
           ],
         ),
       ),
@@ -653,7 +654,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
                     fontWeight: FontWeight.bold, fontSize: 18))),
         Center(
             child: ManaText.raw(agent.mlid,
-                style: TextStyle(color: ManaColors.textSecondary))),
+                style: ManaType.secondary)),
         const SizedBox(height: ManaSpacing.lg),
         _infoRow(ref.t('phone_number'), agent.phoneNumber),
         _infoRow(ref.t('status'), agent.status),
@@ -926,7 +927,7 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
       children: [
         ManaText.raw(
           ref.t('permissions_note'),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.md),
         for (final group in _groups.entries) ...[
@@ -999,7 +1000,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
         ManaText.raw(ref.t('compensation_structure'),
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+            style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _salary,
@@ -1033,7 +1034,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
         // salary engine now does.
         ManaText.raw(
             ref.t('daily_allowance_note'),
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            style: ManaType.note),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _profitShare,
@@ -1044,7 +1045,7 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
             ref.t('profit_share_reference_note'),
-            style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+            style: ManaType.note),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
             onPressed: _save,
@@ -1059,11 +1060,11 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
             profile: widget.profile),
         const Divider(height: ManaSpacing.xxl),
         ManaText.raw(ref.t('compensation_history'),
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+            style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         if (widget.profile.compensationHistory.isEmpty)
           ManaText.raw(ref.t('no_history_yet'),
-              style: TextStyle(color: ManaColors.textSecondary))
+              style: ManaType.secondary)
         else
           ...widget.profile.compensationHistory.map((c) => ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -1138,7 +1139,7 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
             children: [
               ManaText.raw(
                 ref.t('distribute_profit_share_note'),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                style: ManaType.note,
               ),
               const SizedBox(height: ManaSpacing.md),
               TextField(
@@ -1196,7 +1197,7 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ManaText.raw(ref.t('profit_share_distribution'),
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+            style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         Align(
           alignment: Alignment.centerLeft,
@@ -1214,7 +1215,7 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
           ))
         else if (_declarations.isEmpty)
           ManaText.raw(ref.t('nothing_distributed_yet'),
-              style: TextStyle(color: ManaColors.textSecondary, fontSize: 13))
+              style: ManaType.note)
         else
           ..._declarations.map((d) => Card(
                 child: ListTile(
@@ -1222,7 +1223,7 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
                   subtitle: ManaText.raw(
                       '${DateFormat('d MMM yyyy').format(d.businessDate)}'
                       '${d.remarks == null ? '' : ' · ${d.remarks}'}',
-                      style: const TextStyle(fontSize: 13)),
+                      style: ManaType.small),
                   trailing: d.status == 'Declared'
                       ? FilledButton(
                           onPressed: () => _markPaid(d),
@@ -1277,12 +1278,12 @@ class _AreasTab extends ConsumerWidget {
       children: [
         ManaText.raw(
           ref.t('areas_note'),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.md),
         if (profile.assignedAreas.isEmpty)
           ManaText.raw(ref.t('no_areas_assigned_yet'),
-              style: TextStyle(color: ManaColors.textSecondary))
+              style: ManaType.secondary)
         else
           ...profile.assignedAreas.map((a) => Card(
                 child: ListTile(
@@ -1313,13 +1314,13 @@ class _VillagePickerSheet extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(ManaSpacing.lg),
-            child: ManaText.raw(ref.t('select_village'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            child: ManaText.raw(ref.t('select_village'), style: ManaType.cardTitle),
           ),
           if (areas.isEmpty)
             Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw(ref.t('no_operating_areas_note'),
-                  style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                  style: ManaType.note),
             )
           else
             ...areas.map((a) => ListTile(
@@ -1328,7 +1329,7 @@ class _VillagePickerSheet extends ConsumerWidget {
                   subtitle: ManaText.raw(
                       '${a.villagesLabel}\n'
                       '${a.isUnassigned ? ref.t('no_agent_assigned') : ref.t('agents_label_note').replaceAll('{names}', a.assignedAgentsLabel)}',
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      style: ManaType.note),
                   isThreeLine: true,
                   onTap: () => Navigator.of(context).pop(a),
                 )),
@@ -1367,7 +1368,7 @@ class _AuditTab extends ConsumerWidget {
         child: ManaText.raw(
           ref.t('audit_note'),
           textAlign: TextAlign.center,
-          style: TextStyle(color: ManaColors.textSecondary),
+          style: ManaType.secondary,
         ),
       ),
     );

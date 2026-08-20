@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -241,7 +241,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         ),
         if (_otpError != null) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw(_otpError!, style: TextStyle(color: ManaColors.statusBad),
+          ManaText.raw(_otpError!, style: ManaType.bad,
               textAlign: TextAlign.center),
         ],
         const SizedBox(height: ManaSpacing.lg),

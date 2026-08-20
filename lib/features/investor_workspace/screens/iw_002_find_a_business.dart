@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -96,13 +97,13 @@ class _SearchAndResults extends ConsumerWidget {
                     child: ManaText.raw(
                       'Search for a Business to request Investor membership.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: ManaColors.textSecondary),
+                      style: ManaType.secondary,
                     ),
                   )
                 : state.results.isEmpty
                     ? Center(
                         child: ManaText.raw(ref.t('no_businesses_matched'),
-                            style: TextStyle(color: ManaColors.textSecondary)),
+                            style: ManaType.secondary),
                       )
                     : ListView.separated(
                         itemCount: state.results.length,
@@ -129,10 +130,10 @@ class _BusinessResultCard extends ConsumerWidget {
           backgroundImage: business.logoUrl != null ? NetworkImage(business.logoUrl!) : null,
           child: business.logoUrl == null ? Icon(Icons.storefront, color: ManaColors.textSecondary) : null,
         ),
-        title: ManaText.raw(business.businessName, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: ManaText.raw(business.businessName, style: ManaType.emphasis),
         subtitle: ManaText.raw(
           '${business.mlbi}${business.operatingAreas.isNotEmpty ? ' · ${business.operatingAreas.join(', ')}' : ''}',
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         // "Not Accepting New Investors" is among the longest status strings
         // in the app, in a ListTile trailing slot — the pair that throws
@@ -203,7 +204,7 @@ class _RequestToInvestSheetState extends ConsumerState<_RequestToInvestSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('request_to_invest_note').replaceAll('{name}', business?.businessName ?? ''),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _amount,
@@ -336,9 +337,9 @@ class _ResultState extends StatelessWidget {
           children: [
             Icon(icon, size: 56, color: iconColor),
             const SizedBox(height: ManaSpacing.md),
-            ManaText(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ManaText(title, style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.sm),
-            ManaText.raw(body, textAlign: TextAlign.center, style: TextStyle(color: ManaColors.textSecondary)),
+            ManaText.raw(body, textAlign: TextAlign.center, style: ManaType.secondary),
             const SizedBox(height: ManaSpacing.lg),
             ElevatedButton(onPressed: onPrimary, child: ManaText(primaryLabel)),
           ],

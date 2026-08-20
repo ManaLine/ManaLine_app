@@ -7,6 +7,7 @@ import '../../../design/components/mana_ledger.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/ledger_history_service.dart';
 import '../../../shared/ledger_history_state.dart';
@@ -101,7 +102,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               const SizedBox(height: ManaSpacing.md),
               ManaText.raw(
                 ref.t('month_totals_from_ledger_note'),
-                style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+                style: ManaType.fine,
               ),
             ],
           ),
@@ -240,7 +241,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             children: [
               ManaText.raw(
                 ledgerActionLabel(ref, e),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                style: ManaType.note,
               ),
               if (e.counterparty != null)
                 ManaText.raw(
@@ -269,7 +270,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             child: ManaText.raw(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: ManaType.note),
           ),
           const SizedBox(width: ManaSpacing.sm),
           if (amountOf != null)
@@ -280,7 +281,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 13)),
+                  style: ManaType.small),
             ),
         ],
       ),

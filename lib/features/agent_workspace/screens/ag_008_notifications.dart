@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -206,7 +207,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
                     margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
                     decoration:
                         BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
-                    child: ManaText.raw(state.error!, style: TextStyle(color: ManaColors.statusBad)),
+                    child: ManaText.raw(state.error!, style: ManaType.bad),
                   ),
                 ),
               Expanded(
@@ -216,7 +217,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
                         // S2 — Empty.
                         ? Center(
                             child: ManaText.raw(ref.t('no_notifications'),
-                                style: TextStyle(color: ManaColors.textSecondary)),
+                                style: ManaType.secondary),
                           )
                         // S1 — List, unread highlighted.
                         : ListView.builder(
@@ -272,7 +273,7 @@ class _NotificationRow extends ConsumerWidget {
               child: ManaText.raw(notification.notificationType.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
+                  style: ManaType.emphasis),
             ),
             if (!notification.isRead) ...[
               const SizedBox(width: ManaSpacing.xs),
@@ -285,10 +286,10 @@ class _NotificationRow extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ManaText.raw(notification.message, style: const TextStyle(fontSize: 13)),
+              ManaText.raw(notification.message, style: ManaType.small),
               const SizedBox(height: 2),
               ManaText.raw(_dateTime.format(notification.createdAt),
-                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  style: ManaType.note),
             ],
           ),
         ),

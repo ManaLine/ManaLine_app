@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../shared/auto_refresh.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -25,8 +27,6 @@ import 'ag_008_notifications.dart';
 import 'ag_009_profile.dart';
 import 'ag_010_transaction_history.dart';
 
-final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _time = DateFormat('h:mm a');
 final _date = DateFormat('d MMM yyyy');
 
@@ -324,7 +324,7 @@ class _BfGateState extends ConsumerState<_BfGate> {
                 const SizedBox(height: ManaSpacing.md),
                 ManaText.raw(ref.t('opening_bf_for_session')),
                 const SizedBox(height: ManaSpacing.sm),
-                ManaText.raw(_currency.format(bf.openingBf),
+                ManaText.raw(manaRupees(bf.openingBf),
                     style: const TextStyle(
                         fontSize: 28, fontWeight: FontWeight.bold)),
                 const SizedBox(height: ManaSpacing.sm),
@@ -332,7 +332,7 @@ class _BfGateState extends ConsumerState<_BfGate> {
                   ref.t('confirm_bf_or_update_warning'),
                   textAlign: TextAlign.center,
                   style:
-                      TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+                      ManaType.note,
                 ),
                 const SizedBox(height: ManaSpacing.lg),
                 Row(
@@ -386,7 +386,7 @@ class _BfNotGrantedBlock extends ConsumerWidget {
             ManaText.raw(
               ref.t('owner_not_assigned_bf'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
           ],
         ),
@@ -413,7 +413,7 @@ class _BfUpdateRequestedBlock extends ConsumerWidget {
             ManaText.raw(
               ref.t('bf_dispute_sent'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
           ],
         ),
@@ -464,7 +464,7 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
         const SizedBox(height: ManaSpacing.xs),
         ManaText.raw(
           ref.t('only_areas_enabled'),
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+          style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.md),
         if (areas.isEmpty)
@@ -473,7 +473,7 @@ class _AreaSelectionState extends ConsumerState<_AreaSelection> {
             child: Center(
               child: ManaText.raw(
                   ref.t('no_areas_enabled'),
-                  style: TextStyle(color: ManaColors.textSecondary)),
+                  style: ManaType.secondary),
             ),
           )
         else
@@ -549,11 +549,11 @@ class _ChangeAreaSheetState extends ConsumerState<_ChangeAreaSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('change_area'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(
               ref.t('adding_area_note'),
-              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+              style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.md),
             ...areas.map((area) => CheckboxListTile(
@@ -613,7 +613,7 @@ class _RunningDashboard extends ConsumerWidget {
                 (ref.t('assigned_route'), d.assignedRoute),
                 (ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
                 (ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
-                (ref.t('todays_target'), _currency.format(d.todaysTarget)),
+                (ref.t('todays_target'), manaRupees(d.todaysTarget)),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -623,20 +623,20 @@ class _RunningDashboard extends ConsumerWidget {
                 (ref.t('customers_assigned'), '${d.customersAssigned}'),
                 (ref.t('customers_visited'), '${d.customersVisited}'),
                 (ref.t('customers_remaining'), '${d.customersRemaining}'),
-                (ref.t('cash'), _currency.format(d.collectionsCash)),
-                (ref.t('upi'), _currency.format(d.collectionsUpi)),
-                (ref.t('bank'), _currency.format(d.collectionsBank)),
-                (ref.t('cheque'), _currency.format(d.collectionsCheque)),
-                (ref.t('mixed'), _currency.format(d.collectionsMixed)),
+                (ref.t('cash'), manaRupees(d.collectionsCash)),
+                (ref.t('upi'), manaRupees(d.collectionsUpi)),
+                (ref.t('bank'), manaRupees(d.collectionsBank)),
+                (ref.t('cheque'), manaRupees(d.collectionsCheque)),
+                (ref.t('mixed'), manaRupees(d.collectionsMixed)),
                 (
                   ref.t('todays_collections_total'),
-                  _currency.format(d.todaysCollectionsTotal)
+                  manaRupees(d.todaysCollectionsTotal)
                 ),
                 (ref.t('loans_issued'), '${d.loansIssued}'),
                 (ref.t('pending_collections'), '${d.pendingCollections}'),
                 (ref.t('skipped_customers'), '${d.skippedCustomers}'),
-                (ref.t('short'), _currency.format(d.shortAmount)),
-                (ref.t('excess'), _currency.format(d.excessAmount)),
+                (ref.t('short'), manaRupees(d.shortAmount)),
+                (ref.t('excess'), manaRupees(d.excessAmount)),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -762,24 +762,24 @@ class _CompensationSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('my_compensation'),
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+                style: ManaType.strong),
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(ref.t('read_only_set_by_owner'),
                 style:
-                    TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                    ManaType.note),
             const SizedBox(height: ManaSpacing.sm),
             ...[
-              (ref.t('fixed_salary'), _currency.format(d.fixedSalary)),
+              (ref.t('fixed_salary'), manaRupees(d.fixedSalary)),
               (
                 ref.t('salary_cycle'),
                 d.salaryCycleStatus.isEmpty ? '—' : d.salaryCycleStatus
               ),
-              (ref.t('daily_allowance'), _currency.format(d.dailyAllowance)),
+              (ref.t('daily_allowance'), manaRupees(d.dailyAllowance)),
               if (d.profitSharePercent != null)
                 (ref.t('profit_share'), '${d.profitSharePercent}%'),
-              (ref.t('advances_deducted'), _currency.format(d.advancesDeducted)),
-              (ref.t('shorts_deducted'), _currency.format(d.shortsDeducted)),
-              (ref.t('pending_salary'), _currency.format(d.pendingSalary)),
+              (ref.t('advances_deducted'), manaRupees(d.advancesDeducted)),
+              (ref.t('shorts_deducted'), manaRupees(d.shortsDeducted)),
+              (ref.t('pending_salary'), manaRupees(d.pendingSalary)),
             ].map((r) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
@@ -797,7 +797,7 @@ class _CompensationSection extends ConsumerWidget {
             if (d.salaryHistory.isNotEmpty) ...[
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(ref.t('salary_history'),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: ManaType.smallStrong),
               const SizedBox(height: ManaSpacing.xs),
               ...d.salaryHistory.take(6).map((h) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -807,7 +807,7 @@ class _CompensationSection extends ConsumerWidget {
                         ManaText.raw(h.cycleLabel,
                             style: TextStyle(
                                 fontSize: 13, color: ManaColors.textSecondary)),
-                        ManaText.raw(_currency.format(h.amount),
+                        ManaText.raw(manaRupees(h.amount),
                             style: const TextStyle(fontSize: 16)),
                       ],
                     ),
@@ -857,7 +857,7 @@ class _QuickActions extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('quick_actions'),
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+                style: ManaType.strong),
             const SizedBox(height: ManaSpacing.sm),
             GridView.count(
               crossAxisCount: 3,
@@ -1001,7 +1001,7 @@ class _QuickActionTile extends StatelessWidget {
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13)),
+                style: ManaType.small),
           ],
         ),
       ),
@@ -1022,12 +1022,12 @@ class _LiveActivity extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('live_activity'),
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+                style: ManaType.strong),
             const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
               ManaText.raw(ref.t('nothing_yet_today'),
                   style:
-                      TextStyle(fontSize: 13, color: ManaColors.textSecondary))
+                      ManaType.note)
             else
               ...entries.take(10).map((e) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1039,7 +1039,7 @@ class _LiveActivity extends ConsumerWidget {
                         const SizedBox(width: ManaSpacing.sm),
                         Expanded(
                             child: ManaText.raw(e.description,
-                                style: const TextStyle(fontSize: 13))),
+                                style: ManaType.small)),
                       ],
                     ),
                   )),

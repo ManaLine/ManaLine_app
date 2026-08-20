@@ -91,3 +91,71 @@ class ManaTypography {
     );
   }
 }
+
+/// Named styles for the recurring inline patterns.
+///
+/// WHY: 327 screens-level `TextStyle(fontSize: ...)` literals existed before
+/// this, 253 of them hardcoding 13 — the legibility floor written out by hand
+/// on every screen. Restyling the app meant editing 327 sites; now each
+/// recurring role has one name and one definition.
+///
+/// GETTERS, NOT CONSTS. ManaColors is palette-switched global state (see
+/// main.dart's theme note): a `static const` style would capture the palette
+/// active at class-load and paint light-theme grey onto dark surfaces after a
+/// switch. A getter re-reads the palette on every build, exactly like the
+/// ~840 direct token call sites do.
+///
+/// The names are ROLES, not sizes — `note`, not `size13` — so the day the
+/// floor moves the call sites already say what they meant.
+class ManaType {
+  ManaType._();
+
+  /// Explanatory line under a control; hints, sort orders, empty-state text.
+  /// The single most common style in the app (172 sites at adoption).
+  static TextStyle get note =>
+      TextStyle(fontSize: 13, color: ManaColors.textSecondary);
+
+  /// A note that must read as an error. Same voice, status colour.
+  static TextStyle get noteBad =>
+      TextStyle(fontSize: 13, color: ManaColors.statusBad);
+
+  /// A note that must read as a warning.
+  static TextStyle get noteWarn =>
+      TextStyle(fontSize: 13, color: ManaColors.statusWarn);
+
+  /// Small print at the very bottom of the scale — timestamps, IDs under a
+  /// name. 12 is the absolute floor; nothing renders smaller.
+  static TextStyle get fine =>
+      TextStyle(fontSize: 12, color: ManaColors.textSecondary);
+
+  /// Secondary text at body size — de-emphasised, not smaller.
+  static TextStyle get secondary => TextStyle(color: ManaColors.textSecondary);
+
+  /// Body-floor text in the default colour.
+  static const TextStyle small = TextStyle(fontSize: 13);
+
+  /// Emphasis within small text — a count, a name in a dense row.
+  static const TextStyle smallStrong =
+      TextStyle(fontSize: 13, fontWeight: FontWeight.w600);
+
+  /// A card or section heading.
+  static const TextStyle cardTitle =
+      TextStyle(fontWeight: FontWeight.bold, fontSize: 16);
+
+  /// A sheet or dialog heading.
+  static const TextStyle sheetTitle =
+      TextStyle(fontWeight: FontWeight.bold, fontSize: 18);
+
+  /// Bold emphasis at the inherited size.
+  static const TextStyle strong = TextStyle(fontWeight: FontWeight.bold);
+
+  /// Semi-bold emphasis at the inherited size — names in rows, keys in
+  /// key-value pairs.
+  static const TextStyle emphasis = TextStyle(fontWeight: FontWeight.w600);
+
+  /// Heavy emphasis at the inherited size.
+  static const TextStyle heavy = TextStyle(fontWeight: FontWeight.w700);
+
+  /// Inherited size, error colour.
+  static TextStyle get bad => TextStyle(color: ManaColors.statusBad);
+}

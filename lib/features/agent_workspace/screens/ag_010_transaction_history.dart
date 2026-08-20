@@ -5,6 +5,7 @@ import '../../../design/components/mana_ledger.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/ledger_history_service.dart';
 import '../../../shared/ledger_history_state.dart';
@@ -159,7 +160,7 @@ class _Ag010TransactionHistoryScreenState
             horizontal: ManaSpacing.lg, vertical: ManaSpacing.sm),
         child: ManaText.raw(
           ref.t('your_activity_only_note'),
-          style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          style: ManaType.fine,
         ),
       ),
     ];

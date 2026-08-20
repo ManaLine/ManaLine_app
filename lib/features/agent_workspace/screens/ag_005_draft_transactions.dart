@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -78,7 +79,7 @@ class _DraftTransactionsScreenState extends ConsumerState<DraftTransactionsScree
                           child: ManaText.raw(
                             ref.t('no_open_drafts_note'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: ManaColors.textSecondary),
+                            style: ManaType.secondary,
                           ),
                         ),
                       )
@@ -134,23 +135,23 @@ class _DraftCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
-                      style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                      style: ManaType.note),
                 ),
               ],
             ),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(
               draft.customerName ?? 'Untitled Draft',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: ManaType.cardTitle,
             ),
             if (draft.loanNumber != null) ...[
               const SizedBox(height: 2),
               ManaText.raw(ref.t('loan_number_note').replaceAll('{number}', draft.loanNumber ?? '—'),
-                  style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                  style: ManaType.note),
             ],
             const SizedBox(height: 2),
             ManaText.raw(ref.t('created_note').replaceAll('{when}', _dateTimeFmt.format(draft.createdAt)),
-                style: TextStyle(fontSize: 13, color: ManaColors.textSecondary)),
+                style: ManaType.note),
             const SizedBox(height: ManaSpacing.md),
             Wrap(
               spacing: ManaSpacing.sm,

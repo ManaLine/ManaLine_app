@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/title_case_formatter.dart';
 import '../../../shared/business_name_checker.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
@@ -74,7 +75,7 @@ class _FirstBusinessSetupScreenState
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: ManaText.raw(state.error!,
-                    style: TextStyle(color: ManaColors.statusBad)),
+                    style: ManaType.bad),
               ),
             Expanded(child: _stepBody(state)),
           ],
@@ -587,7 +588,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
                   return ListTile(
                     dense: true,
                     title: ManaText.raw(label,
-                        style: const TextStyle(fontSize: 13)),
+                        style: ManaType.small),
                     onTap: () => setState(() {
                       _selectedVillageId = v['location_id'] as String;
                       _selectedVillage = label;
@@ -722,7 +723,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
           const SizedBox(height: ManaSpacing.lg),
           if (state.operatingAreas.isEmpty)
             ManaText.raw(ref.t('no_operating_areas_added'),
-                style: TextStyle(color: ManaColors.textSecondary))
+                style: ManaType.secondary)
           else
             ...state.operatingAreas.map((a) => Card(
                   child: ListTile(
@@ -862,7 +863,7 @@ class _DurationPickerDialogState extends ConsumerState<_DurationPickerDialog> {
               controller: _controller,
               textAlign: TextAlign.center,
               keyboardType: TextInputType.number,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: ManaType.strong,
               decoration:
                   const InputDecoration(isDense: true, suffixText: 'days'),
               onChanged: (v) {
@@ -918,7 +919,7 @@ class _Step4ExistingMembers extends ConsumerWidget {
               Icon(Icons.group_add_outlined, color: ManaColors.brand),
           title: ManaText.raw(ref.t('start_pre_existing_migration')),
           subtitle: ManaText.raw(ref.t('launches_global_workflow_note'),
-              style: const TextStyle(fontSize: 13)),
+              style: ManaType.small),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1011,19 +1012,19 @@ class _Step6AssignAreas extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.all(ManaSpacing.lg),
               child: ManaText.raw(ref.t('who_works_village_note').replaceAll('{village}', a.villageName),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: ManaType.cardTitle),
             ),
             if (agents.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(ManaSpacing.lg),
                 child: ManaText.raw(ref.t('no_active_agents_found'),
-                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13)),
+                    style: ManaType.note),
               )
             else
               ...agents.map((agent) => ListTile(
                     leading: const ManaVerificationRing(isVerified: true, size: 32),
                     title: ManaText.raw(agent.fullName),
-                    subtitle: ManaText.raw(agent.mlid, style: const TextStyle(fontSize: 13)),
+                    subtitle: ManaText.raw(agent.mlid, style: ManaType.small),
                     onTap: () => Navigator.of(context).pop(agent),
                   )),
             const SizedBox(height: ManaSpacing.md),
@@ -1091,7 +1092,7 @@ class _Step6AssignAreas extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ManaText.raw(a.villageName,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: ManaType.strong),
                   const SizedBox(height: ManaSpacing.xs),
                   ManaText.raw(
                     a.assignedAgentId != null

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
@@ -278,7 +279,7 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
         ),
         if (_passwordError != null) ...[
           const SizedBox(height: ManaSpacing.sm),
-          ManaText.raw(_passwordError!, style: TextStyle(color: ManaColors.statusBad)),
+          ManaText.raw(_passwordError!, style: ManaType.bad),
         ],
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
@@ -304,7 +305,7 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
         ),
         if (_otpError != null) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw(_otpError!, style: TextStyle(color: ManaColors.statusBad),
+          ManaText.raw(_otpError!, style: ManaType.bad,
               textAlign: TextAlign.center),
         ],
         const SizedBox(height: ManaSpacing.lg),

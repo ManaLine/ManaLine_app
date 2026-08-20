@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../design/tokens/colors.dart';
+import '../../design/tokens/typography.dart';
 import '../../design/tokens/spacing.dart';
 import '../../design/components/mana_text.dart';
 import '../network_error_handler.dart';
@@ -105,7 +106,7 @@ class _ConfirmDeleteDialogState extends ConsumerState<ConfirmDeleteDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(widget.description,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+                style: ManaType.emphasis),
             const SizedBox(height: ManaSpacing.md),
             if (widget.affectsBalances)
               ManaText.raw(

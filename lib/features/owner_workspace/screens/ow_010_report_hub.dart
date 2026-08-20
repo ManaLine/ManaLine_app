@@ -3,14 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/report_hub_state.dart';
 
-final _currency =
-    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 final _shortDateFmt = DateFormat('dd MMM');
 const _monthKeys = [
   'january',
@@ -231,12 +231,12 @@ class _MonthlySummaryCard extends ConsumerWidget {
                   const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           const SizedBox(height: ManaSpacing.sm),
           _line(ref.t('business_day_accounts'), '${summary.businessDayAccounts}'),
-          _line(ref.t('total_collections'), _currency.format(summary.totalCollections)),
-          _line(ref.t('total_loans_given'), _currency.format(summary.totalLoansGiven)),
-          _line(ref.t('total_expenses'), _currency.format(summary.totalExpenses)),
+          _line(ref.t('total_collections'), manaRupees(summary.totalCollections)),
+          _line(ref.t('total_loans_given'), manaRupees(summary.totalLoansGiven)),
+          _line(ref.t('total_expenses'), manaRupees(summary.totalExpenses)),
           _line(ref.t('pending_customers'), '${summary.pendingCustomers}'),
           _line(ref.t('outstanding_amount'),
-              _currency.format(summary.outstandingAmount)),
+              manaRupees(summary.outstandingAmount)),
         ],
       ),
     );
@@ -250,7 +250,7 @@ class _MonthlySummaryCard extends ConsumerWidget {
             Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
             const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(value,
-                style: const TextStyle(fontWeight: FontWeight.w600))
+                style: ManaType.emphasis)
           ],
         ),
       );
@@ -278,10 +278,10 @@ class _MonthlyClosingCard extends ConsumerWidget {
           ),
           const SizedBox(height: ManaSpacing.sm),
           _line(ref.t('business_day_accounts'), '${closing.businessDayAccounts}'),
-          _line(ref.t('collections'), _currency.format(closing.collections)),
-          _line(ref.t('loans_given'), _currency.format(closing.loansGiven)),
-          _line(ref.t('expenses'), _currency.format(closing.expenses)),
-          _line(ref.t('net_cash_movement'), _currency.format(closing.netCashMovement)),
+          _line(ref.t('collections'), manaRupees(closing.collections)),
+          _line(ref.t('loans_given'), manaRupees(closing.loansGiven)),
+          _line(ref.t('expenses'), manaRupees(closing.expenses)),
+          _line(ref.t('net_cash_movement'), manaRupees(closing.netCashMovement)),
         ],
       ),
     );
@@ -295,7 +295,7 @@ class _MonthlyClosingCard extends ConsumerWidget {
             Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
             const SizedBox(width: ManaSpacing.xs),
             ManaText.raw(value,
-                style: const TextStyle(fontWeight: FontWeight.w600))
+                style: ManaType.emphasis)
           ],
         ),
       );
@@ -341,7 +341,7 @@ class _RecordBookRowCard extends ConsumerWidget {
                     child: ManaText.raw(dateLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                        style: ManaType.heavy),
                   ),
                   const SizedBox(width: ManaSpacing.xs),
                   Flexible(
@@ -355,10 +355,10 @@ class _RecordBookRowCard extends ConsumerWidget {
                 spacing: ManaSpacing.lg,
                 runSpacing: ManaSpacing.xs,
                 children: [
-                  _figure(ref.t('collections'), _currency.format(row.collectionsTotal)),
-                  _figure(ref.t('loans_given'), _currency.format(row.loansGivenTotal)),
-                  _figure(ref.t('expenses'), _currency.format(row.expensesTotal)),
-                  _figure(ref.t('closing_cash'), _currency.format(row.closingCash)),
+                  _figure(ref.t('collections'), manaRupees(row.collectionsTotal)),
+                  _figure(ref.t('loans_given'), manaRupees(row.loansGivenTotal)),
+                  _figure(ref.t('expenses'), manaRupees(row.expensesTotal)),
+                  _figure(ref.t('closing_cash'), manaRupees(row.closingCash)),
                   _figure(ref.t('pending_customers'), '${row.pendingCustomersCount}'),
                 ],
               ),
@@ -383,7 +383,7 @@ class _RecordBookRowCard extends ConsumerWidget {
                   fontSize: 13, color: ManaColors.textSecondary)),
           ManaText.raw(value,
               style:
-                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ManaType.smallStrong),
         ],
       );
 }
@@ -426,7 +426,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
               : state.detailError != null
                   ? Center(
                       child: ManaText.raw(state.detailError!,
-                          style: TextStyle(color: ManaColors.statusBad)))
+                          style: ManaType.bad))
                   : detail == null
                       ? const SizedBox.shrink()
                       : ListView(
@@ -448,7 +448,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
                             _section(ref.t('expenses'), detail.expenses),
                             const SizedBox(height: ManaSpacing.sm),
                             ManaText.raw(ref.t('agent_summary'),
-                                style: const TextStyle(fontWeight: FontWeight.w700)),
+                                style: ManaType.heavy),
                             ManaText.raw(detail.agentSummary.isEmpty
                                 ? '—'
                                 : detail.agentSummary),
@@ -458,7 +458,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
                             _section(ref.t('corrections'), detail.corrections),
                             const SizedBox(height: ManaSpacing.sm),
                             ManaText.raw(ref.t('day_closure_details'),
-                                style: const TextStyle(fontWeight: FontWeight.w700)),
+                                style: ManaType.heavy),
                             ManaText.raw(detail.dayClosureDetails.isEmpty
                                 ? '—'
                                 : detail.dayClosureDetails),
@@ -516,9 +516,9 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(title,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
+                style: ManaType.heavy),
             ManaText.raw('—',
-                style: TextStyle(color: ManaColors.textSecondary)),
+                style: ManaType.secondary),
           ],
         ),
       );
@@ -528,14 +528,14 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ManaText.raw(title, style: ManaType.heavy),
           ...items.map((e) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(child: ManaText.raw(e.label)),
-                    ManaText.raw(_currency.format(e.amount)),
+                    ManaText.raw(manaRupees(e.amount)),
                   ],
                 ),
               )),

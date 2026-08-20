@@ -7,6 +7,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/business_name_checker.dart';
 import '../../../shared/photo_compression.dart';
@@ -128,7 +129,7 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
         child: RefreshIndicator(
           onRefresh: () => ref.read(businessListProvider.notifier).load(),
           child: state.loading && state.businesses.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : state.error != null
                   ? _ErrorBanner(message: state.error!, onRetry: () => ref.read(businessListProvider.notifier).load())
               : state.businesses.isEmpty

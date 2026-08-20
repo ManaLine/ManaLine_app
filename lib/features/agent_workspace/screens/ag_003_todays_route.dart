@@ -6,6 +6,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
@@ -110,7 +111,7 @@ class _TodaysRouteScreenState extends ConsumerState<TodaysRouteScreen> {
         child: RefreshIndicator(
           onRefresh: _reload,
           child: state.loading && state.stops.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : state.error != null && state.stops.isEmpty
                   ? _ErrorState(message: state.error!, onRetry: _reload)
                   : ListView(

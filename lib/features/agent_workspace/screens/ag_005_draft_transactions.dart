@@ -6,6 +6,8 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
+import '../../../design/components/mana_card.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/draft_transactions_state.dart';
 import 'ag_002_collection_mode.dart';
@@ -68,7 +70,7 @@ class _DraftTransactionsScreenState extends ConsumerState<DraftTransactionsScree
                 membershipId: widget.membershipId,
               ),
           child: state.loading && state.drafts.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
@@ -116,11 +118,9 @@ class _DraftCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.md),
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Column(
+    return ManaCard(
+      gap: ManaSpacing.md,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -175,7 +175,7 @@ class _DraftCard extends ConsumerWidget {
             ),
           ],
         ),
-      ),
+
     );
   }
 

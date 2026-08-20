@@ -7,6 +7,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/report_hub_state.dart';
@@ -80,7 +81,7 @@ class _ReportHubScreenState extends ConsumerState<ReportHubScreen> {
               ),
               Expanded(
                 child: state.loading && state.rows.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const ManaSkeletonList()
                     : ListView(
                         padding: const EdgeInsets.all(ManaSpacing.lg),
                         children: [

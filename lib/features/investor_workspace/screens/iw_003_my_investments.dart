@@ -8,6 +8,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/translation_service.dart';
@@ -71,7 +72,7 @@ class _MyInvestmentsScreenState extends ConsumerState<MyInvestmentsScreen> {
           onRefresh: () =>
               ref.read(myInvestmentsListProvider(_key).notifier).load(),
           child: state.loading && state.investments.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : state.error != null && state.investments.isEmpty
                   ? _errorState(context)
                   : state.isEmpty

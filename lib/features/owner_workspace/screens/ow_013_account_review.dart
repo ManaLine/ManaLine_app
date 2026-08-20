@@ -7,6 +7,8 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
+import '../../../design/components/mana_card.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/account_review_state.dart';
@@ -94,7 +96,7 @@ class _AccountReviewTab extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () => ref.read(accountReviewProvider.notifier).load(businessId),
       child: state.loading && state.settlements.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? const ManaSkeletonList()
           // A failed load previously left this looking exactly like a
           // business with nothing to review — state.error was set and never
           // rendered anywhere on the screen. Same fix OW-012 already has.
@@ -193,11 +195,9 @@ class _SettlementCard extends ConsumerWidget {
       if (settlement.handOverCheque > 0) 'Cheque ${manaRupees(settlement.handOverCheque)}',
     ];
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.md),
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Column(
+    return ManaCard(
+      gap: ManaSpacing.md,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -268,7 +268,7 @@ class _SettlementCard extends ConsumerWidget {
             ),
           ],
         ),
-      ),
+
     );
   }
 

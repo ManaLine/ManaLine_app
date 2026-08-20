@@ -6,6 +6,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_collection_search_field.dart';
 import '../../../design/components/mana_frequency_picker.dart';
 import '../../../shared/mana_time.dart';
@@ -83,7 +84,7 @@ class _AgentCollectionModeScreenState extends ConsumerState<AgentCollectionModeS
         child: RefreshIndicator(
           onRefresh: () => ref.read(collectionModeProvider.notifier).load(widget.businessId),
           child: state.loading && state.dueList.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [

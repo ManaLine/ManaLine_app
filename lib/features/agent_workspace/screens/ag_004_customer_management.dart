@@ -9,6 +9,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
@@ -95,7 +96,7 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
       ),
       body: SafeArea(
         child: state.loading && state.customers.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? const ManaSkeletonList()
             : Column(
                 children: [
                   Padding(

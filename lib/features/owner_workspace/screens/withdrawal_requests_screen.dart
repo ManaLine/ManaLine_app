@@ -7,6 +7,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_card.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/investor_state.dart';
@@ -167,11 +168,8 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
               return ListView(
                 padding: const EdgeInsets.all(ManaSpacing.lg),
                 children: requests
-                    .map((r) => Card(
-                          margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-                          child: Padding(
-                            padding: const EdgeInsets.all(ManaSpacing.md),
-                            child: Column(
+                    .map((r) => ManaCard(
+                          child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
@@ -207,7 +205,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                                 ),
                               ],
                             ),
-                          ),
+
                         ))
                     .toList(),
               );

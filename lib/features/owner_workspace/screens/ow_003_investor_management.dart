@@ -7,6 +7,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../shared/mana_time.dart';
@@ -80,7 +81,7 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
         child: RefreshIndicator(
           onRefresh: () => ref.read(investorWorkforceProvider.notifier).load(widget.businessId),
           child: state.loading && state.investors.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : ManaMemberRoster(
                   heading: ref.t('investors'),
                   header: _DashboardStrip(state: state),

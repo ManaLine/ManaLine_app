@@ -6,6 +6,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../owner_workspace/screens/ow_007_loan_details.dart';
@@ -212,7 +213,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
                 ),
               Expanded(
                 child: state.loading && state.notifications.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const ManaSkeletonList()
                     : state.visible.isEmpty
                         // S2 — Empty.
                         ? Center(

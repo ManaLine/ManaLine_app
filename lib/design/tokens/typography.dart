@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
 
 /// MANA LINE type system.
@@ -11,13 +10,20 @@ import 'colors.dart';
 /// Both faces have solid tabular-figure support, which matters
 /// everywhere a rupee amount is shown (BR-consistent monetary display).
 ///
-/// NOTE ON OFFLINE FIRST PAINT: google_fonts fetches over network on
-/// first use and caches thereafter. Given this app's whole design
-/// premise is "works in low connectivity," bundle Manrope/Inter as
-/// actual asset files in `assets/fonts/` for the production build
-/// (`GoogleFonts.config.allowRuntimeFetching = false` + local
-/// `pubspec.yaml` font declarations) rather than relying on the runtime
-/// fetch — flagged here so it isn't missed at release time.
+/// BUNDLED, NOT FETCHED. google_fonts pulled these over the network on first
+/// use, so first paint depended on a request in exactly the low-connectivity
+/// conditions this app is built for: a village user on 2G saw system fallback
+/// fonts, and every rupee figure rendered without the tabular figures that
+/// keep money columns aligned. Both families now ship in `assets/fonts/` as
+/// variable TTFs and are declared in pubspec.yaml; nothing here touches the
+/// network.
+/// Family names as declared in pubspec.yaml. Named constants so a typo is a
+/// compile error rather than a silent fallback to the system font — which is
+/// the failure this whole change exists to remove, and which looks like
+/// nothing more than "the app renders slightly differently today".
+const _manrope = 'Manrope';
+const _inter = 'Inter';
+
 class ManaTypography {
   ManaTypography._();
 
@@ -29,48 +35,48 @@ class ManaTypography {
 
     return TextTheme(
       // Headers — Manrope, heavier weights only, used with restraint
-      displayLarge: GoogleFonts.manrope(
+      displayLarge: TextStyle(fontFamily: _manrope, 
         fontSize: 32,
         fontWeight: FontWeight.w800,
         color: baseColor,
         height: 1.15,
       ),
-      displayMedium: GoogleFonts.manrope(
+      displayMedium: TextStyle(fontFamily: _manrope, 
         fontSize: 26,
         fontWeight: FontWeight.w700,
         color: baseColor,
         height: 1.2,
       ),
-      headlineMedium: GoogleFonts.manrope(
+      headlineMedium: TextStyle(fontFamily: _manrope, 
         fontSize: 20,
         fontWeight: FontWeight.w700,
         color: baseColor,
         height: 1.25,
       ),
-      titleLarge: GoogleFonts.manrope(
+      titleLarge: TextStyle(fontFamily: _manrope, 
         fontSize: 17,
         fontWeight: FontWeight.w600,
         color: baseColor,
       ),
-      titleMedium: GoogleFonts.manrope(
+      titleMedium: TextStyle(fontFamily: _manrope, 
         fontSize: 15,
         fontWeight: FontWeight.w600,
         color: baseColor,
       ),
 
       // Body — Inter, for everything read at length or scanned quickly
-      bodyLarge: GoogleFonts.inter(fontSize: 16, color: baseColor, height: 1.4),
+      bodyLarge: TextStyle(fontFamily: _inter, fontSize: 16, color: baseColor, height: 1.4),
       bodyMedium:
-          GoogleFonts.inter(fontSize: 14, color: baseColor, height: 1.4),
+          TextStyle(fontFamily: _inter, fontSize: 14, color: baseColor, height: 1.4),
       bodySmall:
-          GoogleFonts.inter(fontSize: 13, color: secondaryColor, height: 1.35),
+          TextStyle(fontFamily: _inter, fontSize: 13, color: secondaryColor, height: 1.35),
 
       // Labels — Inter, medium weight, used for form fields/buttons/chips
-      labelLarge: GoogleFonts.inter(
+      labelLarge: TextStyle(fontFamily: _inter, 
           fontSize: 14, fontWeight: FontWeight.w600, color: baseColor),
-      labelMedium: GoogleFonts.inter(
+      labelMedium: TextStyle(fontFamily: _inter, 
           fontSize: 13, fontWeight: FontWeight.w600, color: secondaryColor),
-      labelSmall: GoogleFonts.inter(
+      labelSmall: TextStyle(fontFamily: _inter, 
           fontSize: 13, fontWeight: FontWeight.w500, color: secondaryColor),
     );
   }
@@ -83,7 +89,7 @@ class ManaTypography {
     FontWeight fontWeight = FontWeight.w700,
     Color? color,
   }) {
-    return GoogleFonts.inter(
+    return TextStyle(fontFamily: _inter, 
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color ?? ManaColors.textPrimary,

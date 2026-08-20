@@ -7,6 +7,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_card.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/customer_profile_state.dart';
 import '../../../design/components/mana_info_hint.dart';
@@ -338,11 +339,8 @@ class _BusinessMembershipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Column(
+    return ManaCard(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(business.businessName,
@@ -351,7 +349,7 @@ class _BusinessMembershipCard extends StatelessWidget {
             for (final m in business.roles) _MembershipTile(membership: m),
           ],
         ),
-      ),
+
     );
   }
 }

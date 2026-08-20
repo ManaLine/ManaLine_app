@@ -13,10 +13,12 @@ import 'shared/supabase_config.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // See design/tokens/typography.dart — flip this to false and bundle
-  // font assets before shipping, so first paint doesn't depend on
-  // network in exactly the low-connectivity conditions this app targets.
-  GoogleFonts.config.allowRuntimeFetching = true;
+  // Manrope and Inter are bundled in assets/fonts/ and declared in
+  // pubspec.yaml, so nothing should ever reach for the network. This stays as
+  // a hard stop rather than a formality: if a family name is ever mistyped,
+  // runtime fetching would quietly paper over it on a developer's fast wifi
+  // and fail in a village. false makes that a visible fallback here too.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // ARCHITECTURAL NOTE (see auth_api_service.dart header for the full
   // decision record): this app does NOT use Supabase's own GoTrue

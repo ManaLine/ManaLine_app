@@ -79,7 +79,24 @@ flutter:
     # Updating the terms therefore means a new build — which is the right
     # trade here, and legal_documents records which version shipped.
     - assets/legal/
-  # fonts pulled via google_fonts at runtime — no bundled font files needed
-  # unless you want fully offline-safe first paint (recommended for V1
-  # given the target network conditions — see design/tokens/typography.dart
-  # note on pre-bundling).
+    - assets/fonts/
+  # Manrope and Inter ship INSIDE the app. They used to be fetched at runtime
+  # by google_fonts, which meant first paint depended on a network request in
+  # exactly the low-connectivity conditions this app is built for: a village
+  # user on 2G got system fallback fonts, and every number rendered without
+  # the tabular figures money columns are aligned by.
+  #
+  # Variable files, one per family, rather than seven static cuts: Flutter maps
+  # FontWeight onto the wght axis, and 1.0 MB total is less than the static set
+  # would be. Inter also carries an opsz axis, left at its default.
+  #
+  # OFL 1.1 (licence text alongside the files) - redistribution inside an
+  # application is permitted; the licence must travel with them, which is why
+  # OFL-*.txt sits in the same folder and is bundled too.
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Variable.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf

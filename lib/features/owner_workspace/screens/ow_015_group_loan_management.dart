@@ -6,6 +6,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/group_loan_state.dart';
@@ -54,7 +55,7 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
         child: RefreshIndicator(
           onRefresh: () => ref.read(groupLoanListProvider.notifier).load(widget.businessId),
           child: state.loading && state.groups.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [

@@ -9,6 +9,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_card.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
@@ -1181,11 +1182,9 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
 
   Widget _duplicateCard(DuplicateMatch d) {
     final decision = _dedupeDecisions[d.row];
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.sm),
-        child: Column(
+    return ManaCard(
+      padding: ManaSpacing.sm,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(
@@ -1216,7 +1215,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             ),
           ],
         ),
-      ),
+
     );
   }
 
@@ -1273,11 +1272,9 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     final suggestions = _suggestions[v.pinCode];
     final districts = {for (final s in suggestions ?? const <VillageSuggestion>[]) s.district}.toList()..sort();
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.sm),
-        child: Column(
+    return ManaCard(
+      padding: ManaSpacing.sm,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw('${v.village} · ${v.pinCode}',
@@ -1322,7 +1319,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             ),
           ],
         ),
-      ),
+
     );
   }
 

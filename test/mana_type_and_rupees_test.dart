@@ -8,6 +8,8 @@ import 'package:mana_line/design/tokens/typography.dart';
 /// of a rupee amount. Both replace hundreds of hand-written literals, so what
 /// they produce is pinned here rather than trusted.
 void main() {
+  _fontsAreBundled();
+
   group('manaRupees', () {
     test('formats with lakh grouping and no decimals', () {
       expect(manaRupees(123456), '₹1,23,456');
@@ -53,5 +55,32 @@ void main() {
       addTearDown(() => ManaColors.use(ManaPalette.light));
       expect(ManaType.note.color, isNot(light));
     });
+  });
+}
+
+/// Fonts ship inside the app. If a family name here ever stops matching
+/// pubspec.yaml, Flutter silently falls back to the system font — the app just
+/// "renders slightly differently", money columns lose their tabular alignment,
+/// and nothing fails. These assertions are the thing that fails instead.
+void _fontsAreBundled() {
+  test('every text style names a bundled family, never the system default', () {
+    final theme = ManaTypography.textTheme(Brightness.light);
+    final styles = <TextStyle?>[
+      theme.displayLarge, theme.displayMedium, theme.headlineMedium,
+      theme.titleLarge, theme.titleMedium, theme.bodyLarge, theme.bodyMedium,
+      theme.bodySmall, theme.labelLarge, theme.labelMedium, theme.labelSmall,
+    ];
+    for (final s in styles) {
+      expect(s?.fontFamily, anyOf('Manrope', 'Inter'),
+          reason: 'a null family is the system font, not the design');
+    }
+  });
+
+  test('money keeps its tabular figures', () {
+    // Proportional digits make a column of amounts jitter, which is what makes
+    // the odd figure in a collection list hard to spot.
+    expect(ManaTypography.amount().fontFeatures,
+        contains(const FontFeature.tabularFigures()));
+    expect(ManaTypography.amount().fontFamily, 'Inter');
   });
 }

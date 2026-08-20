@@ -7,6 +7,8 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
+import '../../../design/components/mana_card.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
@@ -52,7 +54,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
         child: RefreshIndicator(
           onRefresh: _reload,
           child: state.loading && state.chetis.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
@@ -108,11 +110,9 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
 
   Widget _card(Cheti c) {
     final net = c.netPosition;
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.md),
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Column(
+    return ManaCard(
+      gap: ManaSpacing.md,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Both sides flexible: a long cheti name and the type/frequency
@@ -240,7 +240,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
               ),
           ],
         ),
-      ),
+
     );
   }
 

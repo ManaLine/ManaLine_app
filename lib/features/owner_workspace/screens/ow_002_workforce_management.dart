@@ -8,6 +8,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
@@ -55,7 +56,7 @@ class _WorkforceManagementScreenState
           onRefresh: () =>
               ref.read(workforceProvider.notifier).load(widget.businessId),
           child: state.loading && state.agents.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : ManaMemberRoster(
                   heading: ref.t('agents'),
                   header: _DashboardStrip(state: state),

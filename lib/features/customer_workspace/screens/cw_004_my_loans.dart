@@ -7,6 +7,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_loans_state.dart';
 
@@ -52,7 +53,7 @@ class _MyLoansScreenState extends ConsumerState<MyLoansScreen> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: state.loading && state.loans.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const ManaSkeletonList()
               : state.error != null && state.loans.isEmpty
                   ? _errorState(context)
                   : state.visibleSorted.isEmpty

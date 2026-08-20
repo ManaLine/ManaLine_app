@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/mana_time.dart';
+import '../../../shared/location_api_service.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_amount.dart';
@@ -545,7 +545,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   final _villageSearch = TextEditingController();
   String? _gender;
   String? _villageId;
-  List<Map<String, dynamic>> _villageResults = [];
+  List<ManaVillage> _villageResults = [];
   bool _villageSearchAttempted = false;
   final _given = TextEditingController();
   final _interest = TextEditingController();
@@ -577,9 +577,13 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     super.dispose();
   }
 
-  /// Villages for the typed PIN. Same query OW-004's sheet runs — the
-  /// address has to resolve to a real `locations` row either way, because
-  /// person_addresses.village_id is a FK, not free text.
+  /// Villages for the typed PIN.
+  ///
+  /// Through LocationApiService, which is the only place `locations` is
+  /// supposed to be read. This site had drifted: it was the one village search
+  /// in the app with no `status = 'Active'` filter, so it offered RETIRED
+  /// villages as though they were current — and person_addresses.village_id is
+  /// a FK, so choosing one writes a real address pointing at a dead row.
   Future<void> _searchVillages(String query) async {
     final pin = _pinCode.text.trim();
     if (pin.length != 6) {
@@ -589,15 +593,12 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       });
       return;
     }
-    final rows = await Supabase.instance.client
-        .from('locations')
-        .select('location_id, village_town_name, mandal, district')
-        .eq('pin_code', pin)
-        .ilike('village_town_name', '%${query.trim()}%')
-        .limit(20);
+    final villages = await ref
+        .read(locationApiServiceProvider)
+        .searchByPin(pinCode: pin, query: query, limit: 20);
     if (!mounted) return;
     setState(() {
-      _villageResults = (rows as List).cast<Map<String, dynamic>>();
+      _villageResults = villages;
       _villageSearchAttempted = true;
     });
   }
@@ -705,16 +706,14 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         if (_villageResults.isNotEmpty)
           ..._villageResults.map((v) => ListTile(
                 dense: true,
-                title: ManaText.raw(v['village_town_name'] as String? ?? ''),
-                subtitle: ManaText.raw(
-                    '${v['mandal'] ?? ''} · ${v['district'] ?? ''}',
-                    style: const TextStyle(fontSize: 12)),
-                trailing: _villageId == v['location_id']
+                title: ManaText.raw(v.name),
+                subtitle: ManaText.raw(v.placeLabel, style: ManaType.fine),
+                trailing: _villageId == v.locationId
                     ? Icon(Icons.check, color: ManaColors.statusGood)
                     : null,
                 onTap: () => setState(() {
-                  _villageId = v['location_id'] as String;
-                  _villageSearch.text = v['village_town_name'] as String;
+                  _villageId = v.locationId;
+                  _villageSearch.text = v.name;
                 }),
               )),
         if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null)

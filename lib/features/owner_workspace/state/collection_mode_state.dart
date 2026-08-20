@@ -123,6 +123,8 @@ class CollectionApiService {
     String? excessDisposition, // Advance | Refund | Next Installment
     String? remarks,
     bool confirmDuplicate = false, // true = "Continue" after the warning
+    // Same key on every retry of one save; see shared/idempotency.dart.
+    String? idempotencyKey,
   }) async {
     final response = await _db.schema('app').rpc('record_collection', params: {
       'p_loan_id': loanId,
@@ -130,6 +132,7 @@ class CollectionApiService {
       'p_collected_amount': collectedAmount,
       'p_payer_type': payerType,
       'p_payer_name': payerName,
+      'p_idempotency_key': idempotencyKey,
       'p_business_date': businessDate,
       'p_collected_by_membership_id': await _currentMembershipId(businessId),
       'p_guarantor_id': guarantorId,
@@ -431,6 +434,7 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
     String? excessDisposition,
     String? remarks,
     bool confirmDuplicate = false,
+    String? idempotencyKey,
   }) async {
     try {
       final api = ref.read(collectionApiServiceProvider);
@@ -440,6 +444,7 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
         collectedAmount: collectedAmount,
         payerType: payerType,
         payerName: payerName,
+        idempotencyKey: idempotencyKey,
         guarantorId: guarantorId,
         paymentSplits: paymentSplits,
         businessDate: businessDate,

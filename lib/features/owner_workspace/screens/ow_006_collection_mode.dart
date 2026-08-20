@@ -10,6 +10,7 @@ import '../../../design/components/mana_collection_search_field.dart';
 import '../../../design/components/mana_frequency_picker.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
+import '../../../shared/idempotency.dart';
 import '../../../shared/widgets/address_check_banner.dart';
 import '../../../shared/translation_service.dart';
 import '../state/collection_mode_state.dart';
@@ -345,6 +346,13 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
   // so the retry tells the server to record the payment anyway.
   bool _confirmDuplicate = false;
 
+  /// Minted once per save the person commits to, and reused by every retry of
+  /// it — including NetworkErrorHandler's Retry button and the "Continue"
+  /// path out of the duplicate warning, which both re-enter _submit(). On a
+  /// dropped 2G reply that is what stops the same collection being recorded
+  /// twice. Cleared after a save lands so the next one is a new action.
+  String? _idempotencyKey;
+
   // Whole rupees (M8) — money is never a double in this app.
   int get _collected => int.tryParse(_amount.text) ?? 0;
   int get _splitSum => (int.tryParse(_cashAmount.text) ?? 0) + (int.tryParse(_upiAmount.text) ?? 0);
@@ -363,6 +371,9 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
   }
 
   Future<void> _submit() async {
+    // Minted here, on the first attempt only: a key created inside the retry
+    // closure would be new every time, which is the same as having none.
+    _idempotencyKey ??= manaIdempotencyKey();
     setState(() => _submitting = true);
     final splits = _mixed
         ? [
@@ -383,6 +394,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
             businessId: widget.businessId,
             excessDisposition: _excessDisposition,
             confirmDuplicate: _confirmDuplicate,
+            idempotencyKey: _idempotencyKey,
           );
       if (o == null) throw Exception('Collection could not be saved.');
       return o;
@@ -397,6 +409,8 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
       return;
     }
     if (!mounted) return;
+    // Landed. The next save is a new action, not a replay of this one.
+    _idempotencyKey = null;
     _showReceiptAndNavigate(outcome.saved!);
   }
 

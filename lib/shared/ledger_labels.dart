@@ -20,6 +20,7 @@ final _timeFmt = DateFormat('h:mm a');
 /// counterparty: "Collection from Venkat Rao". Events with no other party
 /// (an expense, a settlement short) get a standalone label instead.
 String ledgerActionLabel(WidgetRef ref, LedgerEvent e) => switch (e.type) {
+      LedgerEventType.bfGrant => ref.t('bf_given_to'),
       LedgerEventType.collection => ref.t('collection_from'),
       LedgerEventType.loanDistribution => ref.t('loan_to'),
       LedgerEventType.expense => ref.t('expense_paid'),
@@ -33,6 +34,7 @@ String ledgerActionLabel(WidgetRef ref, LedgerEvent e) => switch (e.type) {
 
 /// Filter-sheet name for a type — the category, not the action.
 String ledgerTypeLabel(WidgetRef ref, LedgerEventType t) => switch (t) {
+      LedgerEventType.bfGrant => ref.t('bf_given'),
       LedgerEventType.collection => ref.t('collections'),
       LedgerEventType.loanDistribution => ref.t('loans_issued'),
       LedgerEventType.expense => ref.t('expenses'),

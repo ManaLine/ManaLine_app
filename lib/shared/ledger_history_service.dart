@@ -19,6 +19,10 @@ enum LedgerDirection { moneyIn, moneyOut }
 
 /// The eight things that move money, matching `day_ledger`'s columns.
 enum LedgerEventType {
+  // The float a round is funded by. First event of its day, because that is
+  // the order the money moves in — without it a day of lending reads as pure
+  // loss.
+  bfGrant('bf_grant', LedgerDirection.moneyIn),
   collection('collection', LedgerDirection.moneyIn),
   loanDistribution('loan_distribution', LedgerDirection.moneyOut),
   expense('expense', LedgerDirection.moneyOut),
@@ -199,9 +203,15 @@ class LedgerFilter {
   bool get isActive =>
       types.isNotEmpty || from != null || to != null || search.trim().isNotEmpty;
 
-  /// How many distinct constraints are on, for the filter button's badge.
+  /// How many things the user has actually ticked, for the filter button's
+  /// badge.
+  ///
+  /// Each chosen category counts. It used to collapse every category into a
+  /// single 1, so ticking Collections, Loans and Deposits showed "1" — the
+  /// badge disagreed with the sheet the person had just closed, which reads
+  /// as the filter not having taken.
   int get activeCount =>
-      (types.isNotEmpty ? 1 : 0) +
+      types.length +
       ((from != null || to != null) ? 1 : 0) +
       (search.trim().isNotEmpty ? 1 : 0);
 

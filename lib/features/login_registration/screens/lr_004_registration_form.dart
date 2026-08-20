@@ -307,6 +307,37 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   /// out at 358, so this is one query and then instant typing.
   final Map<String, List<Map<String, dynamic>>> _lgdByPin = {};
 
+  /// Fill mandal, district and state from what the reference already knows
+  /// about this PIN, so the person is not asked to re-type facts the app is
+  /// holding.
+  ///
+  /// ONLY when the PIN's suggestions agree. 8.1% of PIN codes list two
+  /// districts after the post-2022 splits, and this screen's whole village
+  /// flow is built on "suggest, never decide" — picking one of two districts
+  /// on the person's behalf writes a wrong address that nobody reviews.
+  /// Never overwrites something already typed.
+  void _prefillFromPin() {
+    final lgd = _lgdByPin[_pinCode.text.trim()];
+    if (lgd == null || lgd.isEmpty) return;
+
+    String? agreed(String key) {
+      final values = {
+        for (final r in lgd)
+          if ((r[key] as String? ?? '').trim().isNotEmpty) (r[key] as String).trim(),
+      };
+      return values.length == 1 ? values.first : null;
+    }
+
+    for (final (controller, key) in [
+      (_manualMandal, 'mandal'),
+      (_manualDistrict, 'district'),
+      (_manualState, 'state'),
+    ]) {
+      final value = agreed(key);
+      if (value != null && controller.text.trim().isEmpty) controller.text = value;
+    }
+  }
+
   Future<void> _searchVillages(String query) async {
     final pin = _pinCode.text.trim();
     if (pin.length != 6) {
@@ -701,6 +732,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                           onPressed: () => setState(() {
                             _manualVillageEntry = true;
                             _manualVillageName.text = _villageSearch.text.trim();
+                            _prefillFromPin();
                           }),
                           child: Text('"${_villageSearch.text.trim()}" not found — add it'),
                         ),

@@ -56,6 +56,8 @@ class _Ag010TransactionHistoryScreenState
   /// agent SELECT policy at all, so offering them as filters would present an
   /// absent permission as missing money.
   static const _agentVisibleTypes = <LedgerEventType>{
+    // Their own float, which funds the round they are standing in.
+    LedgerEventType.bfGrant,
     LedgerEventType.collection,
     LedgerEventType.loanDistribution,
     LedgerEventType.expense,

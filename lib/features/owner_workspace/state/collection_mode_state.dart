@@ -114,7 +114,8 @@ class CollectionApiService {
     required String loanId,
     required String customerId,
     required int collectedAmount, // whole rupees (M8)
-    required String payerType, // Customer | Guarantor
+    required String payerType, // Customer | Guarantor | Others
+    String? payerName, // free text, only when payerType is Others
     String? guarantorId,
     required List<PaymentSplit> paymentSplits,
     required String businessDate, // the business day this counts towards
@@ -128,6 +129,7 @@ class CollectionApiService {
       'p_customer_id': customerId,
       'p_collected_amount': collectedAmount,
       'p_payer_type': payerType,
+      'p_payer_name': payerName,
       'p_business_date': businessDate,
       'p_collected_by_membership_id': await _currentMembershipId(businessId),
       'p_guarantor_id': guarantorId,
@@ -421,6 +423,7 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
     required String customerId,
     required int collectedAmount, // whole rupees (M8)
     required String payerType,
+    String? payerName,
     String? guarantorId,
     required List<PaymentSplit> paymentSplits,
     required String businessDate,
@@ -436,6 +439,7 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
         customerId: customerId,
         collectedAmount: collectedAmount,
         payerType: payerType,
+        payerName: payerName,
         guarantorId: guarantorId,
         paymentSplits: paymentSplits,
         businessDate: businessDate,

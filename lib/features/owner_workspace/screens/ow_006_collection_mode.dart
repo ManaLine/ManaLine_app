@@ -330,7 +330,11 @@ class _EnterCollectionForm extends ConsumerStatefulWidget {
 
 class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
   final _amount = TextEditingController();
+  // Customer unless the Agent says otherwise. Asking who paid on every single
+  // collection is a decision on the overwhelmingly common case, made standing
+  // at a doorstep — so the question only appears when it is answered.
   String _payerType = 'Customer';
+  final _payerName = TextEditingController();
   bool _mixed = false;
   final _cashAmount = TextEditingController();
   final _upiAmount = TextEditingController();
@@ -372,6 +376,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
             customerId: widget.row.customerId,
             collectedAmount: _collected,
             payerType: _payerType,
+            payerName: _payerName.text.trim().isEmpty ? null : _payerName.text.trim(),
             paymentSplits: splits,
             businessDate: manaBusinessDate(),
             businessId: widget.businessId,
@@ -464,15 +469,41 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
-        DropdownButtonFormField<String>(
-          initialValue: _payerType,
-          decoration: InputDecoration(labelText: ref.t('payer')),
-          items: [
-            DropdownMenuItem(value: 'Customer', child: ManaText.raw(ref.t('customer'))),
-            DropdownMenuItem(value: 'Guarantor', child: ManaText.raw(ref.t('guarantor'))),
-          ],
-          onChanged: (v) => setState(() => _payerType = v ?? 'Customer'),
-        ),
+        // Nothing to answer in the normal case; one tap opens it when somebody
+        // else handed the money over.
+        if (_payerType == 'Customer')
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _payerType = 'Others'),
+              icon: const Icon(Icons.person_outline, size: 18),
+              label: ManaText.raw(ref.t('someone_else_paid')),
+            ),
+          )
+        else ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _payerName,
+                  textCapitalization: TextCapitalization.words,
+                  // Optional on purpose: the Agent often does not know the
+                  // full name of the son or neighbour who handed it over, and
+                  // demanding one would push them back to "Customer".
+                  decoration: InputDecoration(labelText: ref.t('who_paid_optional')),
+                ),
+              ),
+              IconButton(
+                tooltip: ref.t('customer'),
+                onPressed: () => setState(() {
+                  _payerType = 'Customer';
+                  _payerName.clear();
+                }),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: ManaSpacing.md),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,

@@ -80,7 +80,8 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
                           ),
                         )
                       else
-                        ...state.memberships.map((m) => _MembershipTile(membership: m)),
+                        ...manaGroupMemberships(state.memberships)
+                            .map((b) => _BusinessMembershipCard(business: b)),
                     ],
                   ),
                   ),
@@ -306,14 +307,49 @@ class _MembershipTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // One role inside a business card. Tapping it switches to that workspace.
+    return InkWell(
+      onTap: () => _switchRole(context),
+      borderRadius: BorderRadius.circular(ManaRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xs),
+        child: Row(
+          children: [
+            Expanded(child: ManaText(membership.role.label)),
+            ManaTrailingStatus(
+                label: membership.membershipStatus, status: _pillStatus),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One business, with every role the person holds in it.
+///
+/// Was one card per membership row, so a person who is Owner, Agent and
+/// Customer of the same shop saw that shop three times and had to read the
+/// heading each time to tell the cards apart. The business is the thing being
+/// listed; the roles are what you hold in it.
+class _BusinessMembershipCard extends StatelessWidget {
+  final ManaBusinessMemberships business;
+  const _BusinessMembershipCard({required this.business});
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: ListTile(
-        title: ManaText.raw(membership.businessName, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: ManaText(membership.role.label),
-        trailing: ManaTrailingStatus(
-            label: membership.membershipStatus, status: _pillStatus),
-        onTap: () => _switchRole(context),
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ManaText.raw(business.businessName,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: ManaSpacing.xs),
+            for (final m in business.roles) _MembershipTile(membership: m),
+          ],
+        ),
       ),
     );
   }

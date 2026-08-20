@@ -1,0 +1,18 @@
+-- Superseded four minutes later by
+-- 20260820090049_ledger_history_keeps_its_original_signature.sql, and left
+-- deliberately empty.
+--
+-- What this version did wrong: it rebuilt app.ledger_history with the
+-- parameters in a different order (p_limit moved to the end). CREATE OR
+-- REPLACE cannot reorder parameters — it created a SECOND function instead of
+-- replacing the first, and two overloads make the call ambiguous, which
+-- PostgREST refuses. The History screen would have failed outright.
+--
+-- The replacement carries the real change (BF grants in the feed, pre-existing
+-- loans out of it) on the original argument list. Replaying this file as a
+-- no-op reaches exactly the same end state; re-creating the broken overload
+-- here would only leave a fresh database briefly wrong for no reason.
+--
+-- The version row stays so the local files and
+-- supabase_migrations.schema_migrations continue to line up.
+SELECT 1;

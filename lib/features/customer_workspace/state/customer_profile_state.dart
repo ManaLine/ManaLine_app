@@ -259,6 +259,46 @@ enum MembershipRole {
   const MembershipRole(this.label);
 }
 
+/// The memberships of one business, gathered.
+///
+/// A person is routinely three things in the same business — Owner, Agent and
+/// Customer — and the screen listed each as its own card, so one business
+/// filled the page three times over and the reader had to notice that three
+/// identical headings were the same shop.
+class ManaBusinessMemberships {
+  final String businessId;
+  final String businessName;
+  final List<CustomerBusinessMembership> roles;
+
+  const ManaBusinessMemberships({
+    required this.businessId,
+    required this.businessName,
+    required this.roles,
+  });
+}
+
+/// Groups by business, keeping the order each business first appeared in and
+/// the order its roles arrived in. Stable order matters: this list is read as
+/// a place, and cards that reshuffle between loads look like they changed.
+List<ManaBusinessMemberships> manaGroupMemberships(
+  List<CustomerBusinessMembership> memberships,
+) {
+  final order = <String>[];
+  final byBusiness = <String, List<CustomerBusinessMembership>>{};
+  for (final m in memberships) {
+    if (!byBusiness.containsKey(m.businessId)) order.add(m.businessId);
+    byBusiness.putIfAbsent(m.businessId, () => []).add(m);
+  }
+  return [
+    for (final id in order)
+      ManaBusinessMemberships(
+        businessId: id,
+        businessName: byBusiness[id]!.first.businessName,
+        roles: byBusiness[id]!,
+      ),
+  ];
+}
+
 class CustomerBusinessMembership {
   final String businessId;
   final String businessName;

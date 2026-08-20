@@ -31,6 +31,7 @@ void main() {
   group('event types carry their own direction', () {
     test('every wire value maps to exactly one type', () {
       const wires = <String>[
+        'bf_grant',
         'collection',
         'loan_distribution',
         'expense',
@@ -45,12 +46,14 @@ void main() {
         expect(LedgerEventType.fromWire(w).wire, w);
       }
       // day_ledger names eight money categories; short/excess split the
-      // adjustment one into two directions, hence nine event types.
+      // adjustment one into two directions, and BF — the float a round is
+      // funded by — is the tenth.
       expect(LedgerEventType.values.length, wires.length);
     });
 
     test('money in and money out are assigned correctly', () {
       const moneyIn = {
+        LedgerEventType.bfGrant,
         LedgerEventType.collection,
         LedgerEventType.investorDeposit,
         LedgerEventType.chetiReceived,

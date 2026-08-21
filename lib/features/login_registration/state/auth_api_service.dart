@@ -4,6 +4,31 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/supabase_config.dart';
 import 'auth_flow_state.dart';
 
+/// Whether a PostgREST embedded relationship actually returned a row.
+///
+/// BROKE LOGIN FOR EVERY USER, so it is worth spelling out. PostgREST decides
+/// the SHAPE of an embed from the constraints, not from the query:
+///
+///   * one-to-many  -> a List, empty when there is nothing
+///   * one-to-ONE   -> the object itself, or null
+///
+/// `investors.membership_id` carries a UNIQUE index, which makes
+/// `business_members -> investors` one-to-one, so the embed arrives as a Map.
+/// Casting it with `as List?` threw a TypeError on every row — after a
+/// perfectly successful login — and NetworkErrorHandler turned that into
+/// "Something went wrong. Please try again." Login looked broken while
+/// auth-login had returned 200.
+///
+/// Written to accept BOTH shapes rather than the one that happens to be right
+/// today: dropping that unique index would silently flip the shape back, and
+/// nothing in Dart would warn.
+bool manaEmbedHasRow(dynamic embed) {
+  if (embed == null) return false;
+  if (embed is List) return embed.isNotEmpty;
+  if (embed is Map) return embed.isNotEmpty;
+  return true;
+}
+
 final authApiServiceProvider =
     Provider<AuthApiService>((ref) => AuthApiService());
 
@@ -355,6 +380,7 @@ class AuthApiService {
   // select, which is exactly what you want here)." No person_id filter is
   // passed — RLS does that scoping, so this call can never accidentally
   // leak another person's memberships even if the caller had a bug.
+
   // ---------------------------------------------------------------------
   Future<List<Membership>> fetchMemberships(String personId) async {
     final rows = await _client
@@ -375,7 +401,7 @@ class AuthApiService {
         .where((row) {
           final r = row as Map<String, dynamic>;
           if (r['role'] != 'Investor') return true;
-          return ((r['investors'] as List?) ?? const []).isNotEmpty;
+          return manaEmbedHasRow(r['investors']);
         })
         .map((row) {
       final r = row as Map<String, dynamic>;

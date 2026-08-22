@@ -72,7 +72,22 @@ class AgentApiService {
         .eq('membership_id', membershipId)
         .order('created_at', ascending: false)
         .limit(1);
-    if ((rows as List).isEmpty) return null;
+    // No row yet does NOT mean the Agent is locked out — it means they hold
+    // nothing. Create the zero row and carry on: an Agent with no float is an
+    // ordinary morning, and app.create_loan_with_bf_check still stops them
+    // lending money they do not have.
+    if ((rows as List).isEmpty) {
+      final created = await _db.schema('app').rpc(
+          'ensure_agent_bf_assignment',
+          params: {'p_membership_id': membershipId});
+      final c = Map<String, dynamic>.from(created as Map);
+      return AgentBfAssignment(
+        bfAssignmentId: c['assignment_id'] as String,
+        openingBf: (c['opening_bf'] as num).toInt(),
+        confirmedByAgent: c['confirmed_by_agent'] as bool,
+        updateRequested: c['update_requested'] as bool,
+      );
+    }
     final r = rows.first;
     return AgentBfAssignment(
       bfAssignmentId: r['assignment_id'] as String,
@@ -588,7 +603,10 @@ class AgentSalaryHistoryEntry {
 
 enum AgentSessionStage {
   loadingGate, // checking BF assignment
-  bfBlockedNoAssignment, // no agent_bf_assignments row — access not yet granted
+  // Reached only when the zero-row could not be created (offline, or the
+  // membership is gone). NOT the normal "Owner has not granted BF yet" case:
+  // that is an ordinary session opening at zero.
+  bfBlockedNoAssignment,
   bfConfirmPending, // gate shown, awaiting Confirm/Update
   bfUpdateRequested, // Agent disputed — blocked until Owner corrects
   areaSelection, // S1 — no active session

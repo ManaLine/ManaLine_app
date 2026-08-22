@@ -86,11 +86,19 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(businessListProvider.notifier).load();
       final businessId = widget.initialBusinessId;
-      final initialTab = widget.initialTab;
-      if (businessId != null && initialTab != null) {
+      // A business id is enough. It used to also require a tab, so arriving
+      // from the drawer — which passes the id the Owner is already working in
+      // but no ?tab= — dropped them on the business LIST and asked them to
+      // choose a business they had chosen two taps earlier. The tab is a
+      // deep-link refinement, not the thing that decides whether we know
+      // which business this is.
+      if (businessId != null) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => _BusinessDetailScreen(businessId: businessId, initialTab: initialTab),
+            builder: (_) => _BusinessDetailScreen(
+              businessId: businessId,
+              initialTab: widget.initialTab,
+            ),
           ),
         );
       }

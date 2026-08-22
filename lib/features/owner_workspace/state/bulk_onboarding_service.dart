@@ -457,7 +457,7 @@ class BulkOnboardingService {
     if (mlids.isEmpty) return {};
     final rows = await _db
         .from('customers')
-        .select('customer_id, business_members!inner(business_id, persons!inner(mlid))')
+        .select('customer_id, business_members!inner(business_id, persons!business_members_person_id_fkey!inner(mlid))')
         .eq('business_members.business_id', businessId);
     final map = <String, String>{};
     for (final r in rows as List) {
@@ -580,7 +580,7 @@ class BulkOnboardingService {
     if (mlids.isEmpty) return {};
     final rows = await _db
         .from('loans')
-        .select('loan_id, customer_id, issue_business_date, customers!inner(business_members!inner(business_id, persons!inner(mlid)))')
+        .select('loan_id, customer_id, issue_business_date, customers!inner(business_members!inner(business_id, persons!business_members_person_id_fkey!inner(mlid)))')
         .eq('customers.business_members.business_id', businessId)
         .order('issue_business_date', ascending: false);
     final map = <String, LoanRef>{};

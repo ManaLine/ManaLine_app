@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,6 +13,16 @@ import 'shared/supabase_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Portrait only. This is a one-handed field app: an Agent stands at a door
+  // holding a phone and a cash bag, and every screen is laid out and tested
+  // for a 360dp-wide portrait surface at text scales up to 2.0. Landscape was
+  // not a supported shape and it showed -- the opening screen stranded its
+  // logo against a wide empty band. Locking here is one line and undoing it
+  // is one line, but every screen would need laying out again first.
+  await SystemChrome.setPreferredOrientations(
+    const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown],
+  );
 
   // Manrope and Inter are bundled in assets/fonts/ and declared in
   // pubspec.yaml, so nothing should ever reach for the network. This stays as

@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Must stay in lockstep with ManaColors.ink (light textPrimary,
-         0xFF12293D in lib/design/tokens/colors.dart) — this is the colour
-         Android paints before Flutter's first frame, and LR-001 paints the
-         same colour immediately after. If the two drift apart the launch
-         flashes. -->
-    <color name="splash_background">#12293D</color>
+    <!-- Must equal LR-001's own Scaffold background exactly. Android paints
+         this before Flutter's first frame; any difference is a visible flash. -->
+    <color name="splash_background">#FFFFFF</color>
 </resources>

@@ -114,6 +114,15 @@ part nobody remembers later.
   than one instalment at once. Now "Payment: More Than The Instalment", in all
   five languages.
 
+- **Portrait only.** This is a one-handed field app and every screen is laid
+  out for a portrait phone; landscape was never a supported shape and looked it.
+- **The opening screen is white.** The Android launch colour matches it exactly
+  so the handover stays invisible. The "unable to connect" message went from
+  white-on-white to dark ink in the same change.
+- **Investor balances now match a migrated book to the rupee.** The book states
+  the interest for its own span, the app derives from the cut-off onward — the
+  same rule BF, line balance and profit already follow. Was Rs 1,600 under.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

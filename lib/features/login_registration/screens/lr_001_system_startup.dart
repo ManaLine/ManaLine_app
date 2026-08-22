@@ -128,7 +128,12 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ManaColors.ink,
+      // A FIXED white, not ManaColors.surface. The Android window background
+      // is painted before Flutter's first frame and cannot follow the app
+      // theme, so the two must name the same literal colour or the handover
+      // flashes. Same reasoning as android/app/src/main/res/values/colors.xml,
+      // where splash_background is the matching #FFFFFF.
+      backgroundColor: const Color(0xFFFFFFFF),
       body: SafeArea(
         // Scrollable, and not because the splash is long. At 2.0x text scale
         // on a 360x640 handset the mark plus the failure card and its retry
@@ -158,7 +163,8 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
               if (_state == _StartupState.slowLoad) ...[
                 CircularProgressIndicator(color: ManaColors.brand),
                 const SizedBox(height: ManaSpacing.md),
-                ManaText.raw(ref.t('loading_ellipsis'), style: TextStyle(color: ManaColors.textOnDark)),
+                ManaText.raw(ref.t('loading_ellipsis'),
+                    style: TextStyle(color: ManaColors.textPrimary)),
               ],
                   if (_state == _StartupState.failure)
                     _FailureCard(onRetry: _retryNow),
@@ -213,7 +219,10 @@ class _FailureCard extends ConsumerWidget {
         ManaText.raw(
           ref.t('unable_to_connect_note'),
           textAlign: TextAlign.center,
-          style: TextStyle(color: ManaColors.textOnDark),
+          // The screen behind this is a fixed white now, so the copy has to
+          // be dark ink — textOnDark was white on white, an invisible error
+          // message on the one screen where losing it costs the most.
+          style: TextStyle(color: ManaColors.textPrimary),
         ),
         const SizedBox(height: ManaSpacing.md),
         ElevatedButton(onPressed: onRetry, child: ManaText.raw(ref.t('retry'))),

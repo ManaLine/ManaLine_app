@@ -267,8 +267,16 @@ class OwnerApiService {
       // read at all.
       _db
           .from('agent_bf_assignments')
+          // persons!business_members_person_id_fkey, NOT persons: there are
+          // TWO foreign keys from business_members to persons — the member
+          // themselves and whoever invited them — and an unqualified embed is
+          // ambiguous. PostgREST answers 300, PostgrestException carries no
+          // message worth showing, and the whole Owner dashboard failed to
+          // load because of one word in one embed. CLAUDE.md lists this exact
+          // table pair as a known hazard.
           .select('assignment_id, updated_at, '
-              'business_members!inner(business_id, role, persons(full_name))')
+              'business_members!inner(business_id, role, '
+              'persons!business_members_person_id_fkey(full_name))')
           .eq('update_requested', true)
           .eq('business_members.business_id', businessId),
     ]);

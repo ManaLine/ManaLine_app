@@ -72,6 +72,16 @@ part nobody remembers later.
   counted on screen **before** the import rather than leaving a bare zero.
   Paise are refused outright, not rounded: money columns cannot store them.
 
+- **Rebuilding the ledger now recomposes the BF it feeds.** BF is derived from
+  the day ledger, but nothing recomputed it after a rebuild, so the stored
+  figure and the derived one drifted apart in ordinary use — Rs 1,17,600 apart
+  on the live book after the instalment replay, in the direction that flatters
+  the till.
+- **A migrated loan is now marked pre-existing.** It never was, so the agent's
+  cash float was charged Rs 30,71,360 for a book that was lent before the app
+  existed, and their BF derived to minus Rs 21,73,960. Every already-imported
+  loan is corrected and BF recomposed.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

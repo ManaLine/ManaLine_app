@@ -110,4 +110,66 @@ void main() {
       expect(sheet[1][2], '400');
     });
   });
+  _replayResume();
+}
+
+/// Resuming the instalment replay.
+///
+/// The replay is one record_collection per instalment — hundreds of calls, and
+/// anything that stops a phone mid-round stops it partway. On 22 Aug 2026 it
+/// stopped after 204 of them and the sheet could not simply be re-uploaded:
+/// that would have collected those 204 a second time. The sheet is therefore
+/// the TARGET STATE, and only the shortfall is recorded.
+void _replayResume() {
+  group('resuming an instalment replay', () {
+    const loan = 'loan-1';
+    EmiEntry entry(int amount, String date) =>
+        EmiEntry(amount: amount, date: DateTime.parse(date));
+
+    test('an instalment already on the loan is left alone', () {
+      final recorded = {
+        BulkOnboardingService.instalmentKey(loan, entry(500, '2026-01-09')): 1,
+      };
+      expect(
+        BulkOnboardingService.consumeRecorded(
+            recorded, BulkOnboardingService.instalmentKey(loan, entry(500, '2026-01-09'))),
+        isTrue,
+      );
+    });
+
+    test('a second identical payment on the same day is NOT a repeat', () {
+      // The sheet asks for two; the loan has one. One is skipped, one recorded.
+      final key = BulkOnboardingService.instalmentKey(loan, entry(500, '2026-01-09'));
+      final recorded = {key: 1};
+      expect(BulkOnboardingService.consumeRecorded(recorded, key), isTrue);
+      expect(BulkOnboardingService.consumeRecorded(recorded, key), isFalse);
+    });
+
+    test('a different amount or date on the same loan is a new instalment', () {
+      final recorded = {
+        BulkOnboardingService.instalmentKey(loan, entry(500, '2026-01-09')): 1,
+      };
+      expect(
+        BulkOnboardingService.consumeRecorded(
+            recorded, BulkOnboardingService.instalmentKey(loan, entry(600, '2026-01-09'))),
+        isFalse,
+      );
+      expect(
+        BulkOnboardingService.consumeRecorded(
+            recorded, BulkOnboardingService.instalmentKey(loan, entry(500, '2026-01-16'))),
+        isFalse,
+      );
+    });
+
+    test('the same instalment on a different loan is not skipped', () {
+      final recorded = {
+        BulkOnboardingService.instalmentKey(loan, entry(500, '2026-01-09')): 1,
+      };
+      expect(
+        BulkOnboardingService.consumeRecorded(
+            recorded, BulkOnboardingService.instalmentKey('loan-2', entry(500, '2026-01-09'))),
+        isFalse,
+      );
+    });
+  });
 }

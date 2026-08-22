@@ -37,6 +37,13 @@ part nobody remembers later.
   another handset, no longer shows a page that looks untouched. A page with
   nothing in it stays silent, and so does one whose count could not be read:
   a page claiming zero when the phone is offline would be worse than no line.
+- **The instalment replay can now be resumed.** It is one call per instalment,
+  hundreds of them, and the run on 22 Aug stopped after 204 — leaving the book
+  ₹2,48,400 short with no safe way forward, because re-uploading the sheet
+  would have collected those 204 twice. The sheet is now read as the target
+  state: an instalment already on the loan is left alone, and the screen says
+  how many. Re-upload the same file as often as you like.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

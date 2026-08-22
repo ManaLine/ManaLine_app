@@ -496,7 +496,25 @@ class BulkOnboardingService {
     final loanByMlid = await _resolveLoansByMlid(businessId, mlids);
     final collectionApi = _ref.read(collectionApiServiceProvider);
 
+    // What is ALREADY recorded, so a resumed run does not collect it twice.
+    //
+    // This replay is not one request — it is one record_collection per
+    // instalment, hundreds of them, and any of the things that stop a phone
+    // mid-round will stop it partway. On 22 Aug 2026 it stopped after 204 of
+    // them, and the only way forward was a correction file built from an error
+    // list that had died with the screen. Re-uploading the sheet would have
+    // collected those 204 a second time.
+    //
+    // So the sheet is treated as the TARGET STATE rather than a list of
+    // actions: for each (loan, date, amount) it asks for N instalments, the
+    // loan already has M, and only max(0, N - M) are recorded. Multiplicity is
+    // counted rather than a set membership test, because a customer really can
+    // pay the same amount twice on one day and the second one is not a repeat.
+    final already = await _recordedInstalments(
+        [for (final l in loanByMlid.values) l.loanId]);
+
     var totalOk = 0;
+    var skipped = 0;
     final errors = <EmiRowError>[];
     for (final row in schedule) {
       final loan = loanByMlid[row.mlid];
@@ -507,6 +525,12 @@ class BulkOnboardingService {
       for (var i = 0; i < row.entries.length; i++) {
         final e = row.entries[i];
         onProgress(row.mlid, i + 1, row.entries.length);
+
+        if (consumeRecorded(already, instalmentKey(loan.loanId, e))) {
+          skipped++;
+          continue;
+        }
+
         try {
           final outcome = await collectionApi.recordCollection(
             loanId: loan.loanId,
@@ -528,7 +552,39 @@ class BulkOnboardingService {
         }
       }
     }
-    return EmiSubmitResult(recorded: totalOk, errors: errors);
+    return EmiSubmitResult(recorded: totalOk, errors: errors, skipped: skipped);
+  }
+
+  /// loan + date + amount -> how many such collections the loan already has.
+  ///
+  /// Soft-deleted rows are excluded: a collection that was reversed has to be
+  /// replayable, or a repaired import could never be completed.
+  Future<Map<String, int>> _recordedInstalments(List<String> loanIds) async {
+    if (loanIds.isEmpty) return {};
+    final rows = await _db
+        .from('collections')
+        .select('loan_id, business_date, collected_amount')
+        .inFilter('loan_id', loanIds)
+        .isFilter('deleted_at', null);
+    final counts = <String, int>{};
+    for (final r in rows as List) {
+      final key = '${r['loan_id']}|${r['business_date']}|'
+          '${(r['collected_amount'] as num).toInt()}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  static String instalmentKey(String loanId, EmiEntry e) =>
+      '$loanId|${_isoDate(e.date)}|${e.amount}';
+
+  /// True if this instalment is already on the loan, consuming one of the
+  /// recorded copies so a sheet asking for two only skips two.
+  static bool consumeRecorded(Map<String, int> recorded, String key) {
+    final left = recorded[key] ?? 0;
+    if (left <= 0) return false;
+    recorded[key] = left - 1;
+    return true;
   }
 
   /// Unlike Steps 1 and 2, `submitEmiSchedule` is NOT all-or-nothing —
@@ -1520,7 +1576,18 @@ class EmiRowError {
 class EmiSubmitResult {
   final int recorded;
   final List<EmiRowError> errors;
-  const EmiSubmitResult({required this.recorded, required this.errors});
+
+  /// Instalments the loan already had, so this run left them alone. Shown to
+  /// the Owner: on a resumed replay it is the bulk of the sheet, and a screen
+  /// reporting "12 recorded" out of 216 rows with no explanation reads as a
+  /// failure rather than as the rest already being in.
+  final int skipped;
+
+  const EmiSubmitResult({
+    required this.recorded,
+    required this.errors,
+    this.skipped = 0,
+  });
 }
 
 final bulkOnboardingServiceProvider = Provider<BulkOnboardingService>(

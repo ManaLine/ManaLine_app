@@ -1599,6 +1599,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           const SizedBox(height: ManaSpacing.md),
           ManaText.raw('${emi.recorded} instalments recorded.',
               style: TextStyle(fontWeight: FontWeight.w700, color: ManaColors.statusGood)),
+          // On a resumed replay this is most of the sheet, and without it
+          // "12 recorded" against 216 rows reads as a failure rather than as
+          // the other 204 already being in.
+          if (emi.skipped > 0)
+            ManaText.raw(
+              '${emi.skipped} were already recorded and were left alone.',
+              style: ManaType.note,
+            ),
           if (emi.errors.isNotEmpty) ...[
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw('${emi.errors.length} could not be recorded:',

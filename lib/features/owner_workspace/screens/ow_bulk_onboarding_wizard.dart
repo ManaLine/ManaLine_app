@@ -1912,8 +1912,22 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                 ],
               ],
             )
-          : ManaText.raw('${outcome.imported} $noun imported.',
-              style: TextStyle(fontWeight: FontWeight.w700, color: ManaColors.statusGood)),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText.raw('${outcome.imported} $noun imported.',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, color: ManaColors.statusGood)),
+                // Re-uploading a sheet to finish a partly-failed import is the
+                // normal way to recover; on that run this is most of the file,
+                // and "0 imported" alone reads as a failure.
+                if (outcome.skipped > 0)
+                  ManaText.raw(
+                    '${outcome.skipped} were already on the book and were left alone.',
+                    style: ManaType.note,
+                  ),
+              ],
+            ),
     );
   }
 }

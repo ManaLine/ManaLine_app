@@ -381,7 +381,11 @@ class BulkOnboardingService {
         'p_rows': rows,
       });
       final map = Map<String, dynamic>.from(res as Map);
-      return ImportOutcome(imported: (map['imported'] as num?)?.toInt() ?? 0, errors: const []);
+      return ImportOutcome(
+        imported: (map['imported'] as num?)?.toInt() ?? 0,
+        skipped: (map['skipped'] as num?)?.toInt() ?? 0,
+        errors: const [],
+      );
     } on PostgrestException catch (e) {
       final parsed = _rejectionFrom(e.message);
       if (parsed == null) rethrow;
@@ -1503,7 +1507,18 @@ class ImportOutcome {
   final int imported;
   final List<ImportRowError> errors;
   final List<CreatedIdentity> created;
-  const ImportOutcome({required this.imported, required this.errors, this.created = const []});
+
+  /// Rows the book already had, so this run left them alone. Re-uploading a
+  /// sheet to finish a partly-failed import is the normal way to recover, and
+  /// without this the screen would report "0 imported" and read as a failure.
+  final int skipped;
+
+  const ImportOutcome({
+    required this.imported,
+    required this.errors,
+    this.created = const [],
+    this.skipped = 0,
+  });
   bool get rejected => errors.isNotEmpty;
 }
 

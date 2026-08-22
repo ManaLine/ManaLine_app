@@ -44,6 +44,12 @@ part nobody remembers later.
   state: an instalment already on the loan is left alone, and the screen says
   how many. Re-upload the same file as often as you like.
 
+- **Re-uploading a sheet no longer imports its loans a second time.** The
+  retry key only covers one tap; picking the same file again is a different
+  thing, and it would have put all 54 loans in on top of the 54 already there —
+  the same accident, through the door left open to fix it. A row whose loan is
+  already on the book is now skipped, and the screen says how many.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

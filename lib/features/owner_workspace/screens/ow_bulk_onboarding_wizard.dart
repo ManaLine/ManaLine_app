@@ -247,7 +247,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   List<Map<String, dynamic>>? _attendance;
   String? _attendanceFileName;
   String? _attendanceError;
-  int? _attendanceRecorded;
+  AttendanceResult? _attendanceRecorded;
 
   // 6 — opening snapshot
   bool _busy6 = false;
@@ -1673,8 +1673,17 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         ],
         if (_attendanceRecorded != null && !_busy5) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaText.raw('$_attendanceRecorded days recorded.',
+          ManaText.raw('${_attendanceRecorded!.recorded} days recorded.',
               style: TextStyle(fontWeight: FontWeight.w700, color: ManaColors.statusGood)),
+          // The RPC skips a day the agent already has, so re-uploading is
+          // safe — but without this line a second upload reports a bare
+          // "0 days recorded" and reads as a failure.
+          if (_attendanceRecorded!.alreadyIn > 0)
+            ManaText.raw(
+              '${_attendanceRecorded!.alreadyIn} were already recorded and '
+              'were left alone.',
+              style: ManaType.note,
+            ),
         ],
         _navBar(onNext: () => _goTo(5)),
       ],
@@ -1843,7 +1852,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         _checklistRow('Investments recorded', _investorOutcome?.imported),
         _checklistRow('Customer loans recorded', _customerOutcome?.imported),
         _checklistRow('EMI instalments recorded', _emiResult?.recorded),
-        _checklistRow('Attendance days recorded', _attendanceRecorded),
+        _checklistRow('Attendance days recorded', _attendanceRecorded?.recorded),
         _checklistRow('Opening snapshot saved', _snapshot == null ? null : 1),
         _checklistRow('Weeks imported', (_weeklyResult?['weeks'] as num?)?.toInt()),
         const SizedBox(height: ManaSpacing.lg),

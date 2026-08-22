@@ -1069,7 +1069,7 @@ class BulkOnboardingService {
     return out;
   }
 
-  Future<int> recordAttendance({
+  Future<AttendanceResult> recordAttendance({
     required String businessId,
     required List<Map<String, dynamic>> rows,
   }) async {
@@ -1077,7 +1077,13 @@ class BulkOnboardingService {
       'p_business_id': businessId,
       'p_rows': rows,
     });
-    return ((res as Map)['recorded'] as num?)?.toInt() ?? 0;
+    final map = res as Map;
+    final recorded = (map['recorded'] as num?)?.toInt() ?? 0;
+    final total = (map['total'] as num?)?.toInt() ?? recorded;
+    // The RPC skips a day the agent already has, so a re-upload is safe. It
+    // has always returned `total` beside `recorded`; only `recorded` was read,
+    // which is how a second upload came to report a bare "0 days recorded".
+    return AttendanceResult(recorded: recorded, alreadyIn: total - recorded);
   }
 
   // ---------------------------------------------------------------------
@@ -1634,6 +1640,15 @@ class VillageSuggestion {
     required this.district,
     required this.state,
   });
+}
+
+class AttendanceResult {
+  final int recorded;
+
+  /// Days the agent already had, so this run left them alone.
+  final int alreadyIn;
+
+  const AttendanceResult({required this.recorded, this.alreadyIn = 0});
 }
 
 class CustomerGridParse {

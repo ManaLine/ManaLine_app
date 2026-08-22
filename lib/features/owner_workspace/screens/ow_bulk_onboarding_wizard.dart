@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +11,9 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/components/mana_amount.dart';
 import '../../../design/components/mana_card.dart';
+import '../../../shared/idempotency.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
@@ -116,7 +120,10 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     // After the first frame, not awaited: page 1 is a correct thing to show
     // while the pointer is fetched, and blocking the first paint on a network
     // round trip is exactly the hang this app cannot afford.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreStep());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreStep();
+      _refreshProgress();
+    });
   }
 
   Future<void> _restoreStep() async {
@@ -141,6 +148,19 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     });
   }
 
+  /// Re-counts what is in the business. Called on open and after every write,
+  /// never awaited by anything the Owner is waiting on. A failure leaves the
+  /// last known counts up rather than blanking them: stale-but-labelled beats
+  /// a page that suddenly claims nothing is there.
+  Future<void> _refreshProgress() async {
+    try {
+      final p = await _svc.migrationProgress(widget.businessId);
+      if (mounted) setState(() => _progress = p);
+    } catch (_) {
+      // Offline or denied. The line simply does not appear.
+    }
+  }
+
   Future<int?> _localStep() async {
     try {
       return int.tryParse(await _storage.read(key: _stepKey) ?? '');
@@ -153,6 +173,9 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   /// page change goes through here so there is no route back to page 1 that
   /// forgets to write the pointer.
   void _goTo(int step) {
+    // Counted fresh on every page turn — including Back, which is the whole
+    // reason this exists.
+    unawaited(_refreshProgress());
     setState(() {
       _step = step;
       _resumedAt = null; // they have navigated; the banner has done its job
@@ -203,6 +226,15 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
 
   // 4 — customers
   bool _busy4 = false;
+
+  /// What is already in the business, per page. Null until the first read
+  /// lands, and left null if it fails — a page with no line is honest; a page
+  /// claiming zero when the read failed is not.
+  MigrationProgress? _progress;
+
+  /// Held across retries of step 4's loan import so the server can tell a
+  /// retry from a second import. Null means "no import in flight".
+  String? _loanImportKey;
   CustomerGridParse? _customerParse;
   String? _customerFileName;
   String? _customerFormatError;
@@ -462,7 +494,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       _villageError = null;
     });
 
-    final outcome = await NetworkErrorHandler.run(context, () async {
+    final outcome = await NetworkErrorHandler.run(context, timeout: kManaBulkTimeout, () async {
       await _svc.upsertVillages(
         businessId: widget.businessId,
         rows: [
@@ -573,6 +605,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     final outcome = await NetworkErrorHandler.run(
       context,
       () => _svc.submitInvestments(businessId: widget.businessId, rows: parse.rows),
+      timeout: kManaBulkTimeout,
     );
     if (!mounted) return;
     setState(() {
@@ -629,6 +662,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     setState(() => _busy3 = true);
     final result = await NetworkErrorHandler.run(
       context,
+      timeout: kManaBulkTimeout,
       () => _svc.importShareholders(
         businessId: widget.businessId,
         declaredOn: _cutoffDate ?? manaNowIst(),
@@ -697,6 +731,12 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       _emiProgressLabel = '';
     });
 
+    // Minted here — at the tap, outside the closure NetworkErrorHandler
+    // re-invokes on Retry — so every retry of THIS import carries the same
+    // key and the server replays instead of importing again. Cleared on
+    // success below, so a later, deliberate second import is a new action.
+    _loanImportKey ??= manaIdempotencyKey();
+
     // What the history on the same sheet adds up to, per customer. The server
     // uses it to decide whether the loan opens unpaid, and to check it against
     // a typed balance if the Owner filled both.
@@ -712,17 +752,25 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         businessId: widget.businessId,
         rows: parse.loans,
         emiTotals: emiTotals,
+        idempotencyKey: _loanImportKey,
       ),
+      timeout: kManaBulkTimeout,
     );
     if (!mounted) return;
     setState(() => _customerOutcome = loanOutcome);
 
-    if (loanOutcome == null || loanOutcome.rejected || parse.schedule.isEmpty) {
+    if (loanOutcome == null || loanOutcome.rejected) {
+      setState(() => _busy4 = false);
+      return;
+    }
+    // The loans are in. Anything from here is a fresh action.
+    _loanImportKey = null;
+    if (parse.schedule.isEmpty) {
       setState(() => _busy4 = false);
       return;
     }
 
-    final emi = await NetworkErrorHandler.run(context, () async {
+    final emi = await NetworkErrorHandler.run(context, timeout: kManaBulkTimeout, () async {
       return _svc.submitEmiSchedule(
         businessId: widget.businessId,
         schedule: parse.schedule,
@@ -804,6 +852,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     final recorded = await NetworkErrorHandler.run(
       context,
       () => _svc.recordAttendance(businessId: widget.businessId, rows: rows),
+      timeout: kManaBulkTimeout,
     );
     if (!mounted) return;
     setState(() {
@@ -903,6 +952,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     final result = await NetworkErrorHandler.run(
       context,
       () => _svc.importWeeklyAccount(businessId: widget.businessId, rows: rows),
+      timeout: kManaBulkTimeout,
     );
     if (!mounted) return;
     setState(() {
@@ -954,7 +1004,11 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(ManaSpacing.lg),
-                child: switch (_step) {
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _alreadyIn(_progressParts(_step)),
+                    switch (_step) {
                   0 => _identitiesSection(),
                   1 => _villagesSection(),
                   2 => _investorsSection(),
@@ -963,7 +1017,9 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                   5 => _snapshotSection(),
                   6 => _weeklySection(),
                   _ => _finishSection(),
-                },
+                    },
+                  ],
+                ),
               ),
             ),
           ],
@@ -1034,6 +1090,97 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         ],
       ),
     );
+  }
+
+  /// "Already in: 55 customers, 5 villages" — what this page has put into the
+  /// business so far, counted from the live rows rather than remembered.
+  ///
+  /// Shown on every page including the one just submitted, because the case
+  /// that matters is the Owner coming BACK to a page: nothing in memory, a
+  /// file picker sitting there as if untouched, and no way to tell an empty
+  /// page from a finished one except by importing again.
+  Widget _alreadyIn(List<String> parts) {
+    if (_progress == null || parts.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: ManaSpacing.md),
+      child: ManaCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.check_circle_outline, size: 18, color: ManaColors.statusGood),
+            const SizedBox(width: ManaSpacing.sm),
+            // Flexible, not bare: this is a long line at 2.0x text scale on a
+            // 360dp screen — the overflow class CLAUDE.md calls out.
+            Flexible(
+              child: ManaText.raw(
+                'Already In — ${parts.join(', ')}',
+                style: ManaType.note,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The counts each page is responsible for. Empty means this page has put
+  /// nothing in yet, and no line is drawn.
+  List<String> _progressParts(int step) {
+    final p = _progress;
+    if (p == null) return const [];
+    String n(int v, String one, String many) => '$v ${v == 1 ? one : many}';
+
+    switch (step) {
+      case 0:
+        return [
+          if (p.count('customers') > 0) n(p.count('customers'), 'customer', 'customers'),
+          if (p.count('investors') > 0) n(p.count('investors'), 'investor', 'investors'),
+          if (p.count('agents') > 0) n(p.count('agents'), 'agent', 'agents'),
+        ];
+      case 1:
+        return [
+          if (p.count('villages') > 0) n(p.count('villages'), 'village', 'villages'),
+          if (p.count('areas') > 0) n(p.count('areas'), 'area', 'areas'),
+        ];
+      case 2:
+        return [
+          if (p.count('investments') > 0)
+            '${n(p.count('investments'), 'investment', 'investments')}, '
+                '${manaRupees(p.count('investment_amount'))}',
+        ];
+      case 3:
+        return [
+          if (p.count('loans') > 0)
+            '${n(p.count('loans'), 'loan', 'loans')}, '
+                '${manaRupees(p.count('line_balance'))} outstanding',
+          if (p.count('collections') > 0)
+            n(p.count('collections'), 'instalment', 'instalments'),
+        ];
+      case 4:
+        return [
+          if (p.count('attendance_days') > 0)
+            n(p.count('attendance_days'), 'working day', 'working days'),
+        ];
+      case 5:
+        return [
+          if (p.date('snapshot_cutoff') != null) 'snapshot to ${p.date('snapshot_cutoff')}',
+          if (p.count('shareholders') > 0)
+            n(p.count('shareholders'), 'shareholder', 'shareholders'),
+        ];
+      case 6:
+        return [
+          if (p.count('weeks') > 0)
+            '${n(p.count('weeks'), 'week', 'weeks')} to ${p.date('weeks_through')}',
+        ];
+      default:
+        // The Finish page shows the whole book, not one page's share.
+        return [
+          if (p.count('customers') > 0) n(p.count('customers'), 'customer', 'customers'),
+          if (p.count('loans') > 0)
+            '${n(p.count('loans'), 'loan', 'loans')}, ${manaRupees(p.count('line_balance'))} outstanding',
+          if (p.count('weeks') > 0) n(p.count('weeks'), 'week', 'weeks'),
+        ];
+    }
   }
 
   Widget _navBar({required VoidCallback? onNext, String nextLabel = 'next'}) {

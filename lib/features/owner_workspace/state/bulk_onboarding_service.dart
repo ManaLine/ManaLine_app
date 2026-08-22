@@ -408,6 +408,11 @@ class BulkOnboardingService {
     required String businessId,
     required List<Map<String, dynamic>> rows,
     Map<String, int> emiTotals = const {},
+    /// Mint once when the Owner taps Import and reuse it for every retry —
+    /// see lib/shared/idempotency.dart. Without it, a retry after a timeout
+    /// puts the whole book in a second time; that is exactly what happened on
+    /// 22 Aug 2026 (108 loans, line balance nearly double).
+    String? idempotencyKey,
   }) async {
     final mlids = [for (final r in rows) r['mlid'] as String? ?? ''].where((m) => m.isNotEmpty).toSet().toList();
     final customerIdByMlid = await _resolveCustomerIdsByMlid(businessId, mlids);
@@ -441,6 +446,7 @@ class BulkOnboardingService {
       final res = await _db.schema('app').rpc('import_migrated_loans', params: {
         'p_business_id': businessId,
         'p_rows': payload,
+        'p_idempotency_key': idempotencyKey,
       });
       final map = Map<String, dynamic>.from(res as Map);
       return ImportOutcome(imported: (map['imported'] as num?)?.toInt() ?? 0, errors: const []);
@@ -612,6 +618,18 @@ class BulkOnboardingService {
         .schema('app')
         .rpc('migration_wizard_step', params: {'p_business_id': businessId});
     return (res as num?)?.toInt();
+  }
+
+  /// What is already in this business, counted from the live rows.
+  ///
+  /// Every page of the wizard shows this: without it, going back a page — or
+  /// resuming tomorrow — shows a page that looks untouched whether it holds
+  /// 55 customers or none, and the only way to find out is to import again.
+  Future<MigrationProgress> migrationProgress(String businessId) async {
+    final res = await _db
+        .schema('app')
+        .rpc('migration_progress', params: {'p_business_id': businessId});
+    return MigrationProgress(Map<String, dynamic>.from(res as Map));
   }
 
   Future<void> saveWizardStep(String businessId, int step) async {
@@ -1508,3 +1526,20 @@ class EmiSubmitResult {
 final bulkOnboardingServiceProvider = Provider<BulkOnboardingService>(
   (ref) => BulkOnboardingService(Supabase.instance.client, ref),
 );
+
+
+/// The counts behind the "already added" line on each wizard page.
+///
+/// A thin wrapper rather than a field per count: the RPC is the shape's owner,
+/// and a page that wants a number it does not yet expose should add it there,
+/// not invent it here.
+class MigrationProgress {
+  MigrationProgress(this._raw);
+  final Map<String, dynamic> _raw;
+
+  int count(String key) => (_raw[key] as num?)?.toInt() ?? 0;
+  String? date(String key) {
+    final v = _raw[key] as String?;
+    return (v == null || v.isEmpty) ? null : v;
+  }
+}

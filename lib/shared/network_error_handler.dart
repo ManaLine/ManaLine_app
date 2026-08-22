@@ -13,6 +13,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// and cutting a working request short would be worse than waiting.
 const Duration kManaQueryTimeout = Duration(seconds: 20);
 
+/// The deadline for a BULK operation — importing a whole book, replaying an
+/// instalment history — rather than a single screen tap.
+///
+/// WHY IT EXISTS: kManaQueryTimeout is a per-tap deadline and correct as one.
+/// Applying it to a 54-loan import was not. The server took longer than 20
+/// seconds, the app said "the server did not respond" while the import was in
+/// fact completing, and the Owner pressed Retry — putting the whole book in
+/// twice: 108 loans, a line balance nearly double the truth, and a day ledger
+/// that cascaded to minus 8,20,320. Nothing on screen looked like an error.
+///
+/// A long deadline is not the real protection — idempotency is, and the bulk
+/// RPCs carry it now. This just stops the app giving up on work that is still
+/// running.
+const Duration kManaBulkTimeout = Duration(minutes: 5);
+
 /// How long an error SnackBar stays up. Long enough to read a sentence on a
 /// handset held at arm's length, short enough not to sit over a button.
 const Duration kErrorSnackDuration = Duration(seconds: 6);
@@ -42,11 +57,14 @@ class NetworkErrorHandler {
     BuildContext context,
     Future<T> Function() action, {
     String genericErrorMessage = 'Something went wrong. Please try again.',
+    /// Pass [kManaBulkTimeout] for imports and other whole-book operations.
+    /// The default suits a single screen action.
+    Duration timeout = kManaQueryTimeout,
   }) async {
     try {
       // Every call routed through here inherits the deadline, so no screen
       // has to remember to add one.
-      return await action().timeout(kManaQueryTimeout);
+      return await action().timeout(timeout);
     } catch (e) {
       if (!context.mounted) return null;
 
@@ -73,7 +91,11 @@ class NetworkErrorHandler {
           content: Text(message),
           action: SnackBarAction(
             label: 'Retry',
-            onPressed: () => run(context, action, genericErrorMessage: genericErrorMessage),
+            // The retry inherits the SAME deadline. Without this a bulk
+            // import that timed out would retry on the 20-second default and
+            // be even more certain to fail.
+            onPressed: () => run(context, action,
+                genericErrorMessage: genericErrorMessage, timeout: timeout),
           ),
           duration: kErrorSnackDuration,
         ),

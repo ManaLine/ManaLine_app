@@ -14,6 +14,32 @@ part nobody remembers later.
 
 ---
 
+## 2026-08-22 — A book cannot be imported twice, and every page says what is in it
+
+- **The whole book went in twice, live.** Step 4 of the migration wizard sent
+  54 loans. The app gives any single tap 20 seconds; the server needed longer,
+  so the screen said "The server did not respond" while the import was in fact
+  finishing. Pressing Retry put it all in again: 108 loans, an outstanding
+  figure of 57,90,300 against a true 30,04,900, and a day ledger that cascaded
+  to minus 8,20,320. Nothing on screen ever looked wrong. Both copies were
+  incomplete, so both were removed and the business is back to where it was
+  before the import, with the reason recorded on every removed row.
+- **Three separate things had to be true for that, and all three are fixed.**
+  Bulk work now gets five minutes rather than twenty seconds, and a Retry keeps
+  that same allowance instead of dropping back to twenty. The loan import
+  carries a key minted when the Owner taps Import, so the server can tell a
+  retry from a second import and hands back the first result instead of writing
+  again. And the key is thrown away once the import succeeds, so a later,
+  deliberate second import still works.
+- **Every wizard page now shows what is already in.** "Already In — 55
+  customers, 3 investors, 1 agent." Counted from the live rows each time the
+  page is opened, not remembered — so going Back, or resuming tomorrow on
+  another handset, no longer shows a page that looks untouched. A page with
+  nothing in it stays silent, and so does one whose count could not be read:
+  a page claiming zero when the phone is offline would be worse than no line.
+- Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
+  `ow_bulk_onboarding_wizard.dart`, three new migrations.
+
 ## 2026-08-20 — Retrying a payment can no longer record it twice
 
 - **Collections are now safe to retry.** An agent on 2G taps Save, the reply

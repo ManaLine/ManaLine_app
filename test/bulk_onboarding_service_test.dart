@@ -111,6 +111,7 @@ void main() {
     });
   });
   _replayResume();
+  _replayExcess();
 }
 
 /// Resuming the instalment replay.
@@ -170,6 +171,29 @@ void _replayResume() {
             recorded, BulkOnboardingService.instalmentKey('loan-2', entry(500, '2026-01-09'))),
         isFalse,
       );
+    });
+  });
+}
+
+/// A historical instalment bigger than the loan's EMI.
+///
+/// record_collection calls anything over the EMI an Excess and refuses one
+/// that does not say where the extra went — right on a live screen, where the
+/// Agent is holding the money, wrong when replaying a book that already
+/// happened. 46 of this business's instalments are somebody paying two weeks
+/// at once, and every one of them failed on it.
+void _replayExcess() {
+  group('a replayed instalment over the EMI', () {
+    test('says the extra went against the instalments that followed', () {
+      expect(BulkOnboardingService.migrationExcessDisposition(1000, 500),
+          'Next Installment');
+    });
+
+    test('an ordinary payment carries no disposition at all', () {
+      // The RPC stores the disposition whatever the result type, so stamping
+      // one on a normal payment would put a false statement in the record.
+      expect(BulkOnboardingService.migrationExcessDisposition(500, 500), isNull);
+      expect(BulkOnboardingService.migrationExcessDisposition(200, 500), isNull);
     });
   });
 }

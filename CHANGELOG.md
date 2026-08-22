@@ -50,6 +50,19 @@ part nobody remembers later.
   the same accident, through the door left open to fix it. A row whose loan is
   already on the book is now skipped, and the screen says how many.
 
+- **A historical instalment bigger than the loan's EMI now imports.** The app
+  treats any payment over the regular instalment as an excess and asks the
+  agent how the extra was returned or carried — right at a customer's door,
+  wrong when replaying a book that already happened. 46 instalments in this
+  business are somebody paying two weeks at once, and every one of them was
+  refused. The replay now records the extra as going against the instalments
+  that followed, which is what the old book means and what its closing balance
+  already reflects.
+- **A payment dated before its loan now says so in words.** The server refused
+  it with neither date in the message, leaving a row number and nothing to
+  correct. It now names both dates and asks which one is wrong. Nothing is
+  re-dated automatically — that would move money between two of your own books.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

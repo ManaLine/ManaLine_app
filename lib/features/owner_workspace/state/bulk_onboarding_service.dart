@@ -535,6 +535,23 @@ class BulkOnboardingService {
           continue;
         }
 
+        // A payment dated before the loan existed. The server refuses it and
+        // is right to — but it answers with neither date, which leaves the
+        // Owner a row number and nothing to correct. Either the issue date on
+        // the loan sheet is wrong or that instalment belongs to an earlier
+        // loan, and only they can say which. Never re-dated to fit: that
+        // would move money between two of their own books.
+        final issued = loan.effectiveDate;
+        if (issued != null && e.date.isBefore(issued)) {
+          errors.add(EmiRowError(
+            mlid: row.mlid,
+            instalment: i + 1,
+            message: 'Paid on ${_isoDate(e.date)} but the loan was issued on '
+                '${_isoDate(issued)}. Correct whichever date is wrong.',
+          ));
+          continue;
+        }
+
         try {
           final outcome = await collectionApi.recordCollection(
             loanId: loan.loanId,
@@ -545,6 +562,21 @@ class BulkOnboardingService {
             businessDate: e.date.toIso8601String().split('T').first,
             businessId: businessId,
             confirmDuplicate: true, // historical backfill: same-day repeats are expected, not a real duplicate
+            // A payment bigger than the loan's own EMI is an Excess to
+            // record_collection, and it refuses one that does not say where
+            // the extra went. On a live screen that question is right — the
+            // Agent is holding the money. Replaying an old book it is not:
+            // the payment happened, the extra went against the instalments
+            // that came after, and the closing balance the Owner is
+            // reconciling to already reflects it. 46 rows of this business's
+            // history are somebody paying two weeks at once.
+            //
+            // Only set when the row really is over the EMI: the RPC stores
+            // the disposition whatever the result type, and stamping
+            // "Next Installment" on ordinary payments would be a lie in the
+            // record.
+            excessDisposition: migrationExcessDisposition(
+                e.amount, loan.installmentAmount),
           );
           if (outcome.saved != null) {
             totalOk++;
@@ -578,6 +610,11 @@ class BulkOnboardingService {
     }
     return counts;
   }
+
+  /// Where the extra on a replayed instalment went, or null when the payment
+  /// is not over the loan's EMI and there is no extra. See the call site.
+  static String? migrationExcessDisposition(int amount, int installment) =>
+      amount > installment ? 'Next Installment' : null;
 
   static String instalmentKey(String loanId, EmiEntry e) =>
       '$loanId|${_isoDate(e.date)}|${e.amount}';
@@ -646,7 +683,7 @@ class BulkOnboardingService {
     if (mlids.isEmpty) return {};
     final rows = await _db
         .from('loans')
-        .select('loan_id, customer_id, issue_business_date, customers!inner(business_members!inner(business_id, persons!business_members_person_id_fkey!inner(mlid)))')
+        .select('loan_id, customer_id, installment_amount, effective_date, issue_business_date, customers!inner(business_members!inner(business_id, persons!business_members_person_id_fkey!inner(mlid)))')
         .eq('customers.business_members.business_id', businessId)
         .order('issue_business_date', ascending: false);
     final map = <String, LoanRef>{};
@@ -658,7 +695,12 @@ class BulkOnboardingService {
       // loan per customer, but this keeps a later re-run from crashing if a
       // customer somehow already had two.
       if (mlid != null && mlids.contains(mlid) && !map.containsKey(mlid)) {
-        map[mlid] = LoanRef(loanId: r['loan_id'] as String, customerId: r['customer_id'] as String);
+        map[mlid] = LoanRef(
+          loanId: r['loan_id'] as String,
+          customerId: r['customer_id'] as String,
+          installmentAmount: (r['installment_amount'] as num?)?.toInt() ?? 0,
+          effectiveDate: DateTime.tryParse(r['effective_date'] as String? ?? ''),
+        );
       }
     }
     return map;
@@ -1566,7 +1608,23 @@ class CustomerGridParse {
 class LoanRef {
   final String loanId;
   final String customerId;
-  const LoanRef({required this.loanId, required this.customerId});
+
+  /// The loan's regular instalment. Needed by the replay: a historical
+  /// payment larger than this is an Excess as far as record_collection is
+  /// concerned, and an Excess must say where the extra went.
+  final int installmentAmount;
+
+  /// The day the loan was issued. record_collection refuses a payment dated
+  /// before it, and rightly so — the replay checks first only to be able to
+  /// say WHICH dates disagree.
+  final DateTime? effectiveDate;
+
+  const LoanRef({
+    required this.loanId,
+    required this.customerId,
+    required this.installmentAmount,
+    this.effectiveDate,
+  });
 }
 
 class EmiEntry {

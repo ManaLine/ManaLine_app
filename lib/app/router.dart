@@ -172,7 +172,10 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ow-002',
-      builder: (c, s) => WorkforceManagementScreen(businessId: _resolveBusinessId(s)),
+      builder: (c, s) => WorkforceManagementScreen(
+        businessId: _resolveBusinessId(s),
+        focusAgentId: s.uri.queryParameters['agent'],
+      ),
     ),
     GoRoute(
       path: '/ow-003',

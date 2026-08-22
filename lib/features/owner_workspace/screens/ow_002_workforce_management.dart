@@ -23,7 +23,19 @@ import '../../../shared/document_viewer.dart';
 /// selecting a row drills into the tabbed Agent Profile (C6).
 class WorkforceManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const WorkforceManagementScreen({super.key, required this.businessId});
+
+  /// Open straight onto this agent's profile once the roster has loaded.
+  ///
+  /// Set by the "Disputed Opening BF" card on the Owner dashboard. Without it
+  /// that card dropped the Owner on this list — no mention of the dispute and
+  /// no way to correct the float — which reads as the card doing nothing.
+  final String? focusAgentId;
+
+  const WorkforceManagementScreen({
+    super.key,
+    required this.businessId,
+    this.focusAgentId,
+  });
 
   @override
   ConsumerState<WorkforceManagementScreen> createState() =>
@@ -37,8 +49,20 @@ class _WorkforceManagementScreenState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(workforceProvider.notifier).load(widget.businessId);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(workforceProvider.notifier).load(widget.businessId);
+      if (!mounted) return;
+
+      // After the load, not before: the agent has to be in the list before
+      // their profile can be opened. Silently staying on the roster is the
+      // right failure — better than a blank profile — if they are not.
+      final target = widget.focusAgentId;
+      if (target == null) return;
+      final agents = ref.read(workforceProvider).agents;
+      final match = agents.where((a) => a.agentId == target);
+      if (match.isEmpty) return;
+      if (!mounted) return;
+      _openAgentProfile(context, match.first);
     });
   }
 

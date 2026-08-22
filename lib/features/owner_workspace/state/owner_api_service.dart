@@ -276,7 +276,8 @@ class OwnerApiService {
           // table pair as a known hazard.
           .select('assignment_id, updated_at, '
               'business_members!inner(business_id, role, '
-              'persons!business_members_person_id_fkey(full_name))')
+              'persons!business_members_person_id_fkey(full_name), '
+              'agents(agent_id))')
           .eq('update_requested', true)
           .eq('business_members.business_id', businessId),
     ]);
@@ -427,6 +428,12 @@ class OwnerApiService {
                     .map((r) => DateTime.parse(
                         (r as Map<String, dynamic>)['updated_at'] as String))
                     .reduce((a, b) => a.isAfter(b) ? a : b),
+                // Only when exactly one agent is disputing. With two, the
+                // roster IS the right destination and jumping into one of
+                // them would hide the other.
+                focusAgentId: disputedBf.length == 1
+                    ? _agentIdOf(disputedBf.first as Map<String, dynamic>)
+                    : null,
               ),
             ],
       notifications: notificationsRaw
@@ -1095,16 +1102,48 @@ class ActivityItem {
   ActivityItem({required this.type, required this.label, required this.timestamp});
 }
 
+/// Digs the agent id out of the nested embed on a disputed-BF row.
+///
+/// PostgREST hands back `agents` as an object here (agents.membership_id is
+/// unique, so the relationship is one-to-one) but would hand back a list if
+/// that uniqueness ever went away. Both are read, because a cast to the shape
+/// that happens to be right today is exactly what broke login.
+String? _agentIdOf(Map<String, dynamic> row) {
+  final member = row['business_members'];
+  final memberMap = member is List
+      ? (member.isEmpty ? null : member.first as Map<String, dynamic>)
+      : member as Map<String, dynamic>?;
+  if (memberMap == null) return null;
+
+  final agents = memberMap['agents'];
+  final agentMap = agents is List
+      ? (agents.isEmpty ? null : agents.first as Map<String, dynamic>)
+      : agents as Map<String, dynamic>?;
+  return agentMap?['agent_id'] as String?;
+}
+
 class AttentionCard {
   final String type; // Pending Customer Approval, Pending Loan Approval, ...
   final int count;
   final String priority; // High | Medium | Low
   final DateTime lastUpdated;
+
+  /// WHO the card is about, when it is about one person — the agent whose
+  /// float is disputed, for instance.
+  ///
+  /// Without it the card could only route to a list. Tapping "Disputed
+  /// Opening BF" landed the Owner on the agent roster: no mention of the
+  /// dispute, no way to correct the float, nothing to tell them why they were
+  /// there. It navigated, so it was not dead — it just arrived nowhere useful,
+  /// which to the person tapping it is the same thing.
+  final String? focusAgentId;
+
   AttentionCard({
     required this.type,
     required this.count,
     required this.priority,
     required this.lastUpdated,
+    this.focusAgentId,
   });
 }
 

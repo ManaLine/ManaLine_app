@@ -112,6 +112,7 @@ void main() {
   });
   _replayResume();
   _replayExcess();
+  _wholeRupees();
 }
 
 /// Resuming the instalment replay.
@@ -194,6 +195,47 @@ void _replayExcess() {
       // one on a normal payment would put a false statement in the record.
       expect(BulkOnboardingService.migrationExcessDisposition(500, 500), isNull);
       expect(BulkOnboardingService.migrationExcessDisposition(200, 500), isNull);
+    });
+  });
+}
+
+/// Reading a rupee amount back out of a spreadsheet cell.
+///
+/// The app writes its templates with text cells, so "600" reads back exactly.
+/// The moment the Owner opens the file in Excel and saves, that cell is a
+/// number and reads back "600.0" — and int.tryParse returns null. On
+/// 22 Aug 2026 all 250 instalments in the live sheet vanished that way while
+/// the 54 loans beside them imported fine, because the loan columns go to
+/// Postgres as text and are cast there.
+void _wholeRupees() {
+  group('a rupee amount out of a spreadsheet cell', () {
+    int? parse(String s) => BulkOnboardingService.parseWholeRupees(s);
+
+    test('reads a plain number', () => expect(parse('600'), 600));
+
+    test('reads what Excel writes after a round trip', () {
+      expect(parse('600.0'), 600);
+      expect(parse('1200.00'), 1200);
+    });
+
+    test('tolerates a rupee sign, commas and stray spaces', () {
+      expect(parse('₹1,200'), 1200);
+      expect(parse(' 1,20,000.0 '), 120000);
+    });
+
+    test('refuses paise rather than rounding them away', () {
+      // Money columns are numeric(_,0). Turning 600.50 into 600 or 601 would
+      // put a number in the book that nobody typed.
+      expect(parse('600.50'), isNull);
+      expect(parse('0.5'), isNull);
+    });
+
+    test('refuses nothing, nonsense, zero and negatives', () {
+      expect(parse(''), isNull);
+      expect(parse('   '), isNull);
+      expect(parse('abc'), isNull);
+      expect(parse('0'), isNull);
+      expect(parse('-600'), isNull);
     });
   });
 }

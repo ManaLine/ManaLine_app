@@ -63,6 +63,15 @@ part nobody remembers later.
   correct. It now names both dates and asks which one is wrong. Nothing is
   re-dated automatically — that would move money between two of your own books.
 
+- **A sheet edited in Excel keeps its instalment history.** The templates are
+  written with text cells; the moment you open one in Excel and save, every
+  amount becomes a number and reads back as "600.0" instead of "600". All 250
+  instalments in the live sheet were dropped that way — silently, while the 54
+  loans beside them imported fine. Amounts are now read as whole rupees
+  however the spreadsheet chose to write them, and anything still unreadable is
+  counted on screen **before** the import rather than leaving a bare zero.
+  Paise are refused outright, not rounded: money columns cannot store them.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

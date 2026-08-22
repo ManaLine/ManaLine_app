@@ -1587,6 +1587,15 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             '${parse.schedule.fold<int>(0, (a, r) => a + r.entries.length)} instalments ready',
             style: ManaType.heavy,
           ),
+          // A sheet whose history could not be read must say so BEFORE the
+          // import, not leave a bare "0 instalments" to be noticed.
+          if (parse.unreadableInstalments > 0)
+            ManaText.raw(
+              '${parse.unreadableInstalments} instalment cells could not be '
+              'read — each needs a whole rupee amount and a yyyy-mm-dd date.',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700, color: ManaColors.statusBad),
+            ),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
             onPressed: parse.loans.isEmpty ? null : _customerSubmit,

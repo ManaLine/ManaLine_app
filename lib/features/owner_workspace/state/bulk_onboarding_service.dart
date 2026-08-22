@@ -453,7 +453,11 @@ class BulkOnboardingService {
         'p_idempotency_key': idempotencyKey,
       });
       final map = Map<String, dynamic>.from(res as Map);
-      return ImportOutcome(imported: (map['imported'] as num?)?.toInt() ?? 0, errors: const []);
+      return ImportOutcome(
+        imported: (map['imported'] as num?)?.toInt() ?? 0,
+        skipped: (map['skipped'] as num?)?.toInt() ?? 0,
+        errors: const [],
+      );
     } on PostgrestException catch (e) {
       final parsed = _rejectionFrom(e.message);
       if (parsed == null) rethrow;
@@ -609,6 +613,30 @@ class BulkOnboardingService {
       counts[key] = (counts[key] ?? 0) + 1;
     }
     return counts;
+  }
+
+  /// A whole-rupee amount out of a spreadsheet cell, or null if the cell is
+  /// not one.
+  ///
+  /// The app writes these templates with text cells, so "600" comes back
+  /// exactly as typed. The moment an Owner opens the file in Excel and saves,
+  /// the same cell is a number and reads back "600.0" — and int.tryParse says
+  /// null. That is how all 250 instalments in the sri satyanarayana sheet
+  /// vanished on 22 Aug 2026 while the loans beside them imported fine: the
+  /// loan columns are handed to Postgres as text and cast there, the EMI
+  /// columns were parsed in Dart.
+  ///
+  /// Commas and a rupee sign are tolerated for the same reason. A genuinely
+  /// fractional amount is NOT rounded away — money columns are numeric(_,0),
+  /// paise cannot be stored, and quietly turning 600.50 into 600 or 601 would
+  /// put a number in the book that nobody typed.
+  static int? parseWholeRupees(String cell) {
+    final cleaned = cell.replaceAll(RegExp(r'[₹,\s]'), '');
+    if (cleaned.isEmpty) return null;
+    final value = double.tryParse(cleaned);
+    if (value == null || value <= 0) return null;
+    if (value != value.roundToDouble()) return null;
+    return value.toInt();
   }
 
   /// Where the extra on a replayed instalment went, or null when the payment
@@ -927,6 +955,7 @@ class BulkOnboardingService {
     final required = [for (final k in customerLoanRequired) if (k != 'repayment_type') k];
     final loans = <Map<String, dynamic>>[];
     final schedule = <EmiScheduleRow>[];
+    var unreadable = 0;
 
     for (final frequency in customerFrequencies) {
       final grid = book[frequency];
@@ -964,17 +993,25 @@ class BulkOnboardingService {
           if (amountIdx >= raw.length) break;
           final amountText = raw[amountIdx].trim();
           final dateText = dateIdx < raw.length ? raw[dateIdx].trim() : '';
-          if (amountText.isEmpty || dateText.isEmpty) continue;
-          final amount = int.tryParse(amountText);
+          if (amountText.isEmpty && dateText.isEmpty) continue;
+          final amount = parseWholeRupees(amountText);
           final date = DateTime.tryParse(dateText);
-          if (amount == null || amount <= 0 || date == null) continue;
+          if (amount == null || date == null) {
+            // Half a pair, or something neither a rupee amount nor a date.
+            // Counted, never dropped in silence: 250 instalments went missing
+            // this way on 22 Aug 2026 and the only trace was the readiness
+            // line saying 0.
+            unreadable++;
+            continue;
+          }
           entries.add(EmiEntry(amount: amount, date: date));
         }
         if (entries.isNotEmpty) schedule.add(EmiScheduleRow(mlid: mlid, entries: entries));
       }
     }
 
-    return CustomerGridParse(loans: loans, schedule: schedule);
+    return CustomerGridParse(
+        loans: loans, schedule: schedule, unreadableInstalments: unreadable);
   }
 
   // ---------------------------------------------------------------------
@@ -1602,7 +1639,17 @@ class VillageSuggestion {
 class CustomerGridParse {
   final List<Map<String, dynamic>> loans;
   final List<EmiScheduleRow> schedule;
-  const CustomerGridParse({required this.loans, required this.schedule});
+
+  /// EMI pairs that carried something but could not be read — half a pair, or
+  /// an amount that is not whole rupees. Surfaced beside the ready count so a
+  /// sheet cannot quietly arrive with no history at all.
+  final int unreadableInstalments;
+
+  const CustomerGridParse({
+    required this.loans,
+    required this.schedule,
+    this.unreadableInstalments = 0,
+  });
 }
 
 class LoanRef {

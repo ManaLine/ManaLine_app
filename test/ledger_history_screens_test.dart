@@ -20,7 +20,7 @@ class _SeededLedgerNotifier extends LedgerHistoryNotifier {
   LedgerHistoryState build(String businessId) => _seed;
 
   @override
-  Future<void> load({bool withSummary = true}) async {}
+  Future<void> load({bool withSummary = true, String? membershipId}) async {}
 
   @override
   Future<void> loadMore() async {}
@@ -251,5 +251,59 @@ void main() {
         expectNoLayoutFault(tester, 'AG-010 at ${scale}x');
       });
     }
+  });
+  _dayOpensOnBf();
+}
+
+/// A day opens on the cash carried into it.
+///
+/// The Owner asked how a day's figure could be negative when the cash box
+/// never is. It could because the figure was a NET — collections less
+/// disbursements — and any day that lends more than it takes in swings
+/// negative while the box stays full. The day now opens on its BF and the
+/// figure at the end is a balance.
+void _dayOpensOnBf() {
+  group('a day opens on what was carried into it', () {
+    LedgerEvent lent(String date, int amount) => LedgerEvent(
+          id: 'loan:$date-$amount',
+          type: LedgerEventType.loanDistribution,
+          businessDate: date,
+          occurredAt: DateTime.parse('$date 00:00:00'),
+          amount: amount,
+          counterparty: 'Someone',
+        );
+
+    test('the day carries its fetched opening and closing, not a sum of rows', () {
+      final days = groupByBusinessDate(
+        [lent('2026-01-09', 300000)],
+        balances: {
+          '2026-01-09': const LedgerDayBalance(opening: 491380, closing: 181440),
+        },
+      );
+      expect(days.single.openingBf, 491380);
+      expect(days.single.closingBf, 181440);
+      // The swing is still negative — that is what lending looks like — but it
+      // is no longer what the day is judged by.
+      expect(days.single.netOfLoadedEvents, -300000);
+    });
+
+    test('a day whose balance was not fetched has none, and does not invent one', () {
+      final days = groupByBusinessDate([lent('2026-01-09', 300000)]);
+      expect(days.single.openingBf, isNull);
+      expect(days.single.closingBf, isNull);
+    });
+
+    test('a part-loaded day still reports the true closing', () {
+      // Only one of the day's events is on screen; the balance is fetched, so
+      // the header cannot drift as more pages arrive.
+      final days = groupByBusinessDate(
+        [lent('2026-01-09', 1)],
+        balances: {
+          '2026-01-09': const LedgerDayBalance(opening: 491380, closing: 181440),
+        },
+      );
+      expect(days.single.closingBf, 181440);
+      expect(days.single.netOfLoadedEvents, -1);
+    });
   });
 }

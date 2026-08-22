@@ -186,6 +186,51 @@ class ManaLedgerRow extends StatelessWidget {
 /// the day's net. For an Agent — whose feed is an RLS-filtered subset — a net
 /// would be a confident number computed from an incomplete set, so AG-010
 /// passes its own activity total instead and never a closing balance.
+/// The cash a day opened on, drawn as the day's first line.
+///
+/// A day does not begin at zero. Reading the movements without it made every
+/// lending day look like a loss — the Owner asked how a day could be negative
+/// when the cash box never is, and the answer was that the box was missing
+/// from the screen.
+class ManaLedgerOpeningRow extends StatelessWidget {
+  final int amount;
+  final String label;
+  const ManaLedgerOpeningRow({
+    super.key,
+    required this.amount,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: ManaColors.surfaceMuted,
+      padding: const EdgeInsets.symmetric(
+        horizontal: ManaSpacing.lg,
+        vertical: ManaSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.account_balance_wallet_outlined,
+              size: 18, color: ManaColors.textSecondary),
+          const SizedBox(width: ManaSpacing.sm),
+          Expanded(
+            child: ManaText.raw(
+              label,
+              style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+            ),
+          ),
+          const SizedBox(width: ManaSpacing.xs),
+          Flexible(
+            child: ManaAmount(amount, size: ManaAmountSize.compact),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ManaLedgerDayHeader extends StatelessWidget {
   final String dateLabel;
   final String? statusLabel;

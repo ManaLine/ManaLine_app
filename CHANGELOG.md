@@ -133,6 +133,12 @@ part nobody remembers later.
   announced itself at "8:14 AM" — the moment the spreadsheet was imported.
   Where only the day is known, only the day is shown.
 
+- **A day in History opens on the cash carried into it.** It used to show a
+  net — collections less what was lent — so every lending day read as a loss.
+  The day now starts with its BF line and ends on a balance. For an Agent the
+  figure is their own float, derived to that date rather than added up from a
+  feed that only shows part of the business.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

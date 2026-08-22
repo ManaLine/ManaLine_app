@@ -169,7 +169,26 @@ class LedgerMonthSummary {
 class LedgerDay {
   final String businessDate;
   final List<LedgerEvent> events;
-  const LedgerDay({required this.businessDate, required this.events});
+
+  /// The cash carried into this day, and what it ended on.
+  ///
+  /// Both come from `app.ledger_day_balances`, not from adding up the rows
+  /// above — for the Owner they are the recomputed day ledger, for an Agent
+  /// their float derived to that date. That matters twice over: a day still
+  /// paging in would otherwise show a balance built from half its events, and
+  /// an Agent's feed is an RLS-filtered subset that can never be summed into
+  /// a position.
+  ///
+  /// Null when the day is outside the range that was fetched.
+  final int? openingBf;
+  final int? closingBf;
+
+  const LedgerDay({
+    required this.businessDate,
+    required this.events,
+    this.openingBf,
+    this.closingBf,
+  });
 
   /// Net across THIS DAY'S LOADED EVENTS only.
   ///
@@ -190,15 +209,30 @@ class LedgerDay {
 }
 
 /// Groups a flat, newest-first feed into business days, preserving order.
-List<LedgerDay> groupByBusinessDate(List<LedgerEvent> events) {
+List<LedgerDay> groupByBusinessDate(
+  List<LedgerEvent> events, {
+  Map<String, LedgerDayBalance> balances = const {},
+}) {
   final days = <String, List<LedgerEvent>>{};
   for (final e in events) {
     (days[e.businessDate] ??= <LedgerEvent>[]).add(e);
   }
   return [
     for (final entry in days.entries)
-      LedgerDay(businessDate: entry.key, events: entry.value),
+      LedgerDay(
+        businessDate: entry.key,
+        events: entry.value,
+        openingBf: balances[entry.key]?.opening,
+        closingBf: balances[entry.key]?.closing,
+      ),
   ];
+}
+
+/// What one business day opened and closed on.
+class LedgerDayBalance {
+  final int opening;
+  final int closing;
+  const LedgerDayBalance({required this.opening, required this.closing});
 }
 
 /// What the user narrowed the feed to.
@@ -252,6 +286,33 @@ class LedgerFilter {
 class LedgerHistoryService {
   LedgerHistoryService(this._db);
   final SupabaseClient _db;
+
+  /// What each day in a range opened and closed on.
+  ///
+  /// Asked for the whole visible span in one call rather than per day, and
+  /// authoritative rather than summed from the rows on screen — see
+  /// [LedgerDay.openingBf]. Pass [membershipId] for an Agent's own float; omit
+  /// it for the business ledger.
+  Future<Map<String, LedgerDayBalance>> dayBalances({
+    required String businessId,
+    DateTime? from,
+    DateTime? to,
+    String? membershipId,
+  }) async {
+    final rows = await _db.schema('app').rpc('ledger_day_balances', params: {
+      'p_business_id': businessId,
+      'p_from': from == null ? null : manaDateOf(from),
+      'p_to': to == null ? null : manaDateOf(to),
+      'p_membership_id': membershipId,
+    });
+    return {
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        r['business_date'] as String: LedgerDayBalance(
+          opening: ((r['opening'] as num?) ?? 0).round(),
+          closing: ((r['closing'] as num?) ?? 0).round(),
+        ),
+    };
+  }
 
   /// One page of history, newest first.
   ///

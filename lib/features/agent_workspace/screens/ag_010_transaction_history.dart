@@ -74,8 +74,14 @@ class _Ag010TransactionHistoryScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // withSummary: false — see the class note. The month summary is
       // business-wide and this feed is not.
-      ref.read(ledgerHistoryProvider(widget.businessId).notifier)
-          .load(withSummary: false);
+      // membershipId: the day balances are then THIS agent's float, derived
+      // to each date, rather than the business ledger. Without it the header
+      // could only add up the rows on screen, which for an RLS-filtered feed
+      // is not a position.
+      ref.read(ledgerHistoryProvider(widget.businessId).notifier).load(
+            withSummary: false,
+            membershipId: widget.agentMembershipId,
+          );
     });
   }
 
@@ -127,7 +133,8 @@ class _Ag010TransactionHistoryScreenState
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => _notifier.load(withSummary: false),
+          onRefresh: () => _notifier.load(
+              withSummary: false, membershipId: widget.agentMembershipId),
           child: _body(state),
         ),
       ),
@@ -166,15 +173,24 @@ class _Ag010TransactionHistoryScreenState
     ];
 
     for (final day in state.days) {
+      // The float this agent was holding at the end of the day. Derived from
+      // their own grants, collections and spending rather than summed from
+      // the feed — the feed is an RLS-filtered subset and never a position.
+      // Falls back to money-in-only when the balance could not be fetched,
+      // which is not a net and so carries no sign.
       rows.add(ManaLedgerDayHeader(
         dateLabel: ledgerDayLabel(day.businessDate),
-        trailingLabel: ref.t('you_collected'),
-        trailingAmount: day.moneyIn,
-        // Not a net: money in only, so no sign and no positive tone. A `+`
-        // here would imply the day netted this much, which this view cannot
-        // know.
+        trailingLabel:
+            day.closingBf != null ? ref.t('day_closing') : ref.t('you_collected'),
+        trailingAmount: day.closingBf ?? day.moneyIn,
         trailingIsNet: false,
       ));
+      if (day.openingBf != null) {
+        rows.add(ManaLedgerOpeningRow(
+          amount: day.openingBf!,
+          label: ref.t('brought_forward'),
+        ));
+      }
       for (final e in day.events) {
         rows.add(ManaLedgerRow(
           event: e,

@@ -199,11 +199,22 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
       slivers.add(Divider(height: 1, color: ManaColors.divider));
     }
     for (final day in state.days) {
+      // The closing balance, not the day's swing. A day that lends more than
+      // it collects swings negative while the cash box stays positive, and
+      // showing the swing made every lending day read as a loss.
       slivers.add(ManaLedgerDayHeader(
         dateLabel: ledgerDayLabel(day.businessDate),
-        trailingLabel: ref.t('day_net'),
-        trailingAmount: day.netOfLoadedEvents,
+        trailingLabel: day.closingBf != null ? ref.t('day_closing') : ref.t('day_net'),
+        trailingAmount: day.closingBf ?? day.netOfLoadedEvents,
+        trailingIsNet: day.closingBf == null,
       ));
+      // The day's first line is the cash carried into it.
+      if (day.openingBf != null) {
+        slivers.add(ManaLedgerOpeningRow(
+          amount: day.openingBf!,
+          label: ref.t('brought_forward'),
+        ));
+      }
       for (final e in day.events) {
         slivers.add(ManaLedgerRow(
           event: e,

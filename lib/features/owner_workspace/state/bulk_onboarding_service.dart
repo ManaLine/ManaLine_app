@@ -801,12 +801,7 @@ class BulkOnboardingService {
   /// EMI schedule those same rows carry. A sheet with no data rows is not an
   /// error: a business may run Daily loans only.
   static CustomerGridParse parseCustomerGridBytes(Uint8List bytes, String fileName) {
-    final Excel book;
-    try {
-      book = Excel.decodeBytes(bytes);
-    } catch (e) {
-      throw ImportFormatException('This file could not be read as a spreadsheet. ($e)');
-    }
+    final book = _decodeSheets(bytes, fileName);
 
     final aliases = {..._aliasMap(_prefillLabels), ..._aliasMap(_customerLoanLabels)};
     final required = [for (final k in customerLoanRequired) if (k != 'repayment_type') k];
@@ -814,12 +809,8 @@ class BulkOnboardingService {
     final schedule = <EmiScheduleRow>[];
 
     for (final frequency in customerFrequencies) {
-      final table = book.tables[frequency];
-      if (table == null || table.rows.isEmpty) continue;
-
-      final grid = [
-        for (final row in table.rows) [for (final cell in row) _cellText(cell?.value)],
-      ];
+      final grid = book[frequency];
+      if (grid == null || grid.isEmpty) continue;
       final parsed = _parseTable(
         grid,
         required,
@@ -1030,24 +1021,18 @@ class BulkOnboardingService {
   /// left out rather than sent as 0 — the server treats absent and zero the
   /// same, and this way a skipped column never looks like a declared nothing.
   static List<Map<String, dynamic>> parseWeeklyBytes(Uint8List bytes, String fileName) {
-    final Excel book;
-    try {
-      book = Excel.decodeBytes(bytes);
-    } catch (e) {
-      throw ImportFormatException('This file could not be read as a spreadsheet. ($e)');
-    }
+    final book = _decodeSheets(bytes, fileName);
 
-    final weekTable = book.tables['Weeks'];
-    if (weekTable == null || weekTable.rows.length < 2) {
+    final weekTable = book['Weeks'];
+    if (weekTable == null || weekTable.length < 2) {
       throw const ImportFormatException(
           'The workbook has no Weeks sheet with any rows in it.');
     }
 
     final expensesByDate = <String, List<Map<String, dynamic>>>{};
-    final expenseTable = book.tables['Expenses'];
+    final expenseTable = book['Expenses'];
     if (expenseTable != null) {
-      for (final raw in expenseTable.rows.skip(1)) {
-        final cells = [for (final c in raw) _cellText(c?.value)];
+      for (final cells in expenseTable.skip(1)) {
         if (cells.every((c) => c.trim().isEmpty)) continue;
         String at(int i) => i < cells.length ? cells[i].trim() : '';
         final date = at(0);
@@ -1061,8 +1046,7 @@ class BulkOnboardingService {
     }
 
     final out = <Map<String, dynamic>>[];
-    for (final raw in weekTable.rows.skip(1)) {
-      final cells = [for (final c in raw) _cellText(c?.value)];
+    for (final cells in weekTable.skip(1)) {
       if (cells.every((c) => c.trim().isEmpty)) continue;
       String at(int i) => i < cells.length ? cells[i].trim() : '';
       final date = at(0);
@@ -1219,6 +1203,38 @@ class BulkOnboardingService {
     await SharePlus.instance.share(
       ShareParams(files: [XFile(file.path, name: fileName)], subject: fileName),
     );
+  }
+
+  /// Every sheet in a workbook, as plain rows of strings, with the same
+  /// fallback [_decodeTable] uses for a single sheet.
+  ///
+  /// WHY: the multi-sheet importers — the customer grid and the weekly account
+  /// — called `Excel.decodeBytes` directly and so never got the fallback. That
+  /// package throws "Null check operator used on a null value" on any workbook
+  /// storing text as INLINE strings, which openpyxl and most non-Excel
+  /// exporters do, and the Owner was told "this file could not be read as a
+  /// spreadsheet" — the app blaming their file for its own crash. Fixed once
+  /// for the identity sheet; these two were still exposed.
+  static Map<String, List<List<String>>> _decodeSheets(
+      Uint8List bytes, String fileName) {
+    try {
+      final book = Excel.decodeBytes(bytes);
+      return {
+        for (final name in book.tables.keys)
+          name: [
+            for (final row in book.tables[name]!.rows)
+              [for (final cell in row) _cellText(cell?.value)],
+          ],
+      };
+    } catch (e) {
+      try {
+        return XlsxFallbackReader.decode(bytes).sheets;
+      } catch (_) {
+        throw ImportFormatException(
+            'This file could not be read as a spreadsheet. If it came from '
+            'another app, save it as .xlsx or .csv and try again. ($e)');
+      }
+    }
   }
 
   static List<List<String>> _decodeTable(Uint8List bytes, String fileName, {required String preferredSheet}) {

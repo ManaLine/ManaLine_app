@@ -179,7 +179,7 @@ class _Ag010TransactionHistoryScreenState
         rows.add(ManaLedgerRow(
           event: e,
           actionLabel: ledgerActionLabel(ref, e),
-          timeLabel: ledgerTimeLabel(e),
+          timeLabel: ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
         ));
       }
     }

@@ -55,6 +55,20 @@ String ledgerDayLabel(String businessDate) =>
 
 String ledgerTimeLabel(LedgerEvent e) => _timeFmt.format(e.occurredAt);
 
+/// Whether a clock time is worth showing at all.
+///
+/// A backdated entry -- anything migrated, or recorded for an earlier day --
+/// carries midnight, which is the ledger saying the DAY is all it knows. It
+/// used to carry the moment the spreadsheet was imported instead, so a
+/// collection taken in March announced itself at "8:14 AM" on the strength of
+/// when a file was opened five months later. Midnight is not a time somebody
+/// stood at a door; it is the absence of one, and it should not be drawn as
+/// though it were.
+bool ledgerHasKnownTime(LedgerEvent e) =>
+    e.occurredAt.hour != 0 ||
+    e.occurredAt.minute != 0 ||
+    e.occurredAt.second != 0;
+
 /// What a collection's outcome means, in words.
 ///
 /// `LedgerEvent.method` carries the raw `result_type` — Full, Partial, Excess

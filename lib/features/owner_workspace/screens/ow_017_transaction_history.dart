@@ -208,7 +208,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
         slivers.add(ManaLedgerRow(
           event: e,
           actionLabel: ledgerActionLabel(ref, e),
-          timeLabel: ledgerTimeLabel(e),
+          timeLabel: ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
           onTap: () => _showDetail(e),
         ));
       }
@@ -251,7 +251,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               const SizedBox(height: ManaSpacing.md),
               _detailLine(ref.t('amount'), null, e),
               _detailLine(ref.t('date'), ledgerDayLabel(e.businessDate), null),
-              _detailLine(ref.t('time'), ledgerTimeLabel(e), null),
+              // Only when the ledger actually knows one — see
+              // ledgerHasKnownTime.
+              if (ledgerHasKnownTime(e))
+                _detailLine(ref.t('time'), ledgerTimeLabel(e), null),
               if (e.reference != null) _detailLine(ref.t('reference'), e.reference, null),
               // "Payment: More Than The Instalment", not "Details: Excess".
               // The raw result_type read as a warning when it only means the

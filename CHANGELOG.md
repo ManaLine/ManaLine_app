@@ -123,6 +123,16 @@ part nobody remembers later.
   the interest for its own span, the app derives from the cut-off onward — the
   same rule BF, line balance and profit already follow. Was Rs 1,600 under.
 
+- **History was listing deleted money.** Of its nine sources only BF grants
+  filtered deleted rows, so soft-deleted loans, collections, expenses and
+  investments were all still on the screen — on the live book every "Loan To"
+  row was a duplicate that had already been removed.
+- **History is in date order again.** It sorted by when a row was typed in, so
+  a migrated book shuffled January and March into import order.
+- **A backdated entry no longer invents a time.** A collection taken in March
+  announced itself at "8:14 AM" — the moment the spreadsheet was imported.
+  Where only the day is known, only the day is shown.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

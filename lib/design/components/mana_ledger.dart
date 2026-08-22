@@ -99,10 +99,12 @@ class ManaLedgerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final v = ledgerVisual(event.isMoneyIn, isTransfer: event.isTransfer);
-    // Time is always present; the other two often are not, and a row reading
-    // "9:32 AM · · " would look broken.
+    // Time is usually present; the other two often are not, and a row reading
+    // "9:32 AM · · " would look broken. It is dropped entirely for a
+    // backdated entry, where the ledger knows the day and not the hour —
+    // callers pass an empty label for those.
     final detail = [
-      timeLabel,
+      if (timeLabel.isNotEmpty) timeLabel,
       if (event.reference != null && event.reference!.isNotEmpty) event.reference!,
       if (event.method != null && event.method!.isNotEmpty) event.method!,
     ].join(' · ');

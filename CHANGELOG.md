@@ -93,6 +93,17 @@ part nobody remembers later.
   profit is the figure you declared rather than one derived from tables that
   never saw your closed loans.
 
+- **Interest is credited for the time the money was actually in.** Recording a
+  withdrawal used to rewrite history: the whole period re-accrued at whatever
+  principal was left, so an investor who put in Rs 10,00,000 and later took
+  Rs 9,00,000 out lost almost all the interest they had genuinely earned. The
+  accrual now walks the withdrawals in date order. On the live book this closes
+  the gap against the Owner's own figures from Rs 28,000 to Rs 1,600, and what
+  remains is their own rounding.
+- **Clearing a migrated span now starts where the ledger starts.** A day dated
+  before the book's first account row survived inside the frozen span, where
+  nothing could ever recompute it — one stale day showing minus Rs 68,500.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

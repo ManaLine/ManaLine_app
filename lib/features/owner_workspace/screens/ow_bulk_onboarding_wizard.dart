@@ -18,6 +18,8 @@ import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/bulk_onboarding_service.dart';
+import 'ow_investor_entry_sheets.dart';
+import 'ow_member_picker.dart';
 
 /// P3 Pre-Existing Business Wizard — seven pages that move a paper book onto
 /// MANA LINE in the order the book itself is organised.
@@ -126,6 +128,12 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     });
   }
 
+  /// Resuming can land straight on page 3 without a page turn, so the
+  /// investor list is fetched there too.
+  void _loadForStep(int step) {
+    if (step == 2) unawaited(_loadInvestorCandidates());
+  }
+
   Future<void> _restoreStep() async {
     int? saved;
     try {
@@ -146,6 +154,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       _step = target;
       _resumedAt = target;
     });
+    _loadForStep(target);
   }
 
   /// Re-counts what is in the business. Called on open and after every write,
@@ -176,6 +185,10 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     // Counted fresh on every page turn — including Back, which is the whole
     // reason this exists.
     unawaited(_refreshProgress());
+    // Fetched on arrival, not from build(): a load kicked off during build
+    // that fails ends up calling showSnackBar mid-frame, which Flutter
+    // asserts on. An Owner who never reaches page 3 still never pays for it.
+    if (step == 2) unawaited(_loadInvestorCandidates());
     setState(() {
       _step = step;
       _resumedAt = null; // they have navigated; the banner has done its job
@@ -219,10 +232,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
 
   // 3 — investors
   bool _busy3 = false;
-  ParsedSheet? _investorParse;
-  String? _investorFileName;
-  String? _investorFormatError;
   ImportOutcome? _investorOutcome;
+
+  /// Investors and shareholders are picked from the people page 1 already
+  /// recorded, not retyped into a spreadsheet. There are a handful of them and
+  /// every retyped MLID was a chance to attach money to the wrong person.
+  List<ManaMemberRef>? _investorCandidates;
+  final List<Map<String, dynamic>> _investorEntries = [];
+  final List<Map<String, dynamic>> _shareholderEntries = [];
   List<Map<String, dynamic>>? _withdrawals;
   String? _withdrawalFileName;
   String? _withdrawalError;
@@ -271,9 +288,6 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   Map<String, dynamic>? _profitSummary;
 
   // 3b — shareholders, on the Investors page
-  List<Map<String, dynamic>>? _shareholders;
-  String? _shareholderFileName;
-  String? _shareholderError;
   Map<String, dynamic>? _shareholderResult;
   // Distinct from the Opening Snapshot's declared profit: this is the profit
   // being shared out, which the Owner may declare lower than the computed one.
@@ -567,59 +581,6 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   // 3 — Investors
   // -------------------------------------------------------------------
 
-  Future<void> _investorTemplate() async {
-    setState(() => _busy3 = true);
-    try {
-      final bytes = await _svc.buildInvestorTemplate(businessId: widget.businessId, language: _language);
-      await _svc.shareBytes(bytes, 'ManaLine-Investors-Template.xlsx');
-    } catch (e) {
-      _toast('Could not build the template: $e');
-    } finally {
-      if (mounted) setState(() => _busy3 = false);
-    }
-  }
-
-  Future<void> _investorPick() async {
-    final file = await _pickSpreadsheet();
-    if (file == null) return;
-    setState(() {
-      _busy3 = true;
-      _investorFormatError = null;
-      _investorParse = null;
-      _investorOutcome = null;
-      _investorFileName = file.name;
-    });
-    try {
-      final bytes = await file.readAsBytes();
-      final parse = BulkOnboardingService.parseInvestorBytes(bytes, file.name);
-      if (!mounted) return;
-      setState(() => _investorParse = parse);
-    } on ImportFormatException catch (e) {
-      if (mounted) setState(() => _investorFormatError = e.message);
-    } catch (e) {
-      if (mounted) setState(() => _investorFormatError = 'Could not read this file: $e');
-    } finally {
-      if (mounted) setState(() => _busy3 = false);
-    }
-  }
-
-  Future<void> _investorSubmit() async {
-    final parse = _investorParse;
-    if (parse == null || parse.rows.isEmpty) return;
-    setState(() => _busy3 = true);
-    final outcome = await NetworkErrorHandler.run(
-      context,
-      () => _svc.submitInvestments(businessId: widget.businessId, rows: parse.rows),
-      timeout: kManaBulkTimeout,
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy3 = false;
-      _investorOutcome = outcome;
-      if (outcome != null && !outcome.rejected) _investorParse = null;
-    });
-  }
-
   Future<void> _withdrawalTemplate() async {
     setState(() => _busy3 = true);
     try {
@@ -677,46 +638,67 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     });
   }
 
-  Future<void> _shareholderTemplate() async {
-    setState(() => _busy3 = true);
+  /// Everyone recorded as an Investor on page 1. Loaded once, when the
+  /// Owner first reaches this page.
+  Future<void> _loadInvestorCandidates() async {
+    if (_investorCandidates != null) return;
+    // Deliberately does NOT set _busy3. That flag disables this page's
+    // buttons, and it is for a WRITE the Owner is waiting on — locking Next
+    // behind a background list fetch stopped them leaving the page at all.
     try {
-      final bytes = _svc.buildShareholderTemplate(language: _language);
-      await _svc.shareBytes(bytes, 'ManaLine-Shareholders-Template.xlsx');
-    } catch (e) {
-      _toast('Could not build the template: $e');
-    } finally {
-      if (mounted) setState(() => _busy3 = false);
+      final people = await _svc.membersInRole(
+          businessId: widget.businessId, role: 'Investor');
+      if (mounted) setState(() => _investorCandidates = people);
+    } catch (_) {
+      // Left empty on purpose: the picker then shows its own "nobody here
+      // yet" note, which says more than a snackbar that has already gone.
+      if (mounted) setState(() => _investorCandidates = const []);
     }
   }
 
-  Future<void> _shareholderPick() async {
-    final file = await _pickSpreadsheet(allowCsv: true);
-    if (file == null) return;
-    setState(() {
-      _busy3 = true;
-      _shareholderError = null;
-      _shareholders = null;
-      _shareholderResult = null;
-      _shareholderFileName = file.name;
-    });
-    try {
-      final bytes = await file.readAsBytes();
-      final rows = BulkOnboardingService.parseShareholderBytes(bytes, file.name);
-      if (!mounted) return;
-      setState(() => _shareholders = rows);
-    } on ImportFormatException catch (e) {
-      if (mounted) setState(() => _shareholderError = e.message);
-    } catch (e) {
-      if (mounted) setState(() => _shareholderError = 'Could not read this file: $e');
-    } finally {
-      if (mounted) setState(() => _busy3 = false);
+  Future<void> _addInvestment(ManaMemberRef who) async {
+    final entry = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => InvestmentSheet(who: who, cutoff: _cutoffDate),
+    );
+    if (entry != null && mounted) {
+      setState(() => _investorEntries.add(entry));
     }
+  }
+
+  Future<void> _addShareholder(ManaMemberRef who) async {
+    final entry = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ShareholderSheet(who: who),
+    );
+    if (entry != null && mounted) {
+      setState(() => _shareholderEntries.add(entry));
+    }
+  }
+
+  Future<void> _saveInvestments() async {
+    if (_investorEntries.isEmpty) return;
+    setState(() => _busy3 = true);
+    final outcome = await NetworkErrorHandler.run(
+      context,
+      () => _svc.submitInvestments(
+          businessId: widget.businessId, rows: _investorEntries),
+      timeout: kManaBulkTimeout,
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy3 = false;
+      _investorOutcome = outcome;
+      if (outcome != null && !outcome.rejected) _investorEntries.clear();
+    });
   }
 
   Future<void> _shareholderSubmit() async {
-    final rows = _shareholders;
+    final rows = _shareholderEntries;
     final declared = int.tryParse(_declaredShareProfit.text.trim());
-    if (rows == null || rows.isEmpty) return;
+    if (rows.isEmpty) return;
     if (declared == null) {
       _toast('Enter the profit you are sharing out, in whole rupees.');
       return;
@@ -736,7 +718,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     setState(() {
       _busy3 = false;
       _shareholderResult = result;
-      if (result != null) _shareholders = null;
+      if (result != null) _shareholderEntries.clear();
     });
   }
 
@@ -1534,8 +1516,36 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
 
   // --- 3 Investors --------------------------------------------------------
 
+  /// One pending entry, with a way to take it back out before saving.
+  Widget _entryTile({
+    required String title,
+    required String detail,
+    required VoidCallback onRemove,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ManaText.raw(title, style: ManaType.strong),
+                  ManaText.raw(detail, style: ManaType.small),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: onRemove,
+              icon: const Icon(Icons.close),
+              tooltip: 'Remove',
+            ),
+          ],
+        ),
+      );
+
   Widget _investorsSection() {
-    final parse = _investorParse;
+    final people = _investorCandidates ?? const <ManaMemberRef>[];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1544,22 +1554,31 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           'equity, so add yourself here as an investor too. ROI is Rupees per '
           '100 per MONTH.',
         ),
-        _fileButtons(
-          busy: _busy3,
-          onTemplate: _investorTemplate,
-          onPick: _investorPick,
-          fileName: _investorFileName,
-          error: _investorFormatError,
+        ManaMemberPicker(
+          members: people,
+          alreadyUsed: {for (final e in _investorEntries) e['mlid'] as String},
+          onPick: _addInvestment,
+          emptyNote: 'Nobody is recorded as an investor yet. Add them on '
+              'page 1 first — this page is for what they put in, not who '
+              'they are.',
         ),
-        if (parse != null && !_busy3) ...[
-          const SizedBox(height: ManaSpacing.lg),
-          ManaText.raw('${parse.rows.length} investment rows ready',
-              style: ManaType.heavy),
+        if (_investorEntries.isNotEmpty) ...[
+          const SizedBox(height: ManaSpacing.md),
+          ManaText.raw('${_investorEntries.length} to save', style: ManaType.heavy),
+          for (var i = 0; i < _investorEntries.length; i++)
+            _entryTile(
+              title: _investorEntries[i]['full_name'] as String? ??
+                  _investorEntries[i]['mlid'] as String,
+              detail: '₹${_investorEntries[i]['invested_amount']} · '
+                  'ROI ${_investorEntries[i]['roi']} · '
+                  '${_investorEntries[i]['invested_date']}',
+              onRemove: () => setState(() => _investorEntries.removeAt(i)),
+            ),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
-            onPressed: parse.rows.isEmpty ? null : _investorSubmit,
-            icon: const Icon(Icons.upload_outlined),
-            label: const ManaText.raw('Import Investments'),
+            onPressed: _busy3 ? null : _saveInvestments,
+            icon: const Icon(Icons.save_outlined),
+            label: const ManaText.raw('Save Investments'),
           ),
         ],
         if (_investorOutcome != null && !_busy3) _outcomeBlock(_investorOutcome!, noun: 'investments'),
@@ -1605,21 +1624,30 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             prefixText: '₹ ',
           ),
         ),
-        _fileButtons(
-          busy: _busy3,
-          onTemplate: _shareholderTemplate,
-          onPick: _shareholderPick,
-          fileName: _shareholderFileName,
-          error: _shareholderError,
+        ManaMemberPicker(
+          members: people,
+          alreadyUsed: {for (final e in _shareholderEntries) e['mlid'] as String},
+          onPick: _addShareholder,
+          emptyNote: 'Nobody is on the books yet. Add people on page 1 first.',
         ),
-        if (_shareholders != null && !_busy3) ...[
-          const SizedBox(height: ManaSpacing.lg),
-          ManaText.raw('${_shareholders!.length} shareholders ready',
-              style: ManaType.heavy),
+        if (_shareholderEntries.isNotEmpty) ...[
+          const SizedBox(height: ManaSpacing.md),
+          ManaText.raw(
+            '${_shareholderEntries.length} to save · '
+            '${_shareholderEntries.fold<num>(0, (a, e) => a + (e['share_percent'] as num))}% shared',
+            style: ManaType.heavy,
+          ),
+          for (var i = 0; i < _shareholderEntries.length; i++)
+            _entryTile(
+              title: _shareholderEntries[i]['full_name'] as String,
+              detail: '${_shareholderEntries[i]['share_percent']}%'
+                  '${_shareholderEntries[i]['paid_on'] == null ? '' : ' · paid ${_shareholderEntries[i]['paid_on']}'}',
+              onRemove: () => setState(() => _shareholderEntries.removeAt(i)),
+            ),
           const SizedBox(height: ManaSpacing.sm),
           ElevatedButton.icon(
-            onPressed: _shareholders!.isEmpty ? null : _shareholderSubmit,
-            icon: const Icon(Icons.upload_outlined),
+            onPressed: _busy3 ? null : _shareholderSubmit,
+            icon: const Icon(Icons.save_outlined),
             label: const ManaText.raw('Record Profit Shares'),
           ),
         ],

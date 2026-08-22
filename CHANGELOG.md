@@ -139,6 +139,13 @@ part nobody remembers later.
   figure is their own float, derived to that date rather than added up from a
   feed that only shows part of the business.
 
+- **Investors and profit shares are entered in the app, not in Excel.** Search
+  the people already on your books by name, MLID or village, tap one, and fill
+  in what they put in. Dates come from a calendar and the interest type is a
+  choice, so neither can be mistyped. A business has a handful of investors —
+  downloading a sheet to retype names the app had just written down was work
+  the task never asked for.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

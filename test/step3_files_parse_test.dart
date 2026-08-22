@@ -65,4 +65,51 @@ void main() {
       expect(r['roi_rate'], '1.5');
     }
   });
+  _memberSearch();
+}
+
+/// Searching the people already on the books.
+///
+/// Investors and shareholders are picked, not retyped. Every MLID an Owner
+/// copies from one screen into a spreadsheet is a chance to attach money to
+/// the wrong person, and a business has a handful of investors — this one has
+/// three — so the spreadsheet was overhead the task never asked for.
+void _memberSearch() {
+  group('finding a person to add', () {
+    const people = [
+      ManaMemberRef(mlid: 'MLPI142496231', fullName: 'karri bhaskara reddy', village: 'Uranduru'),
+      ManaMemberRef(mlid: 'MLPI142496230', fullName: 'tadi srinivasa reddy', village: 'Someswaram'),
+      ManaMemberRef(mlid: 'MLPI142496232', fullName: 'Karri Siri Manikanta Reddy'),
+    ];
+
+    List<String> search(String q) =>
+        [for (final p in people) if (p.matches(q)) p.mlid];
+
+    test('an empty search shows everyone', () {
+      expect(search('').length, 3);
+      expect(search('   ').length, 3);
+    });
+
+    test('finds by name, whatever the case', () {
+      expect(search('bhaskara'), ['MLPI142496231']);
+      expect(search('TADI'), ['MLPI142496230']);
+    });
+
+    test('finds by MLID, including a fragment of it', () {
+      expect(search('MLPI142496232'), ['MLPI142496232']);
+      expect(search('496230'), ['MLPI142496230']);
+    });
+
+    test('finds by village, which is often what an Owner remembers', () {
+      expect(search('uranduru'), ['MLPI142496231']);
+    });
+
+    test('a person with no village on file is still searchable by name', () {
+      expect(search('Manikanta'), ['MLPI142496232']);
+    });
+
+    test('a search matching nobody returns nobody rather than everybody', () {
+      expect(search('zzz'), isEmpty);
+    });
+  });
 }

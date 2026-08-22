@@ -332,7 +332,7 @@ class BulkOnboardingService {
   ];
   static const customerLoanOptional = ['grace_period_end_date', 'loan_end_date', 'processing_fee'];
 
-  Future<List<_PrefillRow>> _prefillRows(String businessId, String role) async {
+  Future<List<ManaMemberRef>> _prefillRows(String businessId, String role) async {
     final members = await _db
         .from('business_members')
         .select('membership_id, person_id, persons!business_members_person_id_fkey(person_id, full_name, mlid)')
@@ -345,7 +345,7 @@ class BulkOnboardingService {
     }.toList();
     // Growable, not const: every caller sorts this, and sorting a const list
     // throws.
-    if (personIds.isEmpty) return <_PrefillRow>[];
+    if (personIds.isEmpty) return <ManaMemberRef>[];
 
     final addresses = personIds.isEmpty
         ? const <Map<String, dynamic>>[]
@@ -363,13 +363,24 @@ class BulkOnboardingService {
     return [
       for (final m in members)
         if (m['persons'] != null)
-          _PrefillRow(
+          ManaMemberRef(
             mlid: (m['persons'] as Map<String, dynamic>)['mlid'] as String? ?? '',
             fullName: (m['persons'] as Map<String, dynamic>)['full_name'] as String? ?? '',
             village: villageByPerson[(m['person_id'] as num).toInt()],
           ),
     ];
   }
+
+  /// Everyone on the books in a role, for a picker to search.
+  ///
+  /// The spreadsheet paths below still exist for a business with more
+  /// investors than a person wants to tap in one at a time; the wizard no
+  /// longer uses them.
+  Future<List<ManaMemberRef>> membersInRole({
+    required String businessId,
+    required String role,
+  }) =>
+      _prefillRows(businessId, role);
 
   Future<ImportOutcome> submitInvestments({
     required String businessId,
@@ -1713,11 +1724,28 @@ class ImportFormatException implements Exception {
   String toString() => message;
 }
 
-class _PrefillRow {
+/// One person already on the business's books, as a picker shows them.
+///
+/// Public because investors and shareholders are now chosen from a search
+/// rather than typed into a spreadsheet: there are a handful of them, they are
+/// already on the books from page 1, and asking an Owner to retype a name and
+/// an MLID into Excel to say what they invested was work invented by the
+/// tooling rather than the task.
+class ManaMemberRef {
   final String mlid;
   final String fullName;
   final String? village;
-  const _PrefillRow({required this.mlid, required this.fullName, this.village});
+  const ManaMemberRef({required this.mlid, required this.fullName, this.village});
+
+  /// Name, MLID and village all searched together, so an Owner can type
+  /// whichever they happen to remember.
+  bool matches(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return fullName.toLowerCase().contains(q) ||
+        mlid.toLowerCase().contains(q) ||
+        (village ?? '').toLowerCase().contains(q);
+  }
 }
 
 /// A (PIN, Village) pair named by the identity sheet.

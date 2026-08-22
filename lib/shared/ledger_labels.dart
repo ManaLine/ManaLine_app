@@ -54,3 +54,26 @@ String ledgerDayLabel(String businessDate) =>
     _dayFmt.format(DateTime.parse(businessDate));
 
 String ledgerTimeLabel(LedgerEvent e) => _timeFmt.format(e.occurredAt);
+
+/// What a collection's outcome means, in words.
+///
+/// `LedgerEvent.method` carries the raw `result_type` — Full, Partial, Excess
+/// — and it is the only thing that column ever holds. Shown as-is it told the
+/// Owner nothing: "Details: Excess" beside a collection reads as a warning
+/// when it only means the customer paid more than one instalment. It is also
+/// the commonest outcome on a migrated book, where 44 of this business's 250
+/// replayed instalments are someone paying two weeks at once.
+///
+/// Anything unrecognised is passed through rather than swallowed: a new
+/// result_type should show up as itself, not disappear.
+String? ledgerOutcomeLabel(WidgetRef ref, LedgerEvent e) {
+  if (e.method == null) return null;
+  if (e.type != LedgerEventType.collection) return e.method;
+  return switch (e.method) {
+    'Full' => ref.t('paid_the_full_instalment'),
+    'Partial' => ref.t('less_than_the_instalment'),
+    'Excess' => ref.t('more_than_the_instalment'),
+    'No Collection' => ref.t('nothing_collected'),
+    _ => e.method,
+  };
+}

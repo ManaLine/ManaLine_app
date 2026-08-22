@@ -226,7 +226,18 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: ListView(
-                      padding: const EdgeInsets.all(ManaSpacing.lg),
+                      // Room for the FAB to float over. Without it the
+                      // extended button sat on top of Finish Migration, which
+                      // is the last thing an Owner needs to reach on this
+                      // screen and the one they cannot scroll past.
+                      padding: EdgeInsets.fromLTRB(
+                        ManaSpacing.lg,
+                        ManaSpacing.lg,
+                        ManaSpacing.lg,
+                        (s != null && !s.migrationLocked)
+                            ? ManaSpacing.lg + 88
+                            : ManaSpacing.lg,
+                      ),
                       children: [
                         _statusCard(s!),
                         const SizedBox(height: ManaSpacing.lg),

@@ -104,6 +104,16 @@ part nobody remembers later.
   before the book's first account row survived inside the frozen span, where
   nothing could ever recompute it — one stale day showing minus Rs 68,500.
 
+- **"Finish Migration" is no longer hidden under the Add A Customer button.**
+- **The Attention Required card says what happened and what to do.** It always
+  went somewhere useful when tapped; nothing on it said so. The "Updated ..."
+  line is gone with it — a BF recompute touches that column, so a request from
+  two days ago read as if it had just arrived.
+- **A collection's outcome is in words.** "Details: Excess" was the raw
+  database value and read as a warning; it only means the customer paid more
+  than one instalment at once. Now "Payment: More Than The Instalment", in all
+  five languages.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

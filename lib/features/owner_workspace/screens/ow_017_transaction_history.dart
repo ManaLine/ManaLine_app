@@ -253,7 +253,11 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               _detailLine(ref.t('date'), ledgerDayLabel(e.businessDate), null),
               _detailLine(ref.t('time'), ledgerTimeLabel(e), null),
               if (e.reference != null) _detailLine(ref.t('reference'), e.reference, null),
-              if (e.method != null) _detailLine(ref.t('details'), e.method, null),
+              // "Payment: More Than The Instalment", not "Details: Excess".
+              // The raw result_type read as a warning when it only means the
+              // customer paid more than one instalment at once.
+              if (e.method != null)
+                _detailLine(ref.t('payment'), ledgerOutcomeLabel(ref, e), null),
             ],
           ),
         ),

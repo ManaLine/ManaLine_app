@@ -1066,6 +1066,19 @@ class _AttentionRequired extends ConsumerWidget {
   // actually actioned; falls back to Report Hub (a safe, always-correct
   // "see everything" destination) for any type string this doesn't
   // recognize rather than silently doing nothing.
+  /// What happened, as a sentence.
+  String _attentionTitle(WidgetRef ref, AttentionCard c) => switch (c.type) {
+        'Disputed Opening BF' => ref.t('agent_asked_you_to_check_bf'),
+        _ => c.type,
+      };
+
+  /// What to do about it. Every card on this panel is a thing waiting on the
+  /// Owner, so every card says where tapping goes.
+  String _attentionAction(WidgetRef ref, AttentionCard c) => switch (c.type) {
+        'Disputed Opening BF' => ref.t('tap_to_open_their_record'),
+        _ => ref.t('tap_to_open'),
+      };
+
   void _open(BuildContext context, AttentionCard c) {
     final route = switch (c.type) {
       'Pending Customer Approval' => '/ow-004',
@@ -1101,10 +1114,16 @@ class _AttentionRequired extends ConsumerWidget {
                       color: c.priority == 'High'
                           ? ManaColors.statusBad
                           : ManaColors.statusWarn),
-                  title: ManaText.raw(c.type,
+                  // The type string is a database value, not a sentence: an
+                  // Owner reading "Disputed Opening BF · Updated 22 Aug" was
+                  // told what the row is called and when a column last
+                  // changed, but not what happened or what to do about it.
+                  // The timestamp is worse than useless here — a BF recompute
+                  // touches updated_at, so a request from two days ago reads
+                  // as if it just arrived.
+                  title: ManaText.raw(_attentionTitle(ref, c),
                       style: ManaType.small),
-                  subtitle: ManaText.raw(
-                      'Updated ${DateFormat('d MMM, hh:mm a').format(c.lastUpdated)}',
+                  subtitle: ManaText.raw(_attentionAction(ref, c),
                       style: ManaType.small),
                   // A count, so bounded by nature and not actually at risk —
                   // converted anyway so the whole codebase has one answer for

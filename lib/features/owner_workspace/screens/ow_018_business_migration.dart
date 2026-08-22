@@ -63,6 +63,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
   MigrationSummary? _summary;
   int? _investorPayableBalance;
   int? _businessProfit;
+  DateTime? _figuresAsOf;
   bool _loading = true;
   String? _error;
 
@@ -82,13 +83,28 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
       final s = await api.fetchMigrationSummary(businessId: widget.businessId);
       // Independent of BF and Line Balance above — see the two RPCs' own
       // doc comments in the P3 migration for why these are separate figures.
-      final payable = await api.fetchInvestorPayableBalance(businessId: widget.businessId);
-      final profit = await api.fetchBusinessProfit(businessId: widget.businessId);
+      //
+      // Stated AT THE CUT-OFF for a migrated book, never at today. Investor
+      // interest keeps accruing after the cut-off, so today's payable is not
+      // the number the Owner can check against a book that stops in March —
+      // on sri satyanarayana it read Rs 38,70,308 against a book saying
+      // Rs 24,85,582, and nothing on the screen said the dates differed.
+      final snapshot = await api.fetchMigrationSnapshot(businessId: widget.businessId);
+      final payable = await api.fetchInvestorPayableBalance(
+          businessId: widget.businessId, asOf: snapshot?.cutoff);
+      // Profit is the Owner's declared figure once a snapshot exists. What the
+      // app derives is missing whatever the book knows and the tables do not
+      // — the interest on loans that had already closed, most of all — and
+      // that gap is already carried as profit_carry_forward.
+      final profit = snapshot != null
+          ? snapshot.declaredProfit
+          : await api.fetchBusinessProfit(businessId: widget.businessId);
       if (!mounted) return;
       setState(() {
         _summary = s;
         _investorPayableBalance = payable;
         _businessProfit = profit;
+        _figuresAsOf = snapshot?.cutoff;
         _loading = false;
       });
     } catch (e) {
@@ -473,6 +489,17 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ManaText.raw(ref.t('profit_and_investor_payable'), style: ManaType.strong),
+            // Without the date these read as "now" and get compared against a
+            // book that stopped months ago.
+            if (_figuresAsOf != null)
+              ManaText.raw(
+                'As on ${_figuresAsOf!.day} '
+                '${const [
+                  'Jan','Feb','Mar','Apr','May','Jun',
+                  'Jul','Aug','Sep','Oct','Nov','Dec'
+                ][_figuresAsOf!.month - 1]} ${_figuresAsOf!.year}',
+                style: ManaType.fine,
+              ),
             const SizedBox(height: ManaSpacing.sm),
             if (payable != null)
               Row(

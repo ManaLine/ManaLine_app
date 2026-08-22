@@ -113,6 +113,7 @@ void main() {
   _replayResume();
   _replayExcess();
   _wholeRupees();
+  _withdrawalSheet();
 }
 
 /// Resuming the instalment replay.
@@ -236,6 +237,84 @@ void _wholeRupees() {
       expect(parse('abc'), isNull);
       expect(parse('0'), isNull);
       expect(parse('-600'), isNull);
+    });
+  });
+}
+
+/// Reading the withdrawals sheet.
+///
+/// Amount is the CASH that left the box; the interest column says how much of
+/// that cash was interest rather than capital. Interest merely settled against
+/// what an investor had accrued never left the box and belongs on the weekly
+/// account sheet instead — putting it here would count it twice and take too
+/// little off principal.
+void _withdrawalSheet() {
+  group('the withdrawals sheet', () {
+    Uint8List build(List<List<String>> rows) {
+      final excel = Excel.createExcel();
+      final sheet = excel['Withdrawals'];
+      sheet.appendRow([
+        TextCellValue('MLID'),
+        TextCellValue('Name'),
+        TextCellValue('Date* (yyyy-mm-dd)'),
+        TextCellValue('Amount Taken Out*'),
+        TextCellValue('Of Which Interest'),
+        TextCellValue('Invested Date (only if they hold more than one)'),
+      ]);
+      for (final r in rows) {
+        sheet.appendRow([for (final c in r) TextCellValue(c)]);
+      }
+      if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+      return Uint8List.fromList(excel.save()!);
+    }
+
+    List<Map<String, dynamic>> parse(List<List<String>> rows) =>
+        BulkOnboardingService.parseWithdrawalBytes(build(rows), 'w.xlsx');
+
+    test('reads a plain withdrawal, leaving interest out entirely', () {
+      final out = parse([
+        ['MLPI1', 'Karri Bhaskara Reddy', '2026-02-20', '400000', '', ''],
+      ]);
+      expect(out, hasLength(1));
+      expect(out.first['mlid'], 'MLPI1');
+      expect(out.first['business_date'], '2026-02-20');
+      expect(out.first['amount'], 400000);
+      expect(out.first.containsKey('interest_portion'), isFalse);
+      expect(out.first.containsKey('invested_date'), isFalse);
+    });
+
+    test('carries the interest part and the invested date when given', () {
+      final out = parse([
+        ['MLPI1', 'X', '2026-03-13', '500000', '1750', '2026-01-02'],
+      ]);
+      expect(out.first['interest_portion'], 1750);
+      expect(out.first['invested_date'], '2026-01-02');
+    });
+
+    test('one investor can appear as many times as they withdrew', () {
+      final out = parse([
+        ['MLPI1', 'X', '2026-02-20', '400000', '', ''],
+        ['MLPI1', 'X', '2026-03-13', '500000', '', ''],
+      ]);
+      expect(out, hasLength(2));
+      expect(out.map((r) => r['amount']), [400000, 500000]);
+    });
+
+    test('reads what Excel writes after a round trip', () {
+      // The template is written with text cells; saving it in Excel turns the
+      // amount into a number that reads back as "400000.0".
+      expect(parse([['MLPI1', 'X', '2026-02-20', '400000.0', '', '']]).first['amount'],
+          400000);
+    });
+
+    test('a prefilled row with no withdrawal on it is not a withdrawal', () {
+      // The template lists every investor so the Owner can fill rows in; the
+      // ones they leave alone must not import as zero-rupee withdrawals.
+      expect(parse([['MLPI1', 'Karri Bhaskara Reddy', '', '', '', '']]), isEmpty);
+    });
+
+    test('a row with no readable amount is left out rather than guessed', () {
+      expect(parse([['MLPI1', 'X', '2026-02-20', 'four lakh', '', '']]), isEmpty);
     });
   });
 }

@@ -860,6 +860,105 @@ class BulkOnboardingService {
         ],
       );
 
+  /// The money that came back OUT, before the app existed.
+  ///
+  /// A separate sheet rather than more columns on the investor template,
+  /// because an investor can withdraw more than once and a row-per-investor
+  /// grid cannot hold that.
+  Future<Uint8List> buildWithdrawalTemplate({
+    required String businessId,
+    required String language,
+  }) async {
+    final rows = await _prefillRows(businessId, 'Investor');
+    final excel = Excel.createExcel();
+    final sheet = excel['Withdrawals'];
+    sheet.appendRow([
+      TextCellValue(_prefillLabels['mlid']![language] ?? 'MLID'),
+      TextCellValue(_prefillLabels['full_name']![language] ?? 'Name'),
+      TextCellValue('Date* (yyyy-mm-dd)'),
+      TextCellValue('Amount Taken Out*'),
+      TextCellValue('Of Which Interest'),
+      TextCellValue('Invested Date (only if they hold more than one)'),
+    ]);
+    for (final r in rows) {
+      sheet.appendRow([TextCellValue(r.mlid), TextCellValue(r.fullName)]);
+    }
+
+    final notes = excel['Notes'];
+    for (final line in const [
+      'One row per withdrawal, not per investor — copy an investor down as many',
+      'times as they took money out.',
+      '',
+      'Amount Taken Out is the CASH that left the box. If some of that cash was',
+      'interest rather than capital, say how much in the next column; otherwise',
+      'leave it blank.',
+      '',
+      'Interest that was settled against what the investor had accrued, without',
+      'cash leaving, does NOT belong here — it goes in the weekly account',
+      'sheet, on the Investor Out - Interest column.',
+      '',
+      'Invested Date is only needed when one investor holds more than one',
+      'investment, so the row can say which one the money came off.',
+    ]) {
+      notes.appendRow([TextCellValue(line)]);
+    }
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+    final bytes = excel.save();
+    if (bytes == null) throw StateError('The template could not be generated.');
+    return Uint8List.fromList(bytes);
+  }
+
+  static List<Map<String, dynamic>> parseWithdrawalBytes(
+      Uint8List bytes, String fileName) {
+    final table = _decodeTable(bytes, fileName, preferredSheet: 'Withdrawals');
+    if (table.isEmpty) return const [];
+    final out = <Map<String, dynamic>>[];
+    for (final raw in table.skip(1)) {
+      if (raw.every((c) => c.trim().isEmpty)) continue;
+      if (raw.length < 4) continue;
+      final mlid = raw[0].trim();
+      final date = raw[2].trim();
+      // Whole rupees however the spreadsheet chose to write them — a file that
+      // has been through Excel says "400000.0". See parseWholeRupees.
+      final amount = parseWholeRupees(raw[3]);
+      if (mlid.isEmpty || date.isEmpty || amount == null) continue;
+      final interest = raw.length > 4 ? parseWholeRupees(raw[4]) : null;
+      final invested = raw.length > 5 ? raw[5].trim() : '';
+      out.add({
+        'mlid': mlid,
+        'business_date': date,
+        'amount': amount,
+        if (interest != null) 'interest_portion': interest,
+        if (invested.isNotEmpty) 'invested_date': invested,
+      });
+    }
+    return out;
+  }
+
+  Future<ImportOutcome> submitWithdrawals({
+    required String businessId,
+    required List<Map<String, dynamic>> rows,
+    String? idempotencyKey,
+  }) async {
+    try {
+      final res = await _db.schema('app').rpc('import_migrated_withdrawals', params: {
+        'p_business_id': businessId,
+        'p_rows': rows,
+        'p_idempotency_key': idempotencyKey,
+      });
+      final map = Map<String, dynamic>.from(res as Map);
+      return ImportOutcome(
+        imported: (map['imported'] as num?)?.toInt() ?? 0,
+        skipped: (map['skipped'] as num?)?.toInt() ?? 0,
+        errors: const [],
+      );
+    } on PostgrestException catch (e) {
+      final parsed = _rejectionFrom(e.message);
+      if (parsed == null) rethrow;
+      return parsed;
+    }
+  }
+
   static ParsedSheet parseInvestorBytes(Uint8List bytes, String fileName) {
     final table = _decodeTable(bytes, fileName, preferredSheet: 'Investor');
     return _parseTable(

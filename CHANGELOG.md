@@ -82,6 +82,17 @@ part nobody remembers later.
   existed, and their BF derived to minus Rs 21,73,960. Every already-imported
   loan is corrected and BF recomposed.
 
+- **Page 3 can now import money investors took back out.** There was no way to
+  record a withdrawal that happened before you started using the app — the live
+  screen stamps today's date — so a book with Rs 11,10,000 of withdrawals showed
+  its investors owed that much too much. New sheet on page 3: one row per
+  withdrawal, amount is the cash that left, and re-uploading it changes nothing.
+- **Profit and investor payable are shown as at the cut-off, not today.**
+  Interest keeps accruing after the cut-off, so today's figure could never be
+  checked against a book that stops in March. The card now names the date, and
+  profit is the figure you declared rather than one derived from tables that
+  never saw your closed loans.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

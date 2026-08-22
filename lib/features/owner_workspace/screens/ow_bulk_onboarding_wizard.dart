@@ -223,6 +223,11 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   String? _investorFileName;
   String? _investorFormatError;
   ImportOutcome? _investorOutcome;
+  List<Map<String, dynamic>>? _withdrawals;
+  String? _withdrawalFileName;
+  String? _withdrawalError;
+  ImportOutcome? _withdrawalOutcome;
+  final String _withdrawalKey = manaIdempotencyKey();
 
   // 4 — customers
   bool _busy4 = false;
@@ -612,6 +617,63 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       _busy3 = false;
       _investorOutcome = outcome;
       if (outcome != null && !outcome.rejected) _investorParse = null;
+    });
+  }
+
+  Future<void> _withdrawalTemplate() async {
+    setState(() => _busy3 = true);
+    try {
+      final bytes = await _svc.buildWithdrawalTemplate(
+          businessId: widget.businessId, language: _language);
+      await _svc.shareBytes(bytes, 'ManaLine-Withdrawals-Template.xlsx');
+    } catch (e) {
+      _toast('Could not build the template: $e');
+    } finally {
+      if (mounted) setState(() => _busy3 = false);
+    }
+  }
+
+  Future<void> _withdrawalPick() async {
+    final file = await _pickSpreadsheet();
+    if (file == null) return;
+    setState(() {
+      _busy3 = true;
+      _withdrawalError = null;
+      _withdrawals = null;
+      _withdrawalOutcome = null;
+      _withdrawalFileName = file.name;
+    });
+    try {
+      final bytes = await file.readAsBytes();
+      final rows = BulkOnboardingService.parseWithdrawalBytes(bytes, file.name);
+      if (!mounted) return;
+      setState(() => _withdrawals = rows);
+    } on ImportFormatException catch (e) {
+      if (mounted) setState(() => _withdrawalError = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _withdrawalError = 'Could not read this file: $e');
+    } finally {
+      if (mounted) setState(() => _busy3 = false);
+    }
+  }
+
+  Future<void> _withdrawalSubmit() async {
+    final rows = _withdrawals;
+    if (rows == null || rows.isEmpty) return;
+    setState(() => _busy3 = true);
+    final outcome = await NetworkErrorHandler.run(
+      context,
+      () => _svc.submitWithdrawals(
+          businessId: widget.businessId,
+          rows: rows,
+          idempotencyKey: _withdrawalKey),
+      timeout: kManaBulkTimeout,
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy3 = false;
+      _withdrawalOutcome = outcome;
+      if (outcome != null && !outcome.rejected) _withdrawals = null;
     });
   }
 
@@ -1501,6 +1563,33 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           ),
         ],
         if (_investorOutcome != null && !_busy3) _outcomeBlock(_investorOutcome!, noun: 'investments'),
+        const Divider(height: ManaSpacing.xl),
+        _intro(
+          'Money any of them took back out before today. Leave it empty if none '
+          'did. Amount is the cash that left the box — interest that was only '
+          'settled against what they had accrued belongs in the weekly account '
+          'sheet, not here.',
+        ),
+        _fileButtons(
+          busy: _busy3,
+          onTemplate: _withdrawalTemplate,
+          onPick: _withdrawalPick,
+          fileName: _withdrawalFileName,
+          error: _withdrawalError,
+        ),
+        if (_withdrawals != null && !_busy3) ...[
+          const SizedBox(height: ManaSpacing.lg),
+          ManaText.raw('${_withdrawals!.length} withdrawals ready',
+              style: ManaType.heavy),
+          const SizedBox(height: ManaSpacing.sm),
+          ElevatedButton.icon(
+            onPressed: _withdrawals!.isEmpty ? null : _withdrawalSubmit,
+            icon: const Icon(Icons.upload_outlined),
+            label: const ManaText.raw('Import Withdrawals'),
+          ),
+        ],
+        if (_withdrawalOutcome != null && !_busy3)
+          _outcomeBlock(_withdrawalOutcome!, noun: 'withdrawals'),
         const Divider(height: ManaSpacing.xl),
         _intro(
           'Who shares in the profit. This is a different list from the one '

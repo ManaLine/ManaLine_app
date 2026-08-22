@@ -591,19 +591,55 @@ class BusinessManagementApiService {
   /// NOT the same figure as BF: an investor's money already lent out to
   /// customers is still owed to the investor even though it is not sitting
   /// in the till. See app.business_investor_payable_balance.
-  Future<int> fetchInvestorPayableBalance({required String businessId}) async {
+  /// [asOf] is the date the figure is stated at. For a migrated book that is
+  /// the cut-off, not today: interest keeps accruing after the cut-off, so
+  /// asking for today's number and comparing it to a book that stops in March
+  /// is comparing two different things.
+  Future<int> fetchInvestorPayableBalance({
+    required String businessId,
+    DateTime? asOf,
+  }) async {
     final res = await _db.schema('app').rpc('business_investor_payable_balance', params: {
       'p_business_id': businessId,
+      if (asOf != null) 'p_as_of': asOf.toIso8601String().split('T').first,
     });
     return ((res as num?) ?? 0).round();
+  }
+
+  /// What the Owner declared at the cut-off, and the date they declared it on.
+  /// Null when the book was never migrated.
+  ///
+  /// The declared profit is the figure to show a migrated business: it is the
+  /// book's own, and the difference against what the app can derive is already
+  /// held as profit_carry_forward rather than argued with.
+  Future<({DateTime cutoff, int declaredProfit})?> fetchMigrationSnapshot({
+    required String businessId,
+  }) async {
+    final rows = await _db
+        .from('migration_snapshots')
+        .select('cutoff_date, declared_profit')
+        .eq('business_id', businessId)
+        .limit(1);
+    if (rows.isEmpty) return null;
+    final r = rows.first;
+    final date = r['cutoff_date'] as String?;
+    if (date == null) return null;
+    return (
+      cutoff: DateTime.parse(date),
+      declaredProfit: ((r['declared_profit'] as num?) ?? 0).round(),
+    );
   }
 
   /// Interest + fee income minus expenses minus the lifetime interest cost
   /// of investor capital. Separate from BF and from Line Balance — see
   /// app.business_profit.
-  Future<int> fetchBusinessProfit({required String businessId}) async {
+  Future<int> fetchBusinessProfit({
+    required String businessId,
+    DateTime? asOf,
+  }) async {
     final res = await _db.schema('app').rpc('business_profit', params: {
       'p_business_id': businessId,
+      if (asOf != null) 'p_as_of': asOf.toIso8601String().split('T').first,
     });
     return ((res as num?) ?? 0).round();
   }

@@ -14,10 +14,23 @@ class _FakeApi implements BusinessManagementApiService {
   Future<MigrationSummary> fetchMigrationSummary({required String businessId}) async => _summary;
 
   @override
-  Future<int> fetchInvestorPayableBalance({required String businessId}) async => 250000;
+  Future<int> fetchInvestorPayableBalance({
+    required String businessId,
+    DateTime? asOf,
+  }) async => 250000;
 
   @override
-  Future<int> fetchBusinessProfit({required String businessId}) async => 87500;
+  Future<int> fetchBusinessProfit({
+    required String businessId,
+    DateTime? asOf,
+  }) async => 87500;
+
+  /// No snapshot: this fake stands in for a book part-way through migration,
+  /// so the screen falls back to the derived profit.
+  @override
+  Future<({DateTime cutoff, int declaredProfit})?> fetchMigrationSnapshot({
+    required String businessId,
+  }) async => null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

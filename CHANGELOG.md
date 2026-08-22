@@ -146,6 +146,15 @@ part nobody remembers later.
   downloading a sheet to retype names the app had just written down was work
   the task never asked for.
 
+- **History shows the lending again.** Migrated loans were hidden because,
+  when a day was shown as a net, listing them made every lending day read as a
+  huge loss. The day now shows its closing balance, so there is nothing to
+  protect against — and a day that closes on a figure the rows cannot account
+  for is no use to anyone.
+- **A deposit shows what was put in, not what is left.** An investor who put in
+  Rs 10,00,000 and later withdrew Rs 9,00,000 had their original deposit drawn
+  as Rs 1,00,000 — a past event restated with a later number.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

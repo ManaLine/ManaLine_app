@@ -1,0 +1,12 @@
+-- Superseded within the same session by
+-- 20260822134230_withdrawal_amount_is_the_cash_that_left.sql, which holds the
+-- function in its final form.
+--
+-- Kept as a file because supabase_migrations.schema_migrations already records
+-- this version on production: a missing file here does not un-record it, and a
+-- later push would be comparing against a ledger it cannot explain. On a fresh
+-- database this is a no-op and the final file creates the function outright.
+--
+-- What it did: first cut of app.import_migrated_withdrawals. It created
+-- cleanly and failed on first call -- plpgsql bodies are not type-checked at
+-- CREATE -- because investments has investor_id, not membership_id.

@@ -1,0 +1,7 @@
+-- Superseded within the same session by
+-- 20260822134230_withdrawal_amount_is_the_cash_that_left.sql. See the note in
+-- 20260822133849 for why the file is kept.
+--
+-- What it did: fixed the join to investments -> investors -> business_members
+-- -> persons and added the optional Invested Date column. Still failed on
+-- call: withdrawal_type_enum has no value "Partial".

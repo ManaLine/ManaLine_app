@@ -1,0 +1,7 @@
+-- Superseded within the same session by
+-- 20260822134230_withdrawal_amount_is_the_cash_that_left.sql. See the note in
+-- 20260822133849 for why the file is kept.
+--
+-- What it did: derived the enum value (Principal Full / Principal Partial)
+-- instead of inventing one. Still failed on call: investment_withdrawals
+-- checks that amount = principal_portion + interest_portion.

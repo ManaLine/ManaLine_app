@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:excel/excel.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/state/bulk_onboarding_service.dart';
@@ -111,5 +112,149 @@ void _memberSearch() {
     test('a search matching nobody returns nobody rather than everybody', () {
       expect(search('zzz'), isEmpty);
     });
+  });
+  _villageLabel();
+}
+
+/// The Village column carries its pincode, and gets split back apart.
+///
+/// The dropdown offers the Owner's own villages as "Uranduru (517640)",
+/// because a village name alone is not unique — this business works two
+/// villages on 517640.
+void _villageLabel() {
+  group('a village picked from the list', () {
+    Map<String, dynamic> split(String village, {String pin = ''}) {
+      final row = <String, dynamic>{'village': village, 'pin_code': pin};
+      BulkOnboardingService.splitVillageAndPin(row);
+      return row;
+    }
+
+    test('splits into the village and its pincode', () {
+      final r = split('Uranduru (517640)');
+      expect(r['village'], 'Uranduru');
+      expect(r['pin_code'], '517640');
+    });
+
+    test('handles a village whose own name has brackets in it', () {
+      final r = split('Panagallu (Rural) (517640)');
+      expect(r['village'], 'Panagallu (Rural)');
+      expect(r['pin_code'], '517640');
+    });
+
+    test('leaves a hand-typed village exactly as written', () {
+      final r = split('Some New Village', pin: '533261');
+      expect(r['village'], 'Some New Village');
+      expect(r['pin_code'], '533261');
+    });
+
+    test('never overwrites a pincode the Owner typed themselves', () {
+      // A disagreement between the two is the import's to raise, not this
+      // function's to paper over.
+      final r = split('Uranduru (517640)', pin: '999999');
+      expect(r['village'], 'Uranduru');
+      expect(r['pin_code'], '999999');
+    });
+
+    test('ignores anything that is not a six digit pincode', () {
+      expect(split('Village (12)')['village'], 'Village (12)');
+      expect(split('Village (abcdef)')['village'], 'Village (abcdef)');
+    });
+
+    test('an empty village is left alone', () {
+      expect(split('')['village'], '');
+    });
+  });
+  _sheetDates();
+}
+
+/// Reading a date out of a spreadsheet cell.
+///
+/// The templates now ask for dd/mm/yyyy, which is what an Indian book writes.
+/// Every date is normalised to yyyy-MM-dd here rather than handed to Postgres
+/// as typed: a raw "03/04/2026" is read by the server's DateStyle, and on an
+/// MDY setting that is 4 March rather than 3 April — a month's error with
+/// nothing on screen to show for it.
+void _sheetDates() {
+  group('a date out of a spreadsheet cell', () {
+    String? parse(String s) => BulkOnboardingService.normaliseSheetDate(s);
+
+    test('reads dd/mm/yyyy, which is what the template asks for', () {
+      expect(parse('20/03/2026'), '2026-03-20');
+      expect(parse('2/1/2026'), '2026-01-02');
+    });
+
+    test('reads dd-mm-yyyy too', () {
+      expect(parse('20-03-2026'), '2026-03-20');
+    });
+
+    test('still reads yyyy-mm-dd, which older templates asked for', () {
+      expect(parse('2026-03-20'), '2026-03-20');
+    });
+
+    test('reads a real date cell, which arrives with a time attached', () {
+      expect(parse('2026-03-20 00:00:00.000'), '2026-03-20');
+    });
+
+    test('a day over 12 settles the order outright', () {
+      // 20 cannot be a month, so this is unambiguous however it was written.
+      expect(parse('20/03/2026'), '2026-03-20');
+    });
+
+    test('refuses a date that does not exist rather than rolling it forward', () {
+      // DateTime(2026, 2, 31) silently becomes 3 March — a wrong date wearing
+      // a right one's clothes.
+      expect(parse('31/02/2026'), isNull);
+      expect(parse('32/01/2026'), isNull);
+      expect(parse('20/13/2026'), isNull);
+    });
+
+    test('refuses nothing and nonsense', () {
+      expect(parse(''), isNull);
+      expect(parse('   '), isNull);
+      expect(parse('last Tuesday'), isNull);
+      expect(parse('20/03/26'), isNull);
+    });
+  });
+  _retiredHeadingsStillWork();
+}
+
+/// A heading is a contract with the files already on someone's phone.
+///
+/// The date columns used to say (yyyy-mm-dd) and now say (dd/mm/yyyy).
+/// Headings are matched by their text, so that rename alone would have made
+/// every previously downloaded template unreadable — the Owner told "These
+/// columns are missing: effective_date" about a file this app generated for
+/// them.
+void _retiredHeadingsStillWork() {
+  test('a customer sheet with the old date headings still imports', () {
+    final excel = Excel.createExcel();
+    final sheet = excel['Weekly'];
+    sheet.appendRow([
+      TextCellValue('MLID'),
+      TextCellValue('Name'),
+      TextCellValue('Village'),
+      TextCellValue('Amount Given*'),
+      TextCellValue('Repayment Amount*'),
+      TextCellValue('Remaining Balance*'),
+      // The retired wording, exactly as an older template wrote it.
+      TextCellValue('Issued Date* (yyyy-mm-dd)'),
+      TextCellValue('Instalment Amount*'),
+    ]);
+    sheet.appendRow([
+      TextCellValue('MLTI001'),
+      TextCellValue('Someone'),
+      TextCellValue('Uranduru'),
+      TextCellValue('5880'),
+      TextCellValue('7200'),
+      TextCellValue('1800'),
+      TextCellValue('2026-01-15'),
+      TextCellValue('600'),
+    ]);
+    if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+
+    final parse = BulkOnboardingService.parseCustomerGridBytes(
+        Uint8List.fromList(excel.save()!), 'old.xlsx');
+    expect(parse.loans, hasLength(1));
+    expect(parse.loans.single['effective_date'], '2026-01-15');
   });
 }

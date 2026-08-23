@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/xlsx_fallback_reader.dart';
 import 'collection_mode_state.dart';
+import 'mana_template_style.dart';
 
 /// P3 Bulk Migration Wizard — onboard a pre-existing business's whole book in
 /// three spreadsheets instead of one screen per person/loan/instalment.
@@ -105,6 +106,23 @@ class BulkOnboardingService {
   /// Reverse lookup built once: every language's label, normalised, maps
   /// back to its canonical key. This is what lets a Telugu-filled sheet and
   /// an English-filled sheet both parse correctly.
+  /// Headings this app has ever asked for, so a file downloaded before the
+  /// wording changed still imports.
+  ///
+  /// The date columns used to say (yyyy-mm-dd) and now say (dd/mm/yyyy).
+  /// Headings are matched by their normalised text, so that rename alone would
+  /// have made every previously downloaded template unreadable — the Owner
+  /// told "These columns are missing: effective_date" about a file this app
+  /// generated for them. A heading is a contract with whatever is already on
+  /// someone's phone.
+  static const _retiredHeadings = <String, String>{
+    'issued_date_yyyy_mm_dd': 'effective_date',
+    'grace_period_end_date_yyyy_mm_dd': 'grace_period_end_date',
+    'loan_end_date_informational_only_yyyy_mm_dd': 'loan_end_date',
+    'invested_date_yyyy_mm_dd': 'invested_date',
+    'date_yyyy_mm_dd': 'business_date',
+  };
+
   static Map<String, String> _aliasMap(Map<String, Map<String, String>> labels) {
     final out = <String, String>{};
     for (final entry in labels.entries) {
@@ -113,6 +131,11 @@ class BulkOnboardingService {
         out[normalise(label)] = entry.key;
       }
     }
+    // Only for keys this label set actually owns, so the customer sheet does
+    // not start answering to an investor heading.
+    for (final retired in _retiredHeadings.entries) {
+      if (labels.containsKey(retired.value)) out[retired.key] = retired.value;
+    }
     return out;
   }
 
@@ -120,22 +143,43 @@ class BulkOnboardingService {
   // Step 1 — Identity template / parse / dedupe / submit
   // ---------------------------------------------------------------------
 
-  Uint8List buildIdentityTemplate({required String language}) {
+  /// [villages] are the ones the Owner has already set up, offered as a
+  /// dropdown on the Village column. Suggested, never enforced: a village they
+  /// have not got round to creating must still be typeable, and the import
+  /// creates it.
+  static Uint8List buildIdentityTemplate({
+    required String language,
+    List<String> villages = const [],
+  }) {
     final excel = Excel.createExcel();
     final sheet = excel['Identities'];
-    sheet.appendRow([
-      for (final key in identityColumns)
-        TextCellValue(_identityLabels[key]?[language] ?? _identityLabels[key]!['English']!),
-    ]);
+    manaWriteHeader(
+      sheet,
+      [
+        for (final key in identityColumns)
+          _identityLabels[key]?[language] ?? _identityLabels[key]!['English']!,
+      ],
+      // The starred ones, marked by colour rather than by an asterisk an
+      // Owner has to go looking for.
+      required: {
+        for (var i = 0; i < identityColumns.length; i++)
+          if (const ['gender_digit', 'full_name', 'father_husband_name',
+                     'user_type', 'pin_code', 'village']
+              .contains(identityColumns[i]))
+            i,
+      },
+      widths: const [20, 16, 28, 28, 16, 16, 16, 12, 26],
+    );
 
     final notes = excel['Notes'];
     for (final line in const [
       'One row per person — Agent, Customer or Investor, all in this file.',
-      'Gender, Name, C/O Name, User Type, Pin Code and Village are required.',
+      'The coloured columns are the ones you must fill.',
       'Write the name the way your book does: surname first, then the name,',
       'in the one Name column.',
-      'User Type must be exactly Agent, Customer or Investor.',
-      'Gender is M, F or O.',
+      'Gender, User Type and Village offer a list — tap the arrow in the cell.',
+      'A village that is not on the list can still be typed; it will be',
+      'created when you import, so long as the Pin Code beside it is right.',
       'Phone and Aadhaar are both optional for a pre-existing book — a person',
       'may have neither. You can complete them later from Global Workflow.',
       'Rows that look like an existing person will be shown to you to',
@@ -146,7 +190,48 @@ class BulkOnboardingService {
     if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
     final bytes = excel.save();
     if (bytes == null) throw StateError('The template could not be generated.');
-    return Uint8List.fromList(bytes);
+
+    return withDropdowns(Uint8List.fromList(bytes), [
+      ManaDropdown(
+        sheetNumber: 1,
+        columnIndex: identityColumns.indexOf('gender_digit'),
+        options: const ['M', 'F', 'O'],
+      ),
+      ManaDropdown(
+        sheetNumber: 1,
+        columnIndex: identityColumns.indexOf('user_type'),
+        options: const ['Agent', 'Customer', 'Investor'],
+      ),
+      if (villages.isNotEmpty)
+        ManaDropdown(
+          sheetNumber: 1,
+          columnIndex: identityColumns.indexOf('village'),
+          options: villages,
+        ),
+    ]);
+  }
+
+  /// The villages this business already operates in, as the identity sheet
+  /// offers them: "Uranduru (517640)". Read from the Owner's own operating
+  /// areas, not from the 768,529-row national register — a business works a
+  /// dozen villages and a dropdown of the country would be useless.
+  Future<List<String>> operatingVillages(String businessId) async {
+    final rows = await _db
+        .from('operating_area_locations')
+        .select('locations!inner(village_town_name, pin_code)')
+        .eq('business_id', businessId)
+        .isFilter('removed_at', null);
+    final out = <String>{};
+    for (final r in rows as List) {
+      final l = (r as Map<String, dynamic>)['locations'] as Map<String, dynamic>?;
+      if (l == null) continue;
+      final village = (l['village_town_name'] ?? '').toString().trim();
+      final pin = (l['pin_code'] ?? '').toString().trim();
+      if (village.isEmpty) continue;
+      out.add(pin.isEmpty ? village : '$village ($pin)');
+    }
+    final list = out.toList()..sort();
+    return list;
   }
 
   static ParsedSheet parseIdentityBytes(Uint8List bytes, String fileName) {
@@ -159,8 +244,29 @@ class BulkOnboardingService {
         // still the one that rejects it, with its own wording.
         row['gender_digit'] = genderDigit(raw) ?? raw;
       }
+      splitVillageAndPin(row);
     }
     return parsed;
+  }
+
+  /// "Uranduru (517640)" -> village Uranduru, pin 517640.
+  ///
+  /// The Village column offers the Owner's own villages as a dropdown, and a
+  /// village name alone is not unique — this business works two villages on
+  /// 517640 — so the pincode rides along in the label. It is split back out
+  /// here, and only fills Pin Code when that column is empty: a pincode the
+  /// Owner typed themselves is theirs, and silently overwriting it would hide
+  /// a disagreement the import ought to raise.
+  ///
+  /// A hand-typed village with no bracket is left exactly as written.
+  static void splitVillageAndPin(Map<String, dynamic> row) {
+    final village = (row['village'] ?? '').toString().trim();
+    if (village.isEmpty) return;
+    final match = RegExp(r'^(.*?)\s*\((\d{6})\)$').firstMatch(village);
+    if (match == null) return;
+    row['village'] = match.group(1)!.trim();
+    final pin = (row['pin_code'] ?? '').toString().trim();
+    if (pin.isEmpty) row['pin_code'] = match.group(2);
   }
 
   /// The distinct (PIN, Village) pairs an identity sheet names, in the order
@@ -302,7 +408,7 @@ class BulkOnboardingService {
     'invested_amount': {'English': 'Invested Amount*', 'Telugu': 'పెట్టుబడి మొత్తం*'},
     'roi': {'English': 'ROI (₹ per ₹100/month)*', 'Telugu': 'ROI*'},
     'interest_type': {'English': 'Interest Type (Simple/Yearly Compound)*', 'Telugu': 'వడ్డీ రకం*'},
-    'invested_date': {'English': 'Invested Date* (yyyy-mm-dd)', 'Telugu': 'పెట్టుబడి తేదీ*'},
+    'invested_date': {'English': 'Invested Date* (dd/mm/yyyy)', 'Telugu': 'పెట్టుబడి తేదీ*'},
     'profit_percent': {'English': 'Profit %*', 'Telugu': 'లాభం %*'},
   };
 
@@ -310,11 +416,11 @@ class BulkOnboardingService {
     'amount_given': {'English': 'Amount Given*', 'Telugu': 'ఇచ్చిన మొత్తం*'},
     'repayment_amount': {'English': 'Repayment Amount*', 'Telugu': 'తిరిగి చెల్లించాల్సిన మొత్తం*'},
     'remaining_balance': {'English': 'Remaining Balance*', 'Telugu': 'మిగిలిన బ్యాలెన్స్*'},
-    'effective_date': {'English': 'Issued Date* (yyyy-mm-dd)', 'Telugu': 'జారీ తేదీ*'},
+    'effective_date': {'English': 'Issued Date* (dd/mm/yyyy)', 'Telugu': 'జారీ తేదీ*'},
     'repayment_type': {'English': 'Repayment Frequency (Daily/Weekly/Monthly)*', 'Telugu': 'తిరిగి చెల్లింపు వ్యవధి*'},
     'installment_amount': {'English': 'Instalment Amount*', 'Telugu': 'వాయిదా మొత్తం*'},
-    'grace_period_end_date': {'English': 'Grace Period End Date (yyyy-mm-dd)', 'Telugu': 'గ్రేస్ పీరియడ్ ముగింపు తేదీ'},
-    'loan_end_date': {'English': 'Loan End Date (informational only, yyyy-mm-dd)', 'Telugu': 'రుణం ముగింపు తేదీ (సమాచారం మాత్రమే)'},
+    'grace_period_end_date': {'English': 'Grace Period End Date (dd/mm/yyyy)', 'Telugu': 'గ్రేస్ పీరియడ్ ముగింపు తేదీ'},
+    'loan_end_date': {'English': 'Loan End Date (informational only, dd/mm/yyyy)', 'Telugu': 'రుణం ముగింపు తేదీ (సమాచారం మాత్రమే)'},
     'processing_fee': {'English': 'Processing Fee', 'Telugu': 'ప్రాసెసింగ్ ఫీజు'},
   };
 
@@ -928,13 +1034,15 @@ class BulkOnboardingService {
       if (raw.every((c) => c.trim().isEmpty)) continue;
       if (raw.length < 4) continue;
       final mlid = raw[0].trim();
-      final date = raw[2].trim();
+      // Normalised, never passed through as typed — see normaliseSheetDate.
+      final date = normaliseSheetDate(raw[2]);
       // Whole rupees however the spreadsheet chose to write them — a file that
       // has been through Excel says "400000.0". See parseWholeRupees.
       final amount = parseWholeRupees(raw[3]);
-      if (mlid.isEmpty || date.isEmpty || amount == null) continue;
+      if (mlid.isEmpty || date == null || amount == null) continue;
       final interest = raw.length > 4 ? parseWholeRupees(raw[4]) : null;
-      final invested = raw.length > 5 ? raw[5].trim() : '';
+      final invested =
+          raw.length > 5 ? (normaliseSheetDate(raw[5]) ?? '') : '';
       out.add({
         'mlid': mlid,
         'business_date': date,
@@ -1014,22 +1122,46 @@ class BulkOnboardingService {
 
     for (final frequency in customerFrequencies) {
       final sheet = excel[frequency];
-      sheet.appendRow([
+      final headers = <String>[
         for (final k in const ['mlid', 'full_name', 'village'])
-          TextCellValue(_prefillLabels[k]![language] ?? _prefillLabels[k]!['English']!),
+          _prefillLabels[k]![language] ?? _prefillLabels[k]!['English']!,
         for (final k in loanKeys)
-          TextCellValue(_customerLoanLabels[k]![language] ?? _customerLoanLabels[k]!['English']!),
+          _customerLoanLabels[k]![language] ?? _customerLoanLabels[k]!['English']!,
         for (var i = 1; i <= emiCount; i++) ...[
-          TextCellValue('EMI $i Amount'),
-          TextCellValue('EMI $i Date'),
+          'EMI $i Amount',
+          'EMI $i Date',
         ],
-      ]);
+      ];
+      manaWriteHeader(
+        sheet,
+        headers,
+        // The three prefilled columns are not the Owner's to fill; the loan
+        // figures are. Marked by colour rather than an asterisk they have to
+        // hunt for across a sheet this wide.
+        required: {
+          for (var i = 0; i < loanKeys.length; i++)
+            if (customerLoanRequired.contains(loanKeys[i])) 3 + i,
+        },
+        widths: [
+          18, 28, 24,
+          for (var i = 0; i < loanKeys.length; i++) 20,
+          for (var i = 0; i < emiCount * 2; i++) 14,
+        ],
+      );
       for (final r in rows) {
         sheet.appendRow([
           TextCellValue(r.mlid),
           TextCellValue(r.fullName),
           TextCellValue(r.village ?? ''),
         ]);
+        // Greyed: the app filled these in and retyping them is how a loan
+        // ends up against the wrong person.
+        for (var c = 0; c < 3; c++) {
+          sheet
+              .cell(CellIndex.indexByColumnRow(
+                  columnIndex: c, rowIndex: sheet.maxRows - 1))
+              .cellStyle = manaPrefilledStyle();
+        }
       }
     }
 
@@ -1079,6 +1211,20 @@ class BulkOnboardingService {
       );
       for (final row in parsed.rows) {
         row['repayment_type'] = frequency;
+        // Every date column normalised to yyyy-MM-dd before it can reach
+        // Postgres — see normaliseSheetDate. An unreadable one is left exactly
+        // as typed so the server rejects it by name rather than this quietly
+        // dropping a required field.
+        for (final key in const [
+          'effective_date',
+          'grace_period_end_date',
+          'loan_end_date'
+        ]) {
+          final raw = row[key];
+          if (raw is String && raw.trim().isNotEmpty) {
+            row[key] = normaliseSheetDate(raw) ?? raw;
+          }
+        }
         loans.add(row);
       }
 
@@ -1105,7 +1251,8 @@ class BulkOnboardingService {
           final dateText = dateIdx < raw.length ? raw[dateIdx].trim() : '';
           if (amountText.isEmpty && dateText.isEmpty) continue;
           final amount = parseWholeRupees(amountText);
-          final date = DateTime.tryParse(dateText);
+          final isoDate = normaliseSheetDate(dateText);
+          final date = isoDate == null ? null : DateTime.parse(isoDate);
           if (amount == null || date == null) {
             // Half a pair, or something neither a rupee amount nor a date.
             // Counted, never dropped in silence: 250 instalments went missing
@@ -1135,14 +1282,25 @@ class BulkOnboardingService {
     final rows = await _prefillRows(businessId, 'Agent');
     final excel = Excel.createExcel();
     final sheet = excel['Attendance'];
-    sheet.appendRow([
-      TextCellValue(_prefillLabels['mlid']![language] ?? 'MLID'),
-      TextCellValue(_prefillLabels['full_name']![language] ?? 'Name'),
-      TextCellValue('Date (yyyy-mm-dd)'),
-      TextCellValue('Allowance'),
-    ]);
+    manaWriteHeader(
+      sheet,
+      [
+        _prefillLabels['mlid']![language] ?? 'MLID',
+        _prefillLabels['full_name']![language] ?? 'Name',
+        'Date (dd/mm/yyyy)',
+        'Allowance',
+      ],
+      required: const {0, 2},
+      widths: const [18, 28, 18, 16],
+    );
     for (final r in rows) {
       sheet.appendRow([TextCellValue(r.mlid), TextCellValue(r.fullName)]);
+      for (var c = 0; c < 2; c++) {
+        sheet
+            .cell(CellIndex.indexByColumnRow(
+                columnIndex: c, rowIndex: sheet.maxRows - 1))
+            .cellStyle = manaPrefilledStyle();
+      }
     }
 
     final notes = excel['Notes'];
@@ -1168,8 +1326,8 @@ class BulkOnboardingService {
       if (raw.every((c) => c.trim().isEmpty)) continue;
       if (raw.length < 3) continue;
       final mlid = raw[0].trim();
-      final date = raw[2].trim();
-      if (mlid.isEmpty || date.isEmpty) continue;
+      final date = normaliseSheetDate(raw[2]);
+      if (mlid.isEmpty || date == null) continue;
       out.add({
         'mlid': mlid,
         'business_date': date,
@@ -1244,7 +1402,7 @@ class BulkOnboardingService {
   ];
 
   static const _weekHeadings = <String>[
-    'Date* (yyyy-mm-dd)', 'Opening BF*', 'Collection (vasool)', 'Interest (vaddi)',
+    'Date* (dd/mm/yyyy)', 'Opening BF*', 'Collection (vasool)', 'Interest (vaddi)',
     'Processing Fee (agreement)', 'Investor In', 'Investor In - Interest',
     'Loans Out (gross repayment)', 'Investor Out', 'Investor Out - Interest',
     'Cheeti', 'Expenses Total', 'Closing BF*',
@@ -1253,14 +1411,22 @@ class BulkOnboardingService {
   Uint8List buildWeeklyTemplate({required String language}) {
     final excel = Excel.createExcel();
     final weeks = excel['Weeks'];
-    weeks.appendRow([for (final h in _weekHeadings) TextCellValue(h)]);
+    manaWriteHeader(
+      weeks,
+      _weekHeadings,
+      // Date, Opening BF and Closing BF: without these three a week cannot be
+      // chained to the one before it, and the import refuses the lot.
+      required: const {0, 1, 12},
+      widths: const [18, 16, 18, 16, 20, 16, 18, 22, 16, 18, 14, 16, 16],
+    );
 
     final expenses = excel['Expenses'];
-    expenses.appendRow([
-      TextCellValue('Date* (yyyy-mm-dd)'),
-      TextCellValue('What it was*'),
-      TextCellValue('Amount*'),
-    ]);
+    manaWriteHeader(
+      expenses,
+      const ['Date* (dd/mm/yyyy)', 'What it was*', 'Amount*'],
+      required: const {0, 1, 2},
+      widths: const [18, 34, 16],
+    );
 
     final notes = excel['Notes'];
     for (final line in const [
@@ -1590,6 +1756,54 @@ class BulkOnboardingService {
       rows.add(row);
     }
     return ParsedSheet(rows: rows, sheetColumns: header);
+  }
+
+  /// A date out of a spreadsheet cell, as yyyy-MM-dd, or null if the cell is
+  /// not one.
+  ///
+  /// Three shapes arrive here and only one of them is safe on its own:
+  ///
+  ///  * A real Excel date cell. [_cellText] has already turned it into
+  ///    yyyy-MM-dd by the time this sees it, and it was never ambiguous —
+  ///    the file stores a day number, not text.
+  ///  * dd/MM/yyyy or dd-MM-yyyy, which is what the templates now ask for and
+  ///    what an Indian book writes.
+  ///  * yyyy-MM-dd typed by hand, which older templates asked for.
+  ///
+  /// NORMALISED HERE, NEVER PASSED THROUGH. A raw "03/04/2026" handed to
+  /// Postgres is read by DateStyle, and on an MDY setting that is 4 March
+  /// rather than 3 April — a collection or a disbursement landing a month out
+  /// with nothing on screen to show for it.
+  ///
+  /// Anything else returns null and the caller reports the cell. The one
+  /// genuinely ambiguous case — both parts 12 or under, in a file that has
+  /// been through some other tool — is read as dd/MM because that is what the
+  /// column heading asks for and what the Owner writes; a day over 12 settles
+  /// it outright.
+  static String? normaliseSheetDate(String cell) {
+    final text = cell.trim();
+    if (text.isEmpty) return null;
+
+    // Already ISO, possibly with a time attached from a date cell.
+    final iso = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(text);
+    if (iso != null) {
+      final d = DateTime.tryParse('${iso.group(1)}-${iso.group(2)}-${iso.group(3)}');
+      return d == null ? null : _isoDate(d);
+    }
+
+    final dmy = RegExp(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$').firstMatch(text);
+    if (dmy != null) {
+      final day = int.parse(dmy.group(1)!);
+      final month = int.parse(dmy.group(2)!);
+      final year = int.parse(dmy.group(3)!);
+      if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+      final d = DateTime(year, month, day);
+      // Rejects 31/02: DateTime rolls it into March rather than complaining,
+      // and a rolled date is a wrong date wearing a right one's clothes.
+      if (d.year != year || d.month != month || d.day != day) return null;
+      return _isoDate(d);
+    }
+    return null;
   }
 
   static String _cellText(CellValue? v) {

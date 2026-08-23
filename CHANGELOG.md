@@ -155,6 +155,21 @@ part nobody remembers later.
   Rs 10,00,000 and later withdrew Rs 9,00,000 had their original deposit drawn
   as Rs 1,00,000 — a past event restated with a later number.
 
+- **The import templates look like something you can fill in.** Bold headers on
+  colour, the columns you must fill marked red and the optional ones blue,
+  sensible column widths, and the cells the app already filled greyed out.
+- **Dates are dd/mm/yyyy, and are read properly.** Every sheet date is now
+  converted before it reaches the database — a raw "03/04/2026" could otherwise
+  be read as 4 March instead of 3 April. A date that does not exist, like
+  31/02, is refused rather than quietly rolled into March.
+- **Gender, User Type and Village are dropdowns.** Village lists the ones you
+  have already set up, with their pincodes. All three suggest without refusing:
+  a village you have not created yet can still be typed, and gets created on
+  import.
+- **Templates downloaded before today still work.** The date headings changed
+  wording, which on its own would have made every file already on your phone
+  unreadable.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

@@ -315,7 +315,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   Future<void> _identityTemplate() async {
     setState(() => _busy1 = true);
     try {
-      final bytes = _svc.buildIdentityTemplate(language: _language);
+      // The Owner's own villages, so the Village column offers them rather
+      // than leaving every row to be typed from memory. Empty is fine: the
+      // column is then plain text and the import creates whatever is written.
+      final villages = await _svc
+          .operatingVillages(widget.businessId)
+          .catchError((_) => <String>[]);
+      final bytes = BulkOnboardingService.buildIdentityTemplate(
+          language: _language, villages: villages);
       await _svc.shareBytes(bytes, 'ManaLine-Identity-Import-Template.xlsx');
     } catch (e) {
       _toast('Could not build the template: $e');

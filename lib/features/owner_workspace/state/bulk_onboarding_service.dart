@@ -477,6 +477,44 @@ class BulkOnboardingService {
     ];
   }
 
+  /// What the Owner said their book contains, and the cut-off it is all
+  /// stated as at. Null before they have said.
+  Future<MigrationPlan?> migrationPlan(String businessId) async {
+    final rows = await _db
+        .from('businesses')
+        .select('migration_plan')
+        .eq('business_id', businessId)
+        .limit(1);
+    if (rows.isEmpty) return null;
+    final raw = rows.first['migration_plan'];
+    if (raw is! Map) return null;
+    return MigrationPlan.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  Future<void> saveMigrationPlan({
+    required String businessId,
+    required MigrationPlan plan,
+  }) async {
+    await _db.schema('app').rpc('set_migration_plan', params: {
+      'p_business_id': businessId,
+      'p_plan': plan.toJson(),
+    });
+  }
+
+  /// Sections the Owner said they had and never imported. Reported, never
+  /// enforced — see the migration note on migration_plan_gaps.
+  Future<List<String>> migrationPlanGaps(String businessId) async {
+    final rows = await _db
+        .schema('app')
+        .rpc('migration_plan_gaps', params: {'p_business_id': businessId});
+    return [
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        if ((r['promised'] as bool? ?? false) &&
+            ((r['present'] as num?)?.toInt() ?? 0) == 0)
+          r['section'] as String,
+    ];
+  }
+
   /// Everyone on the books in a role, for a picker to search.
   ///
   /// The spreadsheet paths below still exist for a business with more
@@ -1936,6 +1974,94 @@ class ImportFormatException implements Exception {
   const ImportFormatException(this.message);
   @override
   String toString() => message;
+}
+
+/// What the Owner says their book contains, said before the wizard runs.
+///
+/// The wizard used to march everyone through every page and work out the shape
+/// of the book from whatever arrived. Three defects came from learning it too
+/// late: shareholders stamped with today's date because the cut-off is not
+/// chosen until page 6; a book with no weekly sheet seeding its BF onto the
+/// first day of the ledger instead of the cut-off; and "0 instalments ready"
+/// being indistinguishable from "this book has no instalment history".
+class MigrationPlan {
+  final bool investors;
+  final bool shareholders;
+  final bool customers;
+
+  /// Only meaningful with [customers]: some books record a running balance and
+  /// no instalment history at all.
+  final bool emiHistory;
+  final bool attendance;
+  final bool weekly;
+  final bool profit;
+
+  /// The day the old book stops and the app takes over. Everything else is
+  /// stated as at this date.
+  final DateTime? cutoff;
+
+  const MigrationPlan({
+    this.investors = false,
+    this.shareholders = false,
+    this.customers = true,
+    this.emiHistory = false,
+    this.attendance = false,
+    this.weekly = false,
+    this.profit = false,
+    this.cutoff,
+  });
+
+  factory MigrationPlan.fromJson(Map<String, dynamic> j) => MigrationPlan(
+        investors: j['investors'] == true,
+        shareholders: j['shareholders'] == true,
+        customers: j['customers'] == true,
+        emiHistory: j['emi_history'] == true,
+        attendance: j['attendance'] == true,
+        weekly: j['weekly'] == true,
+        profit: j['profit'] == true,
+        cutoff: (j['cutoff_date'] as String?) == null
+            ? null
+            : DateTime.tryParse(j['cutoff_date'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'investors': investors,
+        'shareholders': shareholders,
+        'customers': customers,
+        'emi_history': emiHistory,
+        'attendance': attendance,
+        'weekly': weekly,
+        'profit': profit,
+        if (cutoff != null)
+          'cutoff_date': '${cutoff!.year.toString().padLeft(4, '0')}-'
+              '${cutoff!.month.toString().padLeft(2, '0')}-'
+              '${cutoff!.day.toString().padLeft(2, '0')}',
+      };
+
+  MigrationPlan copyWith({
+    bool? investors,
+    bool? shareholders,
+    bool? customers,
+    bool? emiHistory,
+    bool? attendance,
+    bool? weekly,
+    bool? profit,
+    DateTime? cutoff,
+  }) =>
+      MigrationPlan(
+        investors: investors ?? this.investors,
+        shareholders: shareholders ?? this.shareholders,
+        customers: customers ?? this.customers,
+        emiHistory: emiHistory ?? this.emiHistory,
+        attendance: attendance ?? this.attendance,
+        weekly: weekly ?? this.weekly,
+        profit: profit ?? this.profit,
+        cutoff: cutoff ?? this.cutoff,
+      );
+
+  /// The cut-off is the anchor everything is stated as at, so it is the one
+  /// thing the chooser cannot be left without.
+  bool get isComplete => cutoff != null;
 }
 
 /// One person already on the business's books, as a picker shows them.

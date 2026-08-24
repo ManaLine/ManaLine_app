@@ -170,6 +170,25 @@ part nobody remembers later.
   wording, which on its own would have made every file already on your phone
   unreadable.
 
+- **The wizard is seven pages: Areas & Villages is gone.** It worked out your
+  villages from the identity sheet and then asked you to place them — after the
+  identities that needed those villages had already been imported. Villages and
+  areas are now set up before you open the wizard, the identity sheet offers
+  them as a dropdown, and a village you type in fresh is created by the import
+  with its real mandal and district looked up from the official register.
+- **Identities are imported on the identities page**, which is where you would
+  look for it. It used to happen on the villages page.
+
+- **The wizard asks what your book has before it starts.** Tick the sections
+  that apply and choose the cut-off date, and you are only shown pages you
+  need — a book with no investors never sees an investor page. The cut-off is
+  asked first because everything else is counted as at that day: it used to be
+  chosen halfway through, which is why a profit share was dated the day you ran
+  the migration rather than the day your book stopped.
+- **Finishing tells you what you said you had and never entered.** It does not
+  stop you — you may have changed your mind — but you find out before you
+  close the book, not after.
+
 - Files: `network_error_handler.dart`, `bulk_onboarding_service.dart`,
   `ow_bulk_onboarding_wizard.dart`, three new migrations.
 

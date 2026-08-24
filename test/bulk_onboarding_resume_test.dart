@@ -33,6 +33,26 @@ class _FakeService implements BulkOnboardingService {
     saved = step;
   }
 
+
+  /// A book with everything in it, so every page is present and the page
+  /// numbers in these tests mean what they say. A wizard with no plan shows
+  /// only the chooser, which is correct but not what most of these are about.
+  @override
+  Future<MigrationPlan?> migrationPlan(String businessId) async =>
+      MigrationPlan(
+        investors: true,
+        shareholders: true,
+        customers: true,
+        emiHistory: true,
+        attendance: true,
+        weekly: true,
+        profit: true,
+        cutoff: DateTime(2026, 3, 20),
+      );
+
+  @override
+  Future<List<String>> migrationPlanGaps(String businessId) async => const [];
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -49,7 +69,11 @@ Future<void> _pump(
     storage: storage,
     overrides: [bulkOnboardingServiceProvider.overrideWithValue(service)],
   );
-  await tester.pump(); // the pointer is fetched after the first frame
+  // Two, not one: the plan is fetched first — it decides which pages exist —
+  // and the saved position after it, so the restore takes an extra turn of the
+  // event loop before it can be shown.
+  await tester.pump();
+  await tester.pump();
 }
 
 void main() {
@@ -62,12 +86,12 @@ void main() {
   });
 
   testWidgets('the server wins over what this device remembers', (tester) async {
-    // The Owner got to page 5 on their other phone. This handset last saw
-    // page 2 and must not drag them backwards.
+    // The Owner got to the Opening Snapshot on their other phone. This
+    // handset last saw Customers and must not drag them backwards.
     await _pump(
       tester,
       service: _FakeService(step: 5),
-      storage: {_key(_businessId): '2'},
+      storage: {_key(_businessId): '3'},
     );
 
     expect(find.textContaining('6. Opening Snapshot'), findsOneWidget);
@@ -88,7 +112,7 @@ void main() {
       (tester) async {
     await _pump(tester, service: _FakeService());
 
-    expect(find.textContaining('1. Identities'), findsOneWidget);
+    expect(find.textContaining('1. What Your Book Has'), findsOneWidget);
     // No banner on a fresh start — it would be noise.
     expect(find.textContaining('Carried on where you stopped'), findsNothing);
   });
@@ -102,7 +126,7 @@ void main() {
       businessId: 'a-different-business',
     );
 
-    expect(find.textContaining('1. Identities'), findsOneWidget);
+    expect(find.textContaining('1. What Your Book Has'), findsOneWidget);
   });
 
   testWidgets('turning a page saves the new position', (tester) async {
@@ -114,6 +138,7 @@ void main() {
     await tester.tap(find.text('next'));
     await tester.pump();
 
+    // Investors (index 2) -> Customers (index 3).
     expect(service.saved, 3);
   });
 
@@ -127,7 +152,7 @@ void main() {
     await tester.tap(find.text('Start From Page 1'));
     await tester.pump();
 
-    expect(find.textContaining('1. Identities'), findsOneWidget);
+    expect(find.textContaining('1. What Your Book Has'), findsOneWidget);
     expect(find.textContaining('Carried on where you stopped'), findsNothing);
     // Recorded, not just shown: reopening must not bounce them to page 5.
     expect(service.saved, 0);

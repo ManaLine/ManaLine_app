@@ -1,8 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart';
+import 'package:mana_line/features/owner_workspace/state/bulk_onboarding_service.dart';
 
 import 'support/mana_harness.dart';
+
+/// A book with every section in it, so every page exists and can be laid out.
+/// An Owner who has said nothing about their book correctly sees only the
+/// chooser, which is a different test.
+class _FullBook implements BulkOnboardingService {
+  _FullBook({this.step});
+
+  /// Where the wizard opens. The page-walker starts on Identities rather than
+  /// the chooser, whose action is "Start" and whose own layout the text-scale
+  /// tests already cover.
+  final int? step;
+
+  @override
+  Future<int?> wizardStep(String businessId) async => step;
+
+  @override
+  Future<void> saveWizardStep(String businessId, int step) async {}
+
+  @override
+  Future<MigrationPlan?> migrationPlan(String businessId) async => MigrationPlan(
+        investors: true,
+        shareholders: true,
+        customers: true,
+        emiHistory: true,
+        attendance: true,
+        weekly: true,
+        profit: true,
+        cutoff: DateTime(2026, 3, 20),
+      );
+
+  @override
+  Future<List<String>> migrationPlanGaps(String businessId) async => const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// Walks the wizard one page at a time. Every page is laid out at 2.0x on a
 /// 360dp surface, because overflow is this project's recurring bug class and it
@@ -21,12 +58,17 @@ void main() {
         tester,
         const BulkOnboardingWizardScreen(businessId: 'b1'),
         textScale: scale,
+        overrides: [
+          bulkOnboardingServiceProvider.overrideWithValue(_FullBook())
+        ],
       );
+      await tester.pump();
+      await tester.pump();
       expectNoLayoutFault(tester, 'Pre-Existing Business Wizard at ${scale}x');
 
-      // Page 1 is the first thing an Owner sees, and the sentence that tells
-      // them nothing is saved yet is the one they must not miss.
-      expect(find.textContaining('Nothing is saved on this page'), findsOneWidget);
+      // Page 1 is now the chooser: what the book has, and the cut-off every
+      // other page states its figures as at.
+      expect(find.textContaining('Tell us what your book has'), findsOneWidget);
     });
   }
 
@@ -35,10 +77,28 @@ void main() {
       tester,
       const BulkOnboardingWizardScreen(businessId: 'b1'),
       surfaceSize: const Size(360, 1600),
+      overrides: [bulkOnboardingServiceProvider.overrideWithValue(_FullBook())],
     );
+    await tester.pump();
+    await tester.pump();
     expectNoLayoutFault(tester, 'Pre-Existing Business Wizard fully laid out');
-    expect(find.text('1. Identities'), findsOneWidget);
+    expect(find.text('1. What Your Book Has'), findsOneWidget);
+    // Eight pages for a book with everything in it.
     expect(find.text('1/8'), findsOneWidget);
+  });
+
+  testWidgets('a book that has said nothing yet shows only the chooser',
+      (tester) async {
+    // No plan: the wizard must not march an Owner through pages for sections
+    // they may not have, and cannot know which pages those are until they say.
+    await pumpManaScreen(
+      tester,
+      const BulkOnboardingWizardScreen(businessId: 'b1'),
+      surfaceSize: const Size(360, 1600),
+    );
+    await tester.pump();
+    expect(find.text('1. What Your Book Has'), findsOneWidget);
+    expect(find.text('1/1'), findsOneWidget);
   });
 
   testWidgets('nothing can be imported before a file is chosen', (tester) async {
@@ -58,14 +118,25 @@ void main() {
       const BulkOnboardingWizardScreen(businessId: 'b1'),
       textScale: 2.0,
       surfaceSize: const Size(360, 2400),
+      overrides: [
+        bulkOnboardingServiceProvider.overrideWithValue(_FullBook(step: 1))
+      ],
     );
+    await tester.pump();
+    await tester.pump();
+
+    // Opened on Identities, so the walk below starts from the page after it.
+    expect(find.text('2. Identities'), findsOneWidget);
+    expectNoLayoutFault(tester, 'Pre-Existing Business Wizard 2. Identities at 2.0x');
 
     const expectations = <String, String>{
-      '2. Areas & Villages': 'No villages yet',
+      // The chooser is page 1; Areas & Villages is gone entirely — villages
+      // and areas are set up before the wizard is opened, and a village typed
+      // fresh into the identity sheet is created by the import.
       '3. Investors': 'equity',
       '4. Customers': 'One sheet per repayment frequency',
       '5. Agents': 'Which days each agent worked',
-      '6. Opening Snapshot': 'No cut-off date chosen',
+      '6. Opening Snapshot': 'Cut-off',
       '7. Weekly Account': 'one row per account',
     };
 

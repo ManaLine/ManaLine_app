@@ -65,31 +65,62 @@ Map<int, String> manaDecideAllDuplicates(
 ) =>
     {for (final d in duplicates) d.row: decision};
 
-const _pageTitles = [
-  'Identities',
-  'Areas & Villages',
-  'Investors',
-  'Customers',
-  'Agents',
-  'Opening Snapshot',
-  'Weekly Account',
-  'Finish',
-];
+/// The pages the wizard can show, in order.
+///
+/// Which of them an Owner actually sees depends on what they said their book
+/// contains — see [_WizardPage] and the chooser. Two are always shown: the
+/// plan itself, and the identities, because a book with nobody in it is not a
+/// book.
+///
+/// Areas & Villages used to sit second. It derived the village list from the
+/// identity sheet and then asked the Owner to place each one — AFTER the
+/// identities that needed those villages had already been imported.
+/// bulk_import_identities said as much, refusing a customer with "add it on
+/// the Areas & Villages step first" about a step that came later. Villages and
+/// areas are now set up before the wizard is opened, the identity sheet offers
+/// them as a dropdown, and a village typed in fresh is created by the import.
+enum _WizardPage {
+  plan('What Your Book Has'),
+  identities('Identities'),
+  investors('Investors'),
+  customers('Customers'),
+  agents('Agents'),
+  snapshot('Opening Snapshot'),
+  weekly('Weekly Account'),
+  finish('Finish');
 
-/// One village row awaiting the Owner's confirmation.
-class _VillageDraft {
-  final String pinCode;
-  final String village;
-  String district = '';
-  String mandal = '';
-  String state = '';
-  final TextEditingController area = TextEditingController(text: 'Main Area');
+  const _WizardPage(this.title);
+  final String title;
+}
 
-  _VillageDraft({required this.pinCode, required this.village});
+/// The pages this book needs, given what the Owner said it has.
+///
+/// Shareholders share the Investors page, so that page shows if either was
+/// ticked. Instalment history is part of the Customers sheet rather than a
+/// page of its own; it changes what that page says, not whether it appears.
+List<_WizardPage> _pagesFor(MigrationPlan? plan) {
+  if (plan == null) return const [_WizardPage.plan];
+  return [
+    _WizardPage.plan,
+    _WizardPage.identities,
+    if (plan.investors || plan.shareholders) _WizardPage.investors,
+    if (plan.customers) _WizardPage.customers,
+    if (plan.attendance) _WizardPage.agents,
+    _WizardPage.snapshot,
+    if (plan.weekly) _WizardPage.weekly,
+    _WizardPage.finish,
+  ];
 }
 
 class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizardScreen> {
   int _step = 0;
+
+  /// What the Owner said their book contains. Null until they have said, which
+  /// is why the chooser is the only page shown until then.
+  MigrationPlan? _plan;
+  bool _planSaving = false;
+  List<String> _planGaps = const [];
+  bool _gapsAsked = false;
 
   /// The page this sitting resumed at, or null if it started at the beginning.
   /// Only used to say so on screen — landing on page 5 with no explanation
@@ -122,8 +153,11 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     // After the first frame, not awaited: page 1 is a correct thing to show
     // while the pointer is fetched, and blocking the first paint on a network
     // round trip is exactly the hang this app cannot afford.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _restoreStep();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // The plan first: it decides which pages exist, so a step restored
+      // before it would be an index into a list that has not been built.
+      await _loadPlan();
+      await _restoreStep();
       _refreshProgress();
     });
   }
@@ -131,7 +165,25 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   /// Resuming can land straight on page 3 without a page turn, so the
   /// investor list is fetched there too.
   void _loadForStep(int step) {
-    if (step == 2) unawaited(_loadInvestorCandidates());
+    if (_pages[step.clamp(0, _pages.length - 1)] == _WizardPage.investors) {
+      unawaited(_loadInvestorCandidates());
+    }
+  }
+
+  Future<void> _loadPlan() async {
+    try {
+      final plan = await _svc.migrationPlan(widget.businessId);
+      if (!mounted || plan == null) return;
+      setState(() {
+        _plan = plan;
+        // The cut-off is the anchor for every page that states a figure "as
+        // at" a date, so the snapshot page opens on it already chosen.
+        _cutoffDate ??= plan.cutoff;
+      });
+    } catch (_) {
+      // Left null: the chooser is then the only page, which is where an Owner
+      // who has not said what their book contains ought to be anyway.
+    }
   }
 
   Future<void> _restoreStep() async {
@@ -148,7 +200,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     if (!mounted || saved == null || saved <= 0) return;
     // Clamp: a pointer written by a build with more pages must not index past
     // the end of _pageTitles.
-    final target = saved.clamp(0, _pageTitles.length - 1);
+    final target = saved.clamp(0, _pages.length - 1);
     if (target == 0) return;
     setState(() {
       _step = target;
@@ -181,6 +233,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   /// Move to [step] and remember it, on the server and on this device. Every
   /// page change goes through here so there is no route back to page 1 that
   /// forgets to write the pointer.
+  /// The next page in THIS book's list.
+  ///
+  /// Every page used to name the index it jumped to, which was already how
+  /// Next came to skip a page when Areas & Villages was removed. With the list
+  /// depending on what the Owner ticked, a hardcoded number cannot be right at
+  /// all.
+  void _goNext() => _goTo((_step + 1).clamp(0, _pages.length - 1));
+
   void _goTo(int step) {
     // Counted fresh on every page turn — including Back, which is the whole
     // reason this exists.
@@ -225,10 +285,6 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   ImportOutcome? _identityOutcome;
 
   // 2 — areas & villages
-  bool _busy2 = false;
-  List<_VillageDraft> _villages = [];
-  final Map<String, List<VillageSuggestion>> _suggestions = {};
-  String? _villageError;
 
   // 3 — investors
   bool _busy3 = false;
@@ -293,14 +349,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   // being shared out, which the Owner may declare lower than the computed one.
   final _declaredShareProfit = TextEditingController();
 
+  List<_WizardPage> get _pages => _pagesFor(_plan);
+  _WizardPage get _page => _pages[_step.clamp(0, _pages.length - 1)];
+
   String get _language => ref.read(authFlowProvider).language.enumValue;
   BulkOnboardingService get _svc => ref.read(bulkOnboardingServiceProvider);
 
   @override
   void dispose() {
-    for (final v in _villages) {
-      v.area.dispose();
-    }
     _openingBf.dispose();
     _declaredLineBalance.dispose();
     _declaredProfit.dispose();
@@ -352,10 +408,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       setState(() {
         _identityParse = parse;
         _duplicates = duplicates;
-        _seedVillages(parse.rows);
       });
-      await _loadSuggestions();
-      await _loadExistingAreas();
     } on ImportFormatException catch (e) {
       if (mounted) setState(() => _identityFormatError = e.message);
     } catch (e) {
@@ -378,88 +431,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     }
   }
 
-  // -------------------------------------------------------------------
-  // 2 — Areas & Villages
-  // -------------------------------------------------------------------
-
-  void _seedVillages(List<Map<String, dynamic>> rows) {
-    for (final v in _villages) {
-      v.area.dispose();
-    }
-    _villages = [
-      for (final pair in BulkOnboardingService.villagePairs(rows))
-        _VillageDraft(pinCode: pair.pinCode, village: pair.village),
-    ];
-  }
-
-  /// One lookup per distinct PIN, not one per village — a PIN with forty
-  /// villages in it is one query, and the Owner answers the district question
-  /// once for that PIN rather than forty times.
-  /// Villages this business already walks, and in which round.
-  ///
-  /// Without this the Area field defaulted to "Main Area" for every row, which
-  /// proposed moving every village into one round — and since a village belongs
-  /// to exactly one area per business, the import then collided with the areas
-  /// the Owner had already set up by hand.
-  Future<void> _loadExistingAreas() async {
-    try {
-      final existing = await _svc.existingVillageAreas(widget.businessId);
-      if (!mounted || existing.isEmpty) return;
-      setState(() {
-        for (final v in _villages) {
-          final name = existing['${v.pinCode}|${v.village.toLowerCase()}'];
-          if (name != null && name.isNotEmpty) v.area.text = name;
-        }
-      });
-    } catch (_) {
-      // Not fatal: the Owner can still type the area. Defaulting to "Main Area"
-      // is only wrong, never destructive — the server refuses to move a village
-      // that already belongs somewhere.
-    }
-  }
-
-  Future<void> _loadSuggestions() async {
-    final pins = {for (final v in _villages) v.pinCode};
-    for (final pin in pins) {
-      if (_suggestions.containsKey(pin)) continue;
-      try {
-        final list = await _svc.suggestVillages(pin);
-        if (!mounted) return;
-        setState(() {
-          _suggestions[pin] = list;
-          final districts = {for (final s in list) s.district};
-          if (districts.length == 1) {
-            for (final v in _villages.where((v) => v.pinCode == pin)) {
-              _applyDistrict(v, districts.first);
-            }
-          }
-        });
-      } catch (_) {
-        // A reference lookup that fails is not a blocker: the Owner can still
-        // type the district themselves. Never swallow it into a wrong value.
-        if (mounted) setState(() => _suggestions[pin] = const []);
-      }
-    }
-  }
-
-  void _applyDistrict(_VillageDraft v, String district) {
-    v.district = district;
-    final matches = (_suggestions[v.pinCode] ?? const <VillageSuggestion>[])
-        .where((s) => s.district == district);
-    final exact = matches.where((s) => s.village.toLowerCase() == v.village.toLowerCase());
-    final chosen = exact.isNotEmpty ? exact.first : (matches.isNotEmpty ? matches.first : null);
-    v.mandal = chosen?.mandal ?? district;
-    v.state = chosen?.state ?? '';
-  }
-
-  /// Leaving page 2 with people parsed but not imported is almost always a
+  /// Leaving the identities page with people parsed but not imported is almost always a
   /// mistake, so it has to be said out loud and chosen deliberately.
   Future<void> _confirmLeavingUnimported() async {
     final parse = _identityParse;
     final alreadyImported = _identityOutcome != null && !_identityOutcome!.rejected;
 
     if (parse == null || parse.rows.isEmpty || alreadyImported) {
-      _goTo(2);
+      _goNext();
       return;
     }
 
@@ -486,21 +465,23 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
 
     if (!mounted || choice == null) return;
     if (choice == 'skip') {
-      _goTo(2);
+      _goNext();
       return;
     }
-    await _saveAreasAndIdentities();
+    await _saveIdentities();
     // Only move on if it actually landed; a rejection keeps them on the page
     // with the row-by-row errors in view.
     if (mounted && _identityOutcome != null && !_identityOutcome!.rejected) {
-      _goTo(2);
+      _goNext();
     }
   }
 
-  Future<void> _saveAreasAndIdentities() async {
+  /// Writes the people. Villages they name are created by the import itself
+  /// now that Areas & Villages is gone — see the note on _WizardPage.
+  Future<void> _saveIdentities() async {
     final parse = _identityParse;
     if (parse == null) {
-      _toast('Upload the identity file on the previous step first.');
+      _toast('Choose the identity file first.');
       return;
     }
     final undecided = _duplicates.where((d) => !_dedupeDecisions.containsKey(d.row)).toList();
@@ -508,74 +489,21 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       _toast('Review every flagged row (Merge or Ignore) before importing.');
       return;
     }
-    final missing = _villages.where((v) => v.district.trim().isEmpty).toList();
-    if (missing.isNotEmpty) {
-      setState(() => _villageError =
-          '${missing.length} village(s) still need a district. Two districts can share one PIN, so it cannot be guessed.');
-      return;
-    }
 
-    setState(() {
-      _busy2 = true;
-      _villageError = null;
-    });
-
-    final outcome = await NetworkErrorHandler.run(context, timeout: kManaBulkTimeout, () async {
-      await _svc.upsertVillages(
-        businessId: widget.businessId,
-        rows: [
-          for (final v in _villages)
-            {
-              'pin_code': v.pinCode,
-              'village': v.village,
-              'mandal': v.mandal.trim().isEmpty ? v.district.trim() : v.mandal.trim(),
-              'district': v.district.trim(),
-              'state': v.state.trim(),
-            },
-        ],
-      );
-
-      final byArea = <String, List<_VillageDraft>>{};
-      for (final v in _villages) {
-        final name = v.area.text.trim().isEmpty ? 'Main Area' : v.area.text.trim();
-        byArea.putIfAbsent(name, () => []).add(v);
-      }
-      final areaResult = await _svc.createAreas(
-        businessId: widget.businessId,
-        rows: [
-          for (final entry in byArea.entries)
-            {
-              'name': entry.key,
-              'villages': [
-                for (final v in entry.value) {'pin_code': v.pinCode, 'village': v.village},
-              ],
-            },
-        ],
-      );
-
-      final kept = (areaResult['left_in_existing_areas'] as List? ?? const []);
-      if (kept.isNotEmpty && mounted) {
-        // Said out loud rather than buried: these villages stayed in the round
-        // they were already in, which is not what the Area column asked for.
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: ManaText.raw(
-            '${kept.length} village(s) stayed in the area they already belong to: '
-            '${kept.map((k) => "${k['village']} in ${k['kept_in_area']}").join(", ")}',
-          ),
-          duration: const Duration(seconds: 6),
-        ));
-      }
-
-      return _svc.submitIdentities(
+    setState(() => _busy1 = true);
+    final outcome = await NetworkErrorHandler.run(
+      context,
+      timeout: kManaBulkTimeout,
+      () => _svc.submitIdentities(
         businessId: widget.businessId,
         rows: parse.rows,
         dedupeDecisions: _dedupeDecisions,
-      );
-    });
+      ),
+    );
 
     if (!mounted) return;
     setState(() {
-      _busy2 = false;
+      _busy1 = false;
       _identityOutcome = outcome;
       // Drop the parsed rows once they are in. Pressing the button twice would
       // otherwise import every person a second time: the duplicate review ran
@@ -716,7 +644,12 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
       timeout: kManaBulkTimeout,
       () => _svc.importShareholders(
         businessId: widget.businessId,
-        declaredOn: _cutoffDate ?? manaNowIst(),
+        // The cut-off, which the chooser asks for before anything else. It
+        // used to fall back to today because the date was not chosen until
+        // the snapshot page, three pages later — so a shareholder's declaration
+        // was dated the day the migration was run rather than the day the book
+        // stopped.
+        declaredOn: _cutoffDate ?? _plan?.cutoff ?? manaNowIst(),
         declaredProfit: declared,
         rows: rows,
       ),
@@ -1059,15 +992,18 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _alreadyIn(_progressParts(_step)),
-                    switch (_step) {
-                  0 => _identitiesSection(),
-                  1 => _villagesSection(),
-                  2 => _investorsSection(),
-                  3 => _customersSection(),
-                  4 => _agentsSection(),
-                  5 => _snapshotSection(),
-                  6 => _weeklySection(),
-                  _ => _finishSection(),
+                    // Switched on the PAGE, not its number: which pages exist
+                    // depends on what the Owner said their book has, so an
+                    // index means nothing on its own.
+                    switch (_page) {
+                      _WizardPage.plan => _planSection(),
+                      _WizardPage.identities => _identitiesSection(),
+                      _WizardPage.investors => _investorsSection(),
+                      _WizardPage.customers => _customersSection(),
+                      _WizardPage.agents => _agentsSection(),
+                      _WizardPage.snapshot => _snapshotSection(),
+                      _WizardPage.weekly => _weeklySection(),
+                      _WizardPage.finish => _finishSection(),
                     },
                   ],
                 ),
@@ -1091,13 +1027,13 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             children: [
               Expanded(
                 child: ManaText.raw(
-                  '${_step + 1}. ${_pageTitles[_step]}',
+                  '${_step + 1}. ${_page.title}',
                   maxLines: 2,
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                 ),
               ),
               ManaText.raw(
-                '${_step + 1}/${_pageTitles.length}',
+                '${_step + 1}/${_pages.length}',
                 style: ManaType.fine,
               ),
             ],
@@ -1106,7 +1042,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           ClipRRect(
             borderRadius: BorderRadius.circular(ManaRadius.sm),
             child: LinearProgressIndicator(
-              value: (_step + 1) / _pageTitles.length,
+              value: (_step + 1) / _pages.length,
               minHeight: 4,
               backgroundColor: ManaColors.surfaceSunken,
               color: ManaColors.brand,
@@ -1300,6 +1236,149 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     );
   }
 
+  // --- 0 What your book has ---------------------------------------------
+
+  Future<void> _savePlan() async {
+    final plan = _plan;
+    if (plan == null || !plan.isComplete) {
+      _toast('Choose the cut-off date first — everything else is counted as at that day.');
+      return;
+    }
+    setState(() => _planSaving = true);
+    final ok = await NetworkErrorHandler.run(
+      context,
+      () async {
+        await _svc.saveMigrationPlan(businessId: widget.businessId, plan: plan);
+        return true;
+      },
+    );
+    if (!mounted) return;
+    setState(() => _planSaving = false);
+    if (ok == true) _goNext();
+  }
+
+  Future<void> _pickPlanCutoff() async {
+    final today = manaNowIst();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _plan?.cutoff ?? today,
+      firstDate: DateTime(2000),
+      // Everything in the book is stated as at this day, so it cannot be one
+      // that has not happened.
+      lastDate: today,
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _plan = (_plan ?? const MigrationPlan()).copyWith(cutoff: picked);
+        _cutoffDate = picked;
+      });
+    }
+  }
+
+  Widget _planTick({
+    required String label,
+    required String note,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) =>
+      CheckboxListTile(
+        value: value,
+        onChanged: (v) => onChanged(v ?? false),
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: EdgeInsets.zero,
+        title: ManaText.raw(label, style: ManaType.strong),
+        subtitle: ManaText.raw(note, style: ManaType.small),
+      );
+
+  Widget _planSection() {
+    final plan = _plan ?? const MigrationPlan();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _intro(
+          'Tell us what your book has before we start, and we will only ask '
+          'for those. Everything you enter is counted as at the cut-off date — '
+          'the day your book stops and this app takes over.',
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        InkWell(
+          onTap: _pickPlanCutoff,
+          child: InputDecorator(
+            decoration: const InputDecoration(
+              labelText: 'Cut-Off Date *',
+              suffixIcon: Icon(Icons.calendar_today_outlined),
+            ),
+            child: ManaText.raw(
+              plan.cutoff == null
+                  ? 'Tap to choose'
+                  : '${plan.cutoff!.day.toString().padLeft(2, '0')}/'
+                      '${plan.cutoff!.month.toString().padLeft(2, '0')}/'
+                      '${plan.cutoff!.year}',
+            ),
+          ),
+        ),
+        const SizedBox(height: ManaSpacing.lg),
+        const ManaText.raw('What your book has', style: ManaType.strong),
+        _planTick(
+          label: 'Investors',
+          note: 'People whose money is in the business, including your own.',
+          value: plan.investors,
+          onChanged: (v) => setState(() => _plan = plan.copyWith(investors: v)),
+        ),
+        _planTick(
+          label: 'Profit Shares',
+          note: 'Who shares the profit. Not the same list as investors.',
+          value: plan.shareholders,
+          onChanged: (v) => setState(() => _plan = plan.copyWith(shareholders: v)),
+        ),
+        _planTick(
+          label: 'Customers With Running Loans',
+          note: 'Loans that were still being collected when your book stopped.',
+          value: plan.customers,
+          onChanged: (v) => setState(() => _plan = plan.copyWith(customers: v)),
+        ),
+        if (plan.customers)
+          Padding(
+            padding: const EdgeInsets.only(left: ManaSpacing.lg),
+            child: _planTick(
+              label: 'Instalment History For Those Loans',
+              note: 'Every instalment ever paid. Leave off if your book only '
+                  'keeps a running balance — the balance alone is enough.',
+              value: plan.emiHistory,
+              onChanged: (v) => setState(() => _plan = plan.copyWith(emiHistory: v)),
+            ),
+          ),
+        _planTick(
+          label: 'Agent Attendance',
+          note: 'Which days each agent worked.',
+          value: plan.attendance,
+          onChanged: (v) => setState(() => _plan = plan.copyWith(attendance: v)),
+        ),
+        _planTick(
+          label: 'Weekly Account Book',
+          note: 'Your week-by-week accounts. Without it the app works the days '
+              'out itself, and your BF will be its figure rather than yours.',
+          value: plan.weekly,
+          onChanged: (v) => setState(() => _plan = plan.copyWith(weekly: v)),
+        ),
+        const SizedBox(height: ManaSpacing.lg),
+        if (_planSaving)
+          const Center(child: CircularProgressIndicator())
+        else
+          ElevatedButton.icon(
+            onPressed: _savePlan,
+            icon: const Icon(Icons.check),
+            label: const ManaText.raw('Start'),
+          ),
+        const SizedBox(height: ManaSpacing.sm),
+        ManaText.raw(
+          'You can come back and change this at any time before you finish.',
+          style: ManaType.fine,
+        ),
+      ],
+    );
+  }
+
   // --- 1 Identities -------------------------------------------------------
 
   Widget _identitiesSection() {
@@ -1326,8 +1405,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         ),
         if (parse != null && !_busy1) ...[
           const SizedBox(height: ManaSpacing.lg),
-          ManaText.raw('${parse.rows.length} rows ready · ${_villages.length} villages named',
-              style: ManaType.heavy),
+          ManaText.raw('${parse.rows.length} rows ready', style: ManaType.heavy),
           if (_duplicates.isNotEmpty) ...[
             const SizedBox(height: ManaSpacing.md),
             ManaText.raw('${_duplicates.length} rows need review',
@@ -1361,11 +1439,27 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             ],
           ],
         ],
+        // This is the page that WRITES, now that Areas & Villages is gone.
+        // Walking past it with a parsed file and nothing imported loses the
+        // whole sheet silently, and the next page then looks like ordinary
+        // progress — which is exactly what happened on the first live run.
+        if (parse != null && parse.rows.isNotEmpty && !_busy1) ...[
+          const SizedBox(height: ManaSpacing.lg),
+          ElevatedButton.icon(
+            onPressed: undecided > 0 ? null : _saveIdentities,
+            icon: const Icon(Icons.upload_outlined),
+            label: const ManaText.raw('Import These People'),
+          ),
+        ],
+        if (_busy1) ...[
+          const SizedBox(height: ManaSpacing.lg),
+          const Center(child: CircularProgressIndicator()),
+        ],
         if (outcome != null && !_busy1)
           _outcomeBlock(outcome,
               noun: 'identities',
               onDownloadCorrection: outcome.rejected ? _identityDownloadCorrection : null),
-        _navBar(onNext: () => _goTo(1)),
+        _navBar(onNext: _confirmLeavingUnimported),
       ],
     );
   }
@@ -1417,111 +1511,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     );
   }
 
-  // --- 2 Areas & Villages -------------------------------------------------
-
-  Widget _villagesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _intro(
-          'These are the villages your identity file names. The reference list '
-          'suggests what it knows about each PIN code — it never decides, '
-          'because two districts can share one PIN. Confirm each one and give '
-          'it an area; villages in the same area are collected together.',
-        ),
-        const SizedBox(height: ManaSpacing.lg),
-        if (_villages.isEmpty)
-          ManaText.raw(
-            'No villages yet — upload the identity file on the previous page.',
-            style: ManaType.noteWarn,
-          ),
-        for (final v in _villages) _villageCard(v),
-        if (_villageError != null) ...[
-          const SizedBox(height: ManaSpacing.sm),
-          ManaText.raw(_villageError!, style: ManaType.noteBad),
-        ],
-        if (_busy2) ...[
-          const SizedBox(height: ManaSpacing.lg),
-          const Center(child: CircularProgressIndicator()),
-        ],
-        if (_villages.isNotEmpty && _identityParse != null && !_busy2) ...[
-          const SizedBox(height: ManaSpacing.lg),
-          ElevatedButton.icon(
-            onPressed: _saveAreasAndIdentities,
-            icon: const Icon(Icons.upload_outlined),
-            label: const ManaText.raw('Save Areas And Import Identities'),
-          ),
-        ],
-        if (_identityOutcome != null && !_busy2)
-          _outcomeBlock(_identityOutcome!,
-              noun: 'identities',
-              onDownloadCorrection:
-                  _identityOutcome!.rejected ? _identityDownloadCorrection : null),
-        // This is the page that WRITES. Walking past it with a parsed file and
-        // nothing imported loses the whole sheet silently, and page 3 then
-        // looks like ordinary progress — which is exactly what happened on the
-        // first live run.
-        _navBar(onNext: _confirmLeavingUnimported),
-      ],
-    );
-  }
-
-  Widget _villageCard(_VillageDraft v) {
-    final suggestions = _suggestions[v.pinCode];
-    final districts = {for (final s in suggestions ?? const <VillageSuggestion>[]) s.district}.toList()..sort();
-
-    return ManaCard(
-      padding: ManaSpacing.sm,
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ManaText.raw('${v.village} · ${v.pinCode}',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const SizedBox(height: ManaSpacing.xs),
-            if (suggestions == null)
-              ManaText.raw('Looking up this PIN…',
-                  style: ManaType.fine)
-            else if (districts.isEmpty)
-              TextField(
-                decoration: const InputDecoration(labelText: 'District *'),
-                onChanged: (t) => setState(() {
-                  v.district = t;
-                  v.mandal = t;
-                }),
-              )
-            else
-              DropdownButtonFormField<String>(
-                initialValue: v.district.isEmpty ? null : v.district,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'District *'),
-                items: [
-                  for (final d in districts)
-                    DropdownMenuItem(value: d, child: ManaText.raw(d, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                ],
-                onChanged: (d) => setState(() {
-                  if (d != null) _applyDistrict(v, d);
-                }),
-              ),
-            if (v.mandal.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: ManaText.raw(
-                  '${v.mandal}${v.state.isEmpty ? "" : " · ${v.state}"}',
-                  style: ManaType.fine,
-                ),
-              ),
-            const SizedBox(height: ManaSpacing.xs),
-            TextField(
-              controller: v.area,
-              decoration: const InputDecoration(labelText: 'Area'),
-            ),
-          ],
-        ),
-
-    );
-  }
-
-  // --- 3 Investors --------------------------------------------------------
+  // --- 2 Investors --------------------------------------------------------
 
   /// One pending entry, with a way to take it back out before saving.
   Widget _entryTile({
@@ -1674,7 +1664,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               ),
             ),
         ],
-        _navBar(onNext: () => _goTo(3)),
+        _navBar(onNext: _goNext),
       ],
     );
   }
@@ -1760,7 +1750,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             ),
           ],
         ],
-        _navBar(onNext: () => _goTo(4)),
+        _navBar(onNext: _goNext),
       ],
     );
   }
@@ -1809,7 +1799,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
               style: ManaType.note,
             ),
         ],
-        _navBar(onNext: () => _goTo(5)),
+        _navBar(onNext: _goNext),
       ],
     );
   }
@@ -1887,7 +1877,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           _amountRow('Profit — computed', snap['computed_profit']),
           _amountRow('Carried forward', snap['profit_carry_forward']),
         ],
-        _navBar(onNext: () => _goTo(6)),
+        _navBar(onNext: _goNext),
       ],
     );
   }
@@ -1957,14 +1947,47 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
           _amountRow('Line balance', profit['line_balance']),
           _amountRow('Collections', profit['collections']),
         ],
-        _navBar(onNext: () => _goTo(7), nextLabel: 'finish'),
+        _navBar(onNext: _goNext, nextLabel: 'finish'),
       ],
     );
   }
 
   // --- Finish -------------------------------------------------------------
 
+  /// Named, not enforced. An Owner who ticked a section and then decided
+  /// against it may still finish; they should just not find out afterwards.
+  static const _gapLabels = <String, String>{
+    'identities': 'the people',
+    'investors': 'investors',
+    'shareholders': 'profit shares',
+    'customers': 'customer loans',
+    'emi_history': 'instalment history',
+    'attendance': 'agent attendance',
+    'weekly': 'the weekly account book',
+    'snapshot': 'the opening snapshot',
+  };
+
+  /// Asked once when the Finish page is first built. Not from initState: an
+  /// Owner who never reaches the end should not pay for the query, and a
+  /// failing call from build() is how the investor list came to try showing a
+  /// snackbar mid-frame.
+  void _refreshGapsOnce() {
+    if (_gapsAsked) return;
+    _gapsAsked = true;
+    unawaited(_refreshGaps());
+  }
+
+  Future<void> _refreshGaps() async {
+    try {
+      final gaps = await _svc.migrationPlanGaps(widget.businessId);
+      if (mounted) setState(() => _planGaps = gaps);
+    } catch (_) {
+      // A failure here must not stop an Owner finishing.
+    }
+  }
+
   Widget _finishSection() {
+    _refreshGapsOnce();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1972,13 +1995,21 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: ManaSpacing.md),
         _checklistRow('Identities imported', _identityOutcome?.imported),
-        _checklistRow('Villages confirmed', _villages.isEmpty ? null : _villages.length),
         _checklistRow('Investments recorded', _investorOutcome?.imported),
         _checklistRow('Customer loans recorded', _customerOutcome?.imported),
         _checklistRow('EMI instalments recorded', _emiResult?.recorded),
         _checklistRow('Attendance days recorded', _attendanceRecorded?.recorded),
         _checklistRow('Opening snapshot saved', _snapshot == null ? null : 1),
         _checklistRow('Weeks imported', (_weeklyResult?['weeks'] as num?)?.toInt()),
+        if (_planGaps.isNotEmpty) ...[
+          const SizedBox(height: ManaSpacing.lg),
+          ManaText.raw(
+            'You said your book has these, and nothing has been entered for '
+            'them yet: ${_planGaps.map((g) => _gapLabels[g] ?? g).join(', ')}.',
+            style: TextStyle(
+                fontWeight: FontWeight.w700, color: ManaColors.statusWarn),
+          ),
+        ],
         const SizedBox(height: ManaSpacing.lg),
         _intro(
           'Anything not shown above yet can still be added — every page in this '

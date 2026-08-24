@@ -30,6 +30,26 @@ class _FakeService implements BulkOnboardingService {
     return MigrationProgress(progress ?? const {});
   }
 
+
+  /// A book with everything in it, so every page is present and the page
+  /// numbers in these tests mean what they say. A wizard with no plan shows
+  /// only the chooser, which is correct but not what most of these are about.
+  @override
+  Future<MigrationPlan?> migrationPlan(String businessId) async =>
+      MigrationPlan(
+        investors: true,
+        shareholders: true,
+        customers: true,
+        emiHistory: true,
+        attendance: true,
+        weekly: true,
+        profit: true,
+        cutoff: DateTime(2026, 3, 20),
+      );
+
+  @override
+  Future<List<String>> migrationPlanGaps(String businessId) async => const [];
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

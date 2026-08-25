@@ -71,7 +71,32 @@ class _NewLoanWorkflowScreenState extends ConsumerState<NewLoanWorkflowScreen> {
     final stepIndex = _steps.indexOf(state.step);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('new_loan'))),
+      appBar: AppBar(
+        title: ManaText.raw(ref.t('new_loan')),
+        // The two things an Owner reaches for from inside a loan.
+        //
+        // Both were tiles on the Home dashboard, which meant backing out of a
+        // half-started loan to reach them -- and this wizard resets on exit,
+        // so backing out costs everything typed so far. Registering a
+        // customer in particular is the one that comes up mid-loan: the
+        // borrower is standing there and is not on the book yet.
+        //
+        // Same pattern Workforce Management already uses for its own add
+        // paths, which is why those were taken off the dashboard too.
+        actions: [
+          IconButton(
+            tooltip: ref.t('register_customer'),
+            icon: const Icon(Icons.person_add_alt_1_outlined),
+            onPressed: () =>
+                context.push('/ow-004?action=register', extra: widget.businessId),
+          ),
+          IconButton(
+            tooltip: ref.t('group_loans'),
+            icon: const Icon(Icons.groups_2_outlined),
+            onPressed: () => context.push('/ow-015', extra: widget.businessId),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [

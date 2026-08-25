@@ -123,6 +123,57 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         // The three add-paths moved out of here and into the roster's single
         // Add FAB — see _addActions.
         title: ManaText.raw(ref.t('customer_management')),
+        // Search, village and status live in the header now.
+        //
+        // They were the first four things in the body, so on a real handset a
+        // fifth of the screen went to controls before the first customer
+        // appeared, and every one of them scrolled away with the list the
+        // moment the Owner started looking. In the header they stay put, and
+        // the body is customers.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(148),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                ManaSpacing.md, 0, ManaSpacing.md, ManaSpacing.sm),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  onChanged: (v) =>
+                      ref.read(customerListProvider.notifier).setSearchQuery(v),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    hintText: ref.t('search_by_name_mlid_phone'),
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(child: _VillageFilterDropdown(state: state)),
+                    const SizedBox(width: ManaSpacing.sm),
+                    Expanded(child: _StatusFilterDropdown(state: state)),
+                  ],
+                ),
+                const SizedBox(height: ManaSpacing.xs),
+                SizedBox(
+                  width: double.infinity,
+                  child: ManaText.raw(
+                    ref.t('sorted_by_note_customers'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: SafeArea(
         child: state.loading && state.customers.isEmpty
@@ -135,6 +186,8 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                 // rather than re-filtering. Letting the widget filter would
                 // duplicate that logic and silently drop the ordering.
                 child: ManaMemberRoster(
+                  // Drawn in the app bar instead — see `bottom:` above.
+                  showControls: false,
                   heading: ref.t('customers'),
                   members: [
                     for (final c in state.filtered)
@@ -180,6 +233,38 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                 ),
               ),
       ),
+    );
+  }
+}
+
+/// Active / Suspended, or everybody.
+///
+/// Lifted out of the roster's heading row so it can sit beside the village
+/// picker in the header. Same three values the roster offered; the difference
+/// is only where it is drawn and that it reports to the notifier, which is
+/// what actually filters this screen.
+class _StatusFilterDropdown extends ConsumerWidget {
+  final CustomerListState state;
+  const _StatusFilterDropdown({required this.state});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return DropdownButtonFormField<String?>(
+      initialValue: state.customerStatusFilter,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: ref.t('status'), isDense: true),
+      items: [
+        DropdownMenuItem(
+            value: null,
+            child: ManaText.raw(ref.t('all'),
+                maxLines: 1, overflow: TextOverflow.ellipsis)),
+        for (final v in const ['Active', 'Suspended'])
+          DropdownMenuItem(
+              value: v,
+              child: ManaText.raw(v, maxLines: 1, overflow: TextOverflow.ellipsis)),
+      ],
+      onChanged: (v) =>
+          ref.read(customerListProvider.notifier).setCustomerStatusFilter(v),
     );
   }
 }

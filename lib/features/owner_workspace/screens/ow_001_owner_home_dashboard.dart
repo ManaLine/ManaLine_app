@@ -1040,20 +1040,17 @@ class _QuickActionsState extends ConsumerState<_QuickActions> {
       (
         ref.t('customers'),
         [
-            // Registration on the doorstep: opens OW-004 with the Add
-            // Customer sheet already up, so signing someone up in the field
-            // is two taps from Home rather than a list-then-hunt-for-the-
-            // button trip.
-            (Icons.person_add_alt_1_outlined, ref.t('register_customer'), '/ow-004?action=register', null),
+            // 'Register Customer' and 'Group Loans' moved into the New Loan
+            // header, where they are actually reached for -- mid-loan, with a
+            // borrower standing there who is not on the book yet. Same reason
+            // the two agent add-paths left this dashboard for Workforce
+            // Management's header.
             (Icons.request_quote_outlined, ref.t('new_loan'), '/ow-005', null),
             (Icons.point_of_sale_outlined, ref.t('collections'), '/ow-006', null),
             // 'Search Customers' removed (item 4.1) — the header's Universal
             // Search covers it, and OW-004 has its own search field.
             (Icons.people_outline, ref.t('customer_management'), '/ow-004', null),
             (Icons.inbox_outlined, ref.t('loan_requests'), '/ow-loan-requests', null),
-            // BUG FIXED this pass: OW-015 was a real, fully-built screen
-            // with zero links from anywhere in the app.
-          (Icons.groups_2_outlined, ref.t('group_loans'), '/ow-015', null),
         ],
       ),
       (

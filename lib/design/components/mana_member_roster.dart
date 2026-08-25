@@ -152,6 +152,16 @@ class ManaMemberRoster extends StatefulWidget {
   /// silently drop the ordering. Uncontrolled mode is still the default, so a
   /// screen with a plain list of members gets filtering for free.
   final ValueChanged<String>? onSearchChanged;
+
+  /// Whether the roster draws its own heading, search box, extra filter and
+  /// sorted-by note.
+  ///
+  /// False when the screen has lifted those into its app bar, where they stay
+  /// put instead of taking a fifth of the body before the first customer is
+  /// visible. The roster still renders the list and the Add button; only the
+  /// controls move. Left true for every caller that has not moved them, so
+  /// this changes nothing for Workforce or Investors.
+  final bool showControls;
   final ValueChanged<String?>? onStatusChanged;
 
   /// Current status filter in controlled mode; null means "All".
@@ -178,6 +188,7 @@ class ManaMemberRoster extends StatefulWidget {
     this.header,
     this.rowBuilder,
     this.onSearchChanged,
+    this.showControls = true,
     this.onStatusChanged,
     this.statusValue,
     this.statusValues = const [],
@@ -240,7 +251,7 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
                     ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, 0),
                 child: widget.header!,
               ),
-            Padding(
+            if (widget.showControls) Padding(
               padding: const EdgeInsets.fromLTRB(
                   ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, ManaSpacing.sm),
               child: Row(
@@ -318,7 +329,7 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
                 ],
               ),
             ),
-            Padding(
+            if (widget.showControls) Padding(
               padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.lg),
               child: TextField(
                 onChanged: widget.onSearchChanged ?? (v) => setState(() => _query = v),
@@ -335,14 +346,14 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
                 ),
               ),
             ),
-            if (widget.extraFilter != null) ...[
+            if (widget.showControls && widget.extraFilter != null) ...[
               const SizedBox(height: ManaSpacing.sm),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.lg),
                 child: widget.extraFilter!,
               ),
             ],
-            if (widget.footnote != null) ...[
+            if (widget.showControls && widget.footnote != null) ...[
               const SizedBox(height: ManaSpacing.xs),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.lg),

@@ -950,3 +950,29 @@ final agentDashboardProvider =
     NotifierProvider<AgentDashboardNotifier, AgentDashboardState>(
   AgentDashboardNotifier.new,
 );
+
+/// One Agent's permission row, as a plain map.
+///
+/// The dashboard already reads agent_permissions, but it converts the columns
+/// into Quick Action LABELS and throws the raw flags away -- so a screen that
+/// needs to ask "may this Agent create a customer?" had nowhere to look.
+///
+/// Advisory only. Every one of these permissions is enforced server-side in
+/// the RPC that does the work; this exists so the UI can avoid OFFERING an
+/// action that would be refused, which is kinder than a form that cannot save.
+/// It must never be the only thing standing between an Agent and a write.
+final agentPermissionsProvider =
+    FutureProvider.family<Map<String, bool>, String>((ref, agentId) async {
+  final row = await Supabase.instance.client
+      .from('agent_permissions')
+      .select()
+      .eq('agent_id', agentId)
+      .order('updated_at', ascending: false)
+      .limit(1)
+      .maybeSingle();
+  if (row == null) return const <String, bool>{};
+  return {
+    for (final e in row.entries)
+      if (e.key.startsWith('can_') && e.value is bool) e.key: e.value as bool,
+  };
+});

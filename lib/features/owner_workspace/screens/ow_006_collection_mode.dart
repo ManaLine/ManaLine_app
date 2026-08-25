@@ -5,303 +5,49 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
-import '../../../design/components/mana_skeleton.dart';
-import '../../../design/components/mana_collection_search_field.dart';
-import '../../../design/components/mana_frequency_picker.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/idempotency.dart';
 import '../../../shared/widgets/address_check_banner.dart';
 import '../../../shared/translation_service.dart';
 import '../state/collection_mode_state.dart';
+import '../../../shared/collection_round_view.dart';
 import 'package:go_router/go_router.dart';
 
 
 /// OW-006 — Collection Mode. Dashboard (due list) is the default landing
 /// state; tapping a customer opens Collection Entry for their due loan.
-class CollectionModeScreen extends ConsumerStatefulWidget {
+/// OW-006 — Collection Mode (Owner).
+///
+/// The round itself is ManaCollectionRound, shared with AG-002. Both screens
+/// rendered the same provider through two hand-maintained lists and drifted:
+/// this one gained village filters, a sort picker and a Pay button while the
+/// Agent -- who actually walks the round -- kept the old one.
+///
+/// Sharing the list cannot merge the two workspaces' entries. record_collection
+/// attributes a payment from the caller's own membership and checks
+/// `own_active_agent_membership_permits`, so who is credited is decided by the
+/// database, not by which screen was on screen.
+class CollectionModeScreen extends ConsumerWidget {
   final String businessId;
+
+  /// Passed by the router from `extra`. See ManaCollectionRound.focusLoanId --
+  /// it was declared here and never read, so every "open this loan's
+  /// collection" link landed on the plain round.
   final String? prefilledLoanId;
-  const CollectionModeScreen({super.key, required this.businessId, this.prefilledLoanId});
 
-  @override
-  ConsumerState<CollectionModeScreen> createState() => _CollectionModeScreenState();
-}
-
-class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
-  /// Local, not in the notifier: searching narrows what is on screen, it does
-  /// not change the round. Keeping it out of the notifier is also what stops a
-  /// reload from silently re-applying it.
-  String _query = '';
-  bool _searchOpen = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(collectionModeProvider.notifier).load(widget.businessId);
-    });
-  }
-
-
-  /// Daily / Weekly / Monthly, or null for the whole round. Kept in the screen
-  /// rather than the notifier because it is a view preference, not state the
-  /// collection itself depends on — reloading the round must not silently
-  /// re-narrow it.
-  String? _frequency;
-  CollectionSort _sort = CollectionSort.dueToday;
-
-  /// Empty means the whole round. An Agent who has picked nothing has not
-  /// asked to be shown nothing.
-  final Set<String> _villages = {};
-
-  /// The villages this round touches. One tap works a village; Select All
-  /// puts the whole round back. A village whose loans are all settled is not
-  /// offered — it is not a place to walk to today.
-  Widget _villagePicker(List<CollectionDueRow> all) {
-    final villages = manaVillagesInRound(all);
-    if (villages.length < 2) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: ManaSpacing.xs,
-          runSpacing: ManaSpacing.xs,
-          children: [
-            FilterChip(
-              label: ManaText.raw(ref.t('all_villages')),
-              selected: _villages.isEmpty,
-              onSelected: (_) => setState(_villages.clear),
-            ),
-            for (final v in villages)
-              FilterChip(
-                label: ManaText.raw(
-                  '${v.village.isEmpty ? "—" : v.village} (${v.rows})',
-                ),
-                selected: _villages.contains(v.village),
-                onSelected: (on) => setState(() {
-                  if (on) {
-                    _villages.add(v.village);
-                  } else {
-                    _villages.remove(v.village);
-                  }
-                }),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _sortPicker() => Row(
-        children: [
-          ManaText.raw(ref.t('sorted_by'), style: ManaType.note),
-          const SizedBox(width: ManaSpacing.sm),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<CollectionSort>(
-                value: _sort,
-                isExpanded: true,
-                items: [
-                  for (final m in CollectionSort.values)
-                    DropdownMenuItem(
-                      value: m,
-                      child: ManaText.raw(m.label, style: ManaType.small),
-                    ),
-                ],
-                onChanged: (m) => setState(() => _sort = m ?? CollectionSort.dueToday),
-              ),
-            ),
-          ),
-        ],
-      );
-
-  Widget _frequencyPicker() => ManaFrequencyPicker(
-        value: _frequency,
-        onChanged: (f) => setState(() => _frequency = f),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(collectionModeProvider);
-    final visible = manaSortDueRows(
-      manaFilterDueRows(
-        manaFilterByVillages(state.sorted, _villages),
-        _query,
-        frequency: _frequency,
-      ),
-      _sort,
-    );
-
-    return Scaffold(
-      appBar: AppBar(
-leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.businessId)),
-        title: ManaText.raw(ref.t('collection_mode')),
-        actions: [
-          IconButton(
-            icon: Icon(_searchOpen ? Icons.search_off : Icons.search),
-            tooltip: ref.t('search'),
-            onPressed: () => setState(() {
-              _searchOpen = !_searchOpen;
-              // Closing the search restores the full round. Leaving a filter
-              // applied behind a collapsed box is how an Agent finishes the
-              // day believing they visited everyone.
-              if (!_searchOpen) _query = '';
-            }),
-          ),
-        ],
-        bottom: _searchOpen
-            ? ManaCollectionSearchField(
-                onChanged: (v) => setState(() => _query = v),
-              )
-            : null,
-),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => ref.read(collectionModeProvider.notifier).load(widget.businessId),
-          child: state.loading && state.dueList.isEmpty
-              ? const ManaSkeletonList()
-              : ListView(
-                  padding: const EdgeInsets.all(ManaSpacing.lg),
-                  children: [
-                    _villagePicker(state.sorted),
-                    const SizedBox(height: ManaSpacing.sm),
-                    _frequencyPicker(),
-                    const SizedBox(height: ManaSpacing.sm),
-                    _sortPicker(),
-                    const SizedBox(height: ManaSpacing.md),
-                    if (visible.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
-                        child: Center(
-                          // "Nobody is due" and "nothing matched what you
-                          // typed" are different facts, and telling an Agent
-                          // the first when the second is true would read as an
-                          // empty round.
-                          child: ManaText.raw(
-                              _query.trim().isEmpty
-                                  ? ref.t('nobody_due_today')
-                                  : ref.t('no_customers_match_view'),
-                              textAlign: TextAlign.center,
-                              style: ManaType.secondary),
-                        ),
-                      )
-                    else
-                      ...visible.map((row) => _DueRow(
-                            row: row,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: row, businessId: widget.businessId)),
-                            ),
-                          )),
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DueRow extends ConsumerWidget {
-  final CollectionDueRow row;
-  final VoidCallback onTap;
-  const _DueRow({required this.row, required this.onTap});
+  const CollectionModeScreen(
+      {super.key, required this.businessId, this.prefilledLoanId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // NOT a ListTile — its leading/title/trailing layout clamps content to a
-    // fixed height (~56dp) and squeezes the title as the trailing text widens,
-    // both only at larger text scales, which is why that shipped unnoticed.
-    //
-    // The status circle is gone. It carried one bit — collected or not — in
-    // the most valuable spot on the row, and Pay is what an Agent standing at
-    // a door actually reaches for. The row now leads with the name and ends
-    // with the money.
-    final done = row.collectionStatus == 'Collected';
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(ManaSpacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: ManaText.raw(row.customerName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: ManaType.emphasis),
-                  ),
-                  const SizedBox(width: ManaSpacing.sm),
-                  // Straight to the money. Tapping the row still opens the
-                  // full entry screen for a part payment, a skip or an
-                  // extension; this is the one an Agent uses forty times a
-                  // round.
-                  if (done)
-                    Icon(Icons.check_circle,
-                        size: 20, color: ManaColors.statusGood)
-                  else
-                    FilledButton(
-                      onPressed: onTap,
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: ManaSpacing.md),
-                      ),
-                      child: ManaText.raw(ref.t('pay')),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              // The loan number was here and told an Agent nothing they could
-              // act on. What they are asked at a door is how much is still
-              // owed, so that stands in its place. maxLines/overflow are
-              // required, not optional: an unbroken token forces its own width
-              // and overflows the row rather than wrapping.
-              ManaText.raw(
-                '${row.village} · ${manaRupees(row.outstandingBalance)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: ManaType.note,
-              ),
-              const SizedBox(height: ManaSpacing.xs),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Flexible(
-                    child: row.penaltyEligible
-                        ? ManaText.raw(ref.t('penalty'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: ManaColors.statusBad))
-                        : row.gracePeriod
-                            ? ManaText.raw(ref.t('grace'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: ManaColors.statusWarn))
-                            : const SizedBox.shrink(),
-                  ),
-                  const SizedBox(width: ManaSpacing.sm),
-                  Flexible(
-                    child: ManaText.raw(manaRupees(row.installmentDue),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: ManaType.cardTitle),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    return ManaCollectionRound(
+      businessId: businessId,
+      focusLoanId: prefilledLoanId,
+      onBack: () => context.go('/ow-001', extra: businessId),
+      onOpenRow: (context, row) => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CollectionEntryScreen(row: row, businessId: businessId),
         ),
       ),
     );

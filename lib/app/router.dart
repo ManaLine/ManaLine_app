@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'design_showcase_screen.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
@@ -97,7 +98,15 @@ String _resolveBusinessId(GoRouterState s) {
   return ManaSession.instance.lastBusinessId ?? 'stub-business-id';
 }
 
+/// The root navigator, so the app shell can ask whether there is anything to
+/// go back to. GoRouter's own canPop() only knows about routes it matched --
+/// a screen opened with Navigator.push (the collection entry screen, the
+/// business detail screen) is invisible to it, and treating those as "nothing
+/// to pop" is how Back would close the app from inside a form.
+final manaRootNavigatorKey = GlobalKey<NavigatorState>();
+
 final manaRouter = GoRouter(
+  navigatorKey: manaRootNavigatorKey,
   initialLocation: '/lr-001',
   routes: [
     // Deep-link to the app's home URL lands here rather than throwing a

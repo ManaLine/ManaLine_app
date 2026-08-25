@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/router.dart';
 import 'shared/appearance_state.dart';
+import 'shared/mana_back_handler.dart';
 import 'design/theme.dart';
 import 'design/tokens/colors.dart';
 import 'design/tokens/spacing.dart';
@@ -161,7 +162,19 @@ class ManaLineApp extends ConsumerWidget {
             textScaler:
                 TextScaler.linear(deviceFactor * appearance.textSize.scale),
           ),
-          child: child!,
+          // Everything on every screen is selectable, and therefore
+          // copyable.
+          //
+          // Nothing in the app was: an MLID, a loan number, a mobile number
+          // or an amount could be read off the glass and retyped, but never
+          // copied into a message or a search box. SelectionArea at the root
+          // covers all ~840 widgets at once, which is the only way this stays
+          // true for screens nobody has revisited -- doing it per Text would
+          // mean remembering forever.
+          //
+          // Text fields keep their own selection behaviour; SelectionArea
+          // only adds it to the text that had none.
+          child: ManaBackHandler(child: SelectionArea(child: child!)),
         );
       },
     );

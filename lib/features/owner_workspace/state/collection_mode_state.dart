@@ -74,7 +74,7 @@ class CollectionApiService {
         .from('v_collection_due')
         .select('loan_id, customer_id, customer_name, village, loan_number, '
             'total_due, remaining_balance, next_installment_no, is_overdue, '
-            'penalty_eligible, loan_status, collection_agent_name, repayment_type')
+            'penalty_eligible, loan_status, collection_agent_name, repayment_type, mlid')
         .eq('business_id', businessId);
 
     return (rows as List).map((r) {
@@ -84,6 +84,7 @@ class CollectionApiService {
         customerName: r['customer_name'] as String? ?? '',
         village: r['village'] as String? ?? '',
         loanNumber: r['loan_number'] as String,
+        mlid: r['mlid'] as String? ?? '',
         installmentDue: (r['total_due'] as num).toInt(),
         outstandingBalance: (r['remaining_balance'] as num).toInt(),
         lineRepaymentIndex: (r['next_installment_no'] as num?)?.toInt() ?? 1,
@@ -271,6 +272,11 @@ class CollectionDueRow {
   final String customerName;
   final String village;
   final String loanNumber;
+
+  /// The customer's MANA LINE ID. Shown under their name in the round: it is
+  /// on the card they carry, and it is what tells two customers of the same
+  /// name in the same village apart.
+  final String mlid;
   final int installmentDue;
   final int outstandingBalance;
   final int lineRepaymentIndex;
@@ -291,6 +297,7 @@ class CollectionDueRow {
     required this.customerName,
     required this.village,
     required this.loanNumber,
+    this.mlid = '',
     required this.installmentDue,
     required this.outstandingBalance,
     required this.lineRepaymentIndex,

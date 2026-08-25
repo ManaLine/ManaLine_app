@@ -9,11 +9,11 @@ import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/bf_request_card.dart';
+import '../../../shared/loan_customer_search.dart';
 import '../state/agent_dashboard_state.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/loan_distribution_state.dart';
-import '../../owner_workspace/state/customer_state.dart';
 import '../../owner_workspace/state/loan_wizard_state.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/mana_time.dart';
@@ -437,7 +437,8 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
   Widget _stepBody(LoanWizardState state) {
     switch (state.step) {
       case LoanWizardStep.customerSelection:
-        return const _AgStep1CustomerSelection();
+        return _AgStep1CustomerSelection(
+            businessId: widget.businessId, agentId: widget.agentId);
       case LoanWizardStep.eligibility:
         return const _AgStep2Eligibility();
       case LoanWizardStep.loanDetails:
@@ -452,106 +453,28 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
   }
 }
 
-class _AgStep1CustomerSelection extends ConsumerStatefulWidget {
-  const _AgStep1CustomerSelection();
+/// Step 1 is ManaLoanCustomerSearch, shared with OW-005.
+///
+/// What was here searched the GLOBAL identity RPC and refused any ambiguous
+/// name outright. Those rows carry no customer_id, so once the wizard notifier
+/// learned to reject a customer without one -- the fix for Confirm Loan dying
+/// on `invalid input syntax for type uuid: ""` -- this screen's Select button
+/// went silently dead. Sharing the widget removes the copy that drifted.
+class _AgStep1CustomerSelection extends ConsumerWidget {
+  final String businessId;
+  final String agentId;
+  const _AgStep1CustomerSelection({required this.businessId, required this.agentId});
 
   @override
-  ConsumerState<_AgStep1CustomerSelection> createState() => _AgStep1CustomerSelectionState();
-}
-
-class _AgStep1CustomerSelectionState extends ConsumerState<_AgStep1CustomerSelection> {
-  final _query = TextEditingController();
-  CustomerSummary? _found;
-  /// >1 match for the typed name. Shown as a prompt to narrow the search
-  /// rather than silently picking one.
-  int _ambiguousCount = 0;
-  bool _searching = false;
-
-  Future<void> _search() async {
-    setState(() => _searching = true);
-    // Same fix as OW-004/OW-005's customer search: this box was always
-    // sent as `fullName:` regardless of what was typed, so an MLID/phone/
-    // Aadhaar search never matched. Classify by shape and route to the
-    // matching owner_search_person() param.
-    final query = _query.text.trim();
-    final isMlid = RegExp(r'^ML[A-Za-z]{2}\d+$').hasMatch(query);
-    final digitsOnly = RegExp(r'^\d+$').hasMatch(query);
-    final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(customerListProvider.notifier).searchIdentity(
-            mlid: isMlid ? query : null,
-            aadhaar: !isMlid && digitsOnly && query.length == 12 ? query : null,
-            phone: !isMlid && digitsOnly && query.length == 10 ? query : null,
-            fullName: isMlid || digitsOnly ? null : query,
-          );
-    });
-    if (!mounted) return;
-    setState(() {
-      _searching = false;
-      // searchIdentity returns EVERY match now (a name is not unique).
-      // These two screens pick a single customer for a loan, so an
-      // ambiguous name search deliberately selects nothing rather than
-      // guessing — issuing a loan against the wrong person of the same
-      // name is the failure that matters here.
-      final matches = result ?? const <CustomerSummary>[];
-      _found = matches.length == 1 ? matches.first : null;
-      _ambiguousCount = matches.length > 1 ? matches.length : 0;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(ManaSpacing.lg),
-      children: [
-        ManaText.raw(ref.t('select_customer'), style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: ManaSpacing.xs),
-        ManaText.raw(ref.t('select_customer_note'),
-            style: ManaType.note),
-        const SizedBox(height: ManaSpacing.lg),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _query,
-                decoration: InputDecoration(labelText: ref.t('search')),
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
-            const SizedBox(width: ManaSpacing.sm),
-            ElevatedButton(
-              onPressed: (_query.text.trim().isNotEmpty && !_searching) ? _search : null,
-              child: _searching
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : ManaText.raw(ref.t('search')),
-            ),
-          ],
-        ),
-        const SizedBox(height: ManaSpacing.lg),
-        if (_found != null)
-          Card(
-            child: ListTile(
-              leading: const ManaVerificationRing(isVerified: true, size: 44),
-              title: ManaText.raw(_found!.fullName, style: ManaType.strong),
-              subtitle: ManaText.raw('${_found!.mlid} · ${_found!.village}'),
-              trailing: ElevatedButton(
-                onPressed: () => ref.read(loanWizardProvider.notifier).selectCustomer(_found!),
-                child: ManaText.raw(ref.t('select')),
-              ),
-            ),
-          )
-        // Several people share the typed name. Say so and make them narrow
-        // it — picking one for the Owner is how a loan lands on the wrong
-        // person of the same name.
-        else if (_ambiguousCount > 0 && !_searching)
-          ManaText.raw(
-            '$_ambiguousCount people match that name. Search by MANA LINE ID, '
-            'Aadhaar or mobile number to pick the right one.',
-            style: ManaType.noteWarn,
-          )
-        else if (_query.text.trim().isNotEmpty && !_searching)
-          ManaText.raw(ref.t('no_matching_customer'),
-              style: ManaType.note),
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Advisory only -- create_customer is gated server-side regardless. While
+    // the permission is still loading, assume NOT allowed: offering a button
+    // that then refuses is worse than one that appears a moment later.
+    final perms = ref.watch(agentPermissionsProvider(agentId));
+    return ManaLoanCustomerSearch(
+      businessId: businessId,
+      canAddCustomer: perms.valueOrNull?['can_create_customer'] ?? false,
+      onSelected: (c) => ref.read(loanWizardProvider.notifier).selectCustomer(c),
     );
   }
 }

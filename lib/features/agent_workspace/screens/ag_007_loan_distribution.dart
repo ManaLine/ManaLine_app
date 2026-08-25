@@ -8,6 +8,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/bf_request_card.dart';
 import '../state/agent_dashboard_state.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
@@ -956,11 +957,6 @@ class _AgStep5Confirm extends ConsumerWidget {
   final String businessId;
   const _AgStep5Confirm({required this.businessId});
 
-  bool _looksLikeBfCashFailure(String reason) {
-    final r = reason.toLowerCase();
-    return r.contains('bf cash') || r.contains('insufficient');
-  }
-
   Future<void> _confirm(BuildContext context, WidgetRef ref) async {
     final loanNumber = await NetworkErrorHandler.run(context, () async {
       final n = await ref.read(loanWizardProvider.notifier).confirm(businessId: businessId);
@@ -979,7 +975,6 @@ class _AgStep5Confirm extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(loanWizardProvider);
-    final blocked = state.error != null && _looksLikeBfCashFailure(state.error!);
 
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -1009,24 +1004,25 @@ class _AgStep5Confirm extends ConsumerWidget {
             ),
           ),
         ),
-        if (state.error != null) ...[
+        // Was decided by sniffing the error text for "bf cash" or
+        // "insufficient" -- which would have matched any future message
+        // containing either word, and missed this one the moment its wording
+        // changed. The RPC returns a code; that is what is read now.
+        if (state.blockedOnBf) ...[
+          const SizedBox(height: ManaSpacing.md),
+          ManaBfRequestCard(
+            available: state.bfAvailable ?? 0,
+            required: state.bfRequired ?? 0,
+            savedDraftId: state.savedDraftId,
+            onSend: (amount, reason) =>
+                ref.read(loanWizardProvider.notifier).requestBf(amount: amount, reason: reason),
+          ),
+        ] else if (state.error != null) ...[
           const SizedBox(height: ManaSpacing.md),
           Container(
             padding: const EdgeInsets.all(ManaSpacing.md),
             decoration: BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ManaText.raw(state.error!, style: ManaType.bad),
-                if (blocked) ...[
-                  const SizedBox(height: ManaSpacing.sm),
-                  ManaText.raw(
-                    ref.t('loan_creation_blocked_note'),
-                    style: ManaType.small,
-                  ),
-                ],
-              ],
-            ),
+            child: ManaText.raw(state.error!, style: ManaType.bad),
           ),
         ],
         const SizedBox(height: ManaSpacing.lg),

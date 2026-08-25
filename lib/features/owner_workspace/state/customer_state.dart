@@ -144,6 +144,40 @@ class CustomerApiService {
     ];
   }
 
+  /// Who this book may lend to.
+  ///
+  /// Two kinds of row come back, and the difference is the whole point:
+  ///
+  ///  * `customerId` set — already a customer here. Selectable straight away.
+  ///  * `customerId` empty, `personId` set — found by global identity search,
+  ///    not on this book yet. The wizard adds them before the loan is written.
+  ///
+  /// Which kinds appear is the OWNER'S rule, read server-side from
+  /// businesses.loans_require_existing_customer. The default is permissive: a
+  /// new borrower walks up, and the loan and the customer record happen in one
+  /// conversation rather than sending the Owner to another screen mid-loan.
+  ///
+  /// This is NOT plain searchIdentity, which is what Step 1 used to call. That
+  /// one is business-blind: it matched an Agent of the Owner's OTHER business,
+  /// a person this book could not lend to at all, and the empty customerId
+  /// travelled six wizard steps before failing at the insert as `invalid input
+  /// syntax for type uuid: ""`. Here an empty customerId means something
+  /// specific and the screen knows what to do about it.
+  Future<List<CustomerSummary>> searchLoanCandidates({
+    required String businessId,
+    required String query,
+  }) async {
+    if (query.trim().isEmpty) return const [];
+    final rows = await _db
+        .schema('app')
+        .rpc('owner_search_loan_candidate', params: {
+          'p_business_id': businessId,
+          'p_query': query.trim(),
+        })
+        .timeout(kManaQueryTimeout);
+    return manaLoanCandidates((rows as List).cast<Map<String, dynamic>>());
+  }
+
   /// Handles both Link Existing (existingPersonId set) and Create New
   /// Identity (fullName/etc. set) — mirrors the stub's single-endpoint
   /// contract, but as two real Postgrest write sequences rather than one
@@ -387,6 +421,42 @@ class CustomerApiService {
   }
 }
 
+/// Rows from app.owner_search_loan_candidate -> CustomerSummary.
+///
+/// Split out of the service so it can be tested without a Supabase client.
+///
+/// A row is DROPPED only when it identifies nobody at all -- neither a
+/// customer of this book nor a person to add. An empty customerId on its own
+/// is not a defect here: it means "found, but not on this book yet", and the
+/// wizard adds them. What must never happen is an empty customerId travelling
+/// on as if it were a borrower, which is the fault this whole path was built
+/// to close; that guard now lives at the point of selection, where the row's
+/// personId is turned into a real customer first.
+List<CustomerSummary> manaLoanCandidates(List<Map<String, dynamic>> rows) {
+  final out = <CustomerSummary>[];
+  for (final row in rows) {
+    final id = row['customer_id']?.toString() ?? '';
+    final personId = row['person_id']?.toString();
+    if (id.isEmpty && (personId == null || personId.isEmpty)) continue;
+    out.add(CustomerSummary(
+      customerId: id,
+      personId: personId,
+      fullName: titleCaseName(row['full_name'] as String? ?? ''),
+      fatherHusbandName: titleCaseName(row['father_husband_name'] as String? ?? ''),
+      village: row['village'] as String? ?? '',
+      phoneNumber: row['mobile_number'] as String? ?? '',
+      mlid: row['mlid'] as String? ?? '',
+      activeLoanCount: (row['active_loans'] as num?)?.toInt() ?? 0,
+      todaysDue: 0,
+      outstandingBalance: 0,
+      lineRepaymentIndex: 0,
+      customerStatus: 'Active',
+      membershipStatus: 'Active',
+    ));
+  }
+  return out;
+}
+
 class CustomerSummary {
   final String customerId;
   final String? personId; // populated for pre-membership identity search results (OW-004 Add Customer); customerId is empty in that case since no customers row exists yet
@@ -508,15 +578,33 @@ final customerApiServiceProvider = Provider<CustomerApiService>((ref) {
 /// C2b — locked cascading sort: Highest Outstanding → Penalty →
 /// Grace Period → Today's Due → Village → Customer Name. Not user-
 /// selectable single-field options — applied as one fixed sequence.
+/// Village first, then the money.
+///
+/// This used to lead on highest outstanding, which sorts the list the way a
+/// report is read rather than the way the book is worked. A round is a
+/// village: the Owner and the Agent both move through one village at a time,
+/// and an outstanding-first order scatters each village's customers down the
+/// whole list, so finding the six people in Uranduru means scrolling past
+/// everyone else.
+///
+/// Within a village the old order is kept exactly -- highest outstanding, then
+/// today's due, then name -- so the money ranking that mattered still decides
+/// who comes first among the people standing in the same place.
+///
+/// Customers with no village recorded sort last rather than first, where an
+/// empty string would otherwise put them: they are the exception, and the
+/// exception does not belong at the top of the round.
 List<CustomerSummary> _applyLockedSort(List<CustomerSummary> list) {
   final sorted = [...list];
   sorted.sort((a, b) {
+    final aHas = a.village.isNotEmpty, bHas = b.village.isNotEmpty;
+    if (aHas != bHas) return aHas ? -1 : 1;
+    final byVillage = a.village.compareTo(b.village);
+    if (byVillage != 0) return byVillage;
     final byOutstanding = b.outstandingBalance.compareTo(a.outstandingBalance);
     if (byOutstanding != 0) return byOutstanding;
     final byDue = b.todaysDue.compareTo(a.todaysDue);
     if (byDue != 0) return byDue;
-    final byVillage = a.village.compareTo(b.village);
-    if (byVillage != 0) return byVillage;
     return a.fullName.compareTo(b.fullName);
   });
   return sorted;
@@ -616,6 +704,20 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
       // Rethrown, NOT swallowed into an empty list: "no such person" and
       // "the search failed" must not look identical on screen. The callers
       // show the message.
+      rethrow;
+    }
+  }
+
+  Future<List<CustomerSummary>> searchLoanCandidates({
+    required String businessId,
+    required String query,
+  }) async {
+    try {
+      return await ref
+          .read(customerApiServiceProvider)
+          .searchLoanCandidates(businessId: businessId, query: query);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
       rethrow;
     }
   }

@@ -49,6 +49,72 @@ class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
   /// collection itself depends on — reloading the round must not silently
   /// re-narrow it.
   String? _frequency;
+  CollectionSort _sort = CollectionSort.dueToday;
+
+  /// Empty means the whole round. An Agent who has picked nothing has not
+  /// asked to be shown nothing.
+  final Set<String> _villages = {};
+
+  /// The villages this round touches. One tap works a village; Select All
+  /// puts the whole round back. A village whose loans are all settled is not
+  /// offered — it is not a place to walk to today.
+  Widget _villagePicker(List<CollectionDueRow> all) {
+    final villages = manaVillagesInRound(all);
+    if (villages.length < 2) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: ManaSpacing.xs,
+          runSpacing: ManaSpacing.xs,
+          children: [
+            FilterChip(
+              label: ManaText.raw(ref.t('all_villages')),
+              selected: _villages.isEmpty,
+              onSelected: (_) => setState(_villages.clear),
+            ),
+            for (final v in villages)
+              FilterChip(
+                label: ManaText.raw(
+                  '${v.village.isEmpty ? "—" : v.village} (${v.rows})',
+                ),
+                selected: _villages.contains(v.village),
+                onSelected: (on) => setState(() {
+                  if (on) {
+                    _villages.add(v.village);
+                  } else {
+                    _villages.remove(v.village);
+                  }
+                }),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _sortPicker() => Row(
+        children: [
+          ManaText.raw(ref.t('sorted_by'), style: ManaType.note),
+          const SizedBox(width: ManaSpacing.sm),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<CollectionSort>(
+                value: _sort,
+                isExpanded: true,
+                items: [
+                  for (final m in CollectionSort.values)
+                    DropdownMenuItem(
+                      value: m,
+                      child: ManaText.raw(m.label, style: ManaType.small),
+                    ),
+                ],
+                onChanged: (m) => setState(() => _sort = m ?? CollectionSort.dueToday),
+              ),
+            ),
+          ),
+        ],
+      );
 
   Widget _frequencyPicker() => ManaFrequencyPicker(
         value: _frequency,
@@ -58,7 +124,14 @@ class _CollectionModeScreenState extends ConsumerState<CollectionModeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(collectionModeProvider);
-    final visible = manaFilterDueRows(state.sorted, _query, frequency: _frequency);
+    final visible = manaSortDueRows(
+      manaFilterDueRows(
+        manaFilterByVillages(state.sorted, _villages),
+        _query,
+        frequency: _frequency,
+      ),
+      _sort,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -91,11 +164,11 @@ leading: BackButton(onPressed: () => context.go('/ow-001', extra: widget.busines
               : ListView(
                   padding: const EdgeInsets.all(ManaSpacing.lg),
                   children: [
+                    _villagePicker(state.sorted),
+                    const SizedBox(height: ManaSpacing.sm),
                     _frequencyPicker(),
-                    ManaText.raw(
-                      ref.t('sorted_by_note'),
-                      style: ManaType.note,
-                    ),
+                    const SizedBox(height: ManaSpacing.sm),
+                    _sortPicker(),
                     const SizedBox(height: ManaSpacing.md),
                     if (visible.isEmpty)
                       Padding(
@@ -133,97 +206,99 @@ class _DueRow extends ConsumerWidget {
   final VoidCallback onTap;
   const _DueRow({required this.row, required this.onTap});
 
-  ({IconData icon, Color color}) get _statusIcon => switch (row.collectionStatus) {
-        'Collected' => (icon: Icons.check_circle, color: ManaColors.statusGood),
-        'Partial' => (icon: Icons.adjust, color: ManaColors.statusWarn),
-        'Skipped' => (icon: Icons.remove_circle_outline, color: ManaColors.textSecondary),
-        'Closed' => (icon: Icons.lock_outline, color: ManaColors.textSecondary),
-        _ => (icon: Icons.radio_button_unchecked, color: ManaColors.textSecondary),
-      };
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = _statusIcon;
-    // NOT a ListTile — its leading/title/trailing layout clamps content to
-    // a fixed height (~56dp), which a two-line trailing column (amount +
-    // LRI) does not fit inside once text scale grows, AND its fixed-width
-    // trailing slot squeezes the title's available width down as the
-    // trailing text widens — both fire only at larger text scales, which
-    // is why this shipped unnoticed.
+    // NOT a ListTile — its leading/title/trailing layout clamps content to a
+    // fixed height (~56dp) and squeezes the title as the trailing text widens,
+    // both only at larger text scales, which is why that shipped unnoticed.
     //
-    // The amount is deliberately NOT beside the name in a Row anymore
-    // either. Two side-by-side Flexible texts still overflowed even with
-    // ellipsis on both: a long unbroken name (a single word wider than
-    // its half of the row) forces width beyond what its Flexible share
-    // was ever going to get, since Flexible cannot shrink a child past
-    // its own minimum intrinsic content width. Stacking the amount BELOW
-    // the name/village instead means neither one is ever competing for
-    // horizontal room with the other — each gets the full row width to
-    // itself.
+    // The status circle is gone. It carried one bit — collected or not — in
+    // the most valuable spot on the row, and Pay is what an Agent standing at
+    // a door actually reaches for. The row now leads with the name and ends
+    // with the money.
+    final done = row.collectionStatus == 'Collected';
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.md),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(s.icon, color: s.color),
-              const SizedBox(width: ManaSpacing.md),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: ManaText.raw(row.customerName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: ManaType.emphasis),
-                        ),
-                        if (row.penaltyEligible) ...[
-                          const SizedBox(width: ManaSpacing.xs),
-                          ManaStatusPill(label: ref.t('penalty'), status: ManaStatus.bad),
-                        ] else if (row.gracePeriod) ...[
-                          const SizedBox(width: ManaSpacing.xs),
-                          ManaStatusPill(label: ref.t('grace'), status: ManaStatus.warn),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    // maxLines/overflow required, not optional: the loan
-                    // number is one unbroken token with no space for the
-                    // line-breaker to wrap at, so without this it forces
-                    // its own width regardless of what's available and
-                    // overflows the row rather than wrapping.
-                    ManaText.raw('${row.village} · ${row.loanNumber}',
+              Row(
+                children: [
+                  Expanded(
+                    child: ManaText.raw(row.customerName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: ManaType.note),
-                    const SizedBox(height: ManaSpacing.xs),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: ManaText.raw('LRI ${row.lineRepaymentIndex}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: ManaType.note),
-                        ),
-                        const SizedBox(width: ManaSpacing.sm),
-                        Flexible(
-                          child: ManaText.raw(manaRupees(row.installmentDue),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: ManaType.cardTitle),
-                        ),
-                      ],
+                        style: ManaType.emphasis),
+                  ),
+                  const SizedBox(width: ManaSpacing.sm),
+                  // Straight to the money. Tapping the row still opens the
+                  // full entry screen for a part payment, a skip or an
+                  // extension; this is the one an Agent uses forty times a
+                  // round.
+                  if (done)
+                    Icon(Icons.check_circle,
+                        size: 20, color: ManaColors.statusGood)
+                  else
+                    FilledButton(
+                      onPressed: onTap,
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: ManaSpacing.md),
+                      ),
+                      child: ManaText.raw(ref.t('pay')),
                     ),
-                  ],
-                ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              // The loan number was here and told an Agent nothing they could
+              // act on. What they are asked at a door is how much is still
+              // owed, so that stands in its place. maxLines/overflow are
+              // required, not optional: an unbroken token forces its own width
+              // and overflows the row rather than wrapping.
+              ManaText.raw(
+                '${row.village} · ${manaRupees(row.outstandingBalance)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: ManaType.note,
+              ),
+              const SizedBox(height: ManaSpacing.xs),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: row.penaltyEligible
+                        ? ManaText.raw(ref.t('penalty'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: ManaColors.statusBad))
+                        : row.gracePeriod
+                            ? ManaText.raw(ref.t('grace'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: ManaColors.statusWarn))
+                            : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(width: ManaSpacing.sm),
+                  Flexible(
+                    child: ManaText.raw(manaRupees(row.installmentDue),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ManaType.cardTitle),
+                  ),
+                ],
               ),
             ],
           ),

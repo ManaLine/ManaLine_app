@@ -53,7 +53,8 @@ class GroupLoanApiService {
         .from('loans')
         .select('loan_id, loan_number, remaining_balance, installment_amount, loan_status, '
             'customers!inner(persons!inner(full_name)), loan_group_members(group_member_id)')
-        .eq('business_id', businessId);
+        .eq('business_id', businessId)
+        .isFilter('deleted_at', null);
     if (query != null && query.trim().isNotEmpty) {
       q = q.ilike('loan_number', '%${query.trim()}%');
     }

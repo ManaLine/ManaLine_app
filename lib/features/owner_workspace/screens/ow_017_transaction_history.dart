@@ -223,6 +223,16 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
           onTap: () => _showDetail(e),
         ));
       }
+      // …and what was left at the end of it. A day now reads as a small
+      // account: carried in, what moved, carried out — and the closing of one
+      // day is the opening of the next, which is the thing an Owner checks.
+      if (day.closingBf != null) {
+        slivers.add(ManaLedgerOpeningRow(
+          amount: day.closingBf!,
+          label: ref.t('carried_forward'),
+          isClosing: true,
+        ));
+      }
     }
     if (state.loadingMore) {
       slivers.add(const Padding(

@@ -91,12 +91,16 @@ class RecordBookApiService {
           .from('collections')
           .select('collection_id, collected_amount, entry_timestamp, loan_id, loans!inner(business_id)')
           .eq('business_date', date)
-          .eq('loans.business_id', businessId),
+          .eq('loans.business_id', businessId)
+          // 612 of 862 collections on the live book are soft-deleted. A day's
+          // record book that counts them shows money that was taken back.
+          .isFilter('deleted_at', null),
       _db
           .from('loans')
           .select('loan_id, repayment_amount, entry_timestamp')
           .eq('business_id', businessId)
-          .eq('issue_business_date', date),
+          .eq('issue_business_date', date)
+          .isFilter('deleted_at', null),
       _db
           .from('expenses')
           .select('expense_id, amount, entry_timestamp, category')

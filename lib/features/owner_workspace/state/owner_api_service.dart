@@ -255,7 +255,13 @@ class OwnerApiService {
           .eq('business_id', businessId)
           .single(),
       _db.from('business_members').select('role, membership_status').eq('business_id', businessId),
-      _db.from('loans').select('loan_status, remaining_balance').eq('business_id', businessId),
+      // Without deleted_at the Owner's dashboard counts every loan ever
+      // deleted as still outstanding -- 164 rather than 56 on the live book.
+      _db
+          .from('loans')
+          .select('loan_status, remaining_balance')
+          .eq('business_id', businessId)
+          .isFilter('deleted_at', null),
       _db.from('investments').select('principal_amount, status').eq('business_id', businessId),
       _db
           .from('notifications')
@@ -683,6 +689,50 @@ class OwnerApiService {
       'p_amount': amount,
     });
     return (result as num).toInt();
+  }
+
+  /// What this Agent is waiting on, if anything.
+  ///
+  /// Null when there is nothing open. The partial unique index guarantees at
+  /// most one Pending row per agent, so maybeSingle is safe rather than
+  /// optimistic.
+  Future<PendingBfRequest?> readPendingBfRequest({required String membershipId}) async {
+    final row = await _db
+        .from('agent_bf_requests')
+        .select('request_id, requested_amount, reason, created_at')
+        .eq('membership_id', membershipId)
+        .eq('status', 'Pending')
+        .maybeSingle();
+    if (row == null) return null;
+    return PendingBfRequest(
+      requestId: row['request_id'] as String,
+      requestedAmount: (row['requested_amount'] as num).toInt(),
+      reason: row['reason'] as String?,
+      askedAt: DateTime.parse(row['created_at'] as String),
+    );
+  }
+
+  /// The Owner's answer.
+  ///
+  /// Approving goes through decide_agent_bf_request, NOT grant_agent_bf --
+  /// the RPC does the grant itself, inside the same transaction that marks the
+  /// request answered and tells the Agent. Calling both would move the money
+  /// twice.
+  ///
+  /// [amount] lets the Owner grant a figure other than the one asked for: they
+  /// know what is in the till, and the ask is a starting point, not a demand.
+  Future<void> decideBfRequest({
+    required String requestId,
+    required bool approve,
+    int? amount,
+    String? note,
+  }) async {
+    await _db.schema('app').rpc('decide_agent_bf_request', params: {
+      'p_request_id': requestId,
+      'p_approve': approve,
+      'p_amount': amount,
+      'p_note': note,
+    });
   }
 
   /// BUG FIXED: this was a bare UPDATE ... WHERE agent_id = ?. An agent
@@ -1260,5 +1310,20 @@ class AgentProfile {
     required this.assignedAreas,
     this.currentCompensation,
     this.compensationHistory = const [],
+  });
+}
+
+/// An Agent's open ask for float, waiting on the Owner.
+class PendingBfRequest {
+  final String requestId;
+  final int requestedAmount;
+  final String? reason;
+  final DateTime askedAt;
+
+  PendingBfRequest({
+    required this.requestId,
+    required this.requestedAmount,
+    this.reason,
+    required this.askedAt,
   });
 }

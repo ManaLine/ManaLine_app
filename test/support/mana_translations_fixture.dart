@@ -1315,9 +1315,22 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'existing_customers': {'English': 'Existing Customers', 'Telugu': 'ఇప్పటికే ఉన్న కస్టమర్లు'},
   'pre_existing_customer': {'English': 'Pre-Existing Customer', 'Telugu': 'ముందుగా ఉన్న కస్టమర్'},
   'search_by_name_mlid_phone': {'English': 'Search by name, MLID, or phone', 'Telugu': 'పేరు, MLID, లేదా ఫోన్ ద్వారా శోధించండి'},
+  'lending_rules': {'English': 'Lending Rules', 'Telugu': 'రుణ నియమాలు'},
+  'existing_customers_only': {
+    'English': 'Existing Customers Only',
+    'Telugu': 'ఇప్పటికే ఉన్న ఖాతాదారులకు మాత్రమే',
+  },
+  'existing_customers_only_on_note': {
+    'English': 'A loan may only be issued to somebody already on this book.',
+    'Telugu': 'ఈ పుస్తకంలో ఇప్పటికే ఉన్న వ్యక్తికి మాత్రమే రుణం ఇవ్వగలరు.',
+  },
+  'existing_customers_only_off_note': {
+    'English': 'Anyone found by search may be given a loan. New borrowers are added to this book as the loan is issued.',
+    'Telugu': 'శోధనలో దొరికిన ఎవరికైనా రుణం ఇవ్వవచ్చు. కొత్త వారిని రుణం ఇచ్చేటప్పుడే ఈ పుస్తకంలో చేరుస్తారు.',
+  },
   'sorted_by_note_customers': {
-    'English': "Sorted by: highest outstanding → penalty → grace period → today's due → village → name",
-    'Telugu': 'క్రమం: అత్యధిక బాకీ → జరిమానా → గ్రేస్ పీరియడ్ → నేటి బకాయి → గ్రామం → పేరు',
+    'English': "Sorted by: village → highest outstanding → today's due → name",
+    'Telugu': 'క్రమం: గ్రామం → అత్యధిక బాకీ → నేటి బకాయి → పేరు',
   },
   'no_customers_match_view': {'English': 'No customers match this view.', 'Telugu': 'ఈ వీక్షణకు సరిపోలే కస్టమర్లు లేరు.'},
   'all_villages': {'English': 'All Villages', 'Telugu': 'అన్ని గ్రామాలు'},

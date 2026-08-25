@@ -46,7 +46,9 @@ class CustomerLoansApiService {
           loan_schedule(due_date, installment_amount, status)
         ''')
         .eq('customer_id', customerId)
-        .eq('business_id', businessId);
+        .eq('business_id', businessId)
+        // The customer must not be shown loans the business deleted.
+        .isFilter('deleted_at', null);
 
     return (rows as List).map((r) => _summaryFromRow(r as Map<String, dynamic>)).toList();
   }
@@ -162,6 +164,7 @@ class CustomerLoansApiService {
         .select('collection_id, business_date, collected_amount, receipt_number, '
             'collection_payment_splits(payment_mode)')
         .eq('loan_id', loanId)
+        .isFilter('deleted_at', null)
         .order('business_date', ascending: false);
 
     return (rows as List).cast<Map<String, dynamic>>().map((r) {

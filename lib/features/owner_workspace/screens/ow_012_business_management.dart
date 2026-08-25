@@ -478,7 +478,7 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
     final initialTab = widget.initialTab ?? state.activeTab;
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       initialIndex: BusinessDetailTab.values.indexOf(initialTab),
       child: Scaffold(
         appBar: AppBar(
@@ -521,6 +521,7 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
               Tab(text: ref.t('agreements')),
               Tab(text: ref.t('members')),
               Tab(text: ref.t('account_periods')),
+              Tab(text: ref.t('lending_rules')),
             ],
           ),
         ),
@@ -537,9 +538,57 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
                   _AgreementsTab(businessId: widget.businessId),
                   _MembersTab(businessId: widget.businessId),
                   _AccountPeriodsTab(businessId: widget.businessId),
+                  _LendingRulesTab(businessId: widget.businessId),
                 ],
               ),
       ),
+    );
+  }
+}
+
+// --- Lending Rules tab -------------------------------------------------------
+// Decisions about how this book lends, as opposed to who is in it. One rule
+// today; this is where the next one goes rather than a dialog buried in a
+// screen that happens to be nearby.
+
+class _LendingRulesTab extends ConsumerWidget {
+  final String businessId;
+  const _LendingRulesTab({required this.businessId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(businessDetailProvider(businessId));
+    final detail = state.detail;
+    if (detail == null) return const Center(child: CircularProgressIndicator());
+
+    return ListView(
+      padding: const EdgeInsets.all(ManaSpacing.lg),
+      children: [
+        Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SwitchListTile(
+                value: detail.loansRequireExistingCustomer,
+                onChanged: (v) => ref
+                    .read(businessDetailProvider(businessId).notifier)
+                    .setLoansRequireExistingCustomer(v),
+                title: ManaText.raw(ref.t('existing_customers_only'), style: ManaType.strong),
+                subtitle: ManaText.raw(
+                  detail.loansRequireExistingCustomer
+                      ? ref.t('existing_customers_only_on_note')
+                      : ref.t('existing_customers_only_off_note'),
+                  style: ManaType.note,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (state.error != null) ...[
+          const SizedBox(height: ManaSpacing.md),
+          ManaText.raw(state.error!, style: ManaType.bad),
+        ],
+      ],
     );
   }
 }

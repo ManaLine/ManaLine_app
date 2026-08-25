@@ -82,6 +82,7 @@ class BusinessManagementApiService {
         .from('businesses')
         .select('registered_finance_name, business_type, business_address, business_phone, business_email, '
             'accepting_new_customers, accepting_new_investors, customer_loan_requests_allowed, migration_locked, '
+            'loans_require_existing_customer, '
             'max_investors, max_agents, max_customers')
         .eq('business_id', businessId)
         .single();
@@ -96,6 +97,10 @@ class BusinessManagementApiService {
       acceptingNewInvestors: b['accepting_new_investors'] as bool,
       customerLoanRequestsAllowed: b['customer_loan_requests_allowed'] as bool,
       migrationLocked: b['migration_locked'] as bool,
+      // Absent on a client that has not seen the column yet. Defaulting to
+      // false matches the column's own default and the behaviour every book
+      // already had, so a stale read never silently tightens the rule.
+      loansRequireExistingCustomer: b['loans_require_existing_customer'] as bool? ?? false,
       maxInvestors: b['max_investors'] as int?,
       maxAgents: b['max_agents'] as int?,
       maxCustomers: b['max_customers'] as int?,
@@ -132,6 +137,27 @@ class BusinessManagementApiService {
     if (maxCustomers != null) patch['max_customers'] = maxCustomers;
     if (patch.isEmpty) return;
     await _db.from('businesses').update(patch).eq('business_id', businessId);
+  }
+
+  /// Set the Owner's lending rule.
+  ///
+  /// Reads the row back rather than trusting the 200. PostgREST answers an
+  /// UPDATE that matched zero rows exactly like one that matched -- an Owner
+  /// whose RLS did not permit the write would otherwise see the switch move
+  /// and the rule stay as it was.
+  Future<bool> setLoansRequireExistingCustomer({
+    required String businessId,
+    required bool value,
+  }) async {
+    final rows = await _db
+        .from('businesses')
+        .update({'loans_require_existing_customer': value})
+        .eq('business_id', businessId)
+        .select('loans_require_existing_customer');
+    if (rows.isEmpty) {
+      throw Exception('The lending rule was not saved. You may not have permission to change it.');
+    }
+    return rows.first['loans_require_existing_customer'] as bool;
   }
 
   Future<List<LocationOption>> searchLocations({String? pinCode, String? search}) async {
@@ -790,6 +816,12 @@ class BusinessDetail {
   final bool acceptingNewInvestors;
   final bool customerLoanRequestsAllowed;
   final bool migrationLocked; // BR-159 — Business Started, migration mode locked
+
+  /// The Owner's rule about who may be lent to. False (the default) means a
+  /// loan may go to anybody found by identity search, and the wizard adds them
+  /// to the book as it writes the loan. True restricts lending to people
+  /// already on this book.
+  final bool loansRequireExistingCustomer;
   final int? maxInvestors;
   final int? maxAgents;
   final int? maxCustomers;
@@ -805,6 +837,7 @@ class BusinessDetail {
     required this.acceptingNewInvestors,
     required this.customerLoanRequestsAllowed,
     required this.migrationLocked,
+    this.loansRequireExistingCustomer = false,
     this.maxInvestors,
     this.maxAgents,
     this.maxCustomers,
@@ -1114,7 +1147,7 @@ final createBusinessFormProvider = NotifierProvider<CreateBusinessFormNotifier, 
 // Periods tabs), keyed per business via a Family notifier.
 // ============================================================================
 
-enum BusinessDetailTab { operatingAreas, agreements, members, accountPeriods }
+enum BusinessDetailTab { operatingAreas, agreements, members, accountPeriods, lendingRules }
 
 class BusinessDetailState {
   final BusinessDetail? detail;
@@ -1223,6 +1256,41 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
   }
 
   void setTab(BusinessDetailTab tab) => state = state.copyWith(activeTab: tab);
+
+  /// Flip the lending rule and keep what is on screen honest about the result.
+  ///
+  /// The loaded detail is patched from the value the SERVER returned, not from
+  /// the value that was asked for.
+  Future<void> setLoansRequireExistingCustomer(bool value) async {
+    final detail = state.detail;
+    if (detail == null) return;
+    try {
+      final saved = await ref
+          .read(businessManagementApiServiceProvider)
+          .setLoansRequireExistingCustomer(businessId: arg, value: value);
+      state = state.copyWith(
+        detail: BusinessDetail(
+          summary: detail.summary,
+          registeredFinanceName: detail.registeredFinanceName,
+          businessType: detail.businessType,
+          businessAddress: detail.businessAddress,
+          businessPhone: detail.businessPhone,
+          businessEmail: detail.businessEmail,
+          acceptingNewCustomers: detail.acceptingNewCustomers,
+          acceptingNewInvestors: detail.acceptingNewInvestors,
+          customerLoanRequestsAllowed: detail.customerLoanRequestsAllowed,
+          migrationLocked: detail.migrationLocked,
+          loansRequireExistingCustomer: saved,
+          maxInvestors: detail.maxInvestors,
+          maxAgents: detail.maxAgents,
+          maxCustomers: detail.maxCustomers,
+        ),
+        clearError: true,
+      );
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
 
   // --- Operating Areas — PIN → Village → Add flow (reuses OW-000 Step 2's
   // pattern; see ow_012_business_management.dart's _OperatingAreaAddPanel).

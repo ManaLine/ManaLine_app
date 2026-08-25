@@ -98,7 +98,10 @@ class AgentSettlementApiService {
         .select('collection_id, business_date')
         .eq('collected_by_membership_id', membershipId)
         .gte('business_date', startStr)
-        .lte('business_date', endStr);
+        .lte('business_date', endStr)
+        // Settling against deleted collections would ask the agent to hand
+        // over cash that was never counted as received.
+        .isFilter('deleted_at', null);
     final collectionIds = (collectionRows as List).map((c) => c['collection_id'] as String).toList();
 
     int cash = 0, upi = 0, bank = 0, cheque = 0;
@@ -124,7 +127,10 @@ class AgentSettlementApiService {
         .select('amount_given')
         .eq('collection_agent_membership_id', membershipId)
         .gte('issue_business_date', startStr)
-        .lte('issue_business_date', endStr);
+        .lte('issue_business_date', endStr)
+        // Deleted loans never left the till, so they cannot be part of what
+        // this agent has to settle for.
+        .isFilter('deleted_at', null);
     final loanDistribution = (loanRows as List).fold<int>(0, (sum, l) => sum + (l['amount_given'] as num).toInt());
 
     final expenseRows = await _db

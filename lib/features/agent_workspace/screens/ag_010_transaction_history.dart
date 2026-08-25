@@ -198,6 +198,17 @@ class _Ag010TransactionHistoryScreenState
           timeLabel: ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
         ));
       }
+      // The float they were left holding. Opening is what the Owner issued,
+      // closing is that plus everything they took in and paid out — which is
+      // the figure they hand over on, and the one "you collected" could never
+      // be.
+      if (day.closingBf != null) {
+        rows.add(ManaLedgerOpeningRow(
+          amount: day.closingBf!,
+          label: ref.t('carried_forward'),
+          isClosing: true,
+        ));
+      }
     }
     if (state.loadingMore) {
       rows.add(const Padding(

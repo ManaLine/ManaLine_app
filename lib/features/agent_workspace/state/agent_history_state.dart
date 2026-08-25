@@ -30,6 +30,9 @@ class AgentHistoryApiService {
             'customers(persons(full_name))')
         .eq('collected_by_membership_id', agentMembershipId)
         .eq('loans.business_id', businessId)
+        // A deleted collection is money that was taken back. Showing it in
+        // history says the agent collected it.
+        .isFilter('deleted_at', null)
         .order('entry_timestamp', ascending: false)
         .limit(100);
 

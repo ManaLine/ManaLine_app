@@ -195,25 +195,41 @@ class ManaLedgerRow extends StatelessWidget {
 class ManaLedgerOpeningRow extends StatelessWidget {
   final int amount;
   final String label;
+
+  /// The closing line sits at the FOOT of the day and carries a rule above it,
+  /// so a day reads as a small account: what was carried in, what moved, what
+  /// was left.
+  final bool isClosing;
+
   const ManaLedgerOpeningRow({
     super.key,
     required this.amount,
     required this.label,
+    this.isClosing = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: ManaColors.surfaceMuted,
+      decoration: BoxDecoration(
+        color: ManaColors.surfaceMuted,
+        border: isClosing
+            ? Border(top: BorderSide(color: ManaColors.divider))
+            : null,
+      ),
       padding: const EdgeInsets.symmetric(
         horizontal: ManaSpacing.lg,
         vertical: ManaSpacing.sm,
       ),
       child: Row(
         children: [
-          Icon(Icons.account_balance_wallet_outlined,
-              size: 18, color: ManaColors.textSecondary),
+          Icon(
+              isClosing
+                  ? Icons.account_balance_wallet
+                  : Icons.account_balance_wallet_outlined,
+              size: 18,
+              color: ManaColors.textSecondary),
           const SizedBox(width: ManaSpacing.sm),
           Expanded(
             child: ManaText.raw(

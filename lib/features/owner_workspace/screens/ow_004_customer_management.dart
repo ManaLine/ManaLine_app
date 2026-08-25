@@ -193,7 +193,15 @@ class _VillageFilterDropdown extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final villages = state.customers.map((c) => c.village).where((v) => v.isNotEmpty).toSet().toList()..sort();
+    // Counted, not just listed. Village is the axis this book is organised on
+    // -- a round is a village, a customer is placed by one -- and the count is
+    // what makes the filter answerable at a glance: "Uranduru has 12" is the
+    // question the Owner is actually asking when they open this.
+    final counts = <String, int>{};
+    for (final c in state.customers) {
+      if (c.village.isNotEmpty) counts[c.village] = (counts[c.village] ?? 0) + 1;
+    }
+    final villages = counts.keys.toList()..sort();
     if (villages.isEmpty) return const SizedBox.shrink();
     return DropdownButtonFormField<String?>(
       initialValue: state.villageFilter,
@@ -207,9 +215,12 @@ class _VillageFilterDropdown extends ConsumerWidget {
       items: [
         DropdownMenuItem(
             value: null,
-            child: ManaText.raw(ref.t('all_villages'), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            child: ManaText.raw('${ref.t('all_villages')} · ${state.customers.length}',
+                maxLines: 1, overflow: TextOverflow.ellipsis)),
         ...villages.map((v) => DropdownMenuItem(
-            value: v, child: ManaText.raw(v, maxLines: 1, overflow: TextOverflow.ellipsis))),
+            value: v,
+            child: ManaText.raw('$v · ${counts[v]}',
+                maxLines: 1, overflow: TextOverflow.ellipsis))),
       ],
       onChanged: (v) => ref.read(customerListProvider.notifier).setVillageFilter(v),
     );

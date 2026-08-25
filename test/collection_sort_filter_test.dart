@@ -90,8 +90,96 @@ void main() {
       expect(hits.map((r) => r.customerName), contains('Daily Prasad'));
     });
   });
+  _villagesAndSort();
 }
 
 List<CollectionDueRow> _rows() => [
       _row(name: 'Anand', village: 'Renigunta', frequency: 'Weekly'),
     ];
+
+/// Choosing which villages to walk, and how to order them.
+///
+/// Village used to LEAD the sort, because a round is walked one village at a
+/// time. It is a filter now: the Agent says where they are standing and the
+/// order applies inside it. Sorting by a thing you have already narrowed to
+/// does nothing.
+void _villagesAndSort() {
+  group('the villages in a round', () {
+    test('offers each village once, with how many rows it has', () {
+      final v = manaVillagesInRound([
+        _row(name: 'A', village: 'Uranduru'),
+        _row(name: 'B', village: 'Uranduru'),
+        _row(name: 'C', village: 'Someswaram'),
+      ]);
+      expect(v.map((e) => e.village), ['Someswaram', 'Uranduru']);
+      expect(v.firstWhere((e) => e.village == 'Uranduru').rows, 2);
+    });
+
+    test('leaves out a village with nothing due — it is not a trip to make', () {
+      final v = manaVillagesInRound([
+        _row(name: 'A', village: 'Uranduru', due: 500),
+        _row(name: 'B', village: 'Settled', due: 0),
+      ]);
+      expect(v.map((e) => e.village), ['Uranduru']);
+    });
+
+    test('a customer with no village on file sorts last, not first', () {
+      final v = manaVillagesInRound([
+        _row(name: 'A', village: ''),
+        _row(name: 'B', village: 'Uranduru'),
+      ]);
+      expect(v.last.village, '');
+    });
+  });
+
+  group('narrowing to chosen villages', () {
+    final round = [
+      _row(name: 'A', village: 'Uranduru'),
+      _row(name: 'B', village: 'Someswaram'),
+    ];
+
+    test('picking none means the whole round, not an empty one', () {
+      expect(manaFilterByVillages(round, {}).length, 2);
+    });
+
+    test('picking one leaves only that village', () {
+      final out = manaFilterByVillages(round, {'Uranduru'});
+      expect(out.single.customerName, 'A');
+    });
+  });
+
+  group('ordering a round', () {
+    test('due today leads by default, biggest first', () {
+      final out = manaSortDueRows([
+        _row(name: 'small', village: 'V', due: 100),
+        _row(name: 'big', village: 'V', due: 900),
+      ], CollectionSort.dueToday);
+      expect(out.first.customerName, 'big');
+    });
+
+    test('penalty first puts a penalty above a grace above the rest', () {
+      final out = manaSortDueRows([
+        _row(name: 'plain', village: 'V'),
+        _row(name: 'grace', village: 'V', grace: true),
+        _row(name: 'penalty', village: 'V', penalty: true),
+      ], CollectionSort.penaltyFirst);
+      expect(out.map((r) => r.customerName), ['penalty', 'grace', 'plain']);
+    });
+
+    test('name orders by name whatever the amounts are', () {
+      final out = manaSortDueRows([
+        _row(name: 'Zubair', village: 'V', due: 900),
+        _row(name: 'Anita', village: 'V', due: 100),
+      ], CollectionSort.name);
+      expect(out.first.customerName, 'Anita');
+    });
+
+    test('two rows level on the sort fall back to the name, never to chance', () {
+      final out = manaSortDueRows([
+        _row(name: 'Zubair', village: 'V', due: 500),
+        _row(name: 'Anita', village: 'V', due: 500),
+      ], CollectionSort.dueToday);
+      expect(out.map((r) => r.customerName), ['Anita', 'Zubair']);
+    });
+  });
+}

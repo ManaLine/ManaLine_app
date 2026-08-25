@@ -352,6 +352,86 @@ final collectionApiServiceProvider = Provider<CollectionApiService>((ref) {
 /// row that matters most in the place you are standing is still at the top of
 /// that group. Villages sort alphabetically; a customer with no address on
 /// file sorts last rather than into a nameless group at the front.
+/// How the round is ordered, once the Agent has chosen which villages they
+/// are standing in.
+///
+/// Village used to lead the sort, because a route is walked one village at a
+/// time. It is now a FILTER instead: an Agent picks the villages they are
+/// working and the order applies within them, which is the same idea said
+/// better — sorting by a thing you have already narrowed to does nothing.
+enum CollectionSort {
+  /// The default. Most owed today at the top, which is what a round is for.
+  dueToday('Due Today'),
+  penaltyFirst('Penalty First'),
+  outstanding('Biggest Balance'),
+  name('Name');
+
+  const CollectionSort(this.label);
+  final String label;
+}
+
+/// The villages this round touches, with how many rows each has.
+///
+/// A village whose every loan is settled is left out entirely: it is not a
+/// place the Agent has to go today, and offering it is offering a trip for
+/// nothing.
+List<({String village, int rows, int due})> manaVillagesInRound(
+    List<CollectionDueRow> list) {
+  final byVillage = <String, ({int rows, int due})>{};
+  for (final r in list) {
+    final v = r.village.trim().isEmpty ? '' : r.village.trim();
+    final now = byVillage[v] ?? (rows: 0, due: 0);
+    byVillage[v] = (rows: now.rows + 1, due: now.due + r.installmentDue);
+  }
+  final out = [
+    for (final e in byVillage.entries)
+      if (e.value.due > 0) (village: e.key, rows: e.value.rows, due: e.value.due),
+  ]..sort((a, b) {
+      // A row with no village on file sorts last rather than into a nameless
+      // group at the front.
+      if (a.village.isEmpty != b.village.isEmpty) return a.village.isEmpty ? 1 : -1;
+      return a.village.toLowerCase().compareTo(b.village.toLowerCase());
+    });
+  return out;
+}
+
+/// Narrows to the chosen villages. An empty choice means the whole round,
+/// not an empty one -- an Agent who has picked nothing has not said "show me
+/// nothing".
+List<CollectionDueRow> manaFilterByVillages(
+    List<CollectionDueRow> list, Set<String> villages) {
+  if (villages.isEmpty) return list;
+  return [
+    for (final r in list)
+      if (villages.contains(r.village.trim())) r,
+  ];
+}
+
+/// Orders a round. Village is not an option here on purpose -- see
+/// [CollectionSort].
+List<CollectionDueRow> manaSortDueRows(
+    List<CollectionDueRow> list, CollectionSort mode) {
+  final sorted = [...list];
+  int byName(CollectionDueRow a, CollectionDueRow b) =>
+      a.customerName.toLowerCase().compareTo(b.customerName.toLowerCase());
+  sorted.sort((a, b) => switch (mode) {
+        CollectionSort.dueToday => b.installmentDue.compareTo(a.installmentDue) != 0
+            ? b.installmentDue.compareTo(a.installmentDue)
+            : byName(a, b),
+        CollectionSort.penaltyFirst => a.penaltyEligible != b.penaltyEligible
+            ? (a.penaltyEligible ? -1 : 1)
+            : (a.gracePeriod != b.gracePeriod
+                ? (a.gracePeriod ? -1 : 1)
+                : byName(a, b)),
+        CollectionSort.outstanding =>
+          b.outstandingBalance.compareTo(a.outstandingBalance) != 0
+              ? b.outstandingBalance.compareTo(a.outstandingBalance)
+              : byName(a, b),
+        CollectionSort.name => byName(a, b),
+      });
+  return sorted;
+}
+
 List<CollectionDueRow> _applyLockedSort(List<CollectionDueRow> list) {
   final sorted = [...list];
   sorted.sort((a, b) {

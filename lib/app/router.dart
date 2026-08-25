@@ -51,7 +51,6 @@ import '../shared/about_screen.dart';
 import '../shared/appearance_screen.dart';
 import '../features/agent_workspace/screens/ag_001_agent_home_dashboard.dart';
 import '../features/agent_workspace/screens/ag_002_collection_mode.dart';
-import '../features/agent_workspace/screens/ag_003_todays_route.dart';
 import '../features/agent_workspace/screens/ag_004_customer_management.dart';
 import '../features/agent_workspace/screens/ag_005_draft_transactions.dart';
 import '../features/agent_workspace/screens/ag_006_owner_settlement.dart';
@@ -383,12 +382,18 @@ final manaRouter = GoRouter(
       path: '/ag-002',
       builder: (c, s) => AgentCollectionModeScreen(businessId: _resolveBusinessId(s)),
     ),
+    // AG-003 was Today's Route / Area Work Session. It listed the same loans
+    // as Collection Mode, off its own query, and offered a subset of what
+    // Collection Mode does -- two screens for one job, and only one of them
+    // was maintained. Merged into Collection Mode.
+    //
+    // The route stays registered because a screen ID is the routing contract:
+    // the ID is locked even though the screen is gone, and a deep link or a
+    // stored destination pointing here must still land somewhere real rather
+    // than on a 404.
     GoRoute(
       path: '/ag-003',
-      builder: (c, s) => TodaysRouteScreen(
-        businessId: _resolveBusinessId(s),
-        agentMembershipId: ManaSession.instance.lastMembershipId ?? 'stub-agent-membership-id',
-      ),
+      builder: (c, s) => AgentCollectionModeScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ag-004',

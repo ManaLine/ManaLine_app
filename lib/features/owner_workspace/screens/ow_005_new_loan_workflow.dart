@@ -9,6 +9,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/translation_service.dart';
+import '../../../shared/bf_request_card.dart';
 import '../state/customer_state.dart';
 import '../state/loan_wizard_state.dart';
 import '../state/owner_api_service.dart';
@@ -144,44 +145,108 @@ class _Step1CustomerSelection extends ConsumerStatefulWidget {
 
 class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection> {
   final _query = TextEditingController();
-  CustomerSummary? _found;
-  /// >1 match for the typed name. Shown as a prompt to narrow the search
-  /// rather than silently picking one.
-  int _ambiguousCount = 0;
+  List<CustomerSummary> _matches = const [];
   bool _searching = false;
+  bool _searched = false;
+
+  /// personId of the row currently being added to this book, so its own button
+  /// shows the spinner and the rest go inert. A second tap while the first is
+  /// still writing would create the customer twice.
+  String? _adding;
 
   Future<void> _search() async {
-    setState(() => _searching = true);
-    // Same fix as OW-004's Add Customer search: this box was always sent
-    // as `fullName:` regardless of what was typed, so an MLID search
-    // (e.g. "MLPI100000014") queried full_name ILIKE '%MLPI100000014%'
-    // and never matched, even for a customer who genuinely exists.
-    // Classify by shape and route to the matching owner_search_person()
-    // param instead. (Village is not a supported search dimension on
-    // that RPC at all — the label overpromises there; out of scope here.)
-    final query = _query.text.trim();
-    final isMlid = RegExp(r'^ML[A-Za-z]{2}\d+$').hasMatch(query);
-    final digitsOnly = RegExp(r'^\d+$').hasMatch(query);
+    setState(() {
+      _searching = true;
+      _searched = false;
+    });
+    // One query covers MLID, mobile, Aadhaar, name and village, so there is
+    // nothing to classify by shape: the Owner types what they know.
+    //
+    // What comes back depends on the Owner's own rule. By default anyone
+    // findable may be lent to and the wizard adds them to the book on the way
+    // through; with loans_require_existing_customer on, only this book's
+    // customers appear. The rule is enforced server-side, so a stale client
+    // cannot talk its way past it.
     final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(customerListProvider.notifier).searchIdentity(
-            mlid: isMlid ? query : null,
-            aadhaar: !isMlid && digitsOnly && query.length == 12 ? query : null,
-            phone: !isMlid && digitsOnly && query.length == 10 ? query : null,
-            fullName: isMlid || digitsOnly ? null : query,
+      return ref.read(customerListProvider.notifier).searchLoanCandidates(
+            businessId: widget.businessId,
+            query: _query.text,
           );
     });
     if (!mounted) return;
     setState(() {
       _searching = false;
-      // searchIdentity returns EVERY match now (a name is not unique).
-      // These two screens pick a single customer for a loan, so an
-      // ambiguous name search deliberately selects nothing rather than
-      // guessing — issuing a loan against the wrong person of the same
-      // name is the failure that matters here.
-      final matches = result ?? const <CustomerSummary>[];
-      _found = matches.length == 1 ? matches.first : null;
-      _ambiguousCount = matches.length > 1 ? matches.length : 0;
+      _searched = true;
+      // EVERY match, shown. The old screen refused an ambiguous name outright
+      // — "2 people match that name, search by MANA LINE ID" — which asks the
+      // Owner for an ID they are standing there without. The two people are
+      // right here; showing them with village, father/husband name and their
+      // live loan count lets the Owner recognise which one is in front of them.
+      _matches = result ?? const <CustomerSummary>[];
     });
+  }
+
+  /// Take a row into the wizard.
+  ///
+  /// An existing customer goes straight through. Someone found by identity
+  /// search has no customers row yet, so one is created here, linking the
+  /// person who already exists rather than making a duplicate identity -- the
+  /// same Link Existing path OW-004's Add Customer uses.
+  ///
+  /// The loan is only ever handed a real customerId. That is the invariant the
+  /// whole search was rebuilt around: an empty one used to travel six steps
+  /// before surfacing as a uuid cast error the Owner could make nothing of.
+  Future<void> _choose(CustomerSummary c) async {
+    if (c.customerId.isNotEmpty) {
+      ref.read(loanWizardProvider.notifier).selectCustomer(c);
+      return;
+    }
+    if (c.personId == null) return;
+    setState(() => _adding = c.personId);
+    final customerId = await NetworkErrorHandler.run(context, () async {
+      return ref.read(customerApiServiceProvider).createCustomer(
+            businessId: widget.businessId,
+            existingPersonId: c.personId,
+          );
+    });
+    if (!mounted) return;
+    setState(() => _adding = null);
+    if (customerId == null) return;
+    ref.read(loanWizardProvider.notifier).selectCustomer(
+          CustomerSummary(
+            customerId: customerId,
+            personId: c.personId,
+            fullName: c.fullName,
+            fatherHusbandName: c.fatherHusbandName,
+            village: c.village,
+            phoneNumber: c.phoneNumber,
+            mlid: c.mlid,
+            activeLoanCount: 0,
+            todaysDue: 0,
+            outstandingBalance: 0,
+            lineRepaymentIndex: 0,
+            customerStatus: 'Active',
+            membershipStatus: 'Active',
+          ),
+        );
+  }
+
+  /// Village first. It is the axis the book is actually organised on — a round
+  /// is a village, a customer is placed by village, and two people of the same
+  /// name are told apart by it before anything else.
+  List<MapEntry<String, List<CustomerSummary>>> get _byVillage {
+    final groups = <String, List<CustomerSummary>>{};
+    for (final c in _matches) {
+      groups.putIfAbsent(c.village.isEmpty ? '—' : c.village, () => []).add(c);
+    }
+    final keys = groups.keys.toList()..sort();
+    return [for (final k in keys) MapEntry(k, groups[k]!)];
+  }
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
   }
 
   @override
@@ -191,8 +256,7 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
       children: [
         ManaText.raw(ref.t('select_customer'), style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: ManaSpacing.xs),
-        ManaText.raw(ref.t('search_customer_note'),
-            style: ManaType.note),
+        ManaText.raw(ref.t('search_customer_note'), style: ManaType.note),
         const SizedBox(height: ManaSpacing.lg),
         Row(
           children: [
@@ -200,7 +264,11 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
               child: TextField(
                 controller: _query,
                 decoration: InputDecoration(labelText: ref.t('search')),
+                textInputAction: TextInputAction.search,
                 onChanged: (_) => setState(() {}),
+                onSubmitted: (_) {
+                  if (_query.text.trim().isNotEmpty && !_searching) _search();
+                },
               ),
             ),
             const SizedBox(width: ManaSpacing.sm),
@@ -213,30 +281,52 @@ class _Step1CustomerSelectionState extends ConsumerState<_Step1CustomerSelection
           ],
         ),
         const SizedBox(height: ManaSpacing.lg),
-        if (_found != null)
-          Card(
-            child: ListTile(
-              leading: const ManaVerificationRing(isVerified: true, size: 44),
-              title: ManaText.raw(_found!.fullName, style: ManaType.strong),
-              subtitle: ManaText.raw('${_found!.mlid} · ${_found!.village}'),
-              trailing: ElevatedButton(
-                onPressed: () => ref.read(loanWizardProvider.notifier).selectCustomer(_found!),
-                child: ManaText.raw(ref.t('select')),
+        if (_matches.isNotEmpty)
+          for (final group in _byVillage) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: ManaSpacing.xs, top: ManaSpacing.xs),
+              child: ManaText.raw(
+                '${group.key}  ·  ${group.value.length}',
+                style: ManaType.note.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
-          )
-        // Several people share the typed name. Say so and make them narrow
-        // it — picking one for the Owner is how a loan lands on the wrong
-        // person of the same name.
-        else if (_ambiguousCount > 0 && !_searching)
-          ManaText.raw(
-            '$_ambiguousCount people match that name. Search by MANA LINE ID, '
-            'Aadhaar or mobile number to pick the right one.',
-            style: ManaType.noteWarn,
-          )
-        else if (_query.text.trim().isNotEmpty && !_searching)
-          ManaText.raw(ref.t('no_matching_customer_note'),
-              style: ManaType.note),
+            for (final c in group.value)
+              Card(
+                margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
+                child: ListTile(
+                  leading: ManaVerificationRing(isVerified: c.customerId.isNotEmpty, size: 40),
+                  title: ManaText.raw(c.fullName, style: ManaType.strong),
+                  subtitle: ManaText.raw([
+                    if (c.fatherHusbandName.isNotEmpty) c.fatherHusbandName,
+                    if (c.mlid.isNotEmpty) c.mlid,
+                    if (c.phoneNumber.isNotEmpty) c.phoneNumber,
+                    // The deciding detail when two same-named people are both
+                    // on screen: one of them already owes this book money.
+                    if (c.activeLoanCount > 0) '${c.activeLoanCount} live',
+                    // Said plainly, because the button does something
+                    // different for this row: it writes a customer record.
+                    if (c.customerId.isEmpty) 'Not on this book yet',
+                  ].join(' · ')),
+                  onTap: _adding != null ? null : () => _choose(c),
+                  trailing: c.customerId.isEmpty
+                      ? OutlinedButton(
+                          onPressed: _adding != null ? null : () => _choose(c),
+                          child: _adding == c.personId
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              : ManaText.raw(ref.t('add')),
+                        )
+                      : ElevatedButton(
+                          onPressed: _adding != null ? null : () => _choose(c),
+                          child: ManaText.raw(ref.t('select')),
+                        ),
+                ),
+              ),
+          ]
+        else if (_searched && !_searching)
+          ManaText.raw(ref.t('no_matching_customer_note'), style: ManaType.note),
       ],
     );
   }
@@ -783,7 +873,19 @@ class _Step5Confirm extends ConsumerWidget {
             ),
           ),
         ),
-        if (state.error != null) ...[
+        // A float refusal is not the same kind of failure as a bad figure, so
+        // it does not get the same red box. Nothing here is wrong -- the till
+        // is empty -- and what the Agent needs is a way to ask, not a warning.
+        if (state.blockedOnBf) ...[
+          const SizedBox(height: ManaSpacing.md),
+          ManaBfRequestCard(
+            available: state.bfAvailable ?? 0,
+            required: state.bfRequired ?? 0,
+            savedDraftId: state.savedDraftId,
+            onSend: (amount, reason) =>
+                ref.read(loanWizardProvider.notifier).requestBf(amount: amount, reason: reason),
+          ),
+        ] else if (state.error != null) ...[
           const SizedBox(height: ManaSpacing.md),
           Container(
             padding: const EdgeInsets.all(ManaSpacing.md),

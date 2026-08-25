@@ -74,8 +74,45 @@ class DraftTransactionsApiService {
   // shape here is deliberately type-agnostic (just resultingRecordId).
   Future<DraftSubmitResult> submitDraft({required String draftId}) async {
     final result = await _db.schema('app').rpc('submit_draft', params: {'p_draft_id': draftId}) as Map<String, dynamic>;
+    // submit_draft can answer `passed: false` -- a loan draft re-submitted
+    // while the Agent still has no float comes back exactly that way. Reading
+    // the id straight out threw a null-cast, which reached the screen as a
+    // Dart type error instead of the reason the server actually gave.
+    if (result['passed'] == false) {
+      throw DraftSubmitRefused(
+          result['failure_reason'] as String? ?? 'The draft could not be submitted.');
+    }
     final id = (result['loan_id'] ?? result['collection_id'] ?? result['remark_id'] ?? result['document_id']) as String;
     return DraftSubmitResult(resultingRecordId: id);
+  }
+
+  /// Keep a loan the server refused, instead of throwing the Owner's typing
+  /// away.
+  ///
+  /// A loan that fails on float is not a mistake -- every figure in it is
+  /// right, the till is simply empty. Discarding it means re-entering
+  /// customer, amounts, duration, guarantor and a fresh live photo once the
+  /// BF arrives, standing in front of the same customer.
+  ///
+  /// Saved as a 'Loan Distribution' draft, which app.submit_draft already
+  /// knows how to replay through create_loan_with_bf_check -- so the retry is
+  /// the same code path as the original attempt, not a second one that could
+  /// drift from it.
+  Future<String> saveLoanDraft({
+    required String membershipId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final row = await _db
+        .from('collection_drafts')
+        .insert({
+          'draft_type': 'Loan Distribution',
+          'status': 'Draft',
+          'created_by_membership_id': membershipId,
+          'payload_json': payload,
+        })
+        .select('draft_id')
+        .single();
+    return row['draft_id'] as String;
   }
 
   /// SCHEMA/RLS MISMATCH FIXED THIS SESSION: AG-005's own spec doc
@@ -163,6 +200,16 @@ class DraftTransaction {
     this.payloadJson = const {},
     this.loanId,
   });
+}
+
+/// The server declined a draft for a stated business reason (no float, loan
+/// terms invalid). Distinct from a network or auth failure, because the
+/// screen's answer is different: show the reason, keep the draft.
+class DraftSubmitRefused implements Exception {
+  final String reason;
+  DraftSubmitRefused(this.reason);
+  @override
+  String toString() => reason;
 }
 
 class DraftSubmitResult {

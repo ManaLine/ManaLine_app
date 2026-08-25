@@ -305,10 +305,30 @@ class AgentApiService {
           .from('loans')
           .select('loan_status, remaining_balance')
           .eq('collection_agent_membership_id', membershipId)
-          .inFilter('loan_status', ['Active', 'Grace Period', 'Penalty']),
-      // M4: customers RLS (app.agent_covers_customer) scopes this to the
-      // agent's assigned areas — no assigned_agent_membership_id filter.
-      _db.from('customers').select('customer_id'),
+          .inFilter('loan_status', ['Active', 'Grace Period', 'Penalty'])
+          // A soft-deleted loan keeps its loan_status. On the live book 108
+          // of 164 Active/Grace/Penalty loans are deleted, so every count and
+          // every outstanding total that reads status without deleted_at
+          // overstates by roughly three times. Same class of fault as the 85
+          // customers above: the row is still there, and only one column says
+          // it should not be counted.
+          .isFilter('deleted_at', null),
+      // Scoped to THIS business, not left to RLS.
+      //
+      // The note here used to say app.agent_covers_customer scoped it to the
+      // agent's assigned areas. It does not, because RLS grants the UNION of
+      // what any policy allows: an Owner who is also an Agent of their own
+      // business matches customers_owner_all as well, which covers every
+      // business they own. On the live account that is two businesses, and the
+      // dashboard counted 85 customers for a book that has 55.
+      //
+      // RLS knows what a person is ALLOWED to see. It cannot know which
+      // business they are LOOKING AT, and no policy ever will.
+      _db
+          .from('customers')
+          .select('customer_id, '
+              'business_members!customers_membership_id_fkey!inner(business_id)')
+          .eq('business_members.business_id', businessId),
       _db
           .from('collection_drafts')
           .select('draft_id')

@@ -18,7 +18,6 @@ import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/agent_dashboard_state.dart';
 import 'ag_002_collection_mode.dart';
-import 'ag_003_todays_route.dart';
 import 'ag_004_customer_management.dart';
 import 'ag_005_draft_transactions.dart';
 import 'ag_006_owner_settlement.dart';
@@ -126,9 +125,22 @@ class _AgentHomeDashboardScreenState
               labelKey: 'customer_management',
               onTap: () => context.push('/ag-004', extra: widget.businessId),
             ),
+            // Today's Route now IS Collection Mode. It was the same customer
+            // list from the same provider, opening the same entry screen, and
+            // its one distinction — ordering by route_locations.visit_order —
+            // has never had any data: the routes table is empty. Collection
+            // Mode's village filter says "work this area" better than a
+            // separate screen did, and an Agent choosing between two doors to
+            // the same round is a choice that costs them time and gains them
+            // nothing.
             ManaDrawerAction(
-              labelKey: 'todays_route',
-              onTap: () => context.push('/ag-003', extra: widget.businessId),
+              labelKey: 'collection_mode',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      AgentCollectionModeScreen(businessId: widget.businessId),
+                ),
+              ),
             ),
           ],
         ),
@@ -837,7 +849,6 @@ class _QuickActions extends ConsumerWidget {
   // `$3` is the translation key for what's actually shown on screen.
   static const _all = [
     ('Collection Mode', Icons.payments_outlined, 'collection_mode'),
-    ('Area Work Session', Icons.route_outlined, 'area_work_session'),
     ('Customer List', Icons.people_outline, 'customer_list'),
     ('Loan Distribution', Icons.request_page_outlined, 'loan_distribution'),
     ('Draft Transactions', Icons.drafts_outlined, 'draft_transactions'),
@@ -880,13 +891,12 @@ class _QuickActions extends ConsumerWidget {
                               );
                               break;
                             case 'Area Work Session':
+                              // Merged into Collection Mode — see the drawer
+                              // action above for why.
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => TodaysRouteScreen(
-                                    businessId: businessId,
-                                    agentMembershipId: agentId,
-                                  ),
-                                ),
+                                    builder: (_) => AgentCollectionModeScreen(
+                                        businessId: businessId)),
                               );
                               break;
                             case 'Customer List':

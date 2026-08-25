@@ -10,6 +10,7 @@ import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_stat_strip.dart';
+import '../../../design/components/mana_amount.dart' show manaRupees;
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/owner_api_service.dart';
@@ -618,6 +619,12 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
   int? _bf;
   String? _bfError;
 
+  /// The Agent's open ask, if there is one. Loaded with the float because the
+  /// two are read together: "they have nothing, and they have asked for
+  /// 30,000" is one fact, and splitting it across two loads would show the
+  /// Owner half of it first.
+  PendingBfRequest? _request;
+
   AgentSummary get agent => widget.agent;
 
   @override
@@ -638,12 +645,13 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         if (mounted) setState(() => _loadingBf = false);
         return;
       }
-      final bf = await ref
-          .read(ownerApiServiceProvider)
-          .readAgentBf(agentMembershipId: membershipId);
+      final api = ref.read(ownerApiServiceProvider);
+      final bf = await api.readAgentBf(agentMembershipId: membershipId);
+      final request = await api.readPendingBfRequest(membershipId: membershipId);
       if (mounted) {
         setState(() {
           _bf = bf;
+          _request = request;
           _loadingBf = false;
         });
       }
@@ -689,6 +697,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         // The agent cannot be lent against without a float, and
         // create_loan_with_bf_check refuses with INSUFFICIENT_FLOAT until
         // the Owner tops them up. This is where that happens.
+        if (_request != null) _requestBanner(),
         if (agent.membershipId != null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
@@ -718,6 +727,140 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
                     : ref.t('not_visible')),
       ],
     );
+  }
+
+  /// The Agent asked. Until this existed the ask happened over the phone and
+  /// the app knew nothing about it -- so the Owner had no record that anyone
+  /// was waiting, and the Agent had no way to tell being refused from being
+  /// forgotten.
+  Widget _requestBanner() {
+    final r = _request!;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
+      padding: const EdgeInsets.all(ManaSpacing.md),
+      decoration: BoxDecoration(
+        color: ManaColors.statusWarnFaint,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ManaText.raw(
+            '${agent.fullName} asked for ${manaRupees(r.requestedAmount)}',
+            style: ManaType.strong,
+          ),
+          if (r.reason != null && r.reason!.trim().isNotEmpty) ...[
+            const SizedBox(height: 2),
+            ManaText.raw(r.reason!, style: ManaType.note),
+          ],
+          const SizedBox(height: ManaSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _decide(approve: false),
+                  child: ManaText.raw(ref.t('reject')),
+                ),
+              ),
+              const SizedBox(width: ManaSpacing.sm),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: () => _decide(approve: true),
+                  child: ManaText.raw(ref.t('accept')),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _decide({required bool approve}) async {
+    final r = _request!;
+    int? amount;
+
+    if (approve) {
+      // Prefilled with what was asked, and editable: the Owner is the one who
+      // knows what is in the till, and granting a smaller figure is a normal
+      // answer rather than a refusal.
+      final controller = TextEditingController(text: '${r.requestedAmount}');
+      amount = await showDialog<int>(
+        context: context,
+        builder: (dialogContext) {
+          String? error;
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) => AlertDialog(
+              title: ManaText.raw(ref.t('add_bf')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ManaText.raw(
+                    '${agent.fullName} asked for ${manaRupees(r.requestedAmount)}. '
+                    'Send this amount, or change it.',
+                    style: TextStyle(color: ManaColors.textSecondary, fontSize: 13),
+                  ),
+                  const SizedBox(height: ManaSpacing.md),
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      prefixText: '₹ ',
+                      labelText: ref.t('amount'),
+                      errorText: error,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: ManaText.raw(ref.t('cancel'))),
+                ElevatedButton(
+                  onPressed: () {
+                    final v = int.tryParse(controller.text.trim());
+                    if (v == null || v <= 0) {
+                      setDialogState(() => error = ref.t('enter_whole_rupee_amount'));
+                      return;
+                    }
+                    Navigator.pop(dialogContext, v);
+                  },
+                  child: ManaText.raw(ref.t('send')),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      if (amount == null || !mounted) return;
+    }
+
+    // NetworkErrorHandler surfaces the server's own refusal -- notably
+    // "Owner BF is only X, cannot top up Y", which is the answer the Owner
+    // needs rather than a generic failure.
+    final done = await NetworkErrorHandler.run(context, () async {
+      await ref.read(ownerApiServiceProvider).decideBfRequest(
+            requestId: r.requestId,
+            approve: approve,
+            amount: amount,
+          );
+      return true;
+    });
+    if (done != true || !mounted) return;
+
+    // Re-read rather than adjusting locally: the float the Agent now holds is
+    // the server's figure, and this screen has been wrong about money before
+    // by assuming its own arithmetic agreed.
+    await _loadBf();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: ManaText.raw(approve
+          ? 'Sent ${manaRupees(amount!)} to ${agent.fullName}.'
+          : 'Rejected. ${agent.fullName} has been told.'),
+    ));
   }
 
   Future<void> _openTopUpSheet() async {

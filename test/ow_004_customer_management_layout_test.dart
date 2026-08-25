@@ -34,8 +34,8 @@ const _ow004TeluguTranslations = <String, Map<String, String>>{
   'village': {'English': 'Village', 'Telugu': 'గ్రామం'},
   'due_note': {'English': 'Due {amount}', 'Telugu': '{amount} బకాయి'},
   'sorted_by_note_customers': {
-    'English': "Sorted by: highest outstanding → penalty → grace period → today's due → village → name",
-    'Telugu': 'క్రమం: అత్యధిక బాకీ → జరిమానా → గ్రేస్ పీరియడ్ → నేటి బకాయి → గ్రామం → పేరు',
+    'English': "Sorted by: village → highest outstanding → today's due → name",
+    'Telugu': 'క్రమం: గ్రామం → అత్యధిక బాకీ → నేటి బకాయి → పేరు',
   },
   'no_customers_match_view': {'English': 'No customers match this view.', 'Telugu': 'ఈ వీక్షణకు సరిపోలే కస్టమర్లు లేరు.'},
 };

@@ -164,12 +164,14 @@ class ReportHubApiService {
         .from('collections')
         .select('collection_id, collected_amount, loans!inner(business_id)')
         .eq('business_date', dateStr)
-        .eq('loans.business_id', businessId) as List;
+        .eq('loans.business_id', businessId)
+        .isFilter('deleted_at', null) as List;
     final loanRows = await _db
         .from('loans')
         .select('loan_id, amount_given')
         .eq('business_id', businessId)
-        .eq('issue_business_date', dateStr) as List;
+        .eq('issue_business_date', dateStr)
+        .isFilter('deleted_at', null) as List;
     final expenseRows = await _db
         .from('expenses')
         .select('expense_id, amount, category')

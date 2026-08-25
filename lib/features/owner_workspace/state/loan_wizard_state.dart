@@ -7,6 +7,10 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/mana_location.dart';
 import '../../../shared/gps_address_service.dart';
+import '../../../shared/network_error_handler.dart' show kManaQueryTimeout;
+import '../../../design/components/mana_amount.dart' show manaRupees;
+import '../../agent_workspace/state/draft_transactions_state.dart'
+    show draftTransactionsApiServiceProvider;
 
 /// OW-005 New Loan Workflow — real Supabase wiring. No dedicated
 /// eligibility-check endpoint; validation is inline inside the create call,
@@ -117,12 +121,18 @@ class LoanApiService {
         if (map['failure_reason'] == 'INSUFFICIENT_FLOAT') {
           return EligibilityResult(
             passed: false,
+            failureCode: 'INSUFFICIENT_FLOAT',
+            floatAvailable: (map['float_current'] as num?)?.toInt() ?? 0,
+            floatRequired: (map['required'] as num?)?.toInt() ?? 0,
             failureReason: 'Agent BF is insufficient to issue this loan '
                 '(available ${map['float_current']}, needed ${map['required']}). '
                 'Ask the Owner to add BF, then retry.',
           );
         }
-        return EligibilityResult(passed: false, failureReason: map['failure_reason'] as String?);
+        return EligibilityResult(
+            passed: false,
+            failureCode: map['failure_reason'] as String?,
+            failureReason: map['failure_reason'] as String?);
       }
       return EligibilityResult(
         passed: true,
@@ -145,6 +155,24 @@ class LoanApiService {
   /// Owner/Agent insert once the loan row already exists with the right
   /// business_id/customer_id — confirmed against the real policy bodies,
   /// not assumed. Called from confirm() below, right after a successful
+  /// The Agent's side of a BF refusal: name an amount and ask.
+  ///
+  /// Raising the amount on an already-open request rather than queueing a
+  /// second one is the RPC's job -- an Agent who asks twice is continuing one
+  /// conversation, not starting another, and the Owner should not have to
+  /// answer the same question twice.
+  Future<void> requestAgentBf({
+    required String membershipId,
+    required int amount,
+    String? reason,
+  }) async {
+    await _db.schema('app').rpc('request_agent_bf', params: {
+      'p_membership_id': membershipId,
+      'p_amount': amount,
+      'p_reason': reason,
+    }).timeout(kManaQueryTimeout);
+  }
+
   /// checkEligibilityAndCreate.
   Future<void> insertGuarantor({
     required String loanId,
@@ -276,7 +304,27 @@ class EligibilityResult {
   final String? loanId;
   final String? loanNumber;
 
-  EligibilityResult({required this.passed, this.failureReason, this.loanId, this.loanNumber});
+  /// The server's own machine-readable reason, kept alongside the sentence.
+  /// INSUFFICIENT_FLOAT is not an error the Owner reads and closes -- it is
+  /// the start of a conversation with the Owner about BF -- and the screen can
+  /// only offer that if it can tell this refusal from every other one.
+  final String? failureCode;
+
+  /// Both figures the RPC returned, so the screen can say "BF = 0, Request
+  /// amount = 30,000" in the Agent's own numbers rather than making them read
+  /// it back out of a sentence.
+  final int? floatAvailable;
+  final int? floatRequired;
+
+  EligibilityResult({
+    required this.passed,
+    this.failureReason,
+    this.loanId,
+    this.loanNumber,
+    this.failureCode,
+    this.floatAvailable,
+    this.floatRequired,
+  });
 }
 
 final loanApiServiceProvider = Provider<LoanApiService>((ref) {
@@ -331,6 +379,13 @@ class LoanWizardState {
   // is actually created, rather than leaving the two disconnected.
   final String? sourceRequestId;
 
+  /// Set when confirm() was refused for float. Carries the two numbers the
+  /// Agent needs to ask the Owner for BF, and the draft the refused loan was
+  /// parked in so nothing they typed is lost.
+  final int? bfAvailable;
+  final int? bfRequired;
+  final String? savedDraftId;
+
   const LoanWizardState({
     this.step = LoanWizardStep.customerSelection,
     this.customer,
@@ -362,7 +417,14 @@ class LoanWizardState {
     this.error,
     this.createdLoanNumber,
     this.sourceRequestId,
+    this.bfAvailable,
+    this.bfRequired,
+    this.savedDraftId,
   });
+
+  /// The loan was refused because the till is empty, not because anything in
+  /// it is wrong.
+  bool get blockedOnBf => bfRequired != null;
 
   // Amount Given = Repayment Amount − Interest − Processing Fee — system
   // derived, never editable (BR-004 locked formula). Whole rupees (M8).
@@ -411,6 +473,10 @@ class LoanWizardState {
     bool clearError = false,
     String? createdLoanNumber,
     String? sourceRequestId,
+    int? bfAvailable,
+    int? bfRequired,
+    String? savedDraftId,
+    bool clearBfBlock = false,
   }) {
     return LoanWizardState(
       step: step ?? this.step,
@@ -440,6 +506,9 @@ class LoanWizardState {
       error: clearError ? null : (error ?? this.error),
       createdLoanNumber: createdLoanNumber ?? this.createdLoanNumber,
       sourceRequestId: sourceRequestId ?? this.sourceRequestId,
+      bfAvailable: clearBfBlock ? null : (bfAvailable ?? this.bfAvailable),
+      bfRequired: clearBfBlock ? null : (bfRequired ?? this.bfRequired),
+      savedDraftId: clearBfBlock ? null : (savedDraftId ?? this.savedDraftId),
     );
   }
 }
@@ -454,7 +523,21 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
   void reset() => state = const LoanWizardState();
 
   void selectCustomer(CustomerSummary customer) {
-    state = state.copyWith(customer: customer, step: LoanWizardStep.eligibility);
+    // A borrower with no customer_id is not a borrower. searchIdentity
+    // returns persons-level rows with customerId '' by design, and one of
+    // those entering the wizard is what produced `invalid input syntax for
+    // type uuid: ""` at Confirm Loan — six steps and several minutes of the
+    // Owner's typing after the actual mistake.
+    //
+    // Refused here, where it is still one tap to undo.
+    if (customer.customerId.isEmpty) {
+      state = state.copyWith(
+          error: 'That person is not a customer of this business yet. '
+              'Add them as a customer first.');
+      return;
+    }
+    state = state.copyWith(
+        customer: customer, step: LoanWizardStep.eligibility, clearError: true);
   }
 
   /// BUG FIXED this pass: NewLoanWorkflowScreen's `prefilledCustomerId`
@@ -492,6 +575,29 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
       sourceRequestId: sourceRequestId,
       gracePeriodDays: templateGrace,
     );
+  }
+
+  /// Ask the Owner for the float this loan needs.
+  ///
+  /// The refusal used to be the end of it: "Insufficient agent BF", and the
+  /// Agent standing in a village with a customer in front of them and nothing
+  /// they could do in the app about it. The only route was a phone call the
+  /// app knew nothing about.
+  Future<bool> requestBf({required int amount, String? reason}) async {
+    try {
+      await ref.read(loanApiServiceProvider).requestAgentBf(
+            membershipId: state.collectionAgentId!,
+            amount: amount,
+            reason: reason,
+          );
+      state = state.copyWith(
+          error: 'Asked the Owner for ${manaRupees(amount)}. '
+              'The loan is saved as a draft until they answer.');
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
   }
 
   /// Step 2 — system checks are simulated pass/fail here; a real build
@@ -616,7 +722,45 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
         gracePeriodDays: state.gracePeriodDays,
       );
       if (!result.passed) {
-        state = state.copyWith(submitting: false, error: result.failureReason ?? 'Loan could not be created.');
+        // A refused loan used to end here, and every figure in it went with
+        // it: customer, amounts, duration, guarantor, and a live photo that
+        // has to be taken again because it must be taken live. On a float
+        // refusal nothing was even wrong -- the till was empty -- so the
+        // Owner was made to retype a correct loan.
+        //
+        // Parked as a 'Loan Distribution' draft, which app.submit_draft
+        // replays through create_loan_with_bf_check: the retry runs the same
+        // code path as the first attempt rather than a second one that could
+        // drift from it.
+        String? draftId;
+        try {
+          draftId = await ref.read(draftTransactionsApiServiceProvider).saveLoanDraft(
+            membershipId: state.collectionAgentId!,
+            payload: {
+              'customer_id': state.customer!.customerId,
+              'customer_name': state.customer!.fullName,
+              'repayment_amount': state.repaymentAmount,
+              'interest_amount': state.interest ?? 0,
+              'processing_fee': state.processingFee ?? 0,
+              'repayment_type': state.repaymentType,
+              'duration_value': state.durationValue,
+              'installment_amount': state.installmentAmount,
+              'grace_period_days': state.gracePeriodDays,
+              'effective_date': state.effectiveDate,
+              'live_photo_url': photoUrl,
+            },
+          );
+        } catch (_) {
+          // Non-fatal. Failing to save the draft must not replace the reason
+          // the loan was refused with a second, less useful error.
+        }
+        state = state.copyWith(
+          submitting: false,
+          error: result.failureReason ?? 'Loan could not be created.',
+          bfAvailable: result.failureCode == 'INSUFFICIENT_FLOAT' ? result.floatAvailable : null,
+          bfRequired: result.failureCode == 'INSUFFICIENT_FLOAT' ? result.floatRequired : null,
+          savedDraftId: draftId,
+        );
         return null;
       }
 

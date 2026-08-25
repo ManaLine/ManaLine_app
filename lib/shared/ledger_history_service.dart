@@ -208,7 +208,37 @@ class LedgerDay {
       .fold(0, (s, e) => s + e.amount);
 }
 
-/// Groups a flat, newest-first feed into business days, preserving order.
+/// Groups a flat, newest-first feed into business days, preserving order, and
+/// gives every day an opening and a carried-forward.
+///
+/// THE BOOK IS WEEKLY. It is closed on an account date -- a Friday here -- and
+/// that is the only day the book itself states a figure for. The migration
+/// imported exactly what the book holds: one row per WEEK, an opening_bf and a
+/// closing_bf, with no day-level breakdown, because none was ever written
+/// down. Individual loans and collections were imported where the Owner had
+/// per-customer detail, which is a PARTIAL reconstruction -- across the
+/// migrated span the declared weekly figures are Rs 22.8L larger on the way in
+/// and Rs 20.9L larger on the way out than the events add up to.
+///
+/// So the two can never be reconciled by summing, and deriving a day's balance
+/// from the events alone would state a number the book disagrees with. What is
+/// true:
+///
+///   * The week's opening belongs to the week's FIRST day.
+///   * Each day thereafter opens on the previous day's carried-forward.
+///   * The ACCOUNT DATE carries the book's declared closing, not the
+///     accumulated one. The gap between them is the part of the week the
+///     individual rows do not capture, and the book is what is right.
+///
+/// After migrated_through_date every day has its own day_ledger row, derived
+/// from real rows by app.recompute_day_ledger, so each day is a "week" of one
+/// and this collapses to the obvious thing: opening, movements, carried
+/// forward.
+///
+/// This is what makes the carried-forward on 2 Jan read 4,91,380 -- the book's
+/// figure -- while 1 Jan, which the book never closed, reads -68,600 from its
+/// own movements. A negative there is not an error: the deposit that covers it
+/// is dated to the account date, which is how the book was kept.
 List<LedgerDay> groupByBusinessDate(
   List<LedgerEvent> events, {
   Map<String, LedgerDayBalance> balances = const {},
@@ -217,13 +247,57 @@ List<LedgerDay> groupByBusinessDate(
   for (final e in events) {
     (days[e.businessDate] ??= <LedgerEvent>[]).add(e);
   }
+
+  // Every date that needs a line, oldest first. Account dates with no events
+  // still count: a week the Owner closed on zero movement is a real line in
+  // the book.
+  final dates = <String>{...days.keys, ...balances.keys}.toList()..sort();
+  final accountDates = balances.keys.toList()..sort();
+
+  final opening = <String, int>{};
+  final closing = <String, int>{};
+
+  // The account date each day belongs to: the first closed day on or after it.
+  String? accountDateFor(String date) {
+    for (final a in accountDates) {
+      if (a.compareTo(date) >= 0) return a;
+    }
+    return null;
+  }
+
+  int? running;
+  String? currentAccountDate;
+
+  for (final date in dates) {
+    final account = accountDateFor(date);
+
+    // A new week begins on the book's own declared opening, not on whatever
+    // the previous week's events happened to accumulate to.
+    if (account != currentAccountDate) {
+      currentAccountDate = account;
+      running = account == null ? running : balances[account]!.opening;
+    }
+
+    final dayEvents = days[date] ?? const <LedgerEvent>[];
+    final net = dayEvents.fold(0, (sum, e) => sum + e.signedAmount);
+
+    // Nothing to open from at all: the feed starts mid-history with no closed
+    // week around it. Say nothing rather than invent a zero.
+    if (running == null) continue;
+
+    opening[date] = running;
+    closing[date] =
+        date == account ? balances[account]!.closing : running + net;
+    running = closing[date];
+  }
+
   return [
     for (final entry in days.entries)
       LedgerDay(
         businessDate: entry.key,
         events: entry.value,
-        openingBf: balances[entry.key]?.opening,
-        closingBf: balances[entry.key]?.closing,
+        openingBf: opening[entry.key],
+        closingBf: closing[entry.key],
       ),
   ];
 }

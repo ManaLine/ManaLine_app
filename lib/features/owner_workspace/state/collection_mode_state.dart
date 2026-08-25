@@ -74,7 +74,8 @@ class CollectionApiService {
         .from('v_collection_due')
         .select('loan_id, customer_id, customer_name, village, loan_number, '
             'total_due, remaining_balance, next_installment_no, is_overdue, '
-            'penalty_eligible, loan_status, collection_agent_name, repayment_type, mlid')
+            'penalty_eligible, loan_status, collection_agent_name, repayment_type, mlid, '
+            'today_result, collected_today')
         .eq('business_id', businessId);
 
     return (rows as List).map((r) {
@@ -88,7 +89,8 @@ class CollectionApiService {
         installmentDue: (r['total_due'] as num).toInt(),
         outstandingBalance: (r['remaining_balance'] as num).toInt(),
         lineRepaymentIndex: (r['next_installment_no'] as num?)?.toInt() ?? 1,
-        collectionStatus: 'Pending', // today's recorded outcome; the view has no collections join by design
+        collectionStatus: manaCollectionStatus(r['today_result'] as String?),
+        collectedToday: (r['collected_today'] as num?)?.toInt() ?? 0,
         collectionAgent: r['collection_agent_name'] as String? ?? '',
         penaltyEligible: r['penalty_eligible'] as bool? ?? false,
         gracePeriod: r['loan_status'] == 'Grace Period',
@@ -240,6 +242,25 @@ class PaymentSplit {
 /// screen is also findable. The LRI is included because it is the number
 /// called out on a route sheet, and it is what someone types when they have a
 /// paper list in front of them.
+/// The server's own classification of today's visit, in the round's words.
+///
+/// record_collection writes result_type as Full / Partial / Excess / No
+/// Collection. This renames rather than recomputes: deriving "was this
+/// collected" from amounts would be a second opinion on a question already
+/// answered, and the two would disagree the first time a rule changed.
+///
+/// Excess counts as Collected. Somebody who paid more than was due has
+/// certainly been collected from, and showing that door as still owing would
+/// send the Agent back to it.
+String manaCollectionStatus(String? todayResult) => switch (todayResult) {
+      'Full' || 'Excess' => 'Collected',
+      'Partial' => 'Partial',
+      'No Collection' => 'Skipped',
+      // Null is a door not yet knocked on. Not the same as one that was
+      // visited and paid nothing -- that is Skipped, above.
+      _ => 'Pending',
+    };
+
 List<CollectionDueRow> manaFilterDueRows(
   List<CollectionDueRow> rows,
   String query, {
@@ -280,7 +301,12 @@ class CollectionDueRow {
   final int installmentDue;
   final int outstandingBalance;
   final int lineRepaymentIndex;
-  final String collectionStatus; // Pending | Collected | Partial | Skipped | Closed
+  final String collectionStatus; // Pending | Collected | Partial | Skipped
+
+  /// What has actually been taken at this door today. Zero on a door not yet
+  /// visited AND on a visit that collected nothing -- collectionStatus is what
+  /// tells those two apart.
+  final int collectedToday;
   final String collectionAgent;
   final bool penaltyEligible;
   final bool gracePeriod;
@@ -302,6 +328,7 @@ class CollectionDueRow {
     required this.outstandingBalance,
     required this.lineRepaymentIndex,
     required this.collectionStatus,
+    this.collectedToday = 0,
     required this.collectionAgent,
     this.penaltyEligible = false,
     this.gracePeriod = false,
@@ -471,7 +498,15 @@ class CollectionModeState {
 
   List<CollectionDueRow> get sorted => _applyLockedSort(dueList);
   int get totalDue => dueList.length;
-  int get collected => dueList.where((r) => r.collectionStatus == 'Collected').length;
+  /// Doors where money changed hands, part payments included.
+  ///
+  /// A Partial used to count as neither collected nor pending, so the three
+  /// figures did not add up to the round and the strip read as broken the
+  /// first time somebody paid half. Money was taken at that door; the Agent
+  /// does not have to go back today.
+  int get collected => dueList
+      .where((r) => r.collectionStatus == 'Collected' || r.collectionStatus == 'Partial')
+      .length;
   int get pending => dueList.where((r) => r.collectionStatus == 'Pending').length;
   int get skipped => dueList.where((r) => r.collectionStatus == 'Skipped').length;
   int get penaltyCount => dueList.where((r) => r.penaltyEligible).length;

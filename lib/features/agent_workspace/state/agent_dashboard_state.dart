@@ -301,18 +301,6 @@ class AgentApiService {
     final wave2 = await Future.wait<dynamic>([
       _db.from('persons').select('full_name').eq('person_id', business['owner_person_id']).single(),
       _db.from('business_members').select('membership_status').eq('membership_id', membershipId).single(),
-      _db
-          .from('loans')
-          .select('loan_status, remaining_balance')
-          .eq('collection_agent_membership_id', membershipId)
-          .inFilter('loan_status', ['Active', 'Grace Period', 'Penalty'])
-          // A soft-deleted loan keeps its loan_status. On the live book 108
-          // of 164 Active/Grace/Penalty loans are deleted, so every count and
-          // every outstanding total that reads status without deleted_at
-          // overstates by roughly three times. Same class of fault as the 85
-          // customers above: the row is still there, and only one column says
-          // it should not be counted.
-          .isFilter('deleted_at', null),
       // Scoped to THIS business, not left to RLS.
       //
       // The note here used to say app.agent_covers_customer scoped it to the
@@ -338,10 +326,54 @@ class AgentApiService {
     ]);
     final owner = wave2[0] as Map<String, dynamic>;
     final membershipRow = wave2[1] as Map<String, dynamic>;
-    final assignedLoans = wave2[2] as List;
-    final customersAssignedCount = wave2[3] as List;
-    final pendingDrafts = wave2[4] as List;
-    final routeRow = wave2[5] as Map<String, dynamic>?;
+    final customersAssignedCount = wave2[2] as List;
+    final pendingDrafts = wave2[3] as List;
+    final routeRow = wave2[4] as Map<String, dynamic>?;
+
+    // The Agent's own round, as the server sees it. v_collection_due carries
+    // today's outcome per loan, so visited / pending / skipped and the day's
+    // target all come from one read instead of being guessed at.
+    final roundRows = ((await _db
+            .schema('app')
+            .from('v_collection_due')
+            .select('loan_id, customer_id, total_due, today_result, collected_today')
+            .eq('business_id', businessId)
+            .eq('collection_agent_membership_id', membershipId)) as List)
+        .cast<Map<String, dynamic>>();
+
+    // What was taken today, split by how it was handed over. Joined through
+    // collections so the day and the collector are the server's, not the
+    // handset's idea of "today".
+    final splitRows = ((await _db
+            .from('collection_payment_splits')
+            .select('collection_id, payment_mode, amount, '
+                'collections!inner(business_date, collected_by_membership_id, deleted_at)')
+            .eq('collections.collected_by_membership_id', membershipId)
+            .eq('collections.business_date', manaBusinessDate())
+            .isFilter('collections.deleted_at', null)) as List)
+        .cast<Map<String, dynamic>>();
+
+    int byMode(String mode) => splitRows
+        .where((r) => r['payment_mode'] == mode)
+        .fold(0, (sum, r) => sum + ((r['amount'] as num?)?.toInt() ?? 0));
+
+    // A collection handed over in more than one mode. Counted as its own
+    // figure rather than added to Cash and UPI both, which would report more
+    // money than changed hands.
+    final splitsByCollection = <String, int>{};
+    for (final r in splitRows) {
+      final id = r['collection_id']?.toString();
+      if (id != null) splitsByCollection[id] = (splitsByCollection[id] ?? 0) + 1;
+    }
+
+    final loansToday = ((await _db
+            .from('loans')
+            .select('loan_id')
+            .eq('business_id', businessId)
+            .eq('collection_agent_membership_id', membershipId)
+            .eq('issue_business_date', manaBusinessDate())
+            .isFilter('deleted_at', null)) as List)
+        .length;
 
     final permRow = await _db
         .from('agent_permissions')
@@ -388,19 +420,33 @@ class AgentApiService {
       assignedRoute: (routeRow?['route_name'] as String?) ?? '',
       pendingDraftsCount: pendingDrafts.length,
       pendingSettlement: pendingSettlementRows.isNotEmpty,
-      todaysTarget:
-          0, // requires loan_schedule due-today sum — same gap as collection_mode_state.dart's fetchDueList
+      // Every one of these read 0, hardcoded, with a comment deferring it.
+      // The strip has therefore been telling every Agent they had visited
+      // nobody and collected nothing, all day, since it was built.
+      todaysTarget: roundRows.fold(
+          0, (sum, r) => sum + ((r['total_due'] as num?)?.toInt() ?? 0)),
       customersAssigned: customersAssignedCount.length,
-      customersVisited:
-          0, // requires today-scoped collections/no_collection_visits count — deferred, same "today" cutoff caveat as above
-      collectionsCash: 0,
-      collectionsUpi: 0,
-      collectionsBank: 0,
-      collectionsCheque: 0,
-      collectionsMixed: 0,
-      loansIssued: 0, // today-scoped — deferred
-      pendingCollections: assignedLoans.length,
-      skippedCustomers: 0,
+      // Doors knocked on: a payment OR a recorded visit without one. Counted
+      // by CUSTOMER, not by loan -- one person with two loans is one door.
+      customersVisited: roundRows
+          .where((r) => r['today_result'] != null)
+          .map((r) => r['customer_id'])
+          .toSet()
+          .length,
+      collectionsCash: byMode('Cash'),
+      collectionsUpi: byMode('UPI'),
+      collectionsBank: byMode('Bank Transfer'),
+      collectionsCheque: byMode('Cheque'),
+      collectionsMixed:
+          splitsByCollection.values.where((n) => n > 1).length,
+      loansIssued: loansToday,
+      // Still owed at a door not yet answered for. Was every active loan the
+      // Agent holds, which never moved as the round was worked.
+      pendingCollections:
+          roundRows.where((r) => r['today_result'] == null).length,
+      skippedCustomers: roundRows
+          .where((r) => r['today_result'] == 'No Collection')
+          .length,
       shortAmount:
           0, // Settlement Short/Excess math — Calculation Engine territory, not reimplemented here
       excessAmount: 0,

@@ -109,7 +109,16 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
     final total = all.length;
     // One village selected at a time through this control. The Set underneath
     // still supports several, which is what the filter helper takes.
-    final current = _villages.isEmpty ? null : _villages.first;
+    //
+    // Falls back to All Villages when the chosen village is no longer offered.
+    // manaVillagesInRound drops a village once everything in it is settled, so
+    // collecting from the last customer in Uranduru removes it from these
+    // items while it is still selected -- and a DropdownButton whose value
+    // matches no item throws. Only reachable now that a collected row stays on
+    // screen instead of the round silently reloading without it.
+    final selected = _villages.isEmpty ? null : _villages.first;
+    final current =
+        sorted.any((v) => v.village == selected) ? selected : null;
 
     return _HeaderDropdown<String?>(
       label: ref.t('village'),

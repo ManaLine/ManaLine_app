@@ -15,7 +15,7 @@ class InvestorApiService {
     var q = _db
         .from('investors')
         .select('investor_id, membership_id, '
-            'business_members!inner(business_id, membership_status), '
+            'business_members!inner(business_id, membership_status, person_id), '
             'persons!inner(full_name, mlid, mobile_number), '
             // SCHEMA MISMATCH FIX: `investments` has no `remaining_balance`
             // column (0006_module5_investor_domain.sql) — per that
@@ -85,6 +85,10 @@ class InvestorApiService {
         final roi = investments.isEmpty ? 0.0 : (investments.first['roi_rate'] as num).toDouble();
         return InvestorSummary(
           investorId: r['investor_id'] as String,
+          // So an identity-search match can be resolved to this investor
+          // without matching on a name, which is not unique.
+          personId: (r['business_members'] as Map<String, dynamic>)['person_id']
+              ?.toString(),
           fullName: titleCaseName(person['full_name'] as String? ?? ''),
           mlid: person['mlid'] as String? ?? '',
           phoneNumber: person['mobile_number'] as String? ?? '',

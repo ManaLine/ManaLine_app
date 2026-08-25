@@ -495,6 +495,10 @@ class OwnerApiService {
       final agent = r['agents'] as Map<String, dynamic>;
       return AgentSummary(
         agentId: agent['agent_id'] as String,
+        // Already read above for the last-login lookup and then thrown away.
+        // Carried now so a person found by identity search can be matched to
+        // their agent record without guessing on name.
+        personId: personId.toString(),
         membershipId: r['membership_id'] as String,
         fullName: titleCaseName(person?['full_name'] as String? ?? ''),
         mlid: person?['mlid'] as String? ?? '',

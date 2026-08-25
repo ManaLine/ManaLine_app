@@ -21,7 +21,10 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
+import '../state/investor_state.dart' show investorApiServiceProvider, InvestorSummary;
 import 'ow_004_customer_management.dart' show CustomerProfileScreen;
+import 'ow_003_investor_management.dart' show InvestorProfileScreen;
+import 'ow_002_workforce_management.dart' show AgentProfileScreen;
 import '../../../shared/translation_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
@@ -434,6 +437,11 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   final _focus = FocusNode();
   bool _searching = false;
   bool _searched = false;
+
+  /// Set while a profile is being loaded for a tapped role. Agent and Investor
+  /// need a round trip before their screen can be opened, and without this the
+  /// row looks dead for the second it takes on a village connection.
+  String? _opening;
   String? _error;
   /// All matches, with each one's roles in THIS business. A name is not
   /// unique, so a search for "sai" legitimately returns several people —
@@ -570,12 +578,12 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   /// need an AgentSummary / investor record this search does not load, and
   /// sending someone to the right list beats sending them to a half-built
   /// profile.
-  void _openMatch(
+  Future<void> _openMatch(
     BuildContext context,
     String role,
     CustomerSummary person,
     String? customerId,
-  ) {
+  ) async {
     if (role == 'Customer' && customerId != null && customerId.isNotEmpty) {
       Navigator.of(context).pop();
       Navigator.of(context).push(MaterialPageRoute(
@@ -604,6 +612,59 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
       return;
     }
 
+    // Agent and Investor need their real record before their profile can be
+    // opened: AgentProfileScreen keys on agents.agent_id and shows today's
+    // collections and loans, InvestorProfileScreen keys on
+    // investors.investor_id and shows a balance. Building either by hand from
+    // an identity-search row would fill those with zeros -- a confidently
+    // wrong number on a money screen, which is worse than the list.
+    //
+    // So the record is fetched and matched on person_id. If it cannot be
+    // found the management screen is still the honest answer.
+    if (role == 'Agent' || role == 'Investor') {
+      setState(() => _opening = '${person.personId}:$role');
+      final opened = await NetworkErrorHandler.run(context, () async {
+        if (role == 'Agent') {
+          final agents = await ref
+              .read(ownerApiServiceProvider)
+              .fetchAgents(businessId: widget.businessId);
+          return agents
+              .where((a) => a.personId == person.personId)
+              .cast<Object?>()
+              .firstOrNull;
+        }
+        final investors = await ref
+            .read(investorApiServiceProvider)
+            .fetchInvestors(businessId: widget.businessId);
+        return investors
+            .where((i) => i.personId == person.personId)
+            .cast<Object?>()
+            .firstOrNull;
+      });
+      if (!mounted) return;
+      setState(() => _opening = null);
+      if (!context.mounted) return;
+
+      if (opened is AgentSummary) {
+        Navigator.of(context).pop();
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => AgentProfileScreen(
+              businessId: widget.businessId, agent: opened),
+        ));
+        return;
+      }
+      if (opened is InvestorSummary) {
+        Navigator.of(context).pop();
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => InvestorProfileScreen(
+              businessId: widget.businessId, investor: opened),
+        ));
+        return;
+      }
+      // Fell through: the role badge says they hold it, but no record came
+      // back. The list is where the Owner can see why.
+    }
+
     final route = switch (role) {
       'Agent' => '/ow-002',
       'Investor' => '/ow-003',
@@ -611,6 +672,7 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
       _ => null,
     };
     if (route == null) return;
+    if (!context.mounted) return;
     Navigator.of(context).pop();
     context.push(route, extra: widget.businessId);
   }
@@ -719,12 +781,24 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                               // same business (e.g. an Owner who is also an
                               // Agent) — one tappable row per role rather
                               // than guessing.
-                              ...match.roles.map((role) => ListTile(
-                                    title: ManaText.raw(role),
-                                    trailing: const Icon(Icons.chevron_right),
-                                    onTap: () => _openMatch(context, role,
-                                        match.person, match.customerId),
-                                  )),
+                              ...match.roles.map((role) {
+                                final busy = _opening ==
+                                    '${match.person.personId}:$role';
+                                return ListTile(
+                                  title: ManaText.raw(role),
+                                  trailing: busy
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2))
+                                      : const Icon(Icons.chevron_right),
+                                  onTap: _opening != null
+                                      ? null
+                                      : () => _openMatch(context, role,
+                                          match.person, match.customerId),
+                                );
+                              }),
                           ],
                         ),
                       );

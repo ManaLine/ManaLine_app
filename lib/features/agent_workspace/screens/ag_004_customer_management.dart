@@ -16,7 +16,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/photo_compression.dart';
 import '../../owner_workspace/state/customer_state.dart' show CustomerSummary, CustomerProfile, CustomerRemark;
 import '../../owner_workspace/state/collection_mode_state.dart' show CollectionDueRow;
-import '../../owner_workspace/screens/ow_006_collection_mode.dart' show CollectionEntryScreen;
+import 'ag_002_collection_mode.dart' show AgentCollectionModeScreen;
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/agent_customer_state.dart';
@@ -384,8 +384,15 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
           collectionStatus: 'Pending',
           collectionAgent: agentMembershipId,
         );
+        // The round, opened on this loan. Collection is entered in the row
+        // itself now, so there is no separate entry screen to push -- and
+        // arriving at the round also shows the Agent what else is due at the
+        // same door, which the old screen hid.
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => CollectionEntryScreen(row: dueRow, businessId: businessId)),
+          MaterialPageRoute(
+            builder: (_) => AgentCollectionModeScreen(
+                businessId: businessId, focusLoanId: dueRow.loanId),
+          ),
         );
         ref.invalidate(agentCustomerProfileProvider(customerId));
       case 'view_loan':

@@ -8,7 +8,6 @@ import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/idempotency.dart';
-import '../../../shared/widgets/address_check_banner.dart';
 import '../../../shared/translation_service.dart';
 import '../state/collection_mode_state.dart';
 import '../../../shared/collection_round_view.dart';
@@ -45,114 +44,64 @@ class CollectionModeScreen extends ConsumerWidget {
       businessId: businessId,
       focusLoanId: prefilledLoanId,
       onBack: () => context.go('/ow-001', extra: businessId),
-      onOpenRow: (context, row) => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CollectionEntryScreen(row: row, businessId: businessId),
-        ),
-      ),
     );
   }
 }
 
 // --- Collection Entry -------------------------------------------------
+//
+// The screen that used to sit here is gone. It restated what the round row
+// already showed -- name, loan number, installment due, outstanding, LRI,
+// grace, penalty -- and then offered three buttons before any money could be
+// entered. Two screen transitions and three taps to record a number the app
+// already knew, forty times a round.
+//
+// These three forms survive because the work in them is real: Full / Partial /
+// Excess is classified server-side from the amount, a split has to add up, and
+// somebody other than the customer often hands the money over. They are opened
+// inline from the row now -- see ManaDueRow.
 
-enum _EntryAction { none, collect, noCollection, extension }
-
-class CollectionEntryScreen extends ConsumerStatefulWidget {
-  final CollectionDueRow row;
-  final String businessId; // needed to resolve the collector's membership
-  const CollectionEntryScreen({super.key, required this.row, required this.businessId});
-
-  @override
-  ConsumerState<CollectionEntryScreen> createState() => _CollectionEntryScreenState();
-}
-
-class _CollectionEntryScreenState extends ConsumerState<CollectionEntryScreen> {
-  _EntryAction _action = _EntryAction.none;
-
-  @override
-  Widget build(BuildContext context) {
-    final row = widget.row;
-    return Scaffold(
-      appBar: AppBar(title: ManaText.raw(row.customerName)),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(ManaSpacing.lg),
-          children: [
-            // Whether this is the customer's registered address. Purely
-            // informational — it never blocks a collection, because collecting
-            // at a shop or a relative's house is ordinary and a customer who
-            // moved has done nothing wrong.
-            AddressCheckBanner(customerId: row.customerId),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(ManaSpacing.md),
-                child: Column(
-                  children: [
-                    _row(ref.t('loan_number'), row.loanNumber),
-                    _row(ref.t('installment_due'), manaRupees(row.installmentDue)),
-                    _row(ref.t('outstanding_balance'), manaRupees(row.outstandingBalance)),
-                    _row(ref.t('line_repayment_index'), '${row.lineRepaymentIndex}'),
-                    _row(ref.t('grace_status'), row.gracePeriod ? ref.t('in_grace_period') : ref.t('normal')),
-                    _row(ref.t('penalty_status'), row.penaltyEligible ? ref.t('penalty_eligible') : ref.t('none')),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: ManaSpacing.lg),
-            if (_action == _EntryAction.none) ...[
-              ElevatedButton(
-                onPressed: () => setState(() => _action = _EntryAction.collect),
-                child: ManaText.raw(ref.t('enter_collection')),
-              ),
-              const SizedBox(height: ManaSpacing.sm),
-              OutlinedButton(
-                onPressed: () => setState(() => _action = _EntryAction.noCollection),
-                child: ManaText.raw(ref.t('no_collection_visit_without_payment')),
-              ),
-              const SizedBox(height: ManaSpacing.sm),
-              OutlinedButton(
-                onPressed: () => setState(() => _action = _EntryAction.extension),
-                child: ManaText.raw(ref.t('request_extension')),
-              ),
-            ],
-            if (_action == _EntryAction.collect)
-              _EnterCollectionForm(row: row, businessId: widget.businessId, onCancel: () => setState(() => _action = _EntryAction.none)),
-            if (_action == _EntryAction.noCollection)
-              _NoCollectionForm(row: row, onCancel: () => setState(() => _action = _EntryAction.none)),
-            if (_action == _EntryAction.extension)
-              _ExtensionForm(row: row, onCancel: () => setState(() => _action = _EntryAction.none)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(child: ManaText.raw(label, style: ManaType.note)),
-            ManaText.raw(value, style: ManaType.smallStrong),
-          ],
-        ),
-      );
-}
-
-// --- Action A: Enter Collection ------------------------------------------
-
-class _EnterCollectionForm extends ConsumerStatefulWidget {
+class ManaCollectionForm extends ConsumerStatefulWidget {
   final CollectionDueRow row;
   final String businessId;
   final VoidCallback onCancel;
-  const _EnterCollectionForm({required this.row, required this.businessId, required this.onCancel});
+
+  /// A collection landed. The form no longer knows what should happen next --
+  /// it used to pop two routes, which only worked because it lived on a screen
+  /// of its own. Inline in the round, the row closes and the round reloads.
+  final VoidCallback? onRecorded;
+
+  const ManaCollectionForm({
+    super.key,
+    required this.row,
+    required this.businessId,
+    required this.onCancel,
+    this.onRecorded,
+  });
 
   @override
-  ConsumerState<_EnterCollectionForm> createState() => _EnterCollectionFormState();
+  ConsumerState<ManaCollectionForm> createState() => ManaCollectionFormState();
 }
 
-class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
+class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
   final _amount = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Already written in, at today's due.
+    //
+    // The Agent used to type this figure on every collection, having just read
+    // it off the row above. On a full payment -- which is most of them -- there
+    // is now nothing to enter at all. Selected rather than merely filled, so a
+    // customer paying something else can overwrite it without first clearing
+    // it one digit at a time.
+    final due = widget.row.installmentDue;
+    if (due > 0) {
+      _amount.text = '$due';
+      _amount.selection = TextSelection(baseOffset: 0, extentOffset: '$due'.length);
+    }
+  }
   // Customer unless the Agent says otherwise. Asking who paid on every single
   // collection is a decision on the overwhelmingly common case, made standing
   // at a doorstep — so the question only appears when it is answered.
@@ -232,7 +181,7 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
     if (!mounted) return;
     // Landed. The next save is a new action, not a replay of this one.
     _idempotencyKey = null;
-    _showReceiptAndNavigate(outcome.saved!);
+    _showReceipt(outcome.saved!);
   }
 
   /// Warns that this loan already has a payment recorded today by someone
@@ -266,7 +215,11 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
     }
   }
 
-  void _showReceiptAndNavigate(CollectionResult result) {
+  /// The receipt, then back to the round.
+  ///
+  /// Receipt number, what it was classified as, and the balance the customer
+  /// is left with -- the three things the Agent reads back at the door.
+  void _showReceipt(CollectionResult result) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -284,7 +237,10 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop(); // dialog
-              Navigator.of(context).pop(); // entry screen → back to dashboard
+              // Closing the row and reloading the round is the caller's to
+              // decide. Popping a route from here is what broke the moment
+              // this form stopped being a screen.
+              widget.onRecorded?.call();
             },
             child: ManaText.raw(ref.t('done')),
           ),
@@ -402,11 +358,23 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
             const SizedBox(width: ManaSpacing.md),
             Expanded(
               flex: 2,
+              // The button carries the amount.
+              //
+              // This is the instant a wrong figure becomes real money, and a
+              // button that says "Save" puts the number somewhere the thumb is
+              // not. It reads back what is about to be recorded, and changes
+              // as the field is edited.
               child: ElevatedButton(
                 onPressed: (_canSubmit && !_submitting) ? _submit : null,
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : ManaText.raw(ref.t('save')),
+                    : ManaText.raw(
+                        _collected > 0
+                            ? ref.t('collect_amount').replaceAll('{amount}', manaRupees(_collected))
+                            : ref.t('save'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
               ),
             ),
           ],
@@ -418,16 +386,16 @@ class _EnterCollectionFormState extends ConsumerState<_EnterCollectionForm> {
 
 // --- Action B: No Collection ------------------------------------------
 
-class _NoCollectionForm extends ConsumerStatefulWidget {
+class ManaNoCollectionForm extends ConsumerStatefulWidget {
   final CollectionDueRow row;
   final VoidCallback onCancel;
-  const _NoCollectionForm({required this.row, required this.onCancel});
+  const ManaNoCollectionForm({super.key, required this.row, required this.onCancel});
 
   @override
-  ConsumerState<_NoCollectionForm> createState() => _NoCollectionFormState();
+  ConsumerState<ManaNoCollectionForm> createState() => ManaNoCollectionFormState();
 }
 
-class _NoCollectionFormState extends ConsumerState<_NoCollectionForm> {
+class ManaNoCollectionFormState extends ConsumerState<ManaNoCollectionForm> {
   String? _reason;
   bool _submitting = false;
 
@@ -486,16 +454,16 @@ class _NoCollectionFormState extends ConsumerState<_NoCollectionForm> {
 
 // --- Action C: Request Extension ------------------------------------------
 
-class _ExtensionForm extends ConsumerStatefulWidget {
+class ManaExtensionForm extends ConsumerStatefulWidget {
   final CollectionDueRow row;
   final VoidCallback onCancel;
-  const _ExtensionForm({required this.row, required this.onCancel});
+  const ManaExtensionForm({super.key, required this.row, required this.onCancel});
 
   @override
-  ConsumerState<_ExtensionForm> createState() => _ExtensionFormState();
+  ConsumerState<ManaExtensionForm> createState() => ManaExtensionFormState();
 }
 
-class _ExtensionFormState extends ConsumerState<_ExtensionForm> {
+class ManaExtensionFormState extends ConsumerState<ManaExtensionForm> {
   bool _submitting = false;
 
   Future<void> _decide(bool approve) async {

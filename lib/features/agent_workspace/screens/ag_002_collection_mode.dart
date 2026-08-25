@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/collection_round_view.dart';
-import '../../owner_workspace/screens/ow_006_collection_mode.dart' show CollectionEntryScreen;
 
 /// AG-002 — Collection Mode (Agent).
 ///
@@ -18,18 +17,21 @@ import '../../owner_workspace/screens/ow_006_collection_mode.dart' show Collecti
 /// as themselves. Sharing the widget cannot merge the entries.
 class AgentCollectionModeScreen extends ConsumerWidget {
   final String businessId;
-  const AgentCollectionModeScreen({super.key, required this.businessId});
+
+  /// A loan to open the row for on arrival. AG-004 sends the Agent here from a
+  /// customer's own loan, and landing on the plain round would make them find
+  /// it again in a list of everyone due today.
+  final String? focusLoanId;
+
+  const AgentCollectionModeScreen(
+      {super.key, required this.businessId, this.focusLoanId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ManaCollectionRound(
       businessId: businessId,
+      focusLoanId: focusLoanId,
       onBack: () => context.go('/ag-001', extra: businessId),
-      onOpenRow: (context, row) => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => CollectionEntryScreen(row: row, businessId: businessId),
-        ),
-      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_006_collection_mode.dart';
 import 'package:mana_line/features/owner_workspace/state/collection_mode_state.dart';
+import 'package:mana_line/shared/collection_round_view.dart';
 import 'package:mana_line/shared/widgets/language_selector.dart';
 
 import 'support/mana_harness.dart';
@@ -33,6 +34,16 @@ const _ow006TeluguTranslations = <String, Map<String, String>>{
   'penalty': {'English': 'Penalty', 'Telugu': 'జరిమానా'},
   'grace_period_label': {'English': 'Grace Period', 'Telugu': 'గ్రేస్ పీరియడ్'},
   'live_collected': {'English': 'Live Collected', 'Telugu': 'ప్రత్యక్ష వసూలు'},
+  'collect_amount': {'English': 'Collect {amount}', 'Telugu': '{amount} వసూలు చేయండి'},
+  'no_collection': {'English': "Didn't Collect", 'Telugu': 'వసూలు కాలేదు'},
+  'request_extension': {'English': 'Request Extension', 'Telugu': 'పొడిగింపు అభ్యర్థించండి'},
+  'collected_amount_field': {'English': 'Collected Amount', 'Telugu': 'వసూలు చేసిన మొత్తం'},
+  'someone_else_paid': {'English': 'Someone Else Paid', 'Telugu': 'వేరొకరు చెల్లించారు'},
+  'mixed_payment': {'English': 'Mixed Payment', 'Telugu': 'మిశ్రమ చెల్లింపు'},
+  'close': {'English': 'Close', 'Telugu': 'మూసివేయండి'},
+  'pay': {'English': 'Pay', 'Telugu': 'చెల్లించండి'},
+  'save': {'English': 'Save', 'Telugu': 'సేవ్ చేయండి'},
+  'cancel': {'English': 'Cancel', 'Telugu': 'రద్దు చేయండి'},
   'grace': {'English': 'Grace', 'Telugu': 'గ్రేస్'},
 };
 
@@ -166,5 +177,51 @@ void main() {
     await tester.pump();
 
     expect(find.text('Nobody due today.'), findsNothing);
+  });
+
+  // The row opens in place now: the collection form, an amount field, the
+  // confirm button carrying the figure, and two more actions all appear
+  // INSIDE the card. That is far more content than the collapsed row, in a
+  // Column inside a Card inside a ListView, and it is exactly where this
+  // app's overflow bugs have always come from.
+  for (final scale in kManaTextScales) {
+    testWidgets('OW-006 an opened row survives text scale ${scale}x in Telugu',
+        (tester) async {
+      await pumpManaScreen(
+        tester,
+        const CollectionModeScreen(businessId: 'b1'),
+        textScale: scale,
+        language: ManaLanguage.telugu,
+        translations: _ow006TeluguTranslations,
+        overrides: [
+          collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))
+        ],
+      );
+      // The first due row's Pay button. The second customer is already
+      // Collected and shows a tick instead, which is itself worth pinning.
+      await tester.tap(find.byType(FilledButton).first);
+      await tester.pump();
+      expectNoLayoutFault(tester, 'OW-006 opened row at ${scale}x in Telugu');
+    });
+  }
+
+  testWidgets('OW-006 opening a row keeps the Agent in the round', (tester) async {
+    await pumpManaScreen(
+      tester,
+      const CollectionModeScreen(businessId: 'b1'),
+      overrides: [collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))],
+    );
+    expect(find.byType(ManaCollectionForm), findsNothing);
+
+    await tester.tap(find.byType(FilledButton).first);
+    await tester.pump();
+
+    // The form is in the row, and the round is still the screen. NOT asserted
+    // by looking for the other customers: a tall open row pushes them past the
+    // viewport, and a ListView never builds what is off-screen — that would
+    // fail for a reason that has nothing to do with navigation.
+    expect(find.byType(ManaCollectionForm), findsOneWidget);
+    expect(find.byType(ManaCollectionRound), findsOneWidget);
+    expect(find.textContaining('Nagabhushanam'), findsWidgets);
   });
 }

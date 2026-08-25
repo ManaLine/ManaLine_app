@@ -162,19 +162,15 @@ class ManaLineApp extends ConsumerWidget {
             textScaler:
                 TextScaler.linear(deviceFactor * appearance.textSize.scale),
           ),
-          // Everything on every screen is selectable, and therefore
-          // copyable.
+          // NO SelectionArea here.
           //
-          // Nothing in the app was: an MLID, a loan number, a mobile number
-          // or an amount could be read off the glass and retyped, but never
-          // copied into a message or a search box. SelectionArea at the root
-          // covers all ~840 widgets at once, which is the only way this stays
-          // true for screens nobody has revisited -- doing it per Text would
-          // mean remembering forever.
-          //
-          // Text fields keep their own selection behaviour; SelectionArea
-          // only adds it to the text that had none.
-          child: ManaBackHandler(child: SelectionArea(child: child!)),
+          // It was here for one build and took the whole app down with it:
+          // SelectableRegion requires an Overlay ancestor, and this builder
+          // sits ABOVE the Navigator that provides one, so it threw during
+          // build and every screen became an ErrorWidget. Copy-paste has to
+          // be introduced below the Navigator -- inside the screens -- not
+          // above it.
+          child: ManaBackHandler(child: child!),
         );
       },
     );

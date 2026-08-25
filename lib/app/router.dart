@@ -540,5 +540,33 @@ final manaRouter = GoRouter(
     GoRoute(path: '/admin-login', builder: (c, s) => const AdminLoginScreen()),
     GoRoute(path: '/admin-forgot-password', builder: (c, s) => const AdminForgotPasswordScreen()),
     GoRoute(path: '/business-suspended', builder: (c, s) => const BusinessSuspendedScreen()),
-  ],
+  ].map(manaSelectable).toList(),
 );
+
+/// Makes every screen's text selectable, and therefore copyable.
+///
+/// Nothing in the app was. An MLID, a loan number, a mobile number or an
+/// amount could be read off the glass and retyped, but never copied into a
+/// message or a search box -- and retyping a 12-digit MLID is exactly where a
+/// wrong customer comes from.
+///
+/// Wrapped HERE, around each route's own builder, and NOT in
+/// MaterialApp.builder. SelectableRegion requires an Overlay ancestor; the
+/// app builder sits above the Navigator that provides one, so putting it there
+/// threw during build and replaced every screen with an ErrorWidget. A route's
+/// builder runs inside the Navigator, where the Overlay exists.
+///
+/// Doing it once here rather than per screen is what keeps it true for the
+/// screens nobody revisits.
+GoRoute manaSelectable(GoRoute r) => GoRoute(
+      path: r.path,
+      name: r.name,
+      redirect: r.redirect,
+      builder: r.builder == null
+          ? null
+          : (context, state) => SelectionArea(child: r.builder!(context, state)),
+      routes: [
+        for (final child in r.routes)
+          if (child is GoRoute) manaSelectable(child) else child,
+      ],
+    );

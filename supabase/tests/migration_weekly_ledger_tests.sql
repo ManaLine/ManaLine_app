@@ -178,3 +178,41 @@ END;
 $$;
 
 ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- A migrated loan's schedule is what is LEFT, not the whole term.
+--
+-- Regression for the Rs 0 that Garikipati Kamala Reddy's round showed while
+-- she owed Rs 12,000. Her Rs 24,000 loan was half repaid before the cut-off,
+-- so the import materialised six Rs 2,000 rows -- the balance, not the term.
+-- Deriving "already paid" from (repayment - remaining) counted those six
+-- payments a second time and cancelled the whole amount due.
+--
+-- The failure direction is what makes it dangerous: the app asked for LESS
+-- than was owed. Nobody reports being under-charged.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_understated INT;
+BEGIN
+  SELECT count(*) INTO v_understated
+    FROM app.v_collection_due v
+    JOIN loans l ON l.loan_id = v.loan_id
+   WHERE l.deleted_at IS NULL
+     AND v.remaining_balance > 0
+     AND v.total_due = 0
+     -- Every scheduled instalment already fell due, and the schedule totals
+     -- exactly what is still owed: there is nothing left to wait for, so a
+     -- due of zero can only be the double count.
+     AND NOT EXISTS (SELECT 1 FROM loan_schedule s
+                      WHERE s.loan_id = l.loan_id AND s.due_date > CURRENT_DATE)
+     AND (SELECT COALESCE(sum(s.installment_amount), 0) FROM loan_schedule s
+           WHERE s.loan_id = l.loan_id) = l.remaining_balance;
+
+  IF v_understated > 0 THEN
+    RAISE EXCEPTION
+      '% loan(s) owe money, have no future instalments, and still show nothing due',
+      v_understated;
+  END IF;
+  RAISE NOTICE 'ok: no loan understates what is due to zero';
+END $$;

@@ -21,6 +21,7 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
+import 'ow_004_customer_management.dart' show CustomerProfileScreen;
 import '../../../shared/translation_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
@@ -437,7 +438,13 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   /// All matches, with each one's roles in THIS business. A name is not
   /// unique, so a search for "sai" legitimately returns several people —
   /// showing only the first is how the Owner opens the wrong record.
-  List<({CustomerSummary person, List<String> roles})> _found = const [];
+  /// customerId is resolved here rather than left empty, because it is the
+  /// whole difference between landing on this person and landing on a list of
+  /// everyone. searchIdentity returns persons-level rows whose customerId is
+  /// '' by design; without the lookup below, "open Customer" could only ever
+  /// mean "open Customer Management".
+  List<({CustomerSummary person, List<String> roles, String? customerId})> _found =
+      const [];
 
   @override
   void initState() {
@@ -491,22 +498,54 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
           ? const <Map<String, dynamic>>[]
           : ((await Supabase.instance.client
                   .from('business_members')
-                  .select('person_id, role')
+                  .select('person_id, role, membership_id')
                   .eq('business_id', widget.businessId)
                   .inFilter('person_id', ids)) as List)
               .cast<Map<String, dynamic>>();
       final rolesByPerson = <String, List<String>>{};
+      // membership_id -> person_id, so the customers rows below can be put
+      // back against the person they belong to.
+      final personByMembership = <String, String>{};
       for (final row in roleRows) {
-        rolesByPerson
-            .putIfAbsent(row['person_id'].toString(), () => [])
-            .add(row['role'] as String);
+        final personId = row['person_id'].toString();
+        rolesByPerson.putIfAbsent(personId, () => []).add(row['role'] as String);
+        if (row['role'] == 'Customer' && row['membership_id'] != null) {
+          personByMembership[row['membership_id'] as String] = personId;
+        }
+      }
+
+      // The customers row for each Customer membership.
+      //
+      // Queried by membership_id rather than through an embed on purpose:
+      // customers -> business_members has more than one foreign key, and an
+      // unnamed embed is PGRST201 (HTTP 300), which reaches the screen as
+      // "could not load" with nothing to act on. Two plain queries cannot be
+      // ambiguous.
+      final customerRows = personByMembership.isEmpty
+          ? const <Map<String, dynamic>>[]
+          : ((await Supabase.instance.client
+                  .from('customers')
+                  .select('customer_id, membership_id')
+                  .inFilter('membership_id', personByMembership.keys.toList()))
+              as List)
+              .cast<Map<String, dynamic>>();
+      final customerByPerson = <String, String>{};
+      for (final row in customerRows) {
+        final personId = personByMembership[row['membership_id'] as String];
+        if (personId != null) {
+          customerByPerson[personId] = row['customer_id'] as String;
+        }
       }
       if (!mounted) return;
       setState(() {
         _searching = false;
         _found = [
           for (final person in result)
-            (person: person, roles: rolesByPerson[person.personId] ?? const []),
+            (
+              person: person,
+              roles: rolesByPerson[person.personId] ?? const [],
+              customerId: customerByPerson[person.personId],
+            ),
         ];
       });
     } catch (e) {
@@ -518,7 +557,53 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     }
   }
 
-  void _goToRoleScreen(BuildContext context, String role) {
+  /// Open the person that was searched for.
+  ///
+  /// This used to push the role's MANAGEMENT screen -- '/ow-004' for a
+  /// Customer -- which is the list of everybody. Somebody who has just typed a
+  /// name, waited for the match and tapped it has already said who they mean;
+  /// answering with the full list makes them find the same person a second
+  /// time.
+  ///
+  /// A Customer with a resolved customerId opens their own profile. Agent and
+  /// Investor still land on their management screens: those profile screens
+  /// need an AgentSummary / investor record this search does not load, and
+  /// sending someone to the right list beats sending them to a half-built
+  /// profile.
+  void _openMatch(
+    BuildContext context,
+    String role,
+    CustomerSummary person,
+    String? customerId,
+  ) {
+    if (role == 'Customer' && customerId != null && customerId.isNotEmpty) {
+      Navigator.of(context).pop();
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => CustomerProfileScreen(
+          businessId: widget.businessId,
+          // Rebuilt with the resolved customerId, which is what
+          // customerProfileProvider keys on -- the searched row carries an
+          // empty one and would load nothing.
+          customer: CustomerSummary(
+            customerId: customerId,
+            personId: person.personId,
+            fullName: person.fullName,
+            fatherHusbandName: person.fatherHusbandName,
+            village: person.village,
+            phoneNumber: person.phoneNumber,
+            mlid: person.mlid,
+            activeLoanCount: person.activeLoanCount,
+            todaysDue: person.todaysDue,
+            outstandingBalance: person.outstandingBalance,
+            lineRepaymentIndex: person.lineRepaymentIndex,
+            customerStatus: person.customerStatus,
+            membershipStatus: person.membershipStatus,
+          ),
+        ),
+      ));
+      return;
+    }
+
     final route = switch (role) {
       'Agent' => '/ow-002',
       'Investor' => '/ow-003',
@@ -637,7 +722,8 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                               ...match.roles.map((role) => ListTile(
                                     title: ManaText.raw(role),
                                     trailing: const Icon(Icons.chevron_right),
-                                    onTap: () => _goToRoleScreen(context, role),
+                                    onTap: () => _openMatch(context, role,
+                                        match.person, match.customerId),
                                   )),
                           ],
                         ),

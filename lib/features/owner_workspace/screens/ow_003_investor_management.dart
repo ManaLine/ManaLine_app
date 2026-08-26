@@ -167,7 +167,6 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                       ),
                     );
                   },
-                  onOpen: (_) {},
                 ),
         ),
       ),
@@ -928,6 +927,11 @@ class _InvestmentsTab extends ConsumerWidget {
                     // recording after 18:30 UTC can still pick it.
                     lastDate: manaNowIst(),
                   );
+                  // dialogContext, not `mounted`: this setState belongs to a
+                  // StatefulBuilder inside showDialog, and there is no State
+                  // here to ask. The dialog can be dismissed while the date
+                  // picker is open.
+                  if (!dialogContext.mounted) return;
                   if (picked != null) setState(() => effectiveDate = picked);
                 },
               ),

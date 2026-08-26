@@ -229,7 +229,6 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                       ),
                     );
                   },
-                  onOpen: (_) {},
                 ),
               ),
       ),
@@ -414,6 +413,31 @@ class _AddCustomerSheet extends ConsumerStatefulWidget {
 enum _AddCustomerStage { search, found, createNew }
 
 class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _query.dispose();
+    _fullName.dispose();
+    _fatherHusband.dispose();
+    _mobile.dispose();
+    _aadhaar.dispose();
+    _doorNo.dispose();
+    _pinCode.dispose();
+    _villageSearch.dispose();
+    _manualVillageName.dispose();
+    _manualPinCode.dispose();
+    _manualMandal.dispose();
+    _manualDistrict.dispose();
+    _manualState.dispose();
+    super.dispose();
+  }
   _AddCustomerStage _stage = _AddCustomerStage.search;
   final _query = TextEditingController();
   CustomerSummary? _foundIdentity;
@@ -1227,6 +1251,13 @@ class _RemarksTabState extends ConsumerState<_RemarksTab> {
       affectsBalances: false,
     );
     if (deleted && mounted) ref.invalidate(customerProfileProvider(widget.customerId));
+  }
+
+  // Disposed with the State that owns them -- see the sweep note elsewhere.
+  @override
+  void dispose() {
+    _remark.dispose();
+    super.dispose();
   }
 
   @override

@@ -92,6 +92,20 @@ class _SearchMlidStep extends ConsumerStatefulWidget {
 }
 
 class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _mobileController.dispose();
+    _mlidController.dispose();
+    super.dispose();
+  }
   final _mobileController = TextEditingController();
   final _mlidController = TextEditingController();
 
@@ -264,6 +278,24 @@ class _NotFoundStep extends ConsumerStatefulWidget {
 }
 
 class _NotFoundStepState extends ConsumerState<_NotFoundStep> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _fullName.dispose();
+    _fatherHusband.dispose();
+    _village.dispose();
+    _mobile.dispose();
+    _area.dispose();
+    _remarks.dispose();
+    super.dispose();
+  }
   final _fullName = TextEditingController();
   final _fatherHusband = TextEditingController();
   final _village = TextEditingController();

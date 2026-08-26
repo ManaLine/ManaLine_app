@@ -95,7 +95,48 @@ String _resolveBusinessId(GoRouterState s) {
     ManaSession.instance.rememberBusinessId(extra);
     return extra;
   }
-  return ManaSession.instance.lastBusinessId ?? 'stub-business-id';
+  // Empty, not a fake uuid.
+  //
+  // This returned 'stub-business-id' when the session had nothing, and every
+  // screen took it as real. Postgres then refused it -- invalid input syntax
+  // for type uuid -- and the person got "Something went wrong" on a screen
+  // that never had a chance. See manaSessionRedirect below: a route that needs
+  // an id it does not have is now sent somewhere it can recover, rather than
+  // opening onto a guaranteed failure.
+  return ManaSession.instance.lastBusinessId ?? '';
+}
+
+/// Screen-ID prefixes that cannot render without a business.
+const _needsBusiness = ['/ow-', '/ag-'];
+
+/// Where an unusable route goes instead of opening.
+///
+/// Nineteen routes fell back to a fabricated id -- 'stub-business-id',
+/// '', '' and the rest -- whenever the session had
+/// lost the real one. The screens opened, queried with a string Postgres
+/// cannot cast, and reported a generic failure. The session had simply
+/// expired, which the app knew and did not say.
+///
+/// Sent to the business selector when there is a person but no business, and
+/// to the start when there is no person at all. Login and registration are
+/// left alone: they are how somebody gets a session in the first place.
+String? manaSessionRedirect(BuildContext context, GoRouterState state) =>
+    manaSessionRedirectFor(state.uri.path);
+
+/// The decision itself, free of a BuildContext so it can be tested directly.
+String? manaSessionRedirectFor(String path) {
+  // Login, registration and admin are how a session is obtained. Redirecting
+  // them for want of a session would loop forever, and admin identities live
+  // in admin_accounts, so currentPersonId is null for them and always will be.
+  if (path.startsWith('/lr-') || path.startsWith('/admin') || path == '/_design') {
+    return null;
+  }
+  if (ManaSession.instance.currentPersonId == null) return '/lr-001';
+  if (_needsBusiness.any(path.startsWith) &&
+      (ManaSession.instance.lastBusinessId ?? '').isEmpty) {
+    return '/lr-012';
+  }
+  return null;
 }
 
 /// The root navigator, so the app shell can ask whether there is anything to
@@ -108,6 +149,9 @@ final manaRootNavigatorKey = GlobalKey<NavigatorState>();
 final manaRouter = GoRouter(
   navigatorKey: manaRootNavigatorKey,
   initialLocation: '/lr-001',
+  // Checked before any route builds, so a screen that cannot work never
+  // renders and then fails.
+  redirect: manaSessionRedirect,
   routes: [
     // Deep-link to the app's home URL lands here rather than throwing a
     // "no match" — the app has no root screen, only the LR-001 startup flow.
@@ -221,13 +265,13 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ow-006',
       builder: (c, s) => CollectionModeScreen(
-        businessId: ManaSession.instance.lastBusinessId ?? 'stub-business-id',
+        businessId: ManaSession.instance.lastBusinessId ?? '',
         prefilledLoanId: s.extra as String?,
       ),
     ),
     GoRoute(
       path: '/ow-007',
-      builder: (c, s) => LoanDetailsScreen(loanId: (s.extra as String?) ?? 'stub-loan-id'),
+      builder: (c, s) => LoanDetailsScreen(loanId: (s.extra as String?) ?? ''),
     ),
     GoRoute(
       path: '/ow-009',
@@ -273,7 +317,7 @@ final manaRouter = GoRouter(
       path: '/ow-014',
       builder: (c, s) => GlobalWorkflowScreen(
         businessId: _resolveBusinessId(s),
-        currentOwnerPersonId: ManaSession.instance.currentPersonId ?? 'stub-person-id',
+        currentOwnerPersonId: ManaSession.instance.currentPersonId ?? '',
         // Each entry point already knows which kind of member it is
         // creating, so Step 1 is pre-filled rather than asked again.
         preSelectedType: switch (s.uri.queryParameters['type']) {
@@ -382,7 +426,7 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ag-001',
       builder: (c, s) => AgentHomeDashboardScreen(
-        agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+        agentId: ManaSession.instance.lastAgentId ?? '',
         businessId: _resolveBusinessId(s),
         initialAnchor: s.uri.queryParameters['anchor'],
       ),
@@ -408,14 +452,14 @@ final manaRouter = GoRouter(
       path: '/ag-004',
       builder: (c, s) => AgentCustomerManagementScreen(
         businessId: _resolveBusinessId(s),
-        agentMembershipId: ManaSession.instance.lastMembershipId ?? 'stub-agent-membership-id',
+        agentMembershipId: ManaSession.instance.lastMembershipId ?? '',
       ),
     ),
     GoRoute(
       path: '/ag-005',
       builder: (c, s) => DraftTransactionsScreen(
         businessId: _resolveBusinessId(s),
-        membershipId: ManaSession.instance.lastMembershipId ?? 'stub-agent-membership-id',
+        membershipId: ManaSession.instance.lastMembershipId ?? '',
       ),
     ),
     GoRoute(
@@ -424,7 +468,7 @@ final manaRouter = GoRouter(
         final now = DateTime.now();
         return OwnerSettlementScreen(
           businessId: _resolveBusinessId(s),
-          agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+          agentId: ManaSession.instance.lastAgentId ?? '',
           periodStart: DateTime(now.year, now.month, now.day),
           periodEnd: DateTime(now.year, now.month, now.day, 23, 59, 59),
         );
@@ -433,7 +477,7 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ag-007',
       builder: (c, s) => Ag007LoanDistributionScreen(
-        agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+        agentId: ManaSession.instance.lastAgentId ?? '',
         businessId: _resolveBusinessId(s),
         prefilledCustomerId: null,
       ),
@@ -441,15 +485,15 @@ final manaRouter = GoRouter(
     GoRoute(
       path: '/ag-008',
       builder: (c, s) => Ag008NotificationsScreen(
-        agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+        agentId: ManaSession.instance.lastAgentId ?? '',
         businessId: _resolveBusinessId(s),
       ),
     ),
     GoRoute(
       path: '/ag-009',
       builder: (c, s) => Ag009ProfileScreen(
-        personId: ManaSession.instance.currentPersonId ?? 'stub-person-id',
-        agentId: ManaSession.instance.lastAgentId ?? 'stub-agent-id',
+        personId: ManaSession.instance.currentPersonId ?? '',
+        agentId: ManaSession.instance.lastAgentId ?? '',
         businessId: _resolveBusinessId(s),
       ),
     ),
@@ -472,23 +516,23 @@ final manaRouter = GoRouter(
       path: '/cw-003',
       builder: (c, s) => RequestNewLoanScreen(
         businessId: _resolveBusinessId(s),
-        customerId: ManaSession.instance.lastCustomerId ?? 'stub-customer-id',
+        customerId: ManaSession.instance.lastCustomerId ?? '',
       ),
     ),
     GoRoute(
       path: '/cw-004',
       builder: (c, s) => MyLoansScreen(
         businessId: _resolveBusinessId(s),
-        customerId: ManaSession.instance.lastCustomerId ?? 'stub-customer-id',
+        customerId: ManaSession.instance.lastCustomerId ?? '',
       ),
     ),
     GoRoute(
       path: '/cw-005',
-      builder: (c, s) => MakeAPaymentScreen(loanId: (s.extra as String?) ?? 'stub-loan-id'),
+      builder: (c, s) => MakeAPaymentScreen(loanId: (s.extra as String?) ?? ''),
     ),
     GoRoute(
       path: '/cw-006',
-      builder: (c, s) => cw006.MyProfileMembershipsScreen(personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? 'stub-person-id'),
+      builder: (c, s) => cw006.MyProfileMembershipsScreen(personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? ''),
     ),
 
     // --- Investor Workspace ----------------------------------------------
@@ -504,12 +548,12 @@ final manaRouter = GoRouter(
       path: '/iw-003',
       builder: (c, s) => MyInvestmentsScreen(
         businessId: _resolveBusinessId(s),
-        investorId: ManaSession.instance.lastInvestorId ?? 'stub-investor-id',
+        investorId: ManaSession.instance.lastInvestorId ?? '',
       ),
     ),
     GoRoute(
       path: '/iw-004',
-      builder: (c, s) => RequestWithdrawalScreen(investmentId: (s.extra as String?) ?? 'stub-investment-id'),
+      builder: (c, s) => RequestWithdrawalScreen(investmentId: (s.extra as String?) ?? ''),
     ),
     GoRoute(
       path: '/iw-005',
@@ -519,7 +563,7 @@ final manaRouter = GoRouter(
       // ignored here entirely rather than misread as personId; the
       // logged-in person's own id is always the right value for "my
       // profile" regardless of which business launched it.
-      builder: (c, s) => MyProfileMembershipsScreen(personId: ManaSession.instance.currentPersonId ?? 'stub-person-id'),
+      builder: (c, s) => MyProfileMembershipsScreen(personId: ManaSession.instance.currentPersonId ?? ''),
     ),
 
     // --- Support/Admin (SP-001) ---------------------------------------------

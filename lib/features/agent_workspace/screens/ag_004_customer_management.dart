@@ -60,6 +60,13 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
         agentMembershipId: widget.agentMembershipId,
       );
 
+  // Disposed with the State that owns them -- see the sweep note elsewhere.
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(agentCustomerListProvider);

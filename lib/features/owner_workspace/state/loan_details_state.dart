@@ -21,7 +21,7 @@ class LoanDetailsApiService {
     final row = await _db
         .from('loans')
         .select('''
-          loan_id, loan_number, loan_status, repayment_type, installment_amount,
+          loan_id, business_id, loan_number, loan_status, repayment_type, installment_amount,
           repayment_amount, amount_given, remaining_balance, grace_period_days,
           collection_agent_membership_id,
           customers!inner(customer_id, persons!inner(full_name)),
@@ -69,6 +69,7 @@ class LoanDetailsApiService {
 
     return LoanDetail(
       loanId: row['loan_id'] as String,
+      businessId: row['business_id'] as String,
       loanNumber: row['loan_number'] as String,
       customerName: customerPerson['full_name'] as String? ?? '',
       customerId: customer['customer_id'] as String,
@@ -136,8 +137,19 @@ class LoanDetailsApiService {
     }
   }
 
+  /// Reads the row back, because PostgREST answers an UPDATE that matched
+  /// nothing exactly like one that matched. A bare update here could not tell
+  /// a completed transfer from a loan the caller may not touch -- and the
+  /// screen above it reported success either way.
   Future<void> transferAgent({required String loanId, required String newAgentMembershipId}) async {
-    await _db.from('loans').update({'collection_agent_membership_id': newAgentMembershipId}).eq('loan_id', loanId);
+    final rows = await _db
+        .from('loans')
+        .update({'collection_agent_membership_id': newAgentMembershipId})
+        .eq('loan_id', loanId)
+        .select('loan_id');
+    if (rows.isEmpty) {
+      throw Exception('The transfer did not save. You may not have permission to change this loan.');
+    }
   }
 
   /// Applying a penalty must atomically insert penalty_entries AND increase
@@ -303,6 +315,11 @@ enum LoanStatus { draft, active, gracePeriod, penaltyEligible, penalty, closed, 
 
 class LoanDetail {
   final String loanId;
+
+  /// Which book this loan belongs to. Needed by anything that has to look up
+  /// the business's own people -- the agent picker, for one, which used to be
+  /// handed the string 'stub-agent-id' instead.
+  final String businessId;
   final String loanNumber;
   final String customerName;
   final String customerId;
@@ -332,6 +349,7 @@ class LoanDetail {
 
   LoanDetail({
     required this.loanId,
+    required this.businessId,
     required this.loanNumber,
     required this.customerName,
     required this.customerId,
@@ -403,14 +421,16 @@ class LoanDetailsNotifier extends FamilyAsyncNotifier<LoanDetail, String> {
     }
   }
 
-  Future<bool> transferAgent(String newAgentMembershipId) async {
-    try {
-      await ref.read(loanDetailsApiServiceProvider).transferAgent(loanId: arg, newAgentMembershipId: newAgentMembershipId);
-      await refresh();
-      return true;
-    } catch (_) {
-      return false;
-    }
+  /// Throws rather than returning false.
+  ///
+  /// `catch (_) { return false; }` threw away the server's own reason, and the
+  /// screen showed "Agent transferred" without even reading the false. Letting
+  /// it through means NetworkErrorHandler says what actually happened.
+  Future<void> transferAgent(String newAgentMembershipId) async {
+    await ref
+        .read(loanDetailsApiServiceProvider)
+        .transferAgent(loanId: arg, newAgentMembershipId: newAgentMembershipId);
+    await refresh();
   }
 
   // applyPenalty is gone from here.

@@ -347,6 +347,25 @@ class _AddressDialog extends ConsumerStatefulWidget {
 }
 
 class _AddressDialogState extends ConsumerState<_AddressDialog> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _doorNo.dispose();
+    _pinCode.dispose();
+    _villageSearch.dispose();
+    _manualName.dispose();
+    _manualMandal.dispose();
+    _manualDistrict.dispose();
+    _manualState.dispose();
+    super.dispose();
+  }
   final _doorNo = TextEditingController();
   final _pinCode = TextEditingController();
   final _villageSearch = TextEditingController();
@@ -621,6 +640,20 @@ class _ContactDialog extends ConsumerStatefulWidget {
 }
 
 class _ContactDialogState extends ConsumerState<_ContactDialog> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _mobile.dispose();
+    _aadhaar.dispose();
+    super.dispose();
+  }
   final _mobile = TextEditingController();
   final _aadhaar = TextEditingController();
   DateTime? _dob;
@@ -692,6 +725,7 @@ class _ContactDialogState extends ConsumerState<_ContactDialog> {
                       firstDate: DateTime(now.year - 100),
                       lastDate: now,
                     );
+                    if (!mounted) return;
                     if (picked != null) setState(() => _dob = picked);
                   },
                   child: ManaText.raw(ref.t('pick')),

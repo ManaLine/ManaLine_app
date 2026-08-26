@@ -60,6 +60,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     final file = await openFile(acceptedTypeGroups: [group]);
     if (file == null) return; // cancelled — not an error
 
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _formatError = null;

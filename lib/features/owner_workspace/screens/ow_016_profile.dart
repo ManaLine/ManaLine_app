@@ -117,6 +117,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
   Future<void> _load() async {
     final personId = ref.read(authFlowProvider).personId;
     if (personId == null) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'No logged-in identity found.';
@@ -521,6 +522,23 @@ class _AddressEditDialog extends ConsumerStatefulWidget {
 }
 
 class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _villageSearch.dispose();
+    _manualVillageName.dispose();
+    _manualMandal.dispose();
+    _manualDistrict.dispose();
+    _manualState.dispose();
+    super.dispose();
+  }
   late final _doorNo = TextEditingController();
   late final _pinCode =
       TextEditingController(text: widget.initialPinCode ?? '');

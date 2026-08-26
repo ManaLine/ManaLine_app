@@ -284,6 +284,24 @@ class _CreateBusinessScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _businessName.dispose();
+    _registeredFinanceName.dispose();
+    _businessType.dispose();
+    _businessAddress.dispose();
+    _businessPhone.dispose();
+    _businessEmail.dispose();
+    super.dispose();
+  }
   final _businessName = TextEditingController();
   final _registeredFinanceName = TextEditingController();
   final _businessType = TextEditingController();
@@ -298,6 +316,8 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    if (!mounted) return;
     setState(() => _logoBytes = bytes);
   }
 
@@ -311,6 +331,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
         context: context,
         builder: (_) => BusinessNameTakenDialog(name: _businessName.text.trim(), alternatives: alternatives),
       );
+      if (!mounted) return;
       if (chosen != null) setState(() => _businessName.text = chosen);
       return;
     }
@@ -1163,6 +1184,19 @@ class _CycleConfigDialogState extends ConsumerState<_CycleConfigDialog> {
     if (widget.initial.submissionTime != null) _submissionTime.text = widget.initial.submissionTime!;
   }
 
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _submissionTime.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -1285,6 +1319,20 @@ class _CreateAgreementDialog extends ConsumerStatefulWidget {
 }
 
 class _CreateAgreementDialogState extends ConsumerState<_CreateAgreementDialog> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _content.dispose();
+    _effectiveDate.dispose();
+    super.dispose();
+  }
   String _type = 'Customer';
   String _sourceType = 'In-App';
   final _content = TextEditingController();

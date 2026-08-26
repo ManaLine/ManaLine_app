@@ -223,15 +223,20 @@ class _Header extends ConsumerWidget {
             ],
           ),
         ),
+        // Both of these were onPressed: () {} -- present, tappable, and inert.
+        // The screens they belong to already existed; nothing ever pointed at
+        // them from here.
         IconButton(
           tooltip: ref.t('notifications'),
           icon: const Icon(Icons.notifications_outlined),
-          onPressed: () {},
+          onPressed: () => context.push('/notifications'),
         ),
         IconButton(
           tooltip: ref.t('switch_business'),
           icon: const Icon(Icons.swap_horiz),
-          onPressed: () {},
+          // The selector, not a workspace: a Customer of two businesses picks
+          // which one they are looking at, the same way every other role does.
+          onPressed: () => context.push('/lr-012'),
         ),
       ],
     );

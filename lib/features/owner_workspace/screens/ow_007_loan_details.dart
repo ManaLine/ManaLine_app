@@ -9,6 +9,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/apply_penalty_sheet.dart';
+import '../../../shared/agent_picker_sheet.dart';
 import '../../../shared/document_viewer.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart' show customerApiServiceProvider;
@@ -291,12 +292,26 @@ class _ActionsSection extends ConsumerWidget {
   }
 
   Future<void> _showTransferAgentDialog(BuildContext context, WidgetRef ref) async {
-    // Stub agent picker — real build reuses OW-002's agent list/search.
-    // RESOLVED (locked): simple action, no confirmation/review screen.
-    await NetworkErrorHandler.run(context, () async {
-      return ref.read(loanDetailsProvider(loanId).notifier).transferAgent('stub-agent-id');
+    final loan = ref.read(loanDetailsProvider(loanId)).valueOrNull;
+    if (loan == null) return;
+
+    // A real agent from this business, not the string 'stub-agent-id' that
+    // used to go straight into the UPDATE.
+    final membershipId = await showAgentPickerSheet(
+      context,
+      ref,
+      businessId: loan.businessId,
+      currentMembershipId: loan.collectionAgentId,
+    );
+    if (membershipId == null || !context.mounted) return;
+
+    // Gated on the call succeeding. This announced the transfer regardless,
+    // so a write that could never have worked still read as done.
+    final moved = await NetworkErrorHandler.run(context, () async {
+      await ref.read(loanDetailsProvider(loanId).notifier).transferAgent(membershipId);
+      return true;
     });
-    if (context.mounted) {
+    if (moved == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: ManaText.raw(ref.t('agent_transferred_note'))),
       );

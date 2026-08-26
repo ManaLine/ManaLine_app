@@ -107,7 +107,13 @@ class ManaMemberRoster extends StatefulWidget {
   final List<MemberAction> addActions;
   final String addLabel;
 
-  final void Function(MemberEntry) onOpen;
+  /// What tapping a row does, when the roster draws the row itself.
+  ///
+  /// Optional, because a caller supplying [rowBuilder] navigates from inside
+  /// its own row and has nothing to put here -- three screens were passing
+  /// `onOpen: (_) {}` to satisfy a required parameter, which reads as "tapping
+  /// does nothing" to anyone looking for a dead handler.
+  final void Function(MemberEntry)? onOpen;
   final bool loading;
 
   /// A screen-specific filter shown under the search box — the village
@@ -181,7 +187,7 @@ class ManaMemberRoster extends StatefulWidget {
     required this.emptyLabel,
     required this.addActions,
     required this.addLabel,
-    required this.onOpen,
+    this.onOpen,
     this.loading = false,
     this.extraFilter,
     this.footnote,
@@ -391,7 +397,7 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
                           itemCount: visible.length,
                           itemBuilder: (_, i) {
                             final entry = visible[i];
-                            void open() => widget.onOpen(entry);
+                            void open() => widget.onOpen?.call(entry);
                             return widget.rowBuilder?.call(entry, open) ??
                                 _MemberRow(entry: entry, onTap: open);
                           },

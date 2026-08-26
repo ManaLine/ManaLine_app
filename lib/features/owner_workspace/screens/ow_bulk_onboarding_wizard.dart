@@ -391,6 +391,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     final file = await _pickSpreadsheet(allowCsv: true);
     if (file == null) return;
 
+    if (!mounted) return;
     setState(() {
       _busy1 = true;
       _identityFormatError = null;
@@ -532,6 +533,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   Future<void> _withdrawalPick() async {
     final file = await _pickSpreadsheet();
     if (file == null) return;
+    if (!mounted) return;
     setState(() {
       _busy3 = true;
       _withdrawalError = null;
@@ -681,6 +683,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   Future<void> _customerPick() async {
     final file = await _pickSpreadsheet();
     if (file == null) return;
+    if (!mounted) return;
     setState(() {
       _busy4 = true;
       _customerFormatError = null;
@@ -808,6 +811,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   Future<void> _attendancePick() async {
     final file = await _pickSpreadsheet(allowCsv: true);
     if (file == null) return;
+    if (!mounted) return;
     setState(() {
       _busy5 = true;
       _attendanceError = null;
@@ -908,6 +912,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   Future<void> _weeklyPick() async {
     final file = await _pickSpreadsheet(allowCsv: true);
     if (file == null) return;
+    if (!mounted) return;
     setState(() {
       _busy7 = true;
       _weeklyError = null;

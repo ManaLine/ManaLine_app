@@ -108,6 +108,22 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
       _amount.selection = TextSelection(baseOffset: 0, extentOffset: '$due'.length);
     }
   }
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _amount.dispose();
+    _payerName.dispose();
+    _cashAmount.dispose();
+    _upiAmount.dispose();
+    super.dispose();
+  }
   // Customer unless the Agent says otherwise. Asking who paid on every single
   // collection is a decision on the overwhelmingly common case, made standing
   // at a doorstep — so the question only appears when it is answered.
@@ -231,6 +247,7 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
       setState(() => _confirmDuplicate = true);
       await _submit(); // retry — this time the server records it
     } else {
+      if (!mounted) return;
       setState(() => _confirmDuplicate = false); // close — nothing recorded
     }
   }

@@ -247,6 +247,23 @@ class _Step1CreateBusiness extends ConsumerStatefulWidget {
 }
 
 class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _businessName.dispose();
+    _financeName.dispose();
+    _address.dispose();
+    _phone.dispose();
+    _email.dispose();
+    super.dispose();
+  }
   final _businessName = TextEditingController();
   final _financeName = TextEditingController();
   final _address = TextEditingController();
@@ -263,6 +280,8 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
         .pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    if (!mounted) return;
     setState(() => _logoBytes = bytes);
   }
 
@@ -278,6 +297,7 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
         builder: (_) => BusinessNameTakenDialog(
             name: _businessName.text.trim(), alternatives: alternatives),
       );
+      if (!mounted) return;
       if (chosen != null) setState(() => _businessName.text = chosen);
       return; // let the person review/confirm before submitting again
     }
@@ -408,6 +428,24 @@ class _Step2OperatingAreas extends ConsumerStatefulWidget {
 }
 
 class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _pinCode.dispose();
+    _villageSearch.dispose();
+    _manualVillageName.dispose();
+    _manualMandal.dispose();
+    _manualDistrict.dispose();
+    _manualState.dispose();
+    super.dispose();
+  }
   final _pinCode = TextEditingController();
   final _villageSearch = TextEditingController();
   String? _selectedVillageId;
@@ -521,6 +559,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
           );
     });
     if (ok == true) {
+      if (!mounted) return;
       setState(() {
         _pinCode.clear();
         _villageSearch.clear();

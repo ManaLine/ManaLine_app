@@ -606,6 +606,18 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
 
   @override
   void dispose() {
+    _fullName.dispose();
+    _fatherHusband.dispose();
+    _mobile.dispose();
+    _aadhaar.dispose();
+    _doorNo.dispose();
+    _pinCode.dispose();
+    _villageSearch.dispose();
+    _given.dispose();
+    _interest.dispose();
+    _fee.dispose();
+    _balance.dispose();
+    _emi.dispose();
     for (final c in [
       _given, _interest, _fee, _balance, _emi,
       _fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _villageSearch,

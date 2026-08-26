@@ -74,6 +74,20 @@ class _DeletePersonCard extends ConsumerStatefulWidget {
 }
 
 class _DeletePersonCardState extends ConsumerState<_DeletePersonCard> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _mlidController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
   final _mlidController = TextEditingController();
   final _reasonController = TextEditingController();
   Map<String, dynamic>? _found;
@@ -243,6 +257,20 @@ class _DeleteBusinessCard extends ConsumerStatefulWidget {
 }
 
 class _DeleteBusinessCardState extends ConsumerState<_DeleteBusinessCard> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _mlbiController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
   final _mlbiController = TextEditingController();
   final _reasonController = TextEditingController();
   Map<String, dynamic>? _found;
@@ -406,6 +434,20 @@ class _DeleteLoanCard extends ConsumerStatefulWidget {
 }
 
 class _DeleteLoanCardState extends ConsumerState<_DeleteLoanCard> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _idController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
   final _idController = TextEditingController();
   final _reasonController = TextEditingController();
   Map<String, dynamic>? _found;
@@ -568,6 +610,20 @@ class _DeleteCollectionCard extends ConsumerStatefulWidget {
 }
 
 class _DeleteCollectionCardState extends ConsumerState<_DeleteCollectionCard> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _idController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
   final _idController = TextEditingController();
   final _reasonController = TextEditingController();
   Map<String, dynamic>? _found;

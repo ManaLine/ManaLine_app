@@ -245,6 +245,22 @@ class _CashVerification extends ConsumerStatefulWidget {
 }
 
 class _CashVerificationState extends ConsumerState<_CashVerification> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _cash.dispose();
+    _upi.dispose();
+    _bank.dispose();
+    _cheque.dispose();
+    super.dispose();
+  }
   final _cash = TextEditingController(text: '0');
   final _upi = TextEditingController(text: '0');
   final _bank = TextEditingController(text: '0');
@@ -500,6 +516,21 @@ class _RecordAdjustmentDialog extends ConsumerStatefulWidget {
 }
 
 class _RecordAdjustmentDialogState extends ConsumerState<_RecordAdjustmentDialog> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _amount.dispose();
+    _note.dispose();
+    _targetCustomerId.dispose();
+    super.dispose();
+  }
   String _type = 'Short';
   String _appliedTo = 'Agent Salary Deduction';
   final _amount = TextEditingController();
@@ -644,6 +675,13 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
             content: ManaText.raw(ref.t('difference_no_longer_zero_note'))),
       );
     }
+  }
+
+  // Disposed with the State that owns them -- see the sweep note elsewhere.
+  @override
+  void dispose() {
+    _remarks.dispose();
+    super.dispose();
   }
 
   @override

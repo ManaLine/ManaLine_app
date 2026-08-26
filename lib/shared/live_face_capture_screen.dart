@@ -91,6 +91,7 @@ class _LiveFaceCaptureScreenState extends State<LiveFaceCaptureScreen> {
         _faceDetected = true;
       }
 
+      if (!mounted) return;
       setState(() {
         _controller = controller;
         _initializing = false;

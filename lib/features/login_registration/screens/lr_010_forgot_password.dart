@@ -42,6 +42,20 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     });
   }
 
+  // Disposed, all of them.
+  //
+  // Every controller on this screen outlived it: a TextEditingController holds
+  // a listener list and a ChangeNotifier, and a State that never disposes them
+  // leaks one set per visit. On a low-end handset an Agent opens screens like
+  // this forty times a round.
+  @override
+  void dispose() {
+    _mobile.dispose();
+    _newPassword.dispose();
+    _confirmPassword.dispose();
+    super.dispose();
+  }
+
   // --- OTP step state (mirrors LR-005's pattern; not extracted to a
   // shared widget yet — see hand-off note at the end of this turn) ---
   final List<TextEditingController> _otpDigits = List.generate(6, (_) => TextEditingController());

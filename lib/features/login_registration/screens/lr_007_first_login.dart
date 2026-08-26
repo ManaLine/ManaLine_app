@@ -103,6 +103,19 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     }
   }
 
+  // Disposed, all of them.
+  //
+  // Every controller on this screen outlived it: a TextEditingController holds
+  // a listener list and a ChangeNotifier, and a State that never disposes them
+  // leaks one set per visit. On a low-end handset an Agent opens screens like
+  // this forty times a round.
+  @override
+  void dispose() {
+    _mobile.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
   Future<void> _login() async {
     setState(() {
       _submitting = true;

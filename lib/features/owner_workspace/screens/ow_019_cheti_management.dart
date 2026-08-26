@@ -342,6 +342,13 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
 
   @override
   void dispose() {
+    _name.dispose();
+    _faceValue.dispose();
+    _total.dispose();
+    _instalment.dispose();
+    _openingCount.dispose();
+    _openingPaid.dispose();
+    _availedAmount.dispose();
     for (final c in [
       _name, _faceValue, _total, _instalment,
       _openingCount, _openingPaid, _availedAmount,
@@ -478,6 +485,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
                   firstDate: DateTime(2000),
                   lastDate: DateTime.now().add(const Duration(days: 365)),
                 );
+                if (!mounted) return;
                 if (picked != null) setState(() => _startDate = picked);
               },
             ),
@@ -526,6 +534,7 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
                     firstDate: DateTime(2000),
                     lastDate: DateTime.now(),
                   );
+                  if (!mounted) return;
                   if (picked != null) setState(() => _availedDate = picked);
                 },
               ),
@@ -764,6 +773,7 @@ class _AvailingSheetState extends ConsumerState<_AvailingSheet> {
                 firstDate: DateTime(2000),
                 lastDate: DateTime.now(),
               );
+              if (!mounted) return;
               if (picked != null) setState(() => _date = picked);
             },
           ),

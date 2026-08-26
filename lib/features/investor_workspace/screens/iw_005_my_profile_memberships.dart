@@ -333,6 +333,23 @@ class _VillageSelectorDialog extends ConsumerStatefulWidget {
 }
 
 class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _villageSearch.dispose();
+    _manualVillageName.dispose();
+    _manualMandal.dispose();
+    _manualDistrict.dispose();
+    _manualState.dispose();
+    super.dispose();
+  }
   late final _pinCode = TextEditingController(text: widget.initialPinCode ?? '');
   final _villageSearch = TextEditingController();
   Map<String, dynamic>? _selectedVillage; // real row: location_id, village_town_name, mandal, district, state

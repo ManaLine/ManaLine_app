@@ -30,6 +30,33 @@ class RegistrationFormScreen extends ConsumerStatefulWidget {
 }
 
 class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen> {
+
+  // Disposed, all of them.
+  //
+  // Every controller on this screen outlived it: a TextEditingController holds
+  // a listener list and a ChangeNotifier, and a State that never disposes them
+  // leaks one set per visit. On a low-end handset an Agent opens screens like
+  // this forty times a round.
+  @override
+  void dispose() {
+    _surname.dispose();
+    _givenName.dispose();
+    _fullNameLocal.dispose();
+    _fatherHusbandName.dispose();
+    _mobile.dispose();
+    _password.dispose();
+    _confirmPassword.dispose();
+    _pinCode.dispose();
+    _doorNo.dispose();
+    _aadhaar.dispose();
+    _confirmAadhaar.dispose();
+    _villageSearch.dispose();
+    _manualVillageName.dispose();
+    _manualMandal.dispose();
+    _manualDistrict.dispose();
+    _manualState.dispose();
+    super.dispose();
+  }
   final _formKey = GlobalKey<FormState>();
   // Surname and given name are entered separately so the app knows which part
   // is the house name. Matching a person depends on that: "Karri Siri
@@ -603,6 +630,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                     firstDate: DateTime(today.year - 120),
                     lastDate: today,
                   );
+                  if (!mounted) return;
                   if (picked != null) setState(() => _dob = picked);
                 },
               ),

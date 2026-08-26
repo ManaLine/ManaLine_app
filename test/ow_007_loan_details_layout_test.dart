@@ -7,6 +7,7 @@ import 'support/mana_harness.dart';
 
 final _seedLoan = LoanDetail(
   loanId: 'l1',
+  businessId: 'b1',
   loanNumber: 'MLLN0000012345',
   customerName: 'Karri Siri Manikanta Reddy',
   customerId: 'c1',

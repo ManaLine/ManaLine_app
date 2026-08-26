@@ -151,7 +151,6 @@ class _WorkforceManagementScreenState
                     final a = state.filtered.firstWhere((x) => x.agentId == entry.id);
                     return _AgentRow(agent: a, onTap: () => _openAgentProfile(context, a));
                   },
-                  onOpen: (_) {},
                 ),
         ),
       ),

@@ -437,6 +437,7 @@ class _CaseIntakeStepState extends ConsumerState<_CaseIntakeStep> {
                     return documentUrl;
                   });
                   if (result != null) {
+                    if (!mounted) return;
                     setState(() => _attachedDocName = result.split('/').last);
                   }
                 },
@@ -752,6 +753,7 @@ class _OriginalHolderIntakeStepState
                         'original_holder_proof');
                   });
                   if (result != null) {
+                    if (!mounted) return;
                     setState(() {
                       _attachedDocUrl = result;
                       _attachedDocName = result.split('/').last;

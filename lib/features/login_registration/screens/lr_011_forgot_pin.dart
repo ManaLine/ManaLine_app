@@ -43,6 +43,18 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
     });
   }
 
+  // Disposed, all of them.
+  //
+  // Every controller on this screen outlived it: a TextEditingController holds
+  // a listener list and a ChangeNotifier, and a State that never disposes them
+  // leaks one set per visit. On a low-end handset an Agent opens screens like
+  // this forty times a round.
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
   // --- OTP step state (same pattern as LR-005/LR-010; not yet
   // extracted to a shared widget — see hand-off note) ---
   final List<TextEditingController> _otpDigits = List.generate(6, (_) => TextEditingController());

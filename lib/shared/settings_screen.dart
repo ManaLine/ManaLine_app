@@ -296,10 +296,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         context: context, builder: (_) => const _PinVerifyDialog());
     if (entered == null || entered.length != pinLength) return;
 
+    if (!mounted) return;
     setState(() => _togglingBiometric = true);
     final mobile = await LocalAuthStore.readLastMobileNumber();
     final fingerprint = await LocalAuthStore.deviceFingerprint();
     if (mobile == null) {
+      if (!mounted) return;
+      if (!mounted) return;
       setState(() => _togglingBiometric = false);
       return;
     }

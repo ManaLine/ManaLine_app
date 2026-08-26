@@ -182,6 +182,21 @@ class _SendBfCashCard extends ConsumerStatefulWidget {
 }
 
 class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _toAgentName.dispose();
+    _toAgentId.dispose();
+    _amount.dispose();
+    super.dispose();
+  }
   final _toAgentName = TextEditingController();
   final _toAgentId = TextEditingController(); // stub picker — real build reuses OW-002's agent list
   final _amount = TextEditingController();
@@ -576,6 +591,23 @@ class _AgStep3LoanDetails extends ConsumerStatefulWidget {
 }
 
 class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _repaymentAmount.dispose();
+    _interest.dispose();
+    _processingFee.dispose();
+    _duration.dispose();
+    _installment.dispose();
+    super.dispose();
+  }
   final _repaymentAmount = TextEditingController();
   final _interest = TextEditingController();
   final _processingFee = TextEditingController();
@@ -682,6 +714,7 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
               firstDate: manaNowIst().subtract(const Duration(days: 1)),
               lastDate: manaNowIst().add(const Duration(days: 365)),
             );
+            if (!mounted) return;
             if (picked != null) setState(() => _effectiveDate = picked);
           },
         ),
@@ -719,6 +752,23 @@ class _AgStep4Guarantor extends ConsumerStatefulWidget {
 }
 
 class _AgStep4GuarantorState extends ConsumerState<_AgStep4Guarantor> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _name.dispose();
+    _relationship.dispose();
+    _phone.dispose();
+    _address.dispose();
+    _remarks.dispose();
+    super.dispose();
+  }
   bool? _needsGuarantor;
   final _name = TextEditingController();
   final _relationship = TextEditingController();

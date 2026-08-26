@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/agent_workspace/screens/ag_009_profile.dart';
-import 'package:mana_line/features/agent_workspace/screens/ag_010_transaction_history.dart';
 import 'package:mana_line/features/agent_workspace/state/agent_dashboard_state.dart' show AgentAreaAssignment;
-import 'package:mana_line/features/agent_workspace/state/agent_history_state.dart';
 import 'package:mana_line/features/agent_workspace/state/agent_profile_state.dart';
 import 'package:mana_line/shared/widgets/language_selector.dart';
 
@@ -14,14 +12,6 @@ class _SeededProfile extends AgentProfileNotifier {
 
   @override
   Future<void> load({required String personId, required String agentId, required String businessId}) async {}
-}
-
-class _SeededHistory extends AgentHistoryNotifier {
-  @override
-  AgentHistoryState build() => _historySeed;
-
-  @override
-  Future<void> load({required String businessId, required String agentMembershipId}) async {}
 }
 
 final _profileSeed = AgentProfileState(
@@ -47,18 +37,6 @@ final _profileSeed = AgentProfileState(
   compensationSummary: AgentCompensationSummary(fixedSalary: 15000, salaryCycleStatus: 'Monthly · paid'),
 );
 
-final _historySeed = AgentHistoryState(entries: [
-  AgentTransactionEntry(
-    collectionId: 'c1',
-    customerName: 'Peddireddy Venkata Subbamma',
-    loanNumber: 'MLLN0000012345',
-    amount: 5000,
-    resultType: 'Full',
-    receiptNumber: 'RCT-20260807-a1b2c3',
-    businessDate: DateTime(2026, 8, 7),
-    entryTimestamp: DateTime(2026, 8, 7, 10, 30),
-  ),
-]);
 
 const _telugu = <String, Map<String, String>>{
   'profile': {'English': 'Profile', 'Telugu': 'ప్రొఫైల్'},
@@ -79,6 +57,14 @@ const _telugu = <String, Map<String, String>>{
   'receipt_note': {'English': 'Receipt: {number}', 'Telugu': 'రసీదు: {number}'},
 };
 
+/// AG-010 is NOT tested here.
+///
+/// It was, and the tests proved nothing: they seeded agentHistoryProvider,
+/// which the screen does not read -- it reads ledgerHistoryProvider. Every
+/// run rendered an empty history and passed. ledger_history_screens_test.dart
+/// covers both OW-017 and AG-010 against the provider they actually use, at
+/// every text scale, which is why the dead ones are gone rather than fixed
+/// twice over.
 void main() {
   for (final scale in kManaTextScales) {
     testWidgets('AG-009 profile survives text scale ${scale}x', (tester) async {
@@ -103,26 +89,6 @@ void main() {
       expectNoLayoutFault(tester, 'AG-009 at ${scale}x in Telugu');
     });
 
-    testWidgets('AG-010 transaction history survives text scale ${scale}x', (tester) async {
-      await pumpManaScreen(
-        tester,
-        const Ag010TransactionHistoryScreen(businessId: 'b1', agentMembershipId: 'm1'),
-        textScale: scale,
-        overrides: [agentHistoryProvider.overrideWith(_SeededHistory.new)],
-      );
-      expectNoLayoutFault(tester, 'AG-010 at ${scale}x');
-    });
 
-    testWidgets('AG-010 transaction history survives text scale ${scale}x in Telugu', (tester) async {
-      await pumpManaScreen(
-        tester,
-        const Ag010TransactionHistoryScreen(businessId: 'b1', agentMembershipId: 'm1'),
-        textScale: scale,
-        language: ManaLanguage.telugu,
-        translations: _telugu,
-        overrides: [agentHistoryProvider.overrideWith(_SeededHistory.new)],
-      );
-      expectNoLayoutFault(tester, 'AG-010 at ${scale}x in Telugu');
-    });
   }
 }

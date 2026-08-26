@@ -128,6 +128,20 @@ class _CreateGroupScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
+
+  // Disposed with the State that owns them.
+  //
+  // These outlived every visit: a TextEditingController holds a listener list
+  // and a ChangeNotifier, and a State that never disposes them leaks one set
+  // each time the screen is opened. Attached per class rather than in bulk --
+  // disposing a controller that belongs to a different State would be a
+  // use-after-dispose, which is worse than the leak.
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
   final _nameController = TextEditingController();
   final _searchController = TextEditingController();
   List<GroupMemberLoan> _results = const [];

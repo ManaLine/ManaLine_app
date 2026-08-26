@@ -144,24 +144,6 @@ class LoanDetailsApiService {
   /// loans.remaining_balance by the same amount (per
   /// penalty_entries.penalty_amount_applied's own column comment: "resolved
   /// Rs amount added to remaining_balance"). Now backed by
-  /// `app.apply_loan_penalty` (migration 0054) — the insert+update pair this
-  /// replaced could half-apply on a dropped connection between the steps.
-  ///
-  /// The RPC also enforces the authorization the client cannot: Owner of the
-  /// loan's business, or an Agent covering the customer who holds
-  /// can_apply_penalty (OFF by default, BR-236).
-  Future<String> applyPenalty({
-    required String loanId,
-    required String penaltyOption,
-    required int penaltyAmount, // whole rupees (M8)
-  }) async {
-    final result = await _db.schema('app').rpc('apply_loan_penalty', params: {
-      'p_loan_id': loanId,
-      'p_penalty_option': penaltyOption,
-      'p_penalty_amount': penaltyAmount,
-    });
-    return result as String;
-  }
 
   Future<List<PenaltyEntry>> fetchPenaltyEntries({required String loanId}) async {
     final rows = await _db
@@ -431,20 +413,12 @@ class LoanDetailsNotifier extends FamilyAsyncNotifier<LoanDetail, String> {
     }
   }
 
-  // These two deliberately do NOT swallow into `false` the way the rest of
-  // this notifier does. Both now hit a real RPC (migration 0054) that
-  // rejects for reasons the Owner needs to read — not authorized, loan
-  // already Closed, penalty already waived, reduced amount out of range —
-  // and both move money on loans.remaining_balance. Returning a bare
-  // `false` let the screen show "Penalty applied" on a rejected write.
-  // Letting the PostgrestException through means NetworkErrorHandler
-  // surfaces the server's own message instead.
-  Future<void> applyPenalty({required String penaltyOption, required int penaltyAmount}) async {
-    await ref
-        .read(loanDetailsApiServiceProvider)
-        .applyPenalty(loanId: arg, penaltyOption: penaltyOption, penaltyAmount: penaltyAmount);
-    await refresh();
-  }
+  // applyPenalty is gone from here.
+  //
+  // It required a penalty OPTION, and the only screen that called it has moved
+  // to the shared sheet, which asks for an amount and nothing else. Leaving a
+  // second path to the same money write -- one that still demanded a choice
+  // nobody makes -- is how the two drift apart.
 
   Future<int> waiveOrReducePenalty({
     required String penaltyEntryId,

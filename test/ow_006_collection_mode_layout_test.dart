@@ -34,6 +34,10 @@ const _ow006TeluguTranslations = <String, Map<String, String>>{
   'penalty': {'English': 'Penalty', 'Telugu': 'జరిమానా'},
   'grace_period_label': {'English': 'Grace Period', 'Telugu': 'గ్రేస్ పీరియడ్'},
   'live_collected': {'English': 'Live Collected', 'Telugu': 'ప్రత్యక్ష వసూలు'},
+  'collect': {'English': 'Collect', 'Telugu': 'వసూలు'},
+  'balance': {'English': 'Balance', 'Telugu': 'బ్యాలెన్స్'},
+  'emi': {'English': 'EMI', 'Telugu': 'ఈఎంఐ'},
+  'apply_penalty': {'English': 'Apply Penalty', 'Telugu': 'జరిమానా వేయండి'},
   'collect_amount': {'English': 'Collect {amount}', 'Telugu': '{amount} వసూలు చేయండి'},
   'no_collection': {'English': "Didn't Collect", 'Telugu': 'వసూలు కాలేదు'},
   'request_extension': {'English': 'Request Extension', 'Telugu': 'పొడిగింపు అభ్యర్థించండి'},
@@ -197,15 +201,15 @@ void main() {
           collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))
         ],
       );
-      // The first due row's Pay button. The second customer is already
-      // Collected and shows a tick instead, which is itself worth pinning.
+      // Collect opens a sheet over the round. Pumping settles the modal
+      // route so the sheet's own layout is measured, not just the list's.
       await tester.tap(find.byType(FilledButton).first);
-      await tester.pump();
-      expectNoLayoutFault(tester, 'OW-006 opened row at ${scale}x in Telugu');
+      await tester.pumpAndSettle();
+      expectNoLayoutFault(tester, 'OW-006 collect sheet at ${scale}x in Telugu');
     });
   }
 
-  testWidgets('OW-006 opening a row keeps the Agent in the round', (tester) async {
+  testWidgets('OW-006 Collect opens a sheet and keeps the round underneath', (tester) async {
     await pumpManaScreen(
       tester,
       const CollectionModeScreen(businessId: 'b1'),
@@ -214,14 +218,11 @@ void main() {
     expect(find.byType(ManaCollectionForm), findsNothing);
 
     await tester.tap(find.byType(FilledButton).first);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    // The form is in the row, and the round is still the screen. NOT asserted
-    // by looking for the other customers: a tall open row pushes them past the
-    // viewport, and a ListView never builds what is off-screen — that would
-    // fail for a reason that has nothing to do with navigation.
+    // The form is in a sheet ABOVE the round, and the round is still the
+    // screen underneath — nothing navigated.
     expect(find.byType(ManaCollectionForm), findsOneWidget);
     expect(find.byType(ManaCollectionRound), findsOneWidget);
-    expect(find.textContaining('Nagabhushanam'), findsWidgets);
   });
 }

@@ -8,6 +8,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/apply_penalty_sheet.dart';
 import '../../../shared/document_viewer.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart' show customerApiServiceProvider;
@@ -390,57 +391,23 @@ class _ActionsSection extends ConsumerWidget {
     );
   }
 
+  /// The shared sheet, same as the round's Penalty tag opens.
+  ///
+  /// This asked for a penalty OPTION -- Flat Amount, % of Overdue Installment,
+  /// % of Remaining Balance -- before it would take a figure. Nobody decides a
+  /// penalty that way, all three ended in a rupee amount, and the server
+  /// defaults the column now. One number, one sheet, one place it lives.
   Future<void> _showApplyPenaltyDialog(BuildContext context, WidgetRef ref) async {
-    String option = 'Flat Amount';
-    final amount = TextEditingController();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setState) => AlertDialog(
-          title: ManaText.raw(ref.t('apply_penalty')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: option,
-                decoration: InputDecoration(labelText: ref.t('penalty_option')),
-                items: [
-                  DropdownMenuItem(value: 'Flat Amount', child: ManaText.raw(ref.t('flat_amount'))),
-                  DropdownMenuItem(value: '% of Overdue Installment', child: ManaText.raw(ref.t('percent_overdue_installment'))),
-                  DropdownMenuItem(value: '% of Remaining Balance', child: ManaText.raw(ref.t('percent_remaining_balance'))),
-                ],
-                onChanged: (v) => setState(() => option = v ?? 'Flat Amount'),
-              ),
-              TextField(
-                controller: amount,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: '${ref.t('penalty_amount')} *'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: ManaText.raw(ref.t('cancel'))),
-            ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: ManaText.raw(ref.t('save'))),
-          ],
-        ),
-      ),
+    final loan = ref.read(loanDetailsProvider(loanId)).valueOrNull;
+    if (loan == null) return;
+    final applied = await showApplyPenaltySheet(
+      context,
+      ref,
+      loanId: loanId,
+      customerName: loan.customerName,
+      outstandingBalance: loan.outstandingBalance,
     );
-    if (result != true) return;
-    final amt = int.tryParse(amount.text.trim());
-    if (amt == null || amt <= 0 || !context.mounted) return;
-    // Gate the confirmation on the call actually succeeding — the RPC can
-    // legitimately reject (Closed loan, missing can_apply_penalty), and
-    // NetworkErrorHandler returns null with the server's reason already
-    // shown in that case.
-    final applied = await NetworkErrorHandler.run(context, () async {
-      await ref.read(loanDetailsProvider(loanId).notifier).applyPenalty(penaltyOption: option, penaltyAmount: amt);
-      return true;
-    });
-    if (applied == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: ManaText.raw(ref.t('penalty_applied_note'))),
-      );
-    }
+    if (applied) ref.read(loanDetailsProvider(loanId).notifier).refresh();
   }
 }
 

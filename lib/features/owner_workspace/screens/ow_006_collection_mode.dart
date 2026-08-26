@@ -133,16 +133,30 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
   int get _collected => int.tryParse(_amount.text) ?? 0;
   int get _splitSum => (int.tryParse(_cashAmount.text) ?? 0) + (int.tryParse(_upiAmount.text) ?? 0);
 
+  /// The same rule the server applies, against the same number.
+  ///
+  /// This compared the amount to installmentDue -- the ARREARS -- while
+  /// record_collection compared it to one instalment. Two denominators for one
+  /// classification: the pill lied on every loan in arrears, and the excess
+  /// question never appeared where the server demanded it, so every amount
+  /// above one instalment came back "Something went wrong".
+  ///
+  /// Both now measure against what is OWED. The balance already carries any
+  /// penalty, because applying one adds it there.
   String get _resultType {
-    if (_collected == widget.row.installmentDue) return 'Full';
-    if (_collected < widget.row.installmentDue) return 'Partial';
-    return 'Excess';
+    final owed = widget.row.outstandingBalance;
+    if (_collected > owed) return 'Excess';
+    if (_collected < owed) return 'Partial';
+    return 'Full';
   }
 
   bool get _canSubmit {
     if (_collected <= 0) return false;
     if (_mixed && (_splitSum - _collected) != 0) return false;
-    if (_resultType == 'Excess' && _excessDisposition == null) return false;
+    // No longer a gate. The server carries an unstated surplus as an Advance
+    // rather than refusing the record -- a customer standing there with cash
+    // is not a validation error, and refusing does not make the money go away.
+    // The choice is still offered below; it is simply not required.
     return true;
   }
 

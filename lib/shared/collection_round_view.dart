@@ -9,10 +9,9 @@ import '../design/components/mana_text.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/tokens/typography.dart';
-import '../features/owner_workspace/screens/ow_006_collection_mode.dart'
-    show ManaCollectionForm, ManaNoCollectionForm, ManaExtensionForm;
 import '../features/owner_workspace/state/collection_mode_state.dart';
-import 'widgets/address_check_banner.dart';
+import 'apply_penalty_sheet.dart';
+import 'collect_sheet.dart';
 import 'mana_time.dart';
 import 'translation_service.dart';
 
@@ -75,13 +74,6 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
   /// Empty means the whole round. Somebody who has picked nothing has not
   /// asked to be shown nothing.
   final Set<String> _villages = {};
-
-  /// The one row that is open, by loanId.
-  ///
-  /// One at a time on purpose. Two open rows on a 360px screen means the
-  /// amount field the Agent is typing into can scroll out from under their
-  /// thumb, and the round stops reading as a list of doors.
-  String? _openLoanId;
 
   /// Opened once, not on every rebuild -- a reload must not reopen the entry
   /// screen on top of whatever the user has since navigated to.
@@ -187,8 +179,13 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
           state.dueList.where((r) => r.loanId == widget.focusLoanId).firstOrNull;
       _focusHandled = true;
       if (match != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _openLoanId = match.loanId);
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          final recorded = await showCollectSheet(context,
+              row: match, businessId: widget.businessId);
+          if (recorded && mounted) {
+            ref.read(collectionModeProvider.notifier).load(widget.businessId);
+          }
         });
       }
     }
@@ -289,28 +286,15 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                       )
                     else
                       ...visible.map((row) => ManaDueRow(
-                            // Keyed by loan, not by position.
-                            //
-                            // The sort is by what is due today, and recording
-                            // a payment drops that to zero -- so the row MOVES
-                            // the moment the round reloads. Without a key
-                            // Flutter reuses the State at that index for
-                            // whoever is now there, and the open form keeps
-                            // the amount it was built with while pointing at a
-                            // different customer's loan. That is somebody
-                            // else's money in the wrong row.
+                            // Keyed by loan, not by position: the sort is by
+                            // what is due, and recording a payment moves the
+                            // row the moment the round reloads.
                             key: ValueKey(row.loanId),
                             row: row,
                             businessId: widget.businessId,
-                            expanded: _openLoanId == row.loanId,
-                            onToggle: () => setState(() => _openLoanId =
-                                _openLoanId == row.loanId ? null : row.loanId),
-                            onDone: () {
-                              setState(() => _openLoanId = null);
-                              ref
-                                  .read(collectionModeProvider.notifier)
-                                  .load(widget.businessId);
-                            },
+                            onDone: () => ref
+                                .read(collectionModeProvider.notifier)
+                                .load(widget.businessId),
                           )),
                   ],
                 ),
@@ -367,41 +351,34 @@ class _HeaderDropdown<T> extends StatelessWidget {
 /// carried one bit -- collected or not -- in the most valuable spot on it,
 /// while Pay is what somebody standing at a door reaches for. The row leads
 /// with the name and ends with the money.
-/// One customer in the round, and where the money is entered.
+/// One customer in the round.
 ///
-/// The row opens; it does not navigate. What used to happen was a push to a
-/// screen that restated this row's own contents -- name, loan number,
-/// installment due, outstanding, LRI, grace, penalty -- then offered three
-/// buttons, then a form. Two transitions and three taps to record a number the
-/// app already knew, forty times a round, one-handed, outdoors.
+/// Three lines, and every one of them earns its place: who this is, how to
+/// name them at the door, and the two figures that matter -- what they still
+/// owe, and what they hand over today.
 ///
-/// So the row becomes a receipt line. The amount is already written in, at
-/// today's due, and the Agent either takes it or types over it. The confirm
-/// button carries the figure -- "Collect Rs 2,000" -- because that is the
-/// instant a wrong number costs real money, and a button that says "Save"
-/// puts the number somewhere the thumb is not.
+/// Collect opens a sheet over the round rather than navigating or expanding in
+/// place. A pushed screen restated this row's own contents before any figure
+/// could be typed; an inline expansion pushed the rest of the round off a
+/// 360px handset. The sheet leaves the list visible and closes on a tap
+/// outside without recording anything.
 ///
-/// Partial and Excess need no control at all: the Agent types a different
-/// number and record_collection classifies it server-side. The one genuine
-/// choice, what to do with an overpayment, appears only once the typed amount
-/// passes the due -- disclosure driven by the data rather than by a toggle
-/// somebody has to know to look for.
+/// The Penalty tag is a control, not a label. An Owner who can see a customer
+/// is overdue is one tap from doing something about it, and a penalty is real
+/// money -- applying one adds it to the balance.
 class ManaDueRow extends ConsumerStatefulWidget {
   final CollectionDueRow row;
   final String businessId;
-  final bool expanded;
-  final VoidCallback onToggle;
 
-  /// Something was recorded. The parent closes the row and reloads the round,
-  /// because the balance and today's due have both just changed.
+  /// Something was recorded against this loan -- a payment, a visit without
+  /// one, an extension, or a penalty. The round reloads: the balance, what is
+  /// due and today's outcome have all moved.
   final VoidCallback onDone;
 
   const ManaDueRow({
     super.key,
     required this.row,
     required this.businessId,
-    required this.expanded,
-    required this.onToggle,
     required this.onDone,
   });
 
@@ -409,215 +386,149 @@ class ManaDueRow extends ConsumerStatefulWidget {
   ConsumerState<ManaDueRow> createState() => _ManaDueRowState();
 }
 
-enum _RowAction { collect, noCollection, extension }
-
 class _ManaDueRowState extends ConsumerState<ManaDueRow> {
-  _RowAction _action = _RowAction.collect;
+  Future<void> _collect() async {
+    final recorded = await showCollectSheet(
+      context,
+      row: widget.row,
+      businessId: widget.businessId,
+    );
+    if (recorded && mounted) widget.onDone();
+  }
 
-  @override
-  void didUpdateWidget(ManaDueRow old) {
-    super.didUpdateWidget(old);
-    // A row that closes forgets what was being done in it. Reopening on
-    // "Request extension" because that is what was chosen an hour ago at a
-    // different door would be a trap.
-    if (old.expanded && !widget.expanded) _action = _RowAction.collect;
+  Future<void> _penalty() async {
+    final applied = await showApplyPenaltySheet(
+      context,
+      ref,
+      loanId: widget.row.loanId,
+      customerName: widget.row.customerName,
+      outstandingBalance: widget.row.outstandingBalance,
+    );
+    if (applied && mounted) widget.onDone();
   }
 
   @override
   Widget build(BuildContext context) {
     final row = widget.row;
-    // NOT a ListTile -- its leading/title/trailing layout clamps content to a
-    // fixed height and squeezes the title as the trailing text widens, both
-    // only at larger text scales, which is why that shipped unnoticed.
-    final done = row.collectionStatus == 'Collected';
+    final done = row.collectionStatus == 'Collected' ||
+        row.collectionStatus == 'Partial' ||
+        row.collectionStatus == 'Skipped';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: done ? null : widget.onToggle,
-            child: Padding(
-              padding: const EdgeInsets.all(ManaSpacing.md),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ManaText.raw(row.customerName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: ManaType.emphasis),
-                      ),
-                      const SizedBox(width: ManaSpacing.sm),
-                      if (done)
-                        Icon(Icons.check_circle,
-                            size: 20, color: ManaColors.statusGood)
-                      else
-                        // Flexible, and the label may ellipsize. "Pay" is two
-                        // letters in English and చెల్లించండి in Telugu, which
-                        // at 2.0x is wider than the space left beside a long
-                        // name -- a bare button next to an Expanded name is
-                        // this app's recurring overflow, and it overflowed
-                        // here by 37px before the fixture carried the real
-                        // Telugu strings.
-                        Flexible(
-                          child: FilledButton(
-                            onPressed: widget.onToggle,
-                            style: FilledButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: ManaSpacing.md),
-                            ),
-                            child: ManaText.raw(
-                              widget.expanded ? ref.t('close') : ref.t('pay'),
+    // A finished door stays in the list and goes quiet. Removing it would make
+    // the round shorter than the work actually done, and an Agent checking
+    // whether they visited somebody would find nothing there.
+    return Opacity(
+      opacity: done ? 0.55 : 1,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
+        child: InkWell(
+          onTap: done ? null : _collect,
+          child: Padding(
+            padding: const EdgeInsets.all(ManaSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: ManaText.raw(row.customerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: ManaType.emphasis),
+                    ),
+                    if (row.penaltyEligible && !done) ...[
+                      const SizedBox(width: ManaSpacing.xs),
+                      // Tappable: this is where a penalty gets applied.
+                      InkWell(
+                        onTap: _penalty,
+                        borderRadius: BorderRadius.circular(999),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: ManaSpacing.xs, vertical: 2),
+                          child: ManaText.raw(ref.t('penalty'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  decoration: TextDecoration.underline,
+                                  color: ManaColors.statusBad)),
                         ),
+                      ),
+                    ] else if (row.gracePeriod && !done) ...[
+                      const SizedBox(width: ManaSpacing.xs),
+                      ManaText.raw(ref.t('grace'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: ManaColors.statusWarn)),
                     ],
-                  ),
-                  const SizedBox(height: 2),
-                  // MLID under the name: it is on the card the customer
-                  // carries, and it is how two people of the same name in one
-                  // village are told apart.
-                  if (row.mlid.isNotEmpty)
-                    ManaText.raw(row.mlid,
+                    const SizedBox(width: ManaSpacing.sm),
+                    if (done)
+                      Icon(Icons.check_circle,
+                          size: 20, color: ManaColors.statusGood)
+                    else
+                      // Flexible with an ellipsis: "Collect" is one word in
+                      // English and a much wider one in Telugu, and a bare
+                      // button beside a Flexible name is this app's recurring
+                      // overflow shape.
+                      Flexible(
+                        child: FilledButton(
+                          onPressed: _collect,
+                          style: FilledButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: ManaSpacing.md),
+                          ),
+                          child: ManaText.raw(ref.t('collect'),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                // How this customer is named at a door: the ID on the card
+                // they carry, and where they are.
+                ManaText.raw(
+                  [row.mlid, row.village].where((x) => x.isNotEmpty).join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: ManaType.note,
+                ),
+                const SizedBox(height: ManaSpacing.xs),
+                // Both figures labelled. They are not interchangeable and the
+                // whole point of the row is that nobody confuses them: the
+                // balance is what the loan owes, the EMI is what to ask for.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: ManaText.raw(
+                        '${ref.t('balance')} ${manaRupees(row.outstandingBalance)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: ManaType.note),
-                  ManaText.raw(
-                    '${row.village} · ${manaRupees(row.outstandingBalance)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: ManaType.note,
-                  ),
-                  const SizedBox(height: ManaSpacing.xs),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Flexible(
-                        child: row.penaltyEligible
-                            ? ManaText.raw(ref.t('penalty'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: ManaColors.statusBad))
-                            : row.gracePeriod
-                                ? ManaText.raw(ref.t('grace'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: ManaColors.statusWarn))
-                                : const SizedBox.shrink(),
+                        style: ManaType.note,
                       ),
-                      const SizedBox(width: ManaSpacing.sm),
-                      Flexible(
-                        // One instalment, not the arrears.
-                        //
-                        // This corner used to carry total_due -- every missed
-                        // instalment added up -- so a customer nineteen weeks
-                        // behind showed Rs 5,30,000 where the amount goes,
-                        // next to a Pay button. What they hand over today is
-                        // Rs 30,000. The arrears still decide who leads the
-                        // round; they are just not what is asked for at the
-                        // door.
-                        child: ManaText.raw(manaRupees(row.installmentAmount),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: ManaType.cardTitle),
+                    ),
+                    const SizedBox(width: ManaSpacing.sm),
+                    Flexible(
+                      child: ManaText.raw(
+                        '${ref.t('emi')} ${manaRupees(row.installmentAmount)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: ManaType.cardTitle,
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (widget.expanded) _expanded(),
-        ],
-      ),
-    );
-  }
-
-  /// Sunken, so the opened part reads as the page showing through rather than
-  /// a second card stacked on the first.
-  Widget _expanded() {
-    final row = widget.row;
-    // Material, not a DecoratedBox. The forms inside carry a SwitchListTile,
-    // and ListTile paints its background and ink on the nearest Material
-    // ancestor -- behind a coloured DecoratedBox both would be invisible, so
-    // the mixed-payment switch would look dead when tapped. Flutter says so
-    // out loud, and the layout test heard it.
-    return Material(
-      color: ManaColors.surfaceSunken,
-      child: Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: ManaColors.divider)),
-      ),
-      padding: const EdgeInsets.all(ManaSpacing.md),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Whether this is the customer's registered address. Purely
-          // informational -- it never blocks a collection, because collecting
-          // at a shop or a relative's house is ordinary and a customer who
-          // moved has done nothing wrong.
-          AddressCheckBanner(customerId: row.customerId),
-          if (_action == _RowAction.collect)
-            ManaCollectionForm(
-              row: row,
-              businessId: widget.businessId,
-              onCancel: widget.onToggle,
-              onRecorded: widget.onDone,
-            )
-          else if (_action == _RowAction.noCollection)
-            ManaNoCollectionForm(
-                row: row,
-                onCancel: () => setState(() => _action = _RowAction.collect),
-                // Recording a visit without payment changes today's outcome,
-                // so the round has to reload for the row to say so.
-                onRecorded: widget.onDone)
-          else
-            ManaExtensionForm(
-                row: row,
-                onCancel: () => setState(() => _action = _RowAction.collect),
-                onRecorded: widget.onDone),
-          if (_action == _RowAction.collect) ...[
-            const Divider(height: ManaSpacing.lg),
-            // The two outcomes that are not a payment. Quiet, because on a
-            // normal round they are the exception -- but on the row, not two
-            // screens away, because they are decided at the same door.
-            Wrap(
-              spacing: ManaSpacing.sm,
-              children: [
-                TextButton.icon(
-                  onPressed: () =>
-                      setState(() => _action = _RowAction.noCollection),
-                  icon: const Icon(Icons.do_not_disturb_on_outlined, size: 18),
-                  label: ManaText.raw(ref.t('no_collection')),
-                ),
-                TextButton.icon(
-                  onPressed: () =>
-                      setState(() => _action = _RowAction.extension),
-                  icon: const Icon(Icons.event_repeat_outlined, size: 18),
-                  label: ManaText.raw(ref.t('request_extension')),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ],
-      ),
+          ),
+        ),
       ),
     );
   }

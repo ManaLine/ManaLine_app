@@ -65,7 +65,17 @@ class NetworkErrorHandler {
       // Every call routed through here inherits the deadline, so no screen
       // has to remember to add one.
       return await action().timeout(timeout);
-    } catch (e) {
+    } catch (e, stack) {
+      // Say what actually happened, where it can be read back.
+      //
+      // Everything routed through here showed the person a sentence and told
+      // nobody anything else: a failure the user was looking at left no trace
+      // in logcat at all, so "it showed an error" could not be turned into a
+      // cause without asking them to reproduce it. In a debug build on a
+      // handset in a village that is the difference between a diagnosis and a
+      // guess. debugPrint is stripped from release builds.
+      debugPrint('ManaNetworkError: $e');
+      debugPrintStack(stackTrace: stack, maxFrames: 8);
       if (!context.mounted) return null;
 
       // FunctionException/PostgrestException mean the request reached

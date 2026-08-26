@@ -289,6 +289,17 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                       )
                     else
                       ...visible.map((row) => ManaDueRow(
+                            // Keyed by loan, not by position.
+                            //
+                            // The sort is by what is due today, and recording
+                            // a payment drops that to zero -- so the row MOVES
+                            // the moment the round reloads. Without a key
+                            // Flutter reuses the State at that index for
+                            // whoever is now there, and the open form keeps
+                            // the amount it was built with while pointing at a
+                            // different customer's loan. That is somebody
+                            // else's money in the wrong row.
+                            key: ValueKey(row.loanId),
                             row: row,
                             businessId: widget.businessId,
                             expanded: _openLoanId == row.loanId,
@@ -563,10 +574,16 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
             )
           else if (_action == _RowAction.noCollection)
             ManaNoCollectionForm(
-                row: row, onCancel: () => setState(() => _action = _RowAction.collect))
+                row: row,
+                onCancel: () => setState(() => _action = _RowAction.collect),
+                // Recording a visit without payment changes today's outcome,
+                // so the round has to reload for the row to say so.
+                onRecorded: widget.onDone)
           else
             ManaExtensionForm(
-                row: row, onCancel: () => setState(() => _action = _RowAction.collect)),
+                row: row,
+                onCancel: () => setState(() => _action = _RowAction.collect),
+                onRecorded: widget.onDone),
           if (_action == _RowAction.collect) ...[
             const Divider(height: ManaSpacing.lg),
             // The two outcomes that are not a payment. Quiet, because on a

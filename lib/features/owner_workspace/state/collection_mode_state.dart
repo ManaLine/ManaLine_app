@@ -582,8 +582,15 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
       }
       return outcome;
     } catch (e) {
+      // Kept for anything reading state.error, and RETHROWN.
+      //
+      // Returning null here swallowed the real failure. The form saw null,
+      // threw its own "Collection could not be saved", and that generic
+      // sentence was all anyone -- the Agent at the door, and me reading
+      // logcat -- ever got. The cause sat in state.error, which no screen
+      // displays. A money write that fails must say why it failed.
       state = state.copyWith(error: e.toString());
-      return null;
+      rethrow;
     }
   }
 
@@ -592,8 +599,10 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
       await ref.read(collectionApiServiceProvider).recordNoCollectionVisit(loanId: loanId, reason: reason);
       return true;
     } catch (e) {
+      // Rethrown for the same reason as recordCollection above: false and
+      // "the server refused it" must not look identical.
       state = state.copyWith(error: e.toString());
-      return false;
+      rethrow;
     }
   }
 

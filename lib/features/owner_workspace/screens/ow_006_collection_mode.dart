@@ -389,7 +389,13 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
 class ManaNoCollectionForm extends ConsumerStatefulWidget {
   final CollectionDueRow row;
   final VoidCallback onCancel;
-  const ManaNoCollectionForm({super.key, required this.row, required this.onCancel});
+
+  /// The visit was recorded. Inline in the round there is no screen to pop --
+  /// see onRecorded on ManaCollectionForm.
+  final VoidCallback? onRecorded;
+
+  const ManaNoCollectionForm(
+      {super.key, required this.row, required this.onCancel, this.onRecorded});
 
   @override
   ConsumerState<ManaNoCollectionForm> createState() => ManaNoCollectionFormState();
@@ -415,7 +421,11 @@ class ManaNoCollectionFormState extends ConsumerState<ManaNoCollectionForm> {
     });
     if (!mounted) return;
     setState(() => _submitting = false);
-    if (ok == true && mounted) Navigator.of(context).pop();
+    // NOT Navigator.pop. These forms used to sit on the collection entry
+    // screen, so popping returned to the round. Inline in the row, the
+    // nearest route IS the round -- popping threw the Agent out of it
+    // mid-visit, back to the dashboard.
+    if (ok == true && mounted) widget.onRecorded?.call();
   }
 
   @override
@@ -457,7 +467,12 @@ class ManaNoCollectionFormState extends ConsumerState<ManaNoCollectionForm> {
 class ManaExtensionForm extends ConsumerStatefulWidget {
   final CollectionDueRow row;
   final VoidCallback onCancel;
-  const ManaExtensionForm({super.key, required this.row, required this.onCancel});
+
+  /// The extension was answered. Same reasoning as the other two forms.
+  final VoidCallback? onRecorded;
+
+  const ManaExtensionForm(
+      {super.key, required this.row, required this.onCancel, this.onRecorded});
 
   @override
   ConsumerState<ManaExtensionForm> createState() => ManaExtensionFormState();
@@ -479,7 +494,7 @@ class ManaExtensionFormState extends ConsumerState<ManaExtensionForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: ManaText.raw(approve ? ref.t('extension_approved') : ref.t('extension_rejected'))),
       );
-      Navigator.of(context).pop();
+      widget.onRecorded?.call();
     }
   }
 

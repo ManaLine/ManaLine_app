@@ -96,7 +96,13 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
     // is now nothing to enter at all. Selected rather than merely filled, so a
     // customer paying something else can overwrite it without first clearing
     // it one digit at a time.
-    final due = widget.row.installmentDue;
+    // The instalment, matching what the row shows.
+    //
+    // This read installmentDue -- the whole arrears -- so the field opened on
+    // Rs 5,30,000 and the button read "Collect Rs 5,30,000" under a row saying
+    // Rs 30,000. Two figures for one action, on the screen where a wrong one
+    // becomes a receipt.
+    final due = widget.row.installmentAmount;
     if (due > 0) {
       _amount.text = '$due';
       _amount.selection = TextSelection(baseOffset: 0, extentOffset: '$due'.length);

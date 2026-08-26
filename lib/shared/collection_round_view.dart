@@ -522,7 +522,16 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
                       ),
                       const SizedBox(width: ManaSpacing.sm),
                       Flexible(
-                        child: ManaText.raw(manaRupees(row.installmentDue),
+                        // One instalment, not the arrears.
+                        //
+                        // This corner used to carry total_due -- every missed
+                        // instalment added up -- so a customer nineteen weeks
+                        // behind showed Rs 5,30,000 where the amount goes,
+                        // next to a Pay button. What they hand over today is
+                        // Rs 30,000. The arrears still decide who leads the
+                        // round; they are just not what is asked for at the
+                        // door.
+                        child: ManaText.raw(manaRupees(row.installmentAmount),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: ManaType.cardTitle),

@@ -1,13 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/state/collection_mode_state.dart';
 
-CollectionDueRow _row(String status) => CollectionDueRow(
+CollectionDueRow _row(String status, {int emi = 2000, int arrears = 2000}) =>
+    CollectionDueRow(
       loanId: 'l-$status',
       customerId: 'c-$status',
       customerName: 'Somebody',
       village: 'Uranduru',
       loanNumber: 'LN-1',
-      installmentDue: 2000,
+      installmentDue: arrears,
+      installmentAmount: emi,
       outstandingBalance: 10000,
       lineRepaymentIndex: 1,
       collectionStatus: status,
@@ -64,6 +66,29 @@ void main() {
       expect(state.skipped, 1);
       expect(state.pending, 1);
       expect(state.collected + state.skipped + state.pending, state.totalDue);
+    });
+  });
+
+  group('the row asks for one instalment, not the arrears', () {
+    test('a customer nineteen weeks behind is still asked for one EMI', () {
+      // The live case: Daggubati Dilip Reddy owes 5,30,000 in missed
+      // instalments and hands over 30,000 on a visit. The corner next to the
+      // Pay button used to show the arrears.
+      final r = _row('Pending', emi: 30000, arrears: 530000);
+      expect(r.installmentAmount, 30000);
+      expect(r.installmentDue, 530000);
+    });
+
+    test('the arrears still decide who leads the round', () {
+      // installmentDue stays the ranking figure — dueToday sorts on it, and
+      // the day's target sums it. Only the DISPLAY changed.
+      final rows = [
+        _row('Pending', emi: 30000, arrears: 10000),
+        _row('Pending', emi: 2000, arrears: 530000),
+      ];
+      final sorted = manaSortDueRows(rows, CollectionSort.dueToday);
+      expect(sorted.first.installmentDue, 530000);
+      expect(sorted.first.installmentAmount, 2000);
     });
   });
 }

@@ -75,7 +75,7 @@ class CollectionApiService {
         .select('loan_id, customer_id, customer_name, village, loan_number, '
             'total_due, remaining_balance, next_installment_no, is_overdue, '
             'penalty_eligible, loan_status, collection_agent_name, repayment_type, mlid, '
-            'today_result, collected_today')
+            'today_result, collected_today, installment_amount')
         .eq('business_id', businessId);
 
     return (rows as List).map((r) {
@@ -87,6 +87,7 @@ class CollectionApiService {
         loanNumber: r['loan_number'] as String,
         mlid: r['mlid'] as String? ?? '',
         installmentDue: (r['total_due'] as num).toInt(),
+        installmentAmount: (r['installment_amount'] as num?)?.toInt() ?? 0,
         outstandingBalance: (r['remaining_balance'] as num).toInt(),
         lineRepaymentIndex: (r['next_installment_no'] as num?)?.toInt() ?? 1,
         collectionStatus: manaCollectionStatus(r['today_result'] as String?),
@@ -298,7 +299,21 @@ class CollectionDueRow {
   /// on the card they carry, and it is what tells two customers of the same
   /// name in the same village apart.
   final String mlid;
+  /// EVERYTHING that has fallen due and is still owed -- every missed
+  /// instalment added up, capped at the balance. On the live book that is
+  /// Rs 5,30,000 for a customer whose instalment is Rs 30,000.
+  ///
+  /// This is the RANKING figure: it decides who leads the round and what the
+  /// day's target is. It is NOT what is asked for at a door.
   final int installmentDue;
+
+  /// ONE instalment -- what this customer actually hands over on a visit.
+  ///
+  /// The row leads with this, and the collect form opens on it. Showing the
+  /// whole arrears where the amount goes invites the Agent to key
+  /// Rs 5,30,000 into a field that is about to become a receipt, and a
+  /// customer who is nineteen weeks behind still pays one instalment today.
+  final int installmentAmount;
   final int outstandingBalance;
   final int lineRepaymentIndex;
   final String collectionStatus; // Pending | Collected | Partial | Skipped
@@ -325,6 +340,7 @@ class CollectionDueRow {
     required this.loanNumber,
     this.mlid = '',
     required this.installmentDue,
+    this.installmentAmount = 0,
     required this.outstandingBalance,
     required this.lineRepaymentIndex,
     required this.collectionStatus,

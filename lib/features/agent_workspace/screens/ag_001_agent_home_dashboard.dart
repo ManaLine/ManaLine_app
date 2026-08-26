@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/auto_refresh.dart';
 import '../../../shared/translation_service.dart';
+import '../../../shared/widgets/quick_expense.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
@@ -95,6 +96,21 @@ class _AgentHomeDashboardScreenState
     // the rest of the old overflow menu becomes drawer rows, which is how they
     // stop being hidden behind a three-dot glyph.
     return ManaAppShell(
+      // Recording an expense, from where the person is standing.
+      //
+      // The sheet already existed and already did the right thing for both
+      // roles -- it was reachable only from Day Closure and Settlement, both
+      // end-of-day screens, for something that happens mid-round when petrol
+      // is paid for.
+      floatingActionButton: FloatingActionButton.extended(
+        // agentId, so this comes off the float in their hand rather
+        // than off the business.
+        onPressed: () => showQuickExpense(context, ref,
+            businessId: widget.businessId, agentId: widget.agentId),
+        icon: const Icon(Icons.add),
+        label: ManaText.raw(ref.t('expense'),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: businessNameFor(ref, widget.businessId),
       actions: [

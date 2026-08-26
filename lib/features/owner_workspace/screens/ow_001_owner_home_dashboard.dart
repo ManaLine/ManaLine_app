@@ -26,6 +26,7 @@ import 'ow_004_customer_management.dart' show CustomerProfileScreen;
 import 'ow_003_investor_management.dart' show InvestorProfileScreen;
 import 'ow_002_workforce_management.dart' show AgentProfileScreen;
 import '../../../shared/translation_service.dart';
+import '../../../shared/widgets/quick_expense.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 
@@ -164,6 +165,18 @@ class _OwnerHomeDashboardScreenState
     // dashboard's own notification list with two pending counters.
 
     return ManaAppShell(
+      // Recording an expense, from where the person is standing.
+      //
+      // The sheet already existed and already did the right thing for both
+      // roles -- it was reachable only from Day Closure and Settlement, both
+      // end-of-day screens, for something that happens mid-round when petrol
+      // is paid for.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => showQuickExpense(context, ref, businessId: widget.businessId),
+        icon: const Icon(Icons.add),
+        label: ManaText.raw(ref.t('expense'),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: async.valueOrNull?.businessName,
       subtitle: '${manaWeekday()}, ${manaDisplayDate()}',

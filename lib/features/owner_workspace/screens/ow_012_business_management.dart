@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
@@ -117,7 +118,7 @@ class _BusinessManagementScreenState extends ConsumerState<BusinessManagementScr
     // entirely rather than picking a scale threshold to gate on.
     final bigText = MediaQuery.textScalerOf(context).scale(14) > 20;
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('business_management'))),
+      appBar: ManaAppBar(title: ref.t('business_management')),
       floatingActionButton: bigText
           ? FloatingActionButton(
               onPressed: () => Navigator.of(context).push(
@@ -386,7 +387,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
     final formState = ref.watch(createBusinessFormProvider);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('create_business'))),
+      appBar: ManaAppBar(title: ref.t('create_business')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),

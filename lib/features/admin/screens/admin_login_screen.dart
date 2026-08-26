@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/admin_auth_service.dart';
 
@@ -79,7 +80,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('admin_login'))),
+      appBar: ManaAppBar(title: ref.t('admin_login')),
       body: SafeArea(
         // SCROLLS. A non-scrolling Column overflowed by 140px the moment the
         // keyboard opened over the password field — the same class of fault

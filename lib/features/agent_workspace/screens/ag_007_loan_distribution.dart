@@ -6,6 +6,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/bf_request_card.dart';
@@ -73,7 +74,7 @@ class _Ag007LoanDistributionScreenState extends ConsumerState<Ag007LoanDistribut
     final distState = ref.watch(loanDistributionProvider);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('loan_distribution_screen'))),
+      appBar: ManaAppBar(title: ref.t('loan_distribution_screen')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(loanDistributionProvider.notifier).loadTransfers(agentId: widget.agentId),
@@ -413,7 +414,7 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
     final stepIndex = _steps.indexOf(state.step);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('new_loan'))),
+      appBar: ManaAppBar(title: ref.t('new_loan')),
       body: SafeArea(
         child: Column(
           children: [

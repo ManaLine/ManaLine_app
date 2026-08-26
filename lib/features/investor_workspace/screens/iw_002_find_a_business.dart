@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/investor_discovery_state.dart';
@@ -37,10 +38,7 @@ class _FindABusinessScreenState extends ConsumerState<FindABusinessScreen> {
     final state = ref.watch(investorDiscoveryProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('find_a_business')),
-        leading: BackButton(onPressed: () => context.go('/iw-001', extra: widget.businessId)),
-      ),
+      appBar: ManaAppBar(title: ref.t('find_a_business'), homeRoute: '/iw-001', homeExtra: widget.businessId),
       body: SafeArea(
         child: switch (state.phase) {
           DiscoveryPhase.search || DiscoveryPhase.results => _SearchAndResults(controller: _search, state: state),

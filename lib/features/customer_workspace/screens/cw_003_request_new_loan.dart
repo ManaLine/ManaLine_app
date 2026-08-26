@@ -7,6 +7,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/loan_request_state.dart';
@@ -88,10 +89,7 @@ class _RequestNewLoanScreenState extends ConsumerState<RequestNewLoanScreen> {
     final state = ref.watch(loanRequestProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('request_new_loan')),
-        leading: BackButton(onPressed: () => context.go('/cw-001', extra: widget.businessId)),
-      ),
+      appBar: ManaAppBar(title: ref.t('request_new_loan'), homeRoute: '/cw-001', homeExtra: widget.businessId),
       body: SafeArea(
         child: switch (state.phase) {
           LoanRequestPhase.gateCheck =>

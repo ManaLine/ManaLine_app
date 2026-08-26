@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
@@ -196,7 +197,7 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('complete_profile'))),
+      appBar: ManaAppBar(title: ref.t('complete_profile')),
       body: SafeArea(
         child: FutureBuilder<MemberProfileChecklist>(
           future: _future,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
@@ -172,10 +173,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('select_role')),
-        leading: BackButton(onPressed: () => context.go('/lr-012')),
-      ),
+      appBar: ManaAppBar(title: ref.t('select_role'), homeRoute: '/lr-012'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),

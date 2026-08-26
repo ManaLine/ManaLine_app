@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
@@ -65,7 +66,7 @@ class _MakeAPaymentScreenState extends ConsumerState<MakeAPaymentScreen> {
     final state = ref.watch(onlinePaymentProvider);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('make_a_payment'))),
+      appBar: ManaAppBar(title: ref.t('make_a_payment')),
       body: SafeArea(
         child: switch (state.phase) {
           PaymentFlowPhase.entry || PaymentFlowPhase.upiInProgress => _PaymentEntryForm(

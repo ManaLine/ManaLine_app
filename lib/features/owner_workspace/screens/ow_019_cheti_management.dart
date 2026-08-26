@@ -6,6 +6,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_card.dart';
@@ -44,7 +45,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(chetiListProvider);
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('cheti'))),
+      appBar: ManaAppBar(title: ref.t('cheti')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(),
         icon: const Icon(Icons.add),

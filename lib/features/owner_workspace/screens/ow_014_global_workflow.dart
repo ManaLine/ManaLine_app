@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
@@ -45,7 +46,7 @@ class _GlobalWorkflowScreenState extends ConsumerState<GlobalWorkflowScreen> {
     final state = ref.watch(globalWorkflowProvider);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('add_existing_member'))),
+      appBar: ManaAppBar(title: ref.t('add_existing_member')),
       body: SafeArea(
         child: switch (state.stage) {
           WizardStage.selectType => _SelectTypeStep(),

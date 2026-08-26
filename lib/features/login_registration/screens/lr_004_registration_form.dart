@@ -13,6 +13,7 @@ import '../../../shared/widgets/language_selector.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
@@ -540,7 +541,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     ref.watch(translationLoaderProvider);
     final lang = ref.watch(authFlowProvider).language;
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('create_your_account'))),
+      appBar: ManaAppBar(title: ref.t('create_your_account')),
       body: SafeArea(
         child: Form(
           key: _formKey,

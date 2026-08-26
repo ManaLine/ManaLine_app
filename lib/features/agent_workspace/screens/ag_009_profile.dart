@@ -7,6 +7,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/agent_dashboard_state.dart' show AgentAreaAssignment;
 import '../state/agent_profile_state.dart';
@@ -57,7 +58,7 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
     final state = ref.watch(agentProfileProvider);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('profile'))),
+      appBar: ManaAppBar(title: ref.t('profile')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _reload,

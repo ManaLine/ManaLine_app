@@ -8,6 +8,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/live_photo_upload.dart';
@@ -74,7 +75,7 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
     // Can View Customers gates the whole screen (PRIMARY PERMISSION).
     if (!state.loading && state.customers.isEmpty && state.error == null && !state.permissions.canViewCustomers) {
       return Scaffold(
-        appBar: AppBar(title: ManaText.raw(ref.t('customer_management'))),
+        appBar: ManaAppBar(title: ref.t('customer_management')),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(ManaSpacing.lg),

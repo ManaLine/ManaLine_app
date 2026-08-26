@@ -6,6 +6,7 @@ import 'soft_delete_service.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
+import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_text.dart';
 
 /// One row from customer_documents/agent_documents — both tables share
@@ -144,7 +145,7 @@ class _DocumentViewerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(title)),
+      appBar: ManaAppBar(title: title),
       backgroundColor: Colors.black,
       body: Center(
         // PERF: cached — re-opening the same document (e.g. after backing out

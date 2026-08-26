@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
@@ -164,7 +165,7 @@ class _CreateGroupScreenState extends ConsumerState<_CreateGroupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('create_group'))),
+      appBar: ManaAppBar(title: ref.t('create_group')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/login_nav_args.dart';
 import '../../../shared/network_error_handler.dart';
@@ -196,10 +197,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => context.go('/lr-007')),
-        title: ManaText.raw(ref.t('forgot_password')),
-      ),
+      appBar: ManaAppBar(title: ref.t('forgot_password'), homeRoute: '/lr-007'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),

@@ -7,6 +7,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_member_roster.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_stat_strip.dart';
@@ -72,10 +73,7 @@ class _WorkforceManagementScreenState
     final state = ref.watch(workforceProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        // The three add-paths moved into the roster's single Add FAB.
-        title: ManaText.raw(ref.t('workforce_management')),
-      ),
+      appBar: ManaAppBar(title: ref.t('workforce_management')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () =>

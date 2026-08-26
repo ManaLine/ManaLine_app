@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_card.dart';
@@ -62,7 +63,7 @@ class _DraftTransactionsScreenState extends ConsumerState<DraftTransactionsScree
     final state = ref.watch(draftTransactionsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('draft_transactions'))),
+      appBar: ManaAppBar(title: ref.t('draft_transactions')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.read(draftTransactionsProvider.notifier).load(

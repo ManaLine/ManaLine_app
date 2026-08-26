@@ -6,6 +6,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_card.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -131,7 +132,7 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('withdrawal_requests_title'))),
+      appBar: ManaAppBar(title: ref.t('withdrawal_requests_title')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => _reload(),

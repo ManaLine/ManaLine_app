@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/translation_service.dart';
@@ -45,10 +46,7 @@ class _MyLoansScreenState extends ConsumerState<MyLoansScreen> {
     final state = ref.watch(customerLoansProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('my_loans')),
-        leading: BackButton(onPressed: () => context.go('/cw-001', extra: widget.businessId)),
-      ),
+      appBar: ManaAppBar(title: ref.t('my_loans'), homeRoute: '/cw-001', homeExtra: widget.businessId),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
@@ -228,7 +226,7 @@ class _LoanDetailScreenState extends ConsumerState<LoanDetailScreen> {
     final state = ref.watch(loanDetailProvider);
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('loan_detail'))),
+      appBar: ManaAppBar(title: ref.t('loan_detail')),
       body: SafeArea(
         child: state.loading && state.detail == null
             ? const Center(child: CircularProgressIndicator())

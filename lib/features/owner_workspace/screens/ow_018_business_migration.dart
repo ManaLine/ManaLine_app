@@ -10,6 +10,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/location_api_service.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../shared/network_error_handler.dart';
@@ -206,7 +207,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
   Widget build(BuildContext context) {
     final s = _summary;
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('pre_existing_business'))),
+      appBar: ManaAppBar(title: ref.t('pre_existing_business')),
       // "Add a Customer" rather than "Add Existing Loan": the form takes the
       // person and their loan together, and the person is the part an Owner
       // is thinking about when they open this screen. Branch behaviour,
@@ -1070,7 +1071,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   Widget build(BuildContext context) {
     final customers = ref.watch(customerListProvider).customers;
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('add_a_customer'))),
+      appBar: ManaAppBar(title: ref.t('add_a_customer')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),

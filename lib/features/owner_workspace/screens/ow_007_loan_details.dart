@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/apply_penalty_sheet.dart';
@@ -28,7 +29,7 @@ class LoanDetailsScreen extends ConsumerWidget {
     final async = ref.watch(loanDetailsProvider(loanId));
 
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('loan_details'))),
+      appBar: ManaAppBar(title: ref.t('loan_details')),
       body: SafeArea(
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -253,7 +254,7 @@ class _ActionsSection extends ConsumerWidget {
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => Scaffold(
-                    appBar: AppBar(title: ManaText.raw('${loan.customerName} — ${ref.t('documents')}')),
+                    appBar: ManaAppBar(title: '${loan.customerName} — ${ref.t('documents')}'),
                     body: DocumentsListView(
                       expectedTypes: const [
                         'Aadhaar',

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 import '../../../shared/network_error_handler.dart';
@@ -256,7 +257,7 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
   Widget build(BuildContext context) {
     ref.watch(translationLoaderProvider);
     return Scaffold(
-      appBar: AppBar(title: ManaText.raw(ref.t('forgot_pin_title'))),
+      appBar: ManaAppBar(title: ref.t('forgot_pin_title')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),

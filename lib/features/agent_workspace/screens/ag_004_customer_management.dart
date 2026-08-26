@@ -7,8 +7,10 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/live_photo_upload.dart';
@@ -361,7 +363,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
             children: [
               _SummaryTab(profile: profile),
               _LoanInformationTab(profile: profile),
-              _CollectionHistoryTab(profile: profile),
+              CustomerCollectionsTab(profile: profile),
               _RemarksTab(customerId: customerId, profile: profile, canAddRemarks: perms.canAddRemarks),
             ],
           ),
@@ -655,29 +657,18 @@ class _SummaryTab extends ConsumerWidget {
         Center(child: ManaText.raw(s.fullName, style: ManaType.sheetTitle)),
         Center(child: ManaText.raw(s.mlid, style: ManaType.secondary)),
         const SizedBox(height: ManaSpacing.lg),
-        _row(ref.t('village'), s.village),
+        ManaLabelValueRow(label: ref.t('village'), value: s.village),
         // Tapping the number opens the handset's dialer with it keyed in —
         // the agent still presses call themselves.
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            children: [
-              Expanded(
-                  child: ManaText.raw(ref.t('phone'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: ManaType.note)),
-              const SizedBox(width: ManaSpacing.xs),
-              ManaText.raw(s.phoneNumber,
-                  style: ManaType.smallStrong),
-              ManaCallButton(s.phoneNumber),
-            ],
-          ),
+        ManaLabelValueRow(
+          label: ref.t('phone'),
+          value: s.phoneNumber,
+          trailing: ManaCallButton(s.phoneNumber),
         ),
-        _row(ref.t('assigned_agent'), profile.currentAgent ?? '—'),
-        _row(ref.t('loan_count'), '${s.activeLoanCount}'),
-        _row(ref.t('outstanding'), manaRupees(s.outstandingBalance)),
-        _row(ref.t('todays_due'), manaRupees(s.todaysDue)),
+        ManaLabelValueRow(label: ref.t('assigned_agent'), value: profile.currentAgent ?? '—'),
+        ManaLabelValueRow(label: ref.t('loan_count'), value: '${s.activeLoanCount}'),
+        ManaLabelValueRow(label: ref.t('outstanding'), value: manaRupees(s.outstandingBalance)),
+        ManaLabelValueRow(label: ref.t('todays_due'), value: manaRupees(s.todaysDue)),
         const SizedBox(height: ManaSpacing.md),
         ManaText.raw(
           ref.t('read_only_figures_note'),
@@ -687,20 +678,7 @@ class _SummaryTab extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Expanded(
-                child: ManaText.raw(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: ManaType.note)),
-            const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(value, style: ManaType.smallStrong),
-          ],
-        ),
-      );
+
 }
 
 /// LOAN INFORMATION — read-only display only.
@@ -737,10 +715,10 @@ class _LoanInformationTab extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: ManaSpacing.sm),
-                      _row('Outstanding', manaRupees(l.outstanding)),
-                      _row("Today's Due", manaRupees(l.todaysDue)),
-                      _row('Issued', DateFormat('d MMM yyyy').format(l.issueDate)),
-                      _row('Progress', '${l.progressPercent.toStringAsFixed(0)}%'),
+                      ManaLabelValueRow(dense: true, label: 'Outstanding', value: manaRupees(l.outstanding)),
+                      ManaLabelValueRow(dense: true, label: "Today's Due", value: manaRupees(l.todaysDue)),
+                      ManaLabelValueRow(dense: true, label: 'Issued', value: DateFormat('d MMM yyyy').format(l.issueDate)),
+                      ManaLabelValueRow(dense: true, label: 'Progress', value: '${l.progressPercent.toStringAsFixed(0)}%'),
                     ],
                   ),
                 ),
@@ -749,47 +727,7 @@ class _LoanInformationTab extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Expanded(
-                child: ManaText.raw(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: ManaType.note)),
-            const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(value, style: ManaType.smallStrong),
-          ],
-        ),
-      );
-}
 
-/// COLLECTION HISTORY — Business Date, Receipt Number, Amount, Payment
-/// Mode, Collector, Remarks. Read Only.
-class _CollectionHistoryTab extends ConsumerWidget {
-  final CustomerProfile profile;
-  const _CollectionHistoryTab({required this.profile});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (profile.collections.isEmpty) {
-      return Center(
-          child: ManaText.raw(ref.t('no_collections_yet'), style: ManaType.secondary));
-    }
-    return ListView(
-      padding: const EdgeInsets.all(ManaSpacing.lg),
-      children: profile.collections
-          .map((c) => ListTile(
-                leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
-                title: ManaText.raw(manaRupees(c.amount)),
-                subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
-                trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),
-                    style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
-              ))
-          .toList(),
-    );
-  }
 }
 
 /// REMARKS — append-only; no edit UI for existing remarks, ever. Add form

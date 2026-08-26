@@ -8,6 +8,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -16,6 +17,7 @@ import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../shared/document_viewer.dart';
+import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart';
 import '../../../design/components/mana_info_hint.dart';
@@ -1027,7 +1029,7 @@ class CustomerProfileScreen extends ConsumerWidget {
             children: [
               _SummaryTab(customer: customer, profile: profile),
               _LoansTab(profile: profile),
-              _CollectionsTab(profile: profile),
+              CustomerCollectionsTab(profile: profile),
               _DocumentsTab(customerId: customer.customerId),
               _RemarksTab(customerId: customer.customerId, profile: profile),
               const _HistoryTab(),
@@ -1092,36 +1094,27 @@ class _SummaryTab extends ConsumerWidget {
                 ManaText.raw(customer.fullName, style: ManaType.sheetTitle)),
         Center(child: ManaText.raw(customer.mlid, style: ManaType.secondary)),
         const SizedBox(height: ManaSpacing.lg),
-        _row(ref.t('father_husband_name'), customer.fatherHusbandName),
-        _row(ref.t('village'), customer.village),
-        Row(
-          children: [
-            Expanded(child: _row(ref.t('phone_number'), customer.phoneNumber)),
-            // Opens the dialer with the number in it; the Owner presses call.
-            ManaCallButton(customer.phoneNumber),
-          ],
+        ManaLabelValueRow(label: ref.t('father_husband_name'), value: customer.fatherHusbandName),
+        ManaLabelValueRow(label: ref.t('village'), value: customer.village),
+        // Opens the dialer with the number in it; the Owner presses call.
+        ManaLabelValueRow(
+          label: ref.t('phone_number'),
+          value: customer.phoneNumber,
+          trailing: ManaCallButton(customer.phoneNumber),
         ),
-        _row(ref.t('occupation'), profile.occupation ?? '—'),
-        _row(ref.t('address'), profile.address ?? '—'),
-        _row(ref.t('customer_since'), DateFormat('d MMM yyyy').format(profile.customerSince)),
-        _row(ref.t('current_agent'), profile.currentAgent ?? '—'),
-        _row(ref.t('current_status'), customer.membershipStatus),
-        _row(ref.t('line_repayment_index'), '${customer.lineRepaymentIndex}'),
-        _row(ref.t('loan_count'), '${customer.activeLoanCount}'),
-        _row(ref.t('outstanding_balance'), manaRupees(customer.outstandingBalance)),
+        ManaLabelValueRow(label: ref.t('occupation'), value: profile.occupation ?? '—'),
+        ManaLabelValueRow(label: ref.t('address'), value: profile.address ?? '—'),
+        ManaLabelValueRow(label: ref.t('customer_since'), value: DateFormat('d MMM yyyy').format(profile.customerSince)),
+        ManaLabelValueRow(label: ref.t('current_agent'), value: profile.currentAgent ?? '—'),
+        ManaLabelValueRow(label: ref.t('current_status'), value: customer.membershipStatus),
+        ManaLabelValueRow(label: ref.t('line_repayment_index'), value: '${customer.lineRepaymentIndex}'),
+        ManaLabelValueRow(label: ref.t('loan_count'), value: '${customer.activeLoanCount}'),
+        ManaLabelValueRow(label: ref.t('outstanding_balance'), value: manaRupees(customer.outstandingBalance)),
       ],
     );
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Expanded(child: ManaText.raw(label, style: ManaType.note)),
-            ManaText.raw(value, style: ManaType.smallStrong),
-          ],
-        ),
-      );
+
 }
 
 class _LoansTab extends ConsumerWidget {
@@ -1161,32 +1154,6 @@ class _LoansTab extends ConsumerWidget {
                   // — this just never got updated to link to it.
                   onTap: () => context.push('/ow-007', extra: l.loanId),
                 ),
-              ))
-          .toList(),
-    );
-  }
-}
-
-class _CollectionsTab extends ConsumerWidget {
-  final CustomerProfile profile;
-  const _CollectionsTab({required this.profile});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (profile.collections.isEmpty) {
-      return Center(
-        child: ManaText.raw(ref.t('no_collections_yet'), style: ManaType.secondary),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.all(ManaSpacing.lg),
-      children: profile.collections
-          .map((c) => ListTile(
-                leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
-                title: ManaText.raw(manaRupees(c.amount)),
-                subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
-                trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),
-                    style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
               ))
           .toList(),
     );

@@ -203,7 +203,10 @@ void main() {
           await tester.drag(find.byType(TabBarView), const Offset(0, -220));
           await tester.pumpAndSettle();
         }
-        expect(declare, findsWidgets, reason: 'PROBE: no declare button');
+        // Reachable only since the tab tap started landing: this assertion
+        // failed outright while the walk was still stuck on tab zero.
+        expect(declare, findsWidgets,
+            reason: 'no Distribute Profit Share button on the compensation tab');
         await tester.ensureVisible(declare.first);
         await tester.pumpAndSettle();
         await tester.tap(declare.first, warnIfMissed: false);

@@ -1124,10 +1124,23 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Both sides bounded. The button sat bare beside an Expanded
+            // title, and a FilledButton.icon lays its icon and label out in a
+            // Row that sizes to the label's natural width -- 23px past the
+            // edge at 2.0x in Telugu, where "Declare" is the longer word.
+            // Ninth instance of this shape in the app.
             Row(
               children: [
                 Expanded(child: ManaText.raw(ref.t('profit_share'), style: ManaType.sheetTitle)),
-                FilledButton.tonalIcon(onPressed: _declare, icon: const Icon(Icons.add, size: 18), label: ManaText.raw(ref.t('declare'))),
+                const SizedBox(width: ManaSpacing.xs),
+                Flexible(
+                  child: FilledButton.tonalIcon(
+                    onPressed: _declare,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: ManaText.raw(ref.t('declare'),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),

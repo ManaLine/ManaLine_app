@@ -169,4 +169,40 @@ void main() {
       });
     }
   }
+  // Declare Profit Share, the last of OW-003's four dialogs. It is a
+  // different control from Record Investment -- an OutlinedButton on the
+  // investment row, shown only when that investment carries a profit-share
+  // agreement, which the seed does.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-003 profit share sheet survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(
+          tester,
+          screen(),
+          textScale: scale,
+          language: lang,
+          overrides: [
+            investorProfileProvider.overrideWith(() => _SeededInvestorProfile(profile)),
+          ],
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byType(Tab).at(1));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(Tab).at(1), warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        // Withdraw is the first OutlinedButton on the row, profit share the
+        // second -- taking `.last` gets the one under test.
+        final buttons = find.byType(OutlinedButton);
+        expect(buttons, findsWidgets, reason: 'no buttons on the investment row');
+        await tester.ensureVisible(buttons.last);
+        await tester.pumpAndSettle();
+        await tester.tap(buttons.last, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expectNoLayoutFault(tester, 'OW-003 profit share sheet at ${scale}x$tag');
+      });
+    }
+  }
 }

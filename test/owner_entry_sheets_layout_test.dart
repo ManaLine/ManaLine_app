@@ -32,7 +32,7 @@ void main() {
 
   final cases = <String, Widget Function()>{
     'Investment sheet': () => InvestmentSheet(who: who, cutoff: DateTime(2026, 4, 1)),
-    'Shareholder sheet': () => ShareholderSheet(who: who),
+    'Shareholder sheet': () => const ShareholderSheet(who: who),
     'Member picker': () => ManaMemberPicker(
           members: members,
           onPick: (_) {},

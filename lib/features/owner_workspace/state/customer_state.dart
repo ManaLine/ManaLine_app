@@ -41,7 +41,7 @@ class CustomerApiService {
           business_members!customers_membership_id_fkey!inner(business_id, membership_status),
           persons!inner(full_name, father_husband_name, mobile_number, mlid,
             person_addresses(village_id, is_current, locations(village_town_name))),
-          loans(loan_id, loan_status, installment_amount, remaining_balance)
+          loans(loan_id, loan_status, installment_amount, remaining_balance, repayment_amount)
         ''')
         .eq('business_members.business_id', businessId);
     if (status != null) q = q.eq('customer_status', status);
@@ -60,6 +60,10 @@ class CustomerApiService {
       final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
       final todaysDue = activeLoans.fold<int>(0, (sum, l) => sum + (l['installment_amount'] as num).toInt());
       final outstanding = activeLoans.fold<int>(0, (sum, l) => sum + (l['remaining_balance'] as num).toInt());
+      // What was lent in total, across this customer's live loans -- the
+      // figure the row leads with. Distinct from what is still owed.
+      final lent = activeLoans.fold<int>(
+          0, (sum, l) => sum + ((l['repayment_amount'] as num?)?.toInt() ?? 0));
 
       return CustomerSummary(
         customerId: m['customer_id'] as String,
@@ -70,6 +74,7 @@ class CustomerApiService {
         mlid: person['mlid'] as String? ?? '',
         activeLoanCount: activeLoans.length,
         todaysDue: todaysDue,
+        totalLoanAmount: lent,
         outstandingBalance: outstanding,
         lineRepaymentIndex: 0, // requires loan_schedule join — see method doc above
         customerStatus: m['customer_status'] as String,
@@ -467,6 +472,10 @@ class CustomerSummary {
   final String mlid;
   final int activeLoanCount;
   final int todaysDue;
+  /// Everything lent to this customer across their live loans -- the
+  /// repayment total, not the cash handed over. Zero where a path builds a
+  /// summary without loans (search results, pre-membership hits).
+  final int totalLoanAmount;
   final int outstandingBalance;
   final int lineRepaymentIndex;
   final String customerStatus; // Active | Inactive | Deceased (global)
@@ -482,6 +491,7 @@ class CustomerSummary {
     required this.mlid,
     required this.activeLoanCount,
     required this.todaysDue,
+    this.totalLoanAmount = 0,
     required this.outstandingBalance,
     required this.lineRepaymentIndex,
     required this.customerStatus,

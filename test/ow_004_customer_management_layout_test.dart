@@ -51,6 +51,7 @@ void main() {
       mlid: 'MLCU0000012345',
       activeLoanCount: 1,
       todaysDue: 1500,
+      totalLoanAmount: 120000,
       outstandingBalance: 84500,
       lineRepaymentIndex: 12,
       customerStatus: 'Active',
@@ -104,5 +105,26 @@ void main() {
       overrides: [customerListProvider.overrideWith(() => _SeededCustomerListNotifier(seed))],
     );
     expect(find.textContaining('Nagabhushanam'), findsWidgets);
+  });
+  testWidgets('the row shows what was lent and what is left, both labelled',
+      (tester) async {
+    // It used to lead with the outstanding balance and end with "Today's Due",
+    // which put the same-looking number under two names across two screens
+    // and never said how big the loan was.
+    await pumpManaScreen(
+      tester,
+      const CustomerManagementScreen(businessId: 'b1'),
+      overrides: [customerListProvider.overrideWith(() => _SeededCustomerListNotifier(seed))],
+    );
+
+    // The seeded total, not a zero standing in for one.
+    expect(find.textContaining('Loan Amount'), findsWidgets,
+        reason: 'the total lent must be on the row, and named');
+    expect(find.textContaining('1,20,000'), findsWidgets,
+        reason: 'the figure itself, in Indian grouping');
+    expect(find.textContaining('Balance'), findsWidgets,
+        reason: 'what is still owed must be on the row, and named');
+    expect(find.textContaining("Today's Due"), findsNothing,
+        reason: "today's due belongs to the round, not to this list");
   });
 }

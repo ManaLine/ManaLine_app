@@ -47,7 +47,35 @@ class LoanDetailsApiService {
     final agentMember = row['business_members'] as Map<String, dynamic>?;
     final agentPerson = agentMember?['persons'] as Map<String, dynamic>?;
     final schedule = ((row['loan_schedule'] as List?) ?? const []).cast<Map<String, dynamic>>();
-    final completed = schedule.where((s) => s['status'] == 'Completed').length;
+
+    // Instalments completed come from the BALANCE, not from loan_schedule.
+    //
+    // They used to be `schedule.where(status == 'Completed').length`, and
+    // every loan in the app reported 0. Not a rounding slip -- all 8,075
+    // schedule rows in the database are 'Pending'. record_collection has
+    // never written that column, so the schedule is a plan that was written
+    // once and never advanced, and a loan with eleven collections against it
+    // still read "Completed Installments 0".
+    //
+    // Marking rows Completed as money lands would need a payment waterfall to
+    // decide what a part-payment completes, and this app deliberately has
+    // none: one remaining_balance per loan is the whole model. So the count
+    // is derived from what is actually owed, which is the figure the rest of
+    // the app already trusts.
+    //
+    // It agrees with reality on live rows: a loan of 12,000 at 1,000 with
+    // 1,000 left and eleven collections recorded derives eleven completed.
+    //
+    // It is also the only version that works for a MIGRATED loan, whose
+    // schedule holds what is LEFT rather than the whole term -- counting rows
+    // there answers a different question entirely.
+    final emi = (row['installment_amount'] as num).toInt();
+    final repayment = (row['repayment_amount'] as num).toInt();
+    final owed = (row['remaining_balance'] as num).toInt();
+    final totalInstallments = emi > 0 ? (repayment / emi).ceil() : schedule.length;
+    final completed = emi > 0
+        ? ((repayment - owed) / emi).floor().clamp(0, totalInstallments)
+        : 0;
     final guarantorRows = ((row['guarantors'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final penaltyRows = ((row['penalty_entries'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final status = _statusFromString(row['loan_status'] as String);
@@ -90,7 +118,9 @@ class LoanDetailsApiService {
       outstandingBalance: (row['remaining_balance'] as num).toInt(),
       todaysDue: (row['installment_amount'] as num).toInt(), // precise per-schedule due requires business_date join — see KNOWN SIMPLIFICATION pattern elsewhere this session
       completedInstallments: completed,
-      remainingInstallments: schedule.length - completed,
+      // Against the total the loan actually has, not against however many
+      // schedule rows happen to exist.
+      remainingInstallments: (totalInstallments - completed).clamp(0, totalInstallments),
       inGracePeriod: status == LoanStatus.gracePeriod,
       penaltyEligibleFrom: penaltyEligibleFrom,
       collectionAgentId: row['collection_agent_membership_id'] as String,

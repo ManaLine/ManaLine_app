@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design/components/mana_amount.dart';
 import '../design/components/mana_text.dart';
-import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/tokens/typography.dart';
 import '../features/owner_workspace/state/customer_state.dart';
@@ -88,38 +87,35 @@ class ManaCustomerRow extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                         style: ManaType.note),
                     const SizedBox(height: ManaSpacing.xs),
+                    // The two figures a lending book is read for: what was
+                    // lent, and what is still owed.
+                    //
+                    // This used to lead with the outstanding balance and end
+                    // with today's due, which put the same number under two
+                    // different names across two screens and told nobody the
+                    // size of the loan. Labelled, because two bare rupee
+                    // figures side by side are indistinguishable.
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Flexible(
+                        Expanded(
                           child: ManaText.raw(
-                              manaRupees(customer.outstandingBalance),
+                              '${ref.t('loan_amount')} '
+                              '${manaRupees(customer.totalLoanAmount)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
+                              style: ManaType.note),
+                        ),
+                        const SizedBox(width: ManaSpacing.sm),
+                        Expanded(
+                          child: ManaText.raw(
+                              '${ref.t('balance')} '
+                              '${manaRupees(customer.outstandingBalance)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
                               style: ManaType.cardTitle),
                         ),
-                        if (customer.todaysDue > 0) ...[
-                          const SizedBox(width: ManaSpacing.sm),
-                          Flexible(
-                            // "Today's Due", not "Due" -- and deliberately not
-                            // "EMI", which is what the collection round shows.
-                            // They look like the same number and are not: the
-                            // round shows ONE loan's instalment, this shows
-                            // everything this customer owes today, which for
-                            // somebody holding two loans is the sum of both.
-                            // Reading one as the other is how a customer gets
-                            // asked for the wrong money at their door.
-                            child: ManaText.raw(
-                                '${ref.t('todays_due')} '
-                                '${manaRupees(customer.todaysDue)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    color: ManaColors.statusWarn)),
-                          ),
-                        ],
                       ],
                     ),
                   ],

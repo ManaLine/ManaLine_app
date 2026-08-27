@@ -35,6 +35,7 @@ void main() {
       mlid: 'MLCU0000012345',
       activeLoanCount: 2,
       todaysDue: 12845,
+      totalLoanAmount: 1500000,
       outstandingBalance: 1284500,
       lineRepaymentIndex: 12,
       customerStatus: 'Active',

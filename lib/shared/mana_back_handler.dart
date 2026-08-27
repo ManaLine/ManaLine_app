@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../app/router.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
@@ -23,9 +22,20 @@ import '../features/login_registration/state/auth_flow_state.dart';
 ///   3. Already home -> leave, which is what back means there.
 ///
 /// Step 2 is what `go()` took away and this gives back.
-class ManaBackHandler extends StatelessWidget {
-  final Widget child;
-  const ManaBackHandler({super.key, required this.child});
+///
+/// WHY THIS IS A DISPATCHER AND NOT A PopScope. It was a PopScope, placed in
+/// MaterialApp.router's builder, and it never ran once. PopScope registers
+/// itself with the enclosing ModalRoute; the app builder sits ABOVE the
+/// Navigator, so there is no route to register with, and the widget silently
+/// did nothing while the back press went to the router, found an empty stack,
+/// and closed the app.
+///
+/// That is the same mistake as the SelectionArea one, whose warning is three
+/// lines above where this used to be wired in main.dart: things that need to
+/// be inside the Navigator cannot be installed above it. A back press arrives
+/// at the Router's BackButtonDispatcher, so the decision belongs there.
+class ManaBackHandler {
+  const ManaBackHandler._();
 
   /// Where "home" is for the workspace this route belongs to.
   ///
@@ -48,38 +58,41 @@ class ManaBackHandler extends StatelessWidget {
   static bool isExitPoint(String location) =>
       location == '/lr-001' || location == homeFor(location);
 
+  /// The decision itself, separated from where it is installed so it can be
+  /// tested without a live router. Returns true when it handled the press.
+  static bool handleBack({
+    required bool canPop,
+    required VoidCallback pop,
+    required String location,
+    required void Function(String home) goHome,
+  }) {
+    if (canPop) {
+      pop();
+      return true;
+    }
+    final home = homeFor(location);
+    if (home != null && location != home) {
+      goHome(home);
+      return true;
+    }
+    return false;
+  }
+}
+
+/// Installed as the Router's backButtonDispatcher, which is where an Android
+/// back press actually arrives.
+class ManaBackButtonDispatcher extends RootBackButtonDispatcher {
   @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      // Always intercept, then decide. Handing the decision to Navigator
-      // first would let it exit the app before rule 2 ever runs.
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-
-        final nav = manaRootNavigatorKey.currentState;
-        if (nav != null && nav.canPop()) {
-          nav.pop();
-          return;
-        }
-
-        final location =
-            manaRouter.routerDelegate.currentConfiguration.uri.path;
-        final home = homeFor(location);
-
-        if (home != null && location != home) {
-          // businessId is what every workspace home needs to render anything,
-          // and it is the one thing `go()` calls pass around by hand. Taken
-          // from the session rather than the route, because the route being
-          // left may not carry it.
-          manaRouter.go(home, extra: ManaSession.instance.lastBusinessId);
-          return;
-        }
-
-        // Nothing behind this screen. Let the press mean what it means.
-        SystemNavigator.pop();
-      },
-      child: child,
+  Future<bool> didPopRoute() async {
+    final nav = manaRootNavigatorKey.currentState;
+    return ManaBackHandler.handleBack(
+      canPop: nav?.canPop() ?? false,
+      pop: () => nav!.pop(),
+      location: manaRouter.routerDelegate.currentConfiguration.uri.path,
+      goHome: (home) =>
+          manaRouter.go(home, extra: ManaSession.instance.lastBusinessId),
     );
+    // false falls through to Flutter, which exits the app -- what back means
+    // on a workspace home.
   }
 }

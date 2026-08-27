@@ -119,6 +119,29 @@ void main() {
     expect(find.textContaining('Nagabhushanam'), findsWidgets);
   });
 
+  testWidgets('the customer name gets two lines, not an ellipsis', (tester) async {
+    // The name shared line one with a Penalty tag and a Collect button, all
+    // three Flexible, and the name lost: "Daggubati Dilip..." on the screen
+    // whose only job is to say whose door this is.
+    //
+    // This pins the contract rather than the pixels -- a layout test proves
+    // the row does not overflow, which it did not before either. What changed
+    // is that the name takes the width first and is allowed to wrap.
+    await pumpManaScreen(
+      tester,
+      const CollectionModeScreen(businessId: 'b1'),
+      overrides: [collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))],
+    );
+
+    final name = tester.widget<Text>(
+      find.textContaining('Nagabhushanam Venkata Subba Reddy').first,
+    );
+    expect(name.maxLines, 2,
+        reason: 'a three-part name does not fit one line beside a button');
+    expect(name.data, 'Nagabhushanam Venkata Subba Reddy',
+        reason: 'the whole name, not a shortened one');
+  });
+
   // The search box drops into the app bar's bottom slot, which is a fixed
   // height holding a hint that grows in Telugu at 2.0x — this app's exact
   // overflow shape, and invisible until someone opens the box.

@@ -435,9 +435,17 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
               children: [
                 Row(
                   children: [
-                    Flexible(
+                    // Expanded and two lines, so the whole name shows.
+                    //
+                    // It shared one line with a Penalty tag and a Collect
+                    // button, and Flexible let all three negotiate for width:
+                    // the name lost, and every three-part name ended in an
+                    // ellipsis -- "Daggubati Dilip..." on a screen whose job
+                    // is to say whose door this is. It takes the width first
+                    // now, and wraps rather than truncating.
+                    Expanded(
                       child: ManaText.raw(row.customerName,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: ManaType.emphasis),
                     ),

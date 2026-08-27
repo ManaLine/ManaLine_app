@@ -101,9 +101,17 @@ class ManaCustomerRow extends ConsumerWidget {
                         if (customer.todaysDue > 0) ...[
                           const SizedBox(width: ManaSpacing.sm),
                           Flexible(
+                            // "Today's Due", not "Due" -- and deliberately not
+                            // "EMI", which is what the collection round shows.
+                            // They look like the same number and are not: the
+                            // round shows ONE loan's instalment, this shows
+                            // everything this customer owes today, which for
+                            // somebody holding two loans is the sum of both.
+                            // Reading one as the other is how a customer gets
+                            // asked for the wrong money at their door.
                             child: ManaText.raw(
-                                ref.t('due_note').replaceAll(
-                                    '{amount}', manaRupees(customer.todaysDue)),
+                                '${ref.t('todays_due')} '
+                                '${manaRupees(customer.todaysDue)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.right,

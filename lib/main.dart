@@ -143,7 +143,13 @@ class ManaLineApp extends ConsumerWidget {
       // light.
       theme: themeData,
       darkTheme: themeData,
-      routerConfig: manaRouter,
+      // The pieces individually rather than routerConfig, so the back
+      // button dispatcher can be ours. routerConfig supplies GoRouter's own,
+      // and back would go straight to an empty stack and close the app.
+      routerDelegate: manaRouter.routerDelegate,
+      routeInformationParser: manaRouter.routeInformationParser,
+      routeInformationProvider: manaRouter.routeInformationProvider,
+      backButtonDispatcher: ManaBackButtonDispatcher(),
       // The chosen font size, applied once at the root so every screen and
       // every dialog inherits it.
       //
@@ -170,7 +176,7 @@ class ManaLineApp extends ConsumerWidget {
           // build and every screen became an ErrorWidget. Copy-paste has to
           // be introduced below the Navigator -- inside the screens -- not
           // above it.
-          child: ManaBackHandler(child: child!),
+          child: child!,
         );
       },
     );

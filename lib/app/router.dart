@@ -36,6 +36,7 @@ import '../features/owner_workspace/screens/ow_015_group_loan_management.dart';
 import '../features/owner_workspace/screens/ow_016_profile.dart';
 import '../features/owner_workspace/screens/ow_017_statement_screen.dart';
 import '../features/owner_workspace/screens/ow_017_transaction_history.dart';
+import '../features/owner_workspace/screens/ow_trash_screen.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/ow_019_cheti_management.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart';
@@ -285,6 +286,14 @@ final manaRouter = GoRouter(
     // no locked id. Giving it one would put a route in the id namespace that
     // no spec screen answers to and break the 1:1 cross-reference; a named
     // path keeps that contract intact.
+    // The Owner's Trash: the whole bin, with restore and delete-forever.
+    // /recent-deletes stays as the Daily Record Book's read-only view of the
+    // same rows -- it is reached mid-task and should not offer to destroy
+    // anything.
+    GoRoute(
+      path: '/ow-trash',
+      builder: (c, s) => OwnerTrashScreen(businessId: _resolveBusinessId(s)),
+    ),
     GoRoute(
       path: '/recent-deletes',
       builder: (c, s) => RecentDeletesScreen(businessId: _resolveBusinessId(s)),

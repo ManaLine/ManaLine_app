@@ -6,7 +6,6 @@ import '../design/components/mana_text.dart';
 import '../design/tokens/spacing.dart';
 import '../design/tokens/typography.dart';
 import '../features/owner_workspace/state/customer_state.dart';
-import 'translation_service.dart';
 
 /// One customer in a list, for whoever is looking at the list.
 ///
@@ -90,6 +89,13 @@ class ManaCustomerRow extends ConsumerWidget {
                     // The two figures a lending book is read for: what was
                     // lent, and what is still owed.
                     //
+                    // T.L.A. and R. Bal are left UNTRANSLATED on purpose --
+                    // asked for, and the point of them is width: "Loan
+                    // Amount" and "Balance" pushed both figures into an
+                    // ellipsis on a 360dp row, which is worse than an
+                    // abbreviation. A truncated rupee figure is a wrong
+                    // number presented as a right one.
+                    //
                     // This used to lead with the outstanding balance and end
                     // with today's due, which put the same number under two
                     // different names across two screens and told nobody the
@@ -100,8 +106,7 @@ class ManaCustomerRow extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: ManaText.raw(
-                              '${ref.t('loan_amount')} '
-                              '${manaRupees(customer.totalLoanAmount)}',
+                              'T.L.A. ${manaRupees(customer.totalLoanAmount)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: ManaType.note),
@@ -109,12 +114,11 @@ class ManaCustomerRow extends ConsumerWidget {
                         const SizedBox(width: ManaSpacing.sm),
                         Expanded(
                           child: ManaText.raw(
-                              '${ref.t('balance')} '
-                              '${manaRupees(customer.outstandingBalance)}',
+                              'R. Bal ${manaRupees(customer.outstandingBalance)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.right,
-                              style: ManaType.cardTitle),
+                              style: ManaType.note),
                         ),
                       ],
                     ),

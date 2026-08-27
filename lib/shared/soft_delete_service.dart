@@ -116,6 +116,24 @@ class SoftDeleteService {
     });
   }
 
+  /// Gone for good. There is no undo after this and the screen says so
+  /// before calling it.
+  ///
+  /// The server refuses anything that is not ALREADY in the bin, so this
+  /// cannot become a one-step destroy however it is called. Purging a loan
+  /// takes its collections, schedule and penalties with it -- see
+  /// app.purge_dependents, where what goes is written out rather than left to
+  /// twenty foreign-key definitions.
+  Future<void> purge({
+    required String entityWireName,
+    required String recordId,
+  }) async {
+    await _db.schema('app').rpc('purge_record', params: {
+      'p_entity': entityWireName,
+      'p_record_id': recordId,
+    });
+  }
+
   /// The bin. Must be an RPC: the restrictive RLS policies hide deleted
   /// rows from every ordinary table read, which is exactly what makes them
   /// vanish from the rest of the app.

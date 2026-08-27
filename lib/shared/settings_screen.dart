@@ -419,6 +419,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     subtitle: 'Your plan and its limits.',
                     trailing: _ComingSoon(),
                   ),
+            // Owner only, and deliberately not offered to an Agent even
+            // with can_delete_records: destroying a record for good is the
+            // Owner's call, and the server refuses it from anyone the
+            // business does not have as one.
+            if (widget.homeRoute == '/ow-001')
+              _SettingsTile(
+                icon: Icons.delete_outline,
+                title: 'Trash',
+                subtitle: 'Deleted records, and delete forever.',
+                onTap: () => context.push('/ow-trash', extra: widget.businessId),
+              ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('backup'),
             // Live for the Owner and Agent workspaces. Customers and Investors

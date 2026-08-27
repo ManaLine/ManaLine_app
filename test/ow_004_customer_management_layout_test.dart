@@ -117,13 +117,17 @@ void main() {
       overrides: [customerListProvider.overrideWith(() => _SeededCustomerListNotifier(seed))],
     );
 
-    // The seeded total, not a zero standing in for one.
-    expect(find.textContaining('Loan Amount'), findsWidgets,
+    // Short labels on purpose: "Loan Amount" and "Balance" pushed both
+    // figures into an ellipsis on a 360dp row. The figures must appear WHOLE
+    // -- a truncated rupee amount is a wrong number that looks right.
+    expect(find.textContaining('T.L.A. '), findsWidgets,
         reason: 'the total lent must be on the row, and named');
     expect(find.textContaining('1,20,000'), findsWidgets,
-        reason: 'the figure itself, in Indian grouping');
-    expect(find.textContaining('Balance'), findsWidgets,
+        reason: 'the whole figure, not an ellipsis');
+    expect(find.textContaining('R. Bal '), findsWidgets,
         reason: 'what is still owed must be on the row, and named');
+    expect(find.textContaining('84,500'), findsWidgets,
+        reason: 'the balance in full too');
     expect(find.textContaining("Today's Due"), findsNothing,
         reason: "today's due belongs to the round, not to this list");
   });

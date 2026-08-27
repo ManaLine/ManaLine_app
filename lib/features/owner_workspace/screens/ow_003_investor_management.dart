@@ -900,6 +900,12 @@ class _InvestmentsTab extends ConsumerWidget {
                   ),
                 ),
               DropdownButtonFormField<String>(
+                // isExpanded: a DropdownButton sizes to its widest item's natural
+                // width and overflows rather than shrinking. A dialog is narrower
+                // than a screen, so this is the tightest place one can sit -- three
+                // were measured overflowing at 1.0x, in English, by 127px, 233px and
+                // 180px. See ow_011_day_closure.dart's adjustment dialog.
+                isExpanded: true,
                 initialValue: method,
                 decoration: InputDecoration(labelText: ref.t('interest_method')),
                 items: [
@@ -992,6 +998,12 @@ class _InvestmentsTab extends ConsumerWidget {
                 decoration: InputDecoration(labelText: ref.t('amount_cannot_exceed_balance')),
               ),
               DropdownButtonFormField<String>(
+                // isExpanded: a DropdownButton sizes to its widest item's
+                // natural width and overflows rather than shrinking. Inside a
+                // dialog -- narrower than a screen -- "Principal + Interest"
+                // ran 127px past the edge at 1.0x, in English, before any
+                // text scaling.
+                isExpanded: true,
                 initialValue: type,
                 decoration: InputDecoration(labelText: ref.t('withdrawal_type')),
                 items: [

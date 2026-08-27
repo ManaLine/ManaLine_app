@@ -1214,6 +1214,12 @@ class _CycleConfigDialogState extends ConsumerState<_CycleConfigDialog> {
           ),
           const SizedBox(height: ManaSpacing.md),
           DropdownButtonFormField<String>(
+            // isExpanded: a DropdownButton sizes to its widest item's natural
+            // width and overflows rather than shrinking. A dialog is narrower
+            // than a screen, so this is the tightest place one can sit -- three
+            // were measured overflowing at 1.0x, in English, by 127px, 233px and
+            // 180px. See ow_011_day_closure.dart's adjustment dialog.
+            isExpanded: true,
             initialValue: _unit,
             decoration: InputDecoration(labelText: ref.t('account_cycle_unit_field')),
             items: [
@@ -1354,6 +1360,12 @@ class _CreateAgreementDialogState extends ConsumerState<_CreateAgreementDialog> 
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
+              // isExpanded: a DropdownButton sizes to its widest item's natural
+              // width and overflows rather than shrinking. A dialog is narrower
+              // than a screen, so this is the tightest place one can sit -- three
+              // were measured overflowing at 1.0x, in English, by 127px, 233px and
+              // 180px. See ow_011_day_closure.dart's adjustment dialog.
+              isExpanded: true,
               initialValue: _type,
               decoration: InputDecoration(labelText: ref.t('agreement_type_field')),
               items: ['Customer', 'Agent', 'Investor']

@@ -582,6 +582,12 @@ class _RecordAdjustmentDialogState extends ConsumerState<_RecordAdjustmentDialog
             ),
             const SizedBox(height: ManaSpacing.md),
             DropdownButtonFormField<String>(
+              // isExpanded: a DropdownButton sizes to its widest item's natural
+              // width and overflows rather than shrinking. A dialog is narrower
+              // than a screen, so this is the tightest place one can sit -- three
+              // were measured overflowing at 1.0x, in English, by 127px, 233px and
+              // 180px. See ow_011_day_closure.dart's adjustment dialog.
+              isExpanded: true,
               initialValue: _appliedTo,
               decoration: InputDecoration(labelText: ref.t('applied_to')),
               items: _appliedToOptions

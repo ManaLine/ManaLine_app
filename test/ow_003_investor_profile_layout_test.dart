@@ -77,4 +77,42 @@ void main() {
       }
     }
   }
+  // The two dialogs reachable from this profile. Both carry scrollable: true,
+  // applied in a sweep with no test opening them; these open them.
+  //
+  // Each asserts the dialog is on screen before measuring. A tap that lands
+  // on a disabled or off-screen button is silent, and without the assertion a
+  // green result would prove only that nothing happened.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+
+      testWidgets('OW-003 withdraw dialog survives text scale ${scale}x$tag', (tester) async {
+        await pumpManaScreen(
+          tester,
+          screen(),
+          textScale: scale,
+          language: lang,
+          overrides: [
+            investorProfileProvider.overrideWith(() => _SeededInvestorProfile(profile)),
+          ],
+        );
+        await tester.pumpAndSettle();
+        // Withdraw lives on the Investments tab.
+        await tester.tap(find.byType(Tab).at(1), warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        final withdraw = find.byType(OutlinedButton);
+        expect(withdraw, findsWidgets, reason: 'no withdraw button on the investment row');
+        await tester.ensureVisible(withdraw.first);
+        await tester.pumpAndSettle();
+        await tester.tap(withdraw.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'withdraw dialog did not open');
+        expectNoLayoutFault(tester, 'OW-003 withdraw dialog at ${scale}x$tag');
+      });
+    }
+  }
 }

@@ -158,7 +158,48 @@ void main() {
         await tester.tap(waive.first, warnIfMissed: false);
         await tester.pumpAndSettle();
 
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'waive dialog did not open');
         expectNoLayoutFault(tester, 'OW-007 waive dialog at ${scale}x$tag');
+      });
+    }
+  }
+  // Edit Allowed Fields. The second of OW-007's dialogs, opened by name so
+  // the test is not counting anonymous buttons -- OutlinedButton.icon appears
+  // several times in that action strip.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-007 edit fields dialog survives text scale ${scale}x$tag',
+          (tester) async {
+        await pumpManaScreen(
+          tester,
+          const LoanDetailsScreen(loanId: 'l1'),
+          textScale: scale,
+          language: lang,
+          translations: lang == ManaLanguage.telugu ? _ow007TeluguTranslations : null,
+          overrides: [loanDetailsProvider.overrideWith(_SeededLoanDetailsNotifier.new)],
+        );
+
+        final label = find.text(
+          lang == ManaLanguage.telugu
+              ? (_ow007TeluguTranslations['edit_allowed_fields']?['Telugu'] ??
+                  'edit_allowed_fields')
+              : 'Edit Allowed Fields',
+        );
+        await tester.scrollUntilVisible(label, 400,
+            scrollable: find.byType(Scrollable).first);
+        await tester.pumpAndSettle();
+        await tester.tap(label.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        // Proof the dialog is actually on screen. Without this the test
+        // passes when the button is disabled and nothing opened -- a green
+        // result for a dialog nobody laid out, which is the whole defect
+        // being hunted here.
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'edit fields dialog did not open');
+        expectNoLayoutFault(tester, 'OW-007 edit fields dialog at ${scale}x$tag');
       });
     }
   }

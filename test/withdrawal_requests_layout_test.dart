@@ -71,10 +71,20 @@ void main() {
         await tester.pumpAndSettle();
 
         final approve = find.byType(FilledButton);
-        if (approve.evaluate().isEmpty) return;
+        expect(approve, findsWidgets, reason: 'no approve button on the row');
+        // At 2.0x the button sits below the fold, and a tap that lands on
+        // nothing is silent when warnIfMissed is off -- which is how this
+        // test reported green at 2.0x without ever opening the dialog.
+        await tester.ensureVisible(approve.first);
+        await tester.pumpAndSettle();
         await tester.tap(approve.first, warnIfMissed: false);
         await tester.pumpAndSettle();
 
+        // Proof the dialog opened. The first version of this test returned
+        // early when the button was missing, which would have reported green
+        // for a dialog nobody laid out -- the exact defect being hunted.
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'payout dialog did not open');
         expectNoLayoutFault(tester, 'Withdrawal payout dialog at ${scale}x$tag');
       });
     }

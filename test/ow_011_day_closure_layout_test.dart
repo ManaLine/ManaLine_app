@@ -297,7 +297,46 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byType(OutlinedButton).first, warnIfMissed: false);
         await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'dialog did not open -- a green result here would prove nothing');
         expectNoLayoutFault(tester, 'OW-011 reopen dialog at ${scale}x$tag');
+      });
+    }
+  }
+  // Record Short / Excess. A dialog on the differenceFound phase, holding a
+  // dropdown -- and a dropdown inside a dialog is the narrowest place one can
+  // sit. This is where the Owner names what a cash difference was.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-011 adjustment dialog survives text scale ${scale}x$tag', (tester) async {
+        await pumpManaScreen(
+          tester,
+          const DayClosureScreen(businessId: 'b1', businessDate: '2026-08-07'),
+          textScale: scale,
+          language: lang,
+          translations: lang == ManaLanguage.telugu ? _ow011TeluguTranslations : null,
+          overrides: [
+            dayClosureProvider
+                .overrideWith(() => _SeededDayClosureNotifier(_differenceFoundState)),
+          ],
+        );
+        await tester.pumpAndSettle();
+
+        // Below the fold of a lazy list, so it is not built until scrolled to
+        // -- the same trap as the reopen button above.
+        await tester.scrollUntilVisible(
+          find.byType(OutlinedButton),
+          400,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(OutlinedButton).first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'adjustment dialog did not open');
+        expectNoLayoutFault(tester, 'OW-011 adjustment dialog at ${scale}x$tag');
       });
     }
   }

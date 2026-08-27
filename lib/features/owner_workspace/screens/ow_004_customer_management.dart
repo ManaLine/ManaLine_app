@@ -606,15 +606,34 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
     }
   }
 
+  /// What the SERVER actually requires, and nothing more.
+  ///
+  /// This asked for seven fields at a doorstep. register_new_customer needs
+  /// three: persons is NOT NULL on full_name, father_husband_name and
+  /// gender_digit, and that is the whole of it. Mobile is NULLIF'd to null
+  /// inside the RPC, door_no likewise, and the entire address INSERT sits
+  /// behind `IF p_village_id IS NOT NULL` -- a customer with no address is a
+  /// row the server is happy to write.
+  ///
+  /// The form was refusing registrations the database would have accepted.
+  /// At a doorstep that means the customer does not get created, so the loan
+  /// does not get issued, so the round moves on without them.
+  ///
+  /// The optional fields are still THERE and still validated when filled --
+  /// a half-typed mobile or a five-digit PIN is still refused. They just no
+  /// longer block a customer who has neither.
   bool get _canCreateNew =>
       _fullName.text.trim().length >= 2 &&
       _fatherHusband.text.trim().length >= 2 &&
       _gender != null &&
-      _mobile.text.trim().length == 10 &&
+      // Filled or empty, never half-typed.
+      (_mobile.text.trim().isEmpty || _mobile.text.trim().length == 10) &&
       (_aadhaar.text.trim().isEmpty || _aadhaar.text.trim().length == 12) &&
-      _pinCode.text.trim().length == 6 &&
-      _doorNo.text.trim().isNotEmpty &&
-      _villageId != null;
+      // An address is all-or-nothing: the RPC writes person_addresses only
+      // when it has both a village and a PIN, so half of one is not a state
+      // worth allowing.
+      ((_pinCode.text.trim().isEmpty && _villageId == null) ||
+          (_pinCode.text.trim().length == 6 && _villageId != null));
 
   Future<void> _createNew() async {
     setState(() => _submitting = true);
@@ -777,7 +796,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           keyboardType: TextInputType.phone,
           maxLength: 10,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(labelText: '${ref.t("mobile_number")} *'),
+          decoration: InputDecoration(labelText: ref.t('mobile_number')),
           onChanged: (_) => setState(() {}),
         ),
         TextField(
@@ -811,7 +830,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           controller: _pinCode,
           keyboardType: TextInputType.number,
           maxLength: 6,
-          decoration: InputDecoration(labelText: '${ref.t("pin_code")} *', suffixIcon: ManaInfoHint(ref.t('pin_code_helper')),),
+          decoration: InputDecoration(labelText: ref.t('pin_code'), suffixIcon: ManaInfoHint(ref.t('pin_code_helper')),),
           onChanged: (_) {
             setState(() {
               _villageId = null;
@@ -822,13 +841,13 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
         ),
         TextField(
           controller: _doorNo,
-          decoration: InputDecoration(labelText: '${ref.t("door_house_no")} *'),
+          decoration: InputDecoration(labelText: ref.t('door_house_no')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _villageSearch,
-          decoration: InputDecoration(labelText: '${ref.t("search_village_town")} *'),
+          decoration: InputDecoration(labelText: ref.t('search_village_town')),
           onChanged: (v) {
             setState(() {
               _villageId = null;

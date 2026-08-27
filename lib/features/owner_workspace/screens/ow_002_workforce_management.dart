@@ -789,6 +789,8 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
           String? error;
           return StatefulBuilder(
             builder: (dialogContext, setDialogState) => AlertDialog(
+              // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+              scrollable: true,
               title: ManaText.raw(ref.t('add_bf')),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -868,6 +870,8 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         String? error;
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) => AlertDialog(
+            // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+            scrollable: true,
             title: ManaText.raw(ref.t('add_bf')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1298,6 +1302,8 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
+          // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+          scrollable: true,
           title: ManaText.raw(ref.t('distribute_profit_share')),
           content: Column(
             mainAxisSize: MainAxisSize.min,

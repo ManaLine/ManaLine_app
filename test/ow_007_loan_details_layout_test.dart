@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_007_loan_details.dart';
 import 'package:mana_line/features/owner_workspace/state/loan_details_state.dart';
@@ -128,4 +129,37 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.textContaining('MLLN0000012345'), findsWidgets);
   });
+  // The Waive / Reduce Penalty dialog. OW-007's body was covered; the dialog
+  // on top of it was not. showDialog puts its content on a separate route
+  // with its own constraints, and AlertDialog does not scroll title and
+  // content unless told to -- so a dialog can overflow on a screen that
+  // passes.
+  //
+  // This one decides whether a penalty on somebody's loan is cancelled or
+  // reduced, and by how much.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-007 waive penalty dialog survives text scale ${scale}x$tag',
+          (tester) async {
+        await pumpManaScreen(
+          tester,
+          const LoanDetailsScreen(loanId: 'l1'),
+          textScale: scale,
+          language: lang,
+          translations: lang == ManaLanguage.telugu ? _ow007TeluguTranslations : null,
+          overrides: [loanDetailsProvider.overrideWith(_SeededLoanDetailsNotifier.new)],
+        );
+
+        final waive = find.byType(TextButton);
+        await tester.scrollUntilVisible(waive, 400,
+            scrollable: find.byType(Scrollable).first);
+        await tester.pumpAndSettle();
+        await tester.tap(waive.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expectNoLayoutFault(tester, 'OW-007 waive dialog at ${scale}x$tag');
+      });
+    }
+  }
 }

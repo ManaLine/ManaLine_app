@@ -49,6 +49,8 @@ class BusinessNameTakenDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+      scrollable: true,
       title: const ManaText('name already taken'),
       content: Column(
         mainAxisSize: MainAxisSize.min,

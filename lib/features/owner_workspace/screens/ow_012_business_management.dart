@@ -1201,6 +1201,8 @@ class _CycleConfigDialogState extends ConsumerState<_CycleConfigDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+      scrollable: true,
       title: ManaText.raw(ref.t('configure_cycle')),
       content: Column(
         mainAxisSize: MainAxisSize.min,

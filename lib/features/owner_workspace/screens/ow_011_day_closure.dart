@@ -845,6 +845,21 @@ class _ClosedReceipt extends ConsumerWidget {
     final reason = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
+        // scrollable: AlertDialog gives title and content a bounded height and
+        // does not scroll them, so the note plus a two-line reason field went
+        // 28px under at 1.0x -- before any text scaling -- and 48px more once
+        // the Telugu title wrapped at 2.0x. What disappeared was the reason
+        // box, which is the only reason this dialog exists: reopening a closed
+        // day is an audited act.
+        //
+        // The flag scrolls title AND content together. Wrapping only the
+        // content in a scroll view fixed the first case and not the second.
+        //
+        // Every other AlertDialog here whose content is a Column now carries
+        // the same flag and points back at this note. Two of the fifteen are
+        // pinned by a test that opens them; the rest are not reachable without
+        // driving a whole flow, so they carry the fix without the proof.
+        scrollable: true,
         title: ManaText.raw(ref.t('reopen_closed_day')),
         content: Column(
           mainAxisSize: MainAxisSize.min,

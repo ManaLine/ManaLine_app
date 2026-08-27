@@ -128,6 +128,8 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
+          // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+          scrollable: true,
           title: ManaText.raw(ref.t('reopen_migration')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -352,6 +354,8 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     final entered = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
+        // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+        scrollable: true,
         title: ManaText.raw(ref.t('declare_opening_bf')),
         content: Column(
           mainAxisSize: MainAxisSize.min,

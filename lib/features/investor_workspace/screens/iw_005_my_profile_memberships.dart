@@ -450,6 +450,8 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
   Widget build(BuildContext context) {
     final canConfirm = _pinCode.text.trim().length == 6 && _selectedVillage != null;
     return AlertDialog(
+      // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+      scrollable: true,
       title: ManaText.raw(ref.t('edit_address_select_village')),
       content: Column(
         mainAxisSize: MainAxisSize.min,

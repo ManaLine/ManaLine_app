@@ -74,6 +74,8 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
+          // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+          scrollable: true,
           title: ManaText.raw(ref.t('pay_out_withdrawal')),
           content: Column(
             mainAxisSize: MainAxisSize.min,

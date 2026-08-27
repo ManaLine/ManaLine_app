@@ -325,6 +325,8 @@ class _ActionsSection extends ConsumerWidget {
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+        scrollable: true,
         title: ManaText.raw(ref.t('edit_allowed_fields')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -468,23 +470,59 @@ class _PenaltySection extends ConsumerWidget {
       children: [
         ManaText.raw(ref.t('penalty_entries'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
+        // Not a ListTile. Its trailing slot takes the button's full natural
+        // width before the title gets any, so the penalty amount was the part
+        // that got squeezed -- it overflowed from 1.3x, and the translated
+        // "Waive / Reduce" label is wider still in every language other than
+        // English.
+        //
+        // The action now sits on its own line under the amount. It is the one
+        // control here that rewrites a charge on somebody's loan, so it can
+        // have the width, and the amount it applies to never has to shrink to
+        // make room for it.
         ...loan.penaltyEntries.map((p) => Card(
-              child: ListTile(
-                leading: Icon(
-                  p.isWaivedOrReduced ? Icons.remove_circle_outline : Icons.report_gmailerrorred,
-                  color: p.isWaivedOrReduced ? ManaColors.textSecondary : ManaColors.statusBad,
+              child: Padding(
+                padding: const EdgeInsets.all(ManaSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          p.isWaivedOrReduced
+                              ? Icons.remove_circle_outline
+                              : Icons.report_gmailerrorred,
+                          color: p.isWaivedOrReduced
+                              ? ManaColors.textSecondary
+                              : ManaColors.statusBad,
+                        ),
+                        const SizedBox(width: ManaSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ManaText.raw(
+                                  '${manaRupees(p.penaltyAmount)} · ${p.penaltyOption}'),
+                              ManaText.raw(
+                                '${DateFormat('d MMM yyyy').format(p.appliedDate)}${p.isWaivedOrReduced ? ' · ${ref.t('waived_reduced')}' : ''}',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!p.isWaivedOrReduced && loan.canWaivePenalty)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => _showWaiveDialog(context, ref, p),
+                          child: ManaText.raw(ref.t('waive_reduce')),
+                        ),
+                      ),
+                  ],
                 ),
-                title: ManaText.raw('${manaRupees(p.penaltyAmount)} · ${p.penaltyOption}'),
-                subtitle: ManaText.raw(
-                  '${DateFormat('d MMM yyyy').format(p.appliedDate)}${p.isWaivedOrReduced ? ' · ${ref.t('waived_reduced')}' : ''}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                trailing: (!p.isWaivedOrReduced && loan.canWaivePenalty)
-                    ? TextButton(
-                        onPressed: () => _showWaiveDialog(context, ref, p),
-                        child: ManaText.raw(ref.t('waive_reduce')),
-                      )
-                    : null,
               ),
             )),
       ],
@@ -498,6 +536,12 @@ class _PenaltySection extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
+          // scrollable: the note, two option tiles and an amount field do not
+          // fit AlertDialog's bounded height from 1.3x, and it does not scroll
+          // them unless told to. What went under the fold was the reduced
+          // amount field -- the number that decides how much of a penalty on
+          // somebody's loan is actually cancelled.
+          scrollable: true,
           title: ManaText.raw(ref.t('waive_reduce_penalty')),
           content: Column(
             mainAxisSize: MainAxisSize.min,

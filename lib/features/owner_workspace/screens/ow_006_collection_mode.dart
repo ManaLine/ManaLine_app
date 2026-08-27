@@ -260,6 +260,8 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
+        // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+        scrollable: true,
         title: ManaText.raw(ref.t('receipt')),
         content: Column(
           mainAxisSize: MainAxisSize.min,

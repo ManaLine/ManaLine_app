@@ -266,4 +266,39 @@ void main() {
     );
     expect(find.textContaining('Pending Collections'), findsOneWidget);
   });
+  // The Reopen dialog. Every phase body of OW-011 was already covered, but
+  // the dialog on top of the closed phase was not: showDialog content is a
+  // separate route with its own constraints, and an AlertDialog does not
+  // scroll its content. Reopening a closed day is a supervised, auditable
+  // action -- the reason field is the whole point of the dialog.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-011 reopen dialog survives text scale ${scale}x$tag', (tester) async {
+        await pumpManaScreen(
+          tester,
+          const DayClosureScreen(businessId: 'b1', businessDate: '2026-08-07'),
+          textScale: scale,
+          language: lang,
+          translations: lang == ManaLanguage.telugu ? _ow011TeluguTranslations : null,
+          overrides: [
+            dayClosureProvider.overrideWith(() => _SeededDayClosureNotifier(_closedState)),
+          ],
+        );
+        // The receipt is a ListView and the button sits at its foot, so it is
+        // not built until it is scrolled to. A plain find would report it
+        // missing -- which is its own small lesson about what a widget test
+        // has actually laid out.
+        await tester.scrollUntilVisible(
+          find.byType(OutlinedButton),
+          400,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(OutlinedButton).first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+        expectNoLayoutFault(tester, 'OW-011 reopen dialog at ${scale}x$tag');
+      });
+    }
+  }
 }

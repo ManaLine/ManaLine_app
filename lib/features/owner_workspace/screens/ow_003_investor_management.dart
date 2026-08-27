@@ -860,6 +860,8 @@ class _InvestmentsTab extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
+          // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+          scrollable: true,
           title: ManaText.raw(ref.t(existing == null ? 'record_investment' : 'edit_investment')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -978,6 +980,8 @@ class _InvestmentsTab extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
+          // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+          scrollable: true,
           title: ManaText.raw(ref.t('request_withdrawal')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1048,6 +1052,8 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+        scrollable: true,
         title: ManaText.raw(ref.t('declare_profit_share')),
         content: Column(
           mainAxisSize: MainAxisSize.min,

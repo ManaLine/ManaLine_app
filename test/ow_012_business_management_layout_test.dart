@@ -237,6 +237,29 @@ void main() {
       await openDetail(tester);
       expectNoLayoutFault(tester, 'OW-012 operating areas at ${scale}x in Telugu');
     });
+
+    // The detail has five tabs and TabBarView lays out only the visible one,
+    // so the two tests above covered Operating Areas and nothing else. The
+    // other four are walked here.
+    for (var i = 1; i < 5; i++) {
+      for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+        final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+        testWidgets('OW-012 detail tab $i survives text scale ${scale}x$tag', (tester) async {
+          await pumpManaScreen(
+            tester,
+            const BusinessManagementScreen(),
+            textScale: scale,
+            language: lang,
+            translations: lang == ManaLanguage.telugu ? _ow012TeluguTranslations : null,
+            overrides: detailOverrides(),
+          );
+          await openDetail(tester);
+          await tester.tap(find.byType(Tab).at(i), warnIfMissed: false);
+          await tester.pumpAndSettle();
+          expectNoLayoutFault(tester, 'OW-012 detail tab $i at ${scale}x$tag');
+        });
+      }
+    }
   }
 
   // Lighter single-scale smoke coverage for Create Business and the

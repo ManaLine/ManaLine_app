@@ -88,33 +88,36 @@ void main() {
 
   Widget screen() => CustomerProfileScreen(businessId: 'b1', customer: customer);
 
-  for (final scale in kManaTextScales) {
-    testWidgets('Customer Profile survives text scale ${scale}x', (tester) async {
-      await pumpManaScreen(
-        tester,
-        screen(),
-        textScale: scale,
-        overrides: [
-          customerProfileProvider.overrideWith(() => _SeededProfileNotifier(profile)),
-        ],
-      );
-      await tester.pumpAndSettle();
-      expectNoLayoutFault(tester, 'Customer Profile at ${scale}x');
-    });
+  // Seven tabs, and TabBarView lays out only the visible one. The first
+  // version of this test pumped the screen once and reported green while six
+  // of the seven bodies had never been laid out at all -- the same blind spot
+  // that let the Summary tab's 136px overflow ship in the first place.
+  const tabCount = 7;
 
-    testWidgets('Customer Profile survives text scale ${scale}x in Telugu', (tester) async {
-      await pumpManaScreen(
-        tester,
-        screen(),
-        textScale: scale,
-        language: ManaLanguage.telugu,
-        translations: _profileTelugu,
-        overrides: [
-          customerProfileProvider.overrideWith(() => _SeededProfileNotifier(profile)),
-        ],
-      );
-      await tester.pumpAndSettle();
-      expectNoLayoutFault(tester, 'Customer Profile at ${scale}x in Telugu');
-    });
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      for (var i = 0; i < tabCount; i++) {
+        testWidgets('Customer Profile tab $i survives text scale ${scale}x$tag', (tester) async {
+          await pumpManaScreen(
+            tester,
+            screen(),
+            textScale: scale,
+            language: lang,
+            translations: lang == ManaLanguage.telugu ? _profileTelugu : null,
+            overrides: [
+              customerProfileProvider.overrideWith(() => _SeededProfileNotifier(profile)),
+            ],
+          );
+          await tester.pumpAndSettle();
+
+          if (i > 0) {
+            await tester.tap(find.byType(Tab).at(i), warnIfMissed: false);
+            await tester.pumpAndSettle();
+          }
+          expectNoLayoutFault(tester, 'Customer Profile tab $i at ${scale}x$tag');
+        });
+      }
+    }
   }
 }

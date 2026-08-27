@@ -7,6 +7,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/bf_request_card.dart';
@@ -143,20 +144,12 @@ class _BfCashPanel extends ConsumerWidget {
           children: [
             ManaText.raw(ref.t('bf_cash_panel'), style: ManaType.strong),
             const SizedBox(height: ManaSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: ManaText.raw(ref.t('current_bf_cash_balance'),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: ManaType.secondary),
-                ),
-                const SizedBox(width: ManaSpacing.xs),
-                ManaText.raw(
-                  bfAssignment == null ? '—' : manaRupees(bfAssignment!.openingBf),
-                  style: ManaType.sheetTitle,
-                ),
-              ],
+            // The label was guarded and the figure beside it was not, so the
+            // BF cash an Agent is holding ran 26px off the card at 2.0x.
+            ManaLabelValueRow(
+              label: ref.t('current_bf_cash_balance'),
+              value: bfAssignment == null ? '—' : manaRupees(bfAssignment!.openingBf),
+              valueStyle: ManaType.sheetTitle,
             ),
             if (bfAssignment == null) ...[
               const SizedBox(height: ManaSpacing.sm),
@@ -434,12 +427,17 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
                     ),
                   ),
                   const SizedBox(width: ManaSpacing.md),
-                  ManaText.raw(
-                      ref
-                          .t('step_x_of_y')
-                          .replaceAll('{current}', '${stepIndex + 1}')
-                          .replaceAll('{total}', '${_steps.length}'),
-                      style: ManaType.note),
+                  // Flexible: "Step 3 Of 6" translated is wider than English,
+                  // and bare beside an Expanded bar it ran 26px off the edge
+                  // at 2.0x on every one of the six steps.
+                  Flexible(
+                    child: ManaText.raw(
+                        ref
+                            .t('step_x_of_y')
+                            .replaceAll('{current}', '${stepIndex + 1}')
+                            .replaceAll('{total}', '${_steps.length}'),
+                        style: ManaType.note),
+                  ),
                 ],
               ),
             ),
@@ -960,20 +958,25 @@ class _AgStep5Confirm extends ConsumerWidget {
             padding: const EdgeInsets.all(ManaSpacing.md),
             child: Column(
               children: [
-                _row(ref.t('customer'), state.customer?.fullName ?? ''),
-                _row(ref.t('repayment_amount_required_field'), '₹${state.repaymentAmount ?? 0}'),
-                _row(ref.t('interest_field'), '₹${state.interest ?? 0}'),
-                _row(ref.t('processing_fee_field'), '₹${state.processingFee ?? 0}'),
-                _row(ref.t('amount_given'), '₹${state.amountGiven}'),
-                _row(ref.t('repayment_type_field_plain'), state.repaymentType),
-                _row(
-                    ref.t('duration'),
-                    ref
-                        .t('duration_installments_note')
-                        .replaceAll('{count}', '${state.durationValue ?? 0}')),
-                _row(ref.t('installment_label'), '₹${state.installmentAmount ?? 0}'),
-                _row(ref.t('guarantor'),
-                    state.needsGuarantor ? (state.guarantorName ?? '') : ref.t('none')),
+                ManaLabelValueRow(dense: true, label: ref.t('customer'), value: state.customer?.fullName ?? ''),
+                ManaLabelValueRow(dense: true, label: ref.t('repayment_amount_required_field'), value: '₹${state.repaymentAmount ?? 0}'),
+                ManaLabelValueRow(dense: true, label: ref.t('interest_field'), value: '₹${state.interest ?? 0}'),
+                ManaLabelValueRow(dense: true, label: ref.t('processing_fee_field'), value: '₹${state.processingFee ?? 0}'),
+                ManaLabelValueRow(dense: true, label: ref.t('amount_given'), value: '₹${state.amountGiven}'),
+                ManaLabelValueRow(dense: true, label: ref.t('repayment_type_field_plain'), value: state.repaymentType),
+                ManaLabelValueRow(
+                  dense: true,
+                  label: ref.t('duration'),
+                  value: ref
+                      .t('duration_installments_note')
+                      .replaceAll('{count}', '${state.durationValue ?? 0}'),
+                ),
+                ManaLabelValueRow(dense: true, label: ref.t('installment_label'), value: '₹${state.installmentAmount ?? 0}'),
+                ManaLabelValueRow(
+                  dense: true,
+                  label: ref.t('guarantor'),
+                  value: state.needsGuarantor ? (state.guarantorName ?? '') : ref.t('none'),
+                ),
               ],
             ),
           ),
@@ -1029,18 +1032,5 @@ class _AgStep5Confirm extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(
-                child: ManaText.raw(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: ManaType.note)),
-            const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(value, style: ManaType.smallStrong),
-          ],
-        ),
-      );
+
 }

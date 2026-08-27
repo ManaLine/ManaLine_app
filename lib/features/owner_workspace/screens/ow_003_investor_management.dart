@@ -7,6 +7,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_stat_strip.dart';
@@ -612,33 +613,28 @@ class _OverviewTab extends ConsumerWidget {
                 ManaText.raw(investor.fullName, style: ManaType.sheetTitle)),
         Center(child: ManaText.raw(investor.mlid, style: ManaType.secondary)),
         const SizedBox(height: ManaSpacing.lg),
-        Row(
-          children: [
-            Expanded(child: _row(ref.t('phone_number'), investor.phoneNumber)),
-            // Opens the dialer with the number in it; the Owner presses call.
-            ManaCallButton(investor.phoneNumber),
-          ],
+        // Opens the dialer with the number in it; the Owner presses call.
+        ManaLabelValueRow(
+          label: ref.t('phone_number'),
+          value: investor.phoneNumber,
+          trailing: ManaCallButton(investor.phoneNumber),
         ),
-        _row(ref.t('investment_balance'), manaRupees(investor.investmentBalance)),
-        _row(ref.t('roi'), roiLabel(investor.roi)),
-        _row(ref.t('roi_yearly_equivalent'), roiAnnualEquivalent(investor.roi)),
-        _row(ref.t('interest_due'), manaRupees(investor.interestDue)),
-        _row(ref.t('membership_status'), investor.membershipStatus),
-        _row(ref.t('last_transaction'),
-            investor.lastTransaction == null ? '—' : DateFormat('d MMM yyyy').format(investor.lastTransaction!)),
+        ManaLabelValueRow(label: ref.t('investment_balance'), value: manaRupees(investor.investmentBalance)),
+        ManaLabelValueRow(label: ref.t('roi'), value: roiLabel(investor.roi)),
+        ManaLabelValueRow(label: ref.t('roi_yearly_equivalent'), value: roiAnnualEquivalent(investor.roi)),
+        ManaLabelValueRow(label: ref.t('interest_due'), value: manaRupees(investor.interestDue)),
+        ManaLabelValueRow(label: ref.t('membership_status'), value: investor.membershipStatus),
+        ManaLabelValueRow(
+          label: ref.t('last_transaction'),
+          value: investor.lastTransaction == null
+              ? '—'
+              : DateFormat('d MMM yyyy').format(investor.lastTransaction!),
+        ),
       ],
     );
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Expanded(child: ManaText.raw(label, style: ManaType.note)),
-            ManaText.raw(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          ],
-        ),
-      );
+
 }
 
 class _InvestmentsTab extends ConsumerWidget {

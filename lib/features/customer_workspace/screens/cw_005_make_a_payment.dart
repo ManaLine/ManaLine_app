@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_centered_scroll.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
@@ -246,9 +247,15 @@ class _SubmittedState extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final record = state.lastSubmission;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.xl),
+    // Scrolls rather than clips. Submitted overflowed the bottom from 1.3x
+    // and Disputed at 2.0x -- up to 679px -- and what goes off the bottom of
+    // these three is the receipt detail and the action beneath it, on the
+    // screen a customer is looking at after their money has already left
+    // their UPI app. Confirmed is fixed alongside them: it is built by the
+    // same shape and would have broken the moment a refetch reached it.
+    return ManaCenteredScroll(
+      padding: const EdgeInsets.all(ManaSpacing.xl),
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -300,9 +307,15 @@ class _ConfirmedState extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final record = state.lastSubmission;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.xl),
+    // Scrolls rather than clips. Submitted overflowed the bottom from 1.3x
+    // and Disputed at 2.0x -- up to 679px -- and what goes off the bottom of
+    // these three is the receipt detail and the action beneath it, on the
+    // screen a customer is looking at after their money has already left
+    // their UPI app. Confirmed is fixed alongside them: it is built by the
+    // same shape and would have broken the moment a refetch reached it.
+    return ManaCenteredScroll(
+      padding: const EdgeInsets.all(ManaSpacing.xl),
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -337,9 +350,15 @@ class _DisputedState extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.xl),
+    // Scrolls rather than clips. Submitted overflowed the bottom from 1.3x
+    // and Disputed at 2.0x -- up to 679px -- and what goes off the bottom of
+    // these three is the receipt detail and the action beneath it, on the
+    // screen a customer is looking at after their money has already left
+    // their UPI app. Confirmed is fixed alongside them: it is built by the
+    // same shape and would have broken the moment a refetch reached it.
+    return ManaCenteredScroll(
+      padding: const EdgeInsets.all(ManaSpacing.xl),
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_009_daily_record_book.dart';
 import 'package:mana_line/features/owner_workspace/state/record_book_state.dart';
@@ -170,6 +171,42 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expectNoLayoutFault(tester, 'OW-009 day details at ${scale}x in Telugu');
     });
+  }
+
+  // The day-details sheet is eight tabs deep and TabBarView lays out only the
+  // visible page, so the two tests above proved Collections and nothing else.
+  // The remaining seven are walked here.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      for (var i = 1; i < 8; i++) {
+        testWidgets('OW-009 day details tab $i survives text scale ${scale}x$tag',
+            (tester) async {
+          await pumpManaScreen(
+            tester,
+            const DailyRecordBookScreen(businessId: 'b1'),
+            textScale: scale,
+            language: lang,
+            translations: lang == ManaLanguage.telugu ? _ow009TeluguTranslations : null,
+            overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
+          );
+          final dateText = find.textContaining('07 Aug 2026').first;
+          await tester.ensureVisible(dateText);
+          await tester.pumpAndSettle();
+          await tester.tap(dateText);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+
+          final tabs = find.byType(Tab);
+          if (tabs.evaluate().length > i) {
+            await tester.tap(tabs.at(i), warnIfMissed: false);
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 300));
+          }
+          expectNoLayoutFault(tester, 'OW-009 day details tab $i at ${scale}x$tag');
+        });
+      }
+    }
   }
 
   testWidgets('OW-009 shows the ledger rows', (tester) async {

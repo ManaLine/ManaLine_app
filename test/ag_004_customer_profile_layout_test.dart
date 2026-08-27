@@ -83,33 +83,35 @@ void main() {
         permissions: AgentPermissions(canViewCustomers: true, canAddRemarks: true),
       );
 
-  for (final scale in kManaTextScales) {
-    testWidgets('Agent Customer Profile survives text scale ${scale}x', (tester) async {
-      await pumpManaScreen(
-        tester,
-        screen(),
-        textScale: scale,
-        overrides: [
-          agentCustomerProfileProvider.overrideWith(() => _SeededAgentProfileNotifier(profile)),
-        ],
-      );
-      await tester.pumpAndSettle();
-      expectNoLayoutFault(tester, 'Agent Customer Profile at ${scale}x');
-    });
+  // Four tabs; TabBarView lays out only the visible one, so each is walked.
+  const tabCount = 4;
 
-    testWidgets('Agent Customer Profile survives text scale ${scale}x in Telugu', (tester) async {
-      await pumpManaScreen(
-        tester,
-        screen(),
-        textScale: scale,
-        language: ManaLanguage.telugu,
-        translations: _agentProfileTelugu,
-        overrides: [
-          agentCustomerProfileProvider.overrideWith(() => _SeededAgentProfileNotifier(profile)),
-        ],
-      );
-      await tester.pumpAndSettle();
-      expectNoLayoutFault(tester, 'Agent Customer Profile at ${scale}x in Telugu');
-    });
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      for (var i = 0; i < tabCount; i++) {
+        testWidgets('Agent Customer Profile tab $i survives text scale ${scale}x$tag',
+            (tester) async {
+          await pumpManaScreen(
+            tester,
+            screen(),
+            textScale: scale,
+            language: lang,
+            translations: lang == ManaLanguage.telugu ? _agentProfileTelugu : null,
+            overrides: [
+              agentCustomerProfileProvider
+                  .overrideWith(() => _SeededAgentProfileNotifier(profile)),
+            ],
+          );
+          await tester.pumpAndSettle();
+
+          if (i > 0) {
+            await tester.tap(find.byType(Tab).at(i), warnIfMissed: false);
+            await tester.pumpAndSettle();
+          }
+          expectNoLayoutFault(tester, 'Agent Customer Profile tab $i at ${scale}x$tag');
+        });
+      }
+    }
   }
 }

@@ -3,6 +3,8 @@ import 'package:mana_line/features/customer_workspace/screens/cw_005_make_a_paym
 import 'package:mana_line/features/customer_workspace/state/customer_loans_state.dart';
 import 'package:mana_line/shared/widgets/language_selector.dart';
 
+import 'package:mana_line/features/customer_workspace/state/online_payment_state.dart';
+
 import 'support/mana_harness.dart';
 
 /// The real ui_translations rows this screen was wired against (migration
@@ -54,4 +56,46 @@ void main() {
     await pumpManaScreen(tester, MakeAPaymentScreen(loanId: 'l1', loanSnapshot: snapshot));
     expect(find.textContaining('MLLN0000012345'), findsWidgets);
   });
+  // CW-005 draws a different body per PaymentFlowPhase and the tests above
+  // only ever saw `entry` -- the default. This is a money screen: the later
+  // phases are where an amount that has already left somebody's UPI app is
+  // shown back to them.
+  for (final phase in PaymentFlowPhase.values) {
+    for (final scale in kManaTextScales) {
+      for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+        final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+        testWidgets('CW-005 ${phase.name} survives text scale ${scale}x$tag', (tester) async {
+          await pumpManaScreen(
+            tester,
+            MakeAPaymentScreen(loanId: 'l1', loanSnapshot: snapshot),
+            textScale: scale,
+            language: lang,
+            overrides: [
+              onlinePaymentProvider.overrideWith(() => _SeededPayment(OnlinePaymentState(
+                    phase: phase,
+                    lastSubmission: OnlinePaymentRecord(
+                      onlinePaymentId: 'op1',
+                      loanId: 'l1',
+                      amount: 1284500,
+                      status: phase == PaymentFlowPhase.disputed
+                          ? 'Not Received-Disputed'
+                          : 'Submitted',
+                      submittedAt: DateTime(2026, 8, 26, 10, 30),
+                    ),
+                  ))),
+            ],
+          );
+          expectNoLayoutFault(tester, 'CW-005 ${phase.name} at ${scale}x$tag');
+        });
+      }
+    }
+  }
+}
+
+class _SeededPayment extends OnlinePaymentNotifier {
+  _SeededPayment(this._seed);
+  final OnlinePaymentState _seed;
+
+  @override
+  OnlinePaymentState build() => _seed;
 }

@@ -886,6 +886,15 @@ class _DurationPickerDialogState extends ConsumerState<_DurationPickerDialog> {
     });
   }
 
+  // Disposed with the State that owns them. Each controller holds a
+  // listener list and a ChangeNotifier; a State that never disposes them
+  // leaks one set per visit.
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(

@@ -299,6 +299,18 @@ class _RegisterNewAgentSheetState
     }
   }
 
+  // Disposed with the State that owns them. Each controller holds a
+  // listener list and a ChangeNotifier; a State that never disposes them
+  // leaks one set per visit.
+  @override
+  void dispose() {
+    _fullName.dispose();
+    _fatherHusband.dispose();
+    _mobile.dispose();
+    _aadhaar.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -429,6 +441,15 @@ class _AddExistingAgentSheetState
         SnackBar(content: ManaText.raw(ref.t('invitation_sent_note'))),
       );
     }
+  }
+
+  // Disposed with the State that owns them. Each controller holds a
+  // listener list and a ChangeNotifier; a State that never disposes them
+  // leaks one set per visit.
+  @override
+  void dispose() {
+    _mlid.dispose();
+    super.dispose();
   }
 
   @override
@@ -1161,6 +1182,17 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
             profitSharePercent: double.tryParse(_profitShare.text.trim()),
           );
     });
+  }
+
+  // Disposed with the State that owns them. Each controller holds a
+  // listener list and a ChangeNotifier; a State that never disposes them
+  // leaks one set per visit.
+  @override
+  void dispose() {
+    _salary.dispose();
+    _allowance.dispose();
+    _profitShare.dispose();
+    super.dispose();
   }
 
   @override

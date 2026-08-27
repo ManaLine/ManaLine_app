@@ -538,6 +538,8 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
     _manualMandal.dispose();
     _manualDistrict.dispose();
     _manualState.dispose();
+    _doorNo.dispose();
+    _pinCode.dispose();
     super.dispose();
   }
   late final _doorNo = TextEditingController();

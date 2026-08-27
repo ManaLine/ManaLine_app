@@ -349,6 +349,7 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
     _manualMandal.dispose();
     _manualDistrict.dispose();
     _manualState.dispose();
+    _pinCode.dispose();
     super.dispose();
   }
   late final _pinCode = TextEditingController(text: widget.initialPinCode ?? '');

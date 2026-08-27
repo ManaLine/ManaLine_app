@@ -1195,6 +1195,7 @@ class _CycleConfigDialogState extends ConsumerState<_CycleConfigDialog> {
   @override
   void dispose() {
     _submissionTime.dispose();
+    _duration.dispose();
     super.dispose();
   }
 

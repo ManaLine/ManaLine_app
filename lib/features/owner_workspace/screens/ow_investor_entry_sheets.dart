@@ -147,6 +147,11 @@ class _InvestmentSheetState extends State<InvestmentSheet> {
         ),
         const SizedBox(height: ManaSpacing.md),
         DropdownButtonFormField<String>(
+          // isExpanded: without it a DropdownButton sizes to its widest item's
+          // natural width and overflows rather than shrinking -- "Yearly
+          // Compound" ran 180px past the edge at 2.0x. With it the item takes
+          // the field's width and ellipsises.
+          isExpanded: true,
           initialValue: _interestType,
           decoration: const InputDecoration(labelText: 'Interest Type *'),
           items: const [

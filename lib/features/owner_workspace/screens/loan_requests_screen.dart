@@ -123,13 +123,24 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    // Both sides bounded -- the same shape,
+                                    // and the same 19px, as the withdrawal
+                                    // queue next door. These two screens are
+                                    // built alike and broke alike.
                                     Expanded(
+                                      flex: 5,
                                       child: ManaText.raw(r.customerName,
                                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                                     ),
-                                    ManaText.raw(manaRupees(r.requestedAmount),
-                                        style: ManaType.cardTitle),
+                                    const SizedBox(width: ManaSpacing.xs),
+                                    Expanded(
+                                      flex: 4,
+                                      child: ManaText.raw(manaRupees(r.requestedAmount),
+                                          style: ManaType.cardTitle,
+                                          textAlign: TextAlign.right),
+                                    ),
                                   ],
                                 ),
                                 ManaText.raw(r.customerMlid,

@@ -175,14 +175,29 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Both sides bounded. A name in an Expanded
+                                // beside a bare amount is the shape that has
+                                // now overflowed in seven separate screens --
+                                // the unflexible child takes its full natural
+                                // width first, so the AMOUNT pushed the row
+                                // 19px past the edge at 2.0x. The amount is
+                                // what an Owner is about to pay out, so it is
+                                // the last thing that should be clipped.
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Expanded(
+                                      flex: 5,
                                       child: ManaText.raw(r.investorName,
                                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                                     ),
-                                    ManaText.raw(manaRupees(r.requestedAmount),
-                                        style: ManaType.cardTitle),
+                                    const SizedBox(width: ManaSpacing.xs),
+                                    Expanded(
+                                      flex: 4,
+                                      child: ManaText.raw(manaRupees(r.requestedAmount),
+                                          style: ManaType.cardTitle,
+                                          textAlign: TextAlign.right),
+                                    ),
                                   ],
                                 ),
                                 ManaText.raw('${r.investorMlid} · ${r.withdrawalType}',

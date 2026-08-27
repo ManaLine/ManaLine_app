@@ -24,7 +24,13 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
-  final _authApi = AuthApiService();
+  // late: AuthApiService resolves Supabase.instance.client in its
+  // constructor, so a plain field initialiser bound Supabase the moment this
+  // widget was CONSTRUCTED -- before build, before any use. That made the
+  // screen impossible to lay out in a test, and it is the only screen in
+  // login/registration that did it. `late final` defers it to first use,
+  // which is when the OTP is actually sent.
+  late final _authApi = AuthApiService();
   String? _otpId;
   _Step _step = _Step.mobile;
   final _mobile = TextEditingController();

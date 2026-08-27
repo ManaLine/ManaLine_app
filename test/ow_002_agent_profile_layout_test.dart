@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_002_workforce_management.dart';
 import 'package:mana_line/features/owner_workspace/state/owner_api_service.dart';
@@ -19,6 +20,28 @@ class _SeededAgentProfile extends AgentProfileNotifier {
 
   @override
   Future<AgentProfile> build(String agentId) async => _seed;
+}
+
+
+/// A fake owner API so the Overview tab has a float and a pending BF request
+/// to render. Without the request there is no Approve button, and without the
+/// button the add-BF dialog cannot be opened at all.
+class _FakeOwnerApi extends OwnerApiService {
+  _FakeOwnerApi(Ref ref) : super(ref: ref);
+
+  @override
+  Future<int?> readAgentBf({required String agentMembershipId}) async => 45000;
+
+  @override
+  Future<PendingBfRequest?> readPendingBfRequest({
+    required String membershipId,
+  }) async =>
+      PendingBfRequest(
+        requestId: 'bf1',
+        requestedAmount: 25000,
+        reason: 'Short for the Uranduru round, two new loans going out today.',
+        askedAt: DateTime(2026, 8, 27, 9, 30),
+      );
 }
 
 void main() {
@@ -91,6 +114,64 @@ void main() {
           expectNoLayoutFault(tester, 'OW-002 agent profile tab $i at ${scale}x$tag');
         });
       }
+    }
+  }
+  // OW-002's three dialogs, none of which had a test opening them.
+  //
+  // Add BF is reached only when a pending request exists, so the fake API
+  // supplies one -- otherwise the Approve button is absent and the test would
+  // pass by never opening anything.
+  List<Override> withApi(AgentProfile p) => [
+        agentProfileProvider.overrideWith(() => _SeededAgentProfile(p)),
+        ownerApiServiceProvider.overrideWith((ref) => _FakeOwnerApi(ref)),
+      ];
+
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+
+      testWidgets('OW-002 add BF dialog survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(tester, screen(),
+            textScale: scale, language: lang, overrides: withApi(profile));
+        await tester.pumpAndSettle();
+
+        // Approve is the second button in the request block; reject is first.
+        // Below the fold from 1.6x and therefore not built, so it has to be
+        // scrolled to before it can be found at all.
+        final buttons = find.byType(ElevatedButton);
+        for (var i = 0; i < 6 && buttons.evaluate().isEmpty; i++) {
+          await tester.drag(find.byType(TabBarView), const Offset(0, -220));
+          await tester.pumpAndSettle();
+        }
+        expect(buttons, findsWidgets, reason: 'no approve button — no pending request rendered');
+        await tester.ensureVisible(buttons.first);
+        await tester.pumpAndSettle();
+        await tester.tap(buttons.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'add BF dialog did not open');
+        expectNoLayoutFault(tester, 'OW-002 add BF at ${scale}x$tag');
+      });
+
+      testWidgets('OW-002 top-up sheet survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(tester, screen(),
+            textScale: scale, language: lang, overrides: withApi(profile));
+        await tester.pumpAndSettle();
+
+        final topUp = find.byType(OutlinedButton);
+        for (var i = 0; i < 6 && topUp.evaluate().isEmpty; i++) {
+          await tester.drag(find.byType(TabBarView), const Offset(0, -220));
+          await tester.pumpAndSettle();
+        }
+        expect(topUp, findsWidgets, reason: 'no top-up control on Overview');
+        await tester.ensureVisible(topUp.last);
+        await tester.pumpAndSettle();
+        await tester.tap(topUp.last, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expectNoLayoutFault(tester, 'OW-002 top-up at ${scale}x$tag');
+      });
     }
   }
 }

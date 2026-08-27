@@ -115,4 +115,40 @@ void main() {
       });
     }
   }
+  // Record Investment, on the Investments tab. The third of OW-003's dialogs
+  // and the second reachable from this profile; it took scrollable: true in a
+  // sweep with nothing opening it.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-003 record investment dialog survives ${scale}x$tag',
+          (tester) async {
+        await pumpManaScreen(
+          tester,
+          screen(),
+          textScale: scale,
+          language: lang,
+          overrides: [
+            investorProfileProvider.overrideWith(() => _SeededInvestorProfile(profile)),
+          ],
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(Tab).at(1), warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        // Gated on an Active membership -- the seed is Active, so a missing
+        // button means the tab did not open, not that the rule fired.
+        final record = find.byType(ElevatedButton);
+        expect(record, findsWidgets, reason: 'no Record Investment button');
+        await tester.ensureVisible(record.first);
+        await tester.pumpAndSettle();
+        await tester.tap(record.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'record investment dialog did not open');
+        expectNoLayoutFault(tester, 'OW-003 record investment at ${scale}x$tag');
+      });
+    }
+  }
 }

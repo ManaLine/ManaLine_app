@@ -189,6 +189,11 @@ void main() {
     await tester.tap(find.textContaining('Sri Lakshmi Finance').first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    // Proof it actually opened. Every test below calls this and then only
+    // checks layout -- and the LIST also lays out fine, so without this a
+    // tap that missed would report green for a detail nobody reached.
+    expect(find.byType(TabBar), findsWidgets,
+        reason: 'the business detail did not open');
   }
 
   for (final scale in kManaTextScales) {
@@ -344,4 +349,55 @@ void main() {
     expect(find.textContaining('Sri Lakshmi Finance'), findsOneWidget);
     expect(find.textContaining('Venkata Subrahmanyam Finance'), findsOneWidget);
   });
+  // The Configure Cycle dialog, on the Operating Areas tab. One of the
+  // dialogs that took scrollable: true in a sweep with no test opening it.
+  //
+  // Reached through a PopupMenuButton on an area row, which is two taps the
+  // test has to make honestly -- and it asserts the dialog is on screen,
+  // because a menu tap that lands on nothing is silent.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-012 configure cycle dialog survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(
+          tester,
+          const BusinessManagementScreen(),
+          textScale: scale,
+          language: lang,
+          translations: lang == ManaLanguage.telugu ? _ow012TeluguTranslations : null,
+          overrides: detailOverrides(),
+        );
+        await openDetail(tester);
+
+        // Below the fold from 1.3x, so it is not built until scrolled to --
+        // and the first version of this test returned early when it could not
+        // find it, which is to say it proved nothing at any scale but 1.0x.
+        //
+        // Dragged rather than scrollUntilVisible: that helper resolves its
+        // `scrollable` to exactly one element, and this tab's content does not
+        // always present one.
+        final menu = find.byType(PopupMenuButton<String>);
+        for (var i = 0; i < 6 && menu.evaluate().isEmpty; i++) {
+          await tester.drag(find.byType(TabBarView), const Offset(0, -220));
+          await tester.pumpAndSettle();
+        }
+        expect(menu, findsWidgets, reason: 'no area menu on the detail');
+        // Present is not the same as reachable: at 2.0x it sits past the
+        // bottom edge, and a tap that lands on nothing is silent.
+        await tester.ensureVisible(menu.first);
+        await tester.pumpAndSettle();
+        await tester.tap(menu.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        final item = find.byType(PopupMenuItem<String>);
+        expect(item, findsWidgets, reason: 'the area menu did not open');
+        await tester.tap(item.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'configure cycle dialog did not open');
+        expectNoLayoutFault(tester, 'OW-012 configure cycle at ${scale}x$tag');
+      });
+    }
+  }
 }

@@ -675,6 +675,9 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
         ),
         const SizedBox(height: ManaSpacing.md),
         DropdownButtonFormField<String>(
+          // isExpanded: a DropdownButton sizes to its widest item and
+          // overflows rather than shrinking -- measured at 1.0x on OW-002.
+          isExpanded: true,
           initialValue: _repaymentType,
           decoration: InputDecoration(labelText: ref.t('repayment_type_field_plain')),
           items: [

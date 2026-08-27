@@ -259,6 +259,12 @@ void main() {
             overrides: detailOverrides(),
           );
           await openDetail(tester);
+          // ensureVisible first: the TabBar scrolls, so a later tab sits
+          // off-screen and a tap with warnIfMissed off lands on nothing
+          // in silence -- which is how these walks reported every tab
+          // clean while never leaving the first one.
+          await tester.ensureVisible(find.byType(Tab).at(i));
+          await tester.pumpAndSettle();
           await tester.tap(find.byType(Tab).at(i), warnIfMissed: false);
           await tester.pumpAndSettle();
           expectNoLayoutFault(tester, 'OW-012 detail tab $i at ${scale}x$tag');

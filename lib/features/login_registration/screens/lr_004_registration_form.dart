@@ -599,6 +599,9 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               ),
               const SizedBox(height: ManaSpacing.md),
               DropdownButtonFormField<String>(
+                // isExpanded: a DropdownButton sizes to its widest item and
+                // overflows rather than shrinking -- measured at 1.0x on OW-002.
+                isExpanded: true,
                 initialValue: _gender,
                 decoration: const InputDecoration(labelText: 'Gender *'),
                 items: const [
@@ -791,6 +794,9 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                       ),
                       const SizedBox(height: ManaSpacing.sm),
                       DropdownButtonFormField<String>(
+                        // isExpanded: a DropdownButton sizes to its widest item and
+                        // overflows rather than shrinking -- measured at 1.0x on OW-002.
+                        isExpanded: true,
                         initialValue: _manualAreaType,
                         decoration: const InputDecoration(labelText: 'Area Type *'),
                         items: const [

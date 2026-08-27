@@ -679,6 +679,9 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
                   ),
                   const SizedBox(height: ManaSpacing.sm),
                   DropdownButtonFormField<String>(
+                    // isExpanded: a DropdownButton sizes to its widest item and
+                    // overflows rather than shrinking -- measured at 1.0x on OW-002.
+                    isExpanded: true,
                     initialValue: _manualAreaType,
                     decoration: InputDecoration(labelText: ref.t('area_type_field')),
                     items: [

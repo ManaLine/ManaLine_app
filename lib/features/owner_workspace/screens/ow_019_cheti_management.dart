@@ -446,6 +446,9 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<ChetiType>(
+                    // isExpanded: a DropdownButton sizes to its widest item and
+                    // overflows rather than shrinking -- measured at 1.0x on OW-002.
+                    isExpanded: true,
                     initialValue: _type,
                     decoration: InputDecoration(labelText: ref.t('type_field')),
                     items: ChetiType.values
@@ -458,6 +461,9 @@ class _ChetiEditorSheetState extends ConsumerState<_ChetiEditorSheet> {
                 const SizedBox(width: ManaSpacing.md),
                 Expanded(
                   child: DropdownButtonFormField<ChetiFrequency>(
+                    // isExpanded: a DropdownButton sizes to its widest item and
+                    // overflows rather than shrinking -- measured at 1.0x on OW-002.
+                    isExpanded: true,
                     initialValue: _frequency,
                     decoration: InputDecoration(labelText: ref.t('frequency_field')),
                     items: ChetiFrequency.values

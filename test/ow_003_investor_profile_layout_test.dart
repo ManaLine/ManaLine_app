@@ -69,6 +69,12 @@ void main() {
           await tester.pumpAndSettle();
 
           if (i > 0) {
+            // ensureVisible first: the TabBar scrolls, so a later tab sits
+            // off-screen and a tap with warnIfMissed off lands on nothing
+            // in silence -- which is how these walks reported every tab
+            // clean while never leaving the first one.
+            await tester.ensureVisible(find.byType(Tab).at(i));
+            await tester.pumpAndSettle();
             await tester.tap(find.byType(Tab).at(i), warnIfMissed: false);
             await tester.pumpAndSettle();
           }
@@ -99,6 +105,12 @@ void main() {
         );
         await tester.pumpAndSettle();
         // Withdraw lives on the Investments tab.
+        // ensureVisible first: the TabBar scrolls, so a later tab sits
+        // off-screen and a tap with warnIfMissed off lands on nothing
+        // in silence -- which is how these walks reported every tab
+        // clean while never leaving the first one.
+        await tester.ensureVisible(find.byType(Tab).at(1));
+        await tester.pumpAndSettle();
         await tester.tap(find.byType(Tab).at(1), warnIfMissed: false);
         await tester.pumpAndSettle();
 
@@ -132,6 +144,12 @@ void main() {
             investorProfileProvider.overrideWith(() => _SeededInvestorProfile(profile)),
           ],
         );
+        await tester.pumpAndSettle();
+        // ensureVisible first: the TabBar scrolls, so a later tab sits
+        // off-screen and a tap with warnIfMissed off lands on nothing
+        // in silence -- which is how these walks reported every tab
+        // clean while never leaving the first one.
+        await tester.ensureVisible(find.byType(Tab).at(1));
         await tester.pumpAndSettle();
         await tester.tap(find.byType(Tab).at(1), warnIfMissed: false);
         await tester.pumpAndSettle();

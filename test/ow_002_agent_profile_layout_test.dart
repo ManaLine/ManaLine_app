@@ -108,6 +108,12 @@ void main() {
           await tester.pumpAndSettle();
 
           if (i > 0) {
+            // ensureVisible first: the TabBar scrolls, so a later tab sits
+            // off-screen and a tap with warnIfMissed off lands on nothing
+            // in silence -- which is how these walks reported every tab
+            // clean while never leaving the first one.
+            await tester.ensureVisible(find.byType(Tab).at(i));
+            await tester.pumpAndSettle();
             await tester.tap(find.byType(Tab).at(i), warnIfMissed: false);
             await tester.pumpAndSettle();
           }
@@ -171,6 +177,41 @@ void main() {
         await tester.pumpAndSettle();
 
         expectNoLayoutFault(tester, 'OW-002 top-up at ${scale}x$tag');
+      });
+    }
+  }
+  // Distribute Profit Share, on the Compensation tab (index 2). The last of
+  // OW-002's three dialogs.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-002 profit share dialog survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(tester, screen(),
+            textScale: scale, language: lang, overrides: withApi(profile));
+        await tester.pumpAndSettle();
+        // ensureVisible first: the TabBar scrolls, so a later tab sits
+        // off-screen and a tap with warnIfMissed off lands on nothing
+        // in silence -- which is how these walks reported every tab
+        // clean while never leaving the first one.
+        await tester.ensureVisible(find.byType(Tab).at(2));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(Tab).at(2), warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        final declare = find.byType(FilledButton);
+        for (var i = 0; i < 6 && declare.evaluate().isEmpty; i++) {
+          await tester.drag(find.byType(TabBarView), const Offset(0, -220));
+          await tester.pumpAndSettle();
+        }
+        expect(declare, findsWidgets, reason: 'PROBE: no declare button');
+        await tester.ensureVisible(declare.first);
+        await tester.pumpAndSettle();
+        await tester.tap(declare.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'profit share dialog did not open');
+        expectNoLayoutFault(tester, 'OW-002 profit share at ${scale}x$tag');
       });
     }
   }

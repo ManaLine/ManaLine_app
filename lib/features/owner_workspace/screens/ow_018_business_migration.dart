@@ -675,6 +675,9 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           onChanged: (_) => setState(() {}),
         ),
         DropdownButtonFormField<String>(
+          // isExpanded: a DropdownButton sizes to its widest item and
+          // overflows rather than shrinking -- measured at 1.0x on OW-002.
+          isExpanded: true,
           initialValue: _gender,
           decoration: const InputDecoration(labelText: 'Gender *'),
           items: const [
@@ -1122,6 +1125,9 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             _computedRow(ref.t('total_issued'), _issuedV, ref.t('total_issued_hint')),
             const SizedBox(height: ManaSpacing.md),
             DropdownButtonFormField<String>(
+              // isExpanded: a DropdownButton sizes to its widest item and
+              // overflows rather than shrinking -- measured at 1.0x on OW-002.
+              isExpanded: true,
               initialValue: _frequency,
               decoration: InputDecoration(labelText: ref.t('repayment_frequency_field')),
               items: [

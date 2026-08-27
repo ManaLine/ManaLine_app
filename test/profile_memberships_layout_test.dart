@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/customer_workspace/screens/cw_006_my_profile_memberships.dart' as cw;
 import 'package:mana_line/features/customer_workspace/state/customer_profile_state.dart' as cws;
@@ -147,6 +148,98 @@ void main() {
           );
           expectNoLayoutFault(tester, 'IW-005 $label at ${scale}x$tag');
         });
+      });
+    }
+  }
+  // The address editor, in both workspaces. CW-006 and IW-005 hold the same
+  // dialog -- it was byte-identical in both files until the shared
+  // manaAddVillageIfMissing landed -- and neither had a test opening it.
+  //
+  // Reached through the Edit affordance on the address row, so the test taps
+  // it and then insists the dialog is really there: an edit control that has
+  // scrolled off screen swallows a tap without a word.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+
+      testWidgets('CW-006 address dialog survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(
+          tester,
+          const cw.MyProfileMembershipsScreen(personId: 'p1'),
+          textScale: scale,
+          language: lang,
+          overrides: [
+            cws.customerProfileProvider
+                .overrideWith(() => _SeededCwProfile(cwStates.values.first)),
+          ],
+        );
+        await tester.pumpAndSettle();
+
+        // A TextButton labelled Edit, and there are two of them -- phone
+        // first, address second. `.last` is the address row; tapping the
+        // wrong one opens the phone dialog and would prove nothing about
+        // this one, which is why the title is asserted below.
+        final edit = find.byType(TextButton);
+        for (var i = 0; i < 6 && edit.evaluate().isEmpty; i++) {
+          await tester.drag(find.byType(Scrollable).first, const Offset(0, -220));
+          await tester.pumpAndSettle();
+        }
+        expect(edit, findsWidgets, reason: 'no address edit control');
+        await tester.ensureVisible(edit.last);
+        await tester.pumpAndSettle();
+        await tester.tap(edit.last, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'address dialog did not open');
+        // Asserted in the language on screen -- an English-only check passes
+        // in Telugu for the wrong reason, by finding nothing either way.
+        expect(
+            find.textContaining(
+                lang == ManaLanguage.telugu ? 'గ్రామం' : 'Select Village'),
+            findsWidgets,
+            reason: 'that is the phone dialog, not the address one');
+        expectNoLayoutFault(tester, 'CW-006 address dialog at ${scale}x$tag');
+      });
+
+      testWidgets('IW-005 address dialog survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(
+          tester,
+          const iw.MyProfileMembershipsScreen(personId: 'p1'),
+          textScale: scale,
+          language: lang,
+          overrides: [
+            iws.investorProfileProviderIW005
+                .overrideWith(() => _SeededIwProfile(iwStates.values.first)),
+          ],
+        );
+        await tester.pumpAndSettle();
+
+        // A TextButton labelled Edit, and there are two of them -- phone
+        // first, address second. `.last` is the address row; tapping the
+        // wrong one opens the phone dialog and would prove nothing about
+        // this one, which is why the title is asserted below.
+        final edit = find.byType(TextButton);
+        for (var i = 0; i < 6 && edit.evaluate().isEmpty; i++) {
+          await tester.drag(find.byType(Scrollable).first, const Offset(0, -220));
+          await tester.pumpAndSettle();
+        }
+        expect(edit, findsWidgets, reason: 'no address edit control');
+        await tester.ensureVisible(edit.last);
+        await tester.pumpAndSettle();
+        await tester.tap(edit.last, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'address dialog did not open');
+        // Asserted in the language on screen -- an English-only check passes
+        // in Telugu for the wrong reason, by finding nothing either way.
+        expect(
+            find.textContaining(
+                lang == ManaLanguage.telugu ? 'గ్రామం' : 'Select Village'),
+            findsWidgets,
+            reason: 'that is the phone dialog, not the address one');
+        expectNoLayoutFault(tester, 'IW-005 address dialog at ${scale}x$tag');
       });
     }
   }

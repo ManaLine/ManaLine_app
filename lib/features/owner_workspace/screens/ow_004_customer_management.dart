@@ -697,6 +697,9 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
         ),
         const SizedBox(height: ManaSpacing.md),
         DropdownButtonFormField<String>(
+          // isExpanded: a DropdownButton sizes to its widest item and
+          // overflows rather than shrinking -- measured at 1.0x on OW-002.
+          isExpanded: true,
           initialValue: _gender,
           decoration: InputDecoration(labelText: '${ref.t("gender")} *'),
           items: [
@@ -837,6 +840,9 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
                   onChanged: (_) => setState(() {}),
                 ),
                 DropdownButtonFormField<String>(
+                  // isExpanded: a DropdownButton sizes to its widest item and
+                  // overflows rather than shrinking -- measured at 1.0x on OW-002.
+                  isExpanded: true,
                   initialValue: _manualAreaType,
                   decoration: InputDecoration(labelText: ref.t('area_type_field')),
                   items: [

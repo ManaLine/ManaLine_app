@@ -378,6 +378,9 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
         if (_resultType == 'Excess' && _collected > 0) ...[
           const SizedBox(height: ManaSpacing.sm),
           DropdownButtonFormField<String>(
+            // isExpanded: a DropdownButton sizes to its widest item and
+            // overflows rather than shrinking -- measured at 1.0x on OW-002.
+            isExpanded: true,
             initialValue: _excessDisposition,
             decoration: InputDecoration(labelText: ref.t('excess_disposition_field')),
             items: [
@@ -473,6 +476,9 @@ class ManaNoCollectionFormState extends ConsumerState<ManaNoCollectionForm> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<String>(
+          // isExpanded: a DropdownButton sizes to its widest item and
+          // overflows rather than shrinking -- measured at 1.0x on OW-002.
+          isExpanded: true,
           initialValue: _reason,
           decoration: InputDecoration(labelText: ref.t('visit_reason_field')),
           items: _reasons.map((r) => DropdownMenuItem(value: r, child: ManaText.raw(ref.t(_reasonKeys[r]!)))).toList(),

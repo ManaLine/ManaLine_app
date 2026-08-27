@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_018_business_migration.dart';
 import 'package:mana_line/features/owner_workspace/state/business_management_state.dart';
@@ -117,6 +118,66 @@ void main() {
         await tester.pump();
         await tester.pump();
         expectNoLayoutFault(tester, 'OW-018 ${c.$1} at ${scale}x in Telugu');
+      });
+    }
+  }
+  // OW-018's two dialogs, neither of which had a test opening it.
+  //
+  // They are gated on opposite states: Reopen Migration only exists once the
+  // migration is LOCKED, and Declare Opening BF only while it is still open.
+  // Seeding one summary would have proved at most half of it.
+  for (final scale in kManaTextScales) {
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+
+      testWidgets('OW-018 reopen migration dialog survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(tester, const BusinessMigrationScreen(businessId: 'b1'),
+            textScale: scale,
+            language: lang,
+            translations: lang == ManaLanguage.telugu ? _telugu : null,
+            overrides: [businessManagementApiServiceProvider.overrideWithValue(_FakeApi(_locked))]);
+        await tester.pumpAndSettle();
+
+        final button = find.byType(OutlinedButton);
+        for (var i = 0; i < 6 && button.evaluate().isEmpty; i++) {
+          await tester.drag(find.byType(Scrollable).first, const Offset(0, -220));
+          await tester.pumpAndSettle();
+        }
+        expect(button, findsWidgets, reason: 'no reopen button on a locked migration');
+        await tester.ensureVisible(button.first);
+        await tester.pumpAndSettle();
+        await tester.tap(button.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'reopen migration dialog did not open');
+        expectNoLayoutFault(tester, 'OW-018 reopen at ${scale}x$tag');
+      });
+
+      testWidgets('OW-018 declare opening BF dialog survives ${scale}x$tag', (tester) async {
+        await pumpManaScreen(tester, const BusinessMigrationScreen(businessId: 'b1'),
+            textScale: scale,
+            language: lang,
+            translations: lang == ManaLanguage.telugu ? _telugu : null,
+            overrides: [businessManagementApiServiceProvider.overrideWithValue(_FakeApi(_open))]);
+        await tester.pumpAndSettle();
+
+        // OutlinedButton.icon, so it is an OutlinedButton too -- the open
+        // summary draws no reopen button, which leaves this the only one.
+        final button = find.byType(OutlinedButton);
+        for (var i = 0; i < 8 && button.evaluate().isEmpty; i++) {
+          await tester.drag(find.byType(Scrollable).first, const Offset(0, -220));
+          await tester.pumpAndSettle();
+        }
+        expect(button, findsWidgets, reason: 'no declare-BF button on an open migration');
+        await tester.ensureVisible(button.first);
+        await tester.pumpAndSettle();
+        await tester.tap(button.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget,
+            reason: 'declare opening BF dialog did not open');
+        expectNoLayoutFault(tester, 'OW-018 declare BF at ${scale}x$tag');
       });
     }
   }

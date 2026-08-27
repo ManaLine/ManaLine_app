@@ -349,6 +349,9 @@ class _RegisterNewAgentSheetState
               ),
               const SizedBox(height: ManaSpacing.md),
               DropdownButtonFormField<String>(
+                // isExpanded: a DropdownButton sizes to its widest item and
+                // overflows rather than shrinking -- measured at 1.0x on OW-002.
+                isExpanded: true,
                 initialValue: _gender,
                 decoration: InputDecoration(labelText: '${ref.t("gender")} *'),
                 items: [
@@ -1211,6 +1214,12 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
         ),
         const SizedBox(height: ManaSpacing.md),
         DropdownButtonFormField<String>(
+          // isExpanded: the widest item is "Custom (Owner Defined)", and a
+          // DropdownButton sizes to that rather than shrinking -- 61px past
+          // the edge at 1.0x, 152px in Telugu. It was missed when the other
+          // dropdowns were fixed because the fix went to dropdowns inside
+          // DIALOGS, and this one is on a tab nothing had ever opened.
+          isExpanded: true,
           initialValue: _cycle,
           decoration: InputDecoration(labelText: ref.t('salary_cycle_field')),
           items: [
@@ -1249,9 +1258,18 @@ class _CompensationTabState extends ConsumerState<_CompensationTab> {
             ref.t('profit_share_reference_note'),
             style: ManaType.note),
         const SizedBox(height: ManaSpacing.lg),
-        ElevatedButton(
+        // Full width, ellipsising label -- same reason as the profit share
+        // button below: a button's child sizes to the label's natural width,
+        // and "Save — Creates New History Entry" does not fit a 360dp screen
+        // even at 1.0x.
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
             onPressed: _save,
-            child: ManaText.raw(ref.t('save_creates_new_history_entry'))),
+            child: ManaText.raw(ref.t('save_creates_new_history_entry'),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ),
         const Divider(height: ManaSpacing.xxl),
         // BR-232 requires this action on the Agent Profile as well as the
         // Investor Profile. Only the Investor side had it, so an Agent's
@@ -1403,12 +1421,18 @@ class _AgentProfitShareSectionState extends ConsumerState<_AgentProfitShareSecti
         ManaText.raw(ref.t('profit_share_distribution'),
             style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
-        Align(
-          alignment: Alignment.centerLeft,
+        // Full width with an ellipsising label, not an Align. A
+        // FilledButton.icon lays its icon and label out in a Row that sizes
+        // to the label's natural width, so "Distribute Profit Share" ran 61px
+        // past the edge at 1.0x -- and 152px in Telugu, where the phrase is
+        // longer. Nothing had ever laid this tab out to notice.
+        SizedBox(
+          width: double.infinity,
           child: FilledButton.tonalIcon(
             onPressed: _declare,
             icon: const Icon(Icons.add, size: 18),
-            label: ManaText.raw(ref.t('distribute_profit_share')),
+            label: ManaText.raw(ref.t('distribute_profit_share'),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ),
         const SizedBox(height: ManaSpacing.md),

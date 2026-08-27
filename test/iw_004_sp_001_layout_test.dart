@@ -137,7 +137,11 @@ void main() {
           // nothing about the steps themselves.
           final gate = find.byType(ElevatedButton);
           expect(gate, findsWidgets, reason: 'staff gate button missing');
-          await tester.tap(gate.first, warnIfMissed: false);
+          // ensureVisible: without it the tap can miss silently, and the
+        // comment above would be describing something the test never did.
+        await tester.ensureVisible(gate.first);
+        await tester.pumpAndSettle();
+        await tester.tap(gate.first, warnIfMissed: false);
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 50));
 

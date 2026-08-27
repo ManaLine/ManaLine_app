@@ -105,7 +105,12 @@ void main() {
 
           final newLoan = find.byType(ElevatedButton);
           expect(newLoan, findsWidgets, reason: 'New Loan button missing');
-          await tester.tap(newLoan.first, warnIfMissed: false);
+          // ensureVisible: a tap with warnIfMissed off lands on nothing in
+        // silence, and expectNoLayoutFault passes on the screen BEFORE the
+        // tap just as happily as after it.
+        await tester.ensureVisible(newLoan.first);
+        await tester.pumpAndSettle();
+        await tester.tap(newLoan.first, warnIfMissed: false);
           await tester.pumpAndSettle();
 
           expectNoLayoutFault(tester, 'AG-007 ${step.name} at ${scale}x$tag');

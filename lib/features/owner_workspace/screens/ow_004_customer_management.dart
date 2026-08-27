@@ -10,6 +10,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_filter_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -21,6 +22,7 @@ import '../../../shared/document_viewer.dart';
 import '../../../shared/customer_row.dart';
 import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
+import 'ow_001_owner_home_dashboard.dart' show UniversalSearchScreen;
 import '../state/customer_state.dart';
 import '../../../design/components/mana_info_hint.dart';
 import '../../../design/components/mana_call_button.dart';
@@ -122,7 +124,25 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         // The three add-paths moved out of here and into the roster's single
         // Add FAB — see _addActions.
         title: ref.t('customer_management'),
-        // Search, village and status live in the header now.
+        actions: [
+          // Search is an ICON, not a box holding a third of the header.
+          //
+          // It opens the same global search the rest of the app uses, which
+          // finds a person across every workspace rather than filtering this
+          // one list -- an Owner looking for somebody usually does not know
+          // which screen they are on.
+          IconButton(
+            tooltip: ref.t('search'),
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    UniversalSearchScreen(businessId: widget.businessId),
+              ),
+            ),
+          ),
+        ],
+        // Village, order and status live in the header now.
         //
         // They were the first four things in the body, so on a real handset a
         // fifth of the screen went to controls before the first customer
@@ -130,44 +150,21 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         // moment the Owner started looking. In the header they stay put, and
         // the body is customers.
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(148),
+          preferredSize: const Size.fromHeight(64),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
                 ManaSpacing.md, 0, ManaSpacing.md, ManaSpacing.sm),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  onChanged: (v) =>
-                      ref.read(customerListProvider.notifier).setSearchQuery(v),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    hintText: ref.t('search_by_name_mlid_phone'),
-                    filled: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(999),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: ManaSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(child: _VillageFilterDropdown(state: state)),
-                    const SizedBox(width: ManaSpacing.sm),
-                    Expanded(child: _StatusFilterDropdown(state: state)),
-                  ],
-                ),
-                const SizedBox(height: ManaSpacing.xs),
-                SizedBox(
-                  width: double.infinity,
-                  child: ManaText.raw(
-                    ref.t('sorted_by_note_customers'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: ManaColors.textSecondary),
-                  ),
+                // The same row the collection round uses: where, in what
+                // order, and which of them. The two screens filter the same
+                // book and had drifted into different shapes -- and the sort
+                // was a line of grey text nobody could change.
+                ManaFilterRow(
+                  village: _VillageFilterDropdown(state: state),
+                  sort: _SortDropdown(state: state),
+                  third: _StatusFilterDropdown(state: state),
                 ),
               ],
             ),
@@ -231,6 +228,40 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                 ),
               ),
       ),
+    );
+  }
+}
+
+/// What the list is ordered by.
+///
+/// This used to be a line of grey text -- "Sorted by: village -> highest
+/// outstanding -> today's due -> name" -- describing an order nobody could
+/// change. Village stays the default, because a round is walked one village
+/// at a time; the rest answer questions asked at a desk.
+class _SortDropdown extends ConsumerWidget {
+  final CustomerListState state;
+  const _SortDropdown({required this.state});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ManaFilterDropdown<CustomerSort>(
+      label: ref.t('sorted_by'),
+      value: state.sort,
+      items: [
+        DropdownMenuItem(
+            value: CustomerSort.village, child: ManaText.raw(ref.t('village'))),
+        DropdownMenuItem(
+            value: CustomerSort.outstanding,
+            child: ManaText.raw(ref.t('outstanding'))),
+        DropdownMenuItem(
+            value: CustomerSort.todaysDue,
+            child: ManaText.raw(ref.t('todays_due'))),
+        DropdownMenuItem(
+            value: CustomerSort.name, child: ManaText.raw(ref.t('name_field'))),
+      ],
+      onChanged: (v) => ref
+          .read(customerListProvider.notifier)
+          .setSort(v ?? CustomerSort.village),
     );
   }
 }

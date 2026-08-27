@@ -6,6 +6,7 @@ import '../design/components/mana_amount.dart';
 import '../design/components/mana_collection_search_field.dart';
 import '../design/components/mana_skeleton.dart';
 import '../design/components/mana_app_bar.dart';
+import '../design/components/mana_filter_row.dart';
 import '../design/components/mana_text.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
@@ -122,7 +123,7 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
     final current =
         sorted.any((v) => v.village == selected) ? selected : null;
 
-    return _HeaderDropdown<String?>(
+    return ManaFilterDropdown<String?>(
       label: ref.t('village'),
       value: current,
       items: [
@@ -149,7 +150,7 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
     );
   }
 
-  Widget _frequencyDropdown() => _HeaderDropdown<String?>(
+  Widget _frequencyDropdown() => ManaFilterDropdown<String?>(
         label: ref.t('frequency'),
         value: _frequency,
         items: [
@@ -166,7 +167,7 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
         onChanged: (f) => setState(() => _frequency = f),
       );
 
-  Widget _sortDropdown() => _HeaderDropdown<CollectionSort>(
+  Widget _sortDropdown() => ManaFilterDropdown<CollectionSort>(
         label: ref.t('sorted_by'),
         value: _sort,
         items: [
@@ -244,12 +245,13 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                   ManaCollectionSearchField(
                     onChanged: (v) => setState(() => _query = v),
                   ),
-                Row(
-                  children: [
-                    Expanded(child: _villageDropdown(state.sorted)),
-                    const SizedBox(width: ManaSpacing.sm),
-                    Expanded(child: _frequencyDropdown()),
-                  ],
+                // Village, order, frequency -- the same row Customer
+                // Management uses, so the two screens filter the same book
+                // through the same control.
+                ManaFilterRow(
+                  village: _villageDropdown(state.sorted),
+                  sort: _sortDropdown(),
+                  third: _frequencyDropdown(),
                 ),
               ],
             ),
@@ -277,8 +279,6 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                               overflow: TextOverflow.ellipsis,
                               style: ManaType.note),
                         ),
-                        const SizedBox(width: ManaSpacing.sm),
-                        Flexible(flex: 2, child: _sortDropdown()),
                       ],
                     ),
                     const SizedBox(height: ManaSpacing.sm),
@@ -318,46 +318,6 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
   }
 }
 
-/// A labelled dropdown sized for the app bar.
-class _HeaderDropdown<T> extends StatelessWidget {
-  final String label;
-  final T value;
-  final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?> onChanged;
-
-  const _HeaderDropdown({
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: ManaSpacing.sm, vertical: ManaSpacing.xs),
-        border: const OutlineInputBorder(),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          // Without this the button sizes to the selected item's intrinsic
-          // width, and a long village name (or a wide Telugu translation)
-          // overflows the Row that DropdownButton lays its value and arrow
-          // out in, since that Row has nothing constraining it.
-          isExpanded: true,
-          isDense: true,
-          items: items,
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-}
 
 /// One customer in the round.
 ///

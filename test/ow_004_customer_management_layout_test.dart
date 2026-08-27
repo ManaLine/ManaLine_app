@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:mana_line/design/components/mana_filter_row.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_004_customer_management.dart';
 import 'package:mana_line/features/owner_workspace/state/customer_state.dart';
@@ -130,5 +132,39 @@ void main() {
         reason: 'the balance in full too');
     expect(find.textContaining("Today's Due"), findsNothing,
         reason: "today's due belongs to the round, not to this list");
+  });
+  testWidgets('one filter row: village, order, status', (tester) async {
+    // The round and this list are the same book asked different questions,
+    // and they had drifted into different shapes -- this one kept its sort as
+    // a line of grey text nobody could change.
+    await pumpManaScreen(
+      tester,
+      const CustomerManagementScreen(businessId: 'b1'),
+      overrides: [customerListProvider.overrideWith(() => _SeededCustomerListNotifier(seed))],
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ManaFilterRow), findsOneWidget);
+    expect(find.textContaining('Sorted by:'), findsNothing,
+        reason: 'the fixed sort note is replaced by a control');
+  });
+
+  testWidgets('search is an icon, not a box in the header', (tester) async {
+    await pumpManaScreen(
+      tester,
+      const CustomerManagementScreen(businessId: 'b1'),
+      overrides: [customerListProvider.overrideWith(() => _SeededCustomerListNotifier(seed))],
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.search), findsWidgets,
+        reason: 'search moved to the header');
+    // The header search FIELD is gone; the only TextFields left belong to
+    // sheets that are not open.
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.byType(TextField)),
+      findsNothing,
+      reason: 'a search box took a third of the header',
+    );
   });
 }

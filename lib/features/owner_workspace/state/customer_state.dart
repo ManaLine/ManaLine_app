@@ -604,6 +604,41 @@ final customerApiServiceProvider = Provider<CustomerApiService>((ref) {
 /// Customers with no village recorded sort last rather than first, where an
 /// empty string would otherwise put them: they are the exception, and the
 /// exception does not belong at the top of the round.
+/// How the customer list is ordered.
+///
+/// [village] is the order this screen has always used and stays the default:
+/// a round is walked one village at a time, so scattering a village's
+/// customers down the list means scrolling past everyone else to find the six
+/// people in Uranduru. The other three answer questions the Owner asks at a
+/// desk rather than at a door.
+enum CustomerSort { village, outstanding, todaysDue, name }
+
+/// Orders the list, with village as the default.
+///
+/// The three alternatives all fall back to name, so the order is total: a
+/// comparator that returns 0 for two different people lets the list reshuffle
+/// itself between rebuilds, and a customer who moves while being tapped is a
+/// customer somebody opens by mistake.
+List<CustomerSummary> manaSortCustomers(
+    List<CustomerSummary> list, CustomerSort sort) {
+  if (sort == CustomerSort.village) return _applyLockedSort(list);
+  final sorted = [...list];
+  int byName(CustomerSummary a, CustomerSummary b) =>
+      a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase());
+  sorted.sort((a, b) => switch (sort) {
+        CustomerSort.outstanding =>
+          b.outstandingBalance.compareTo(a.outstandingBalance) != 0
+              ? b.outstandingBalance.compareTo(a.outstandingBalance)
+              : byName(a, b),
+        CustomerSort.todaysDue => b.todaysDue.compareTo(a.todaysDue) != 0
+            ? b.todaysDue.compareTo(a.todaysDue)
+            : byName(a, b),
+        CustomerSort.name => byName(a, b),
+        CustomerSort.village => 0,
+      });
+  return sorted;
+}
+
 List<CustomerSummary> _applyLockedSort(List<CustomerSummary> list) {
   final sorted = [...list];
   sorted.sort((a, b) {
@@ -626,9 +661,14 @@ class CustomerListState {
   final String? villageFilter;
   final String? customerStatusFilter;
   final String searchQuery;
+
+  /// Defaults to village, which is the order the screen had before it was
+  /// selectable at all.
+  final CustomerSort sort;
   final String? error;
 
   const CustomerListState({
+    this.sort = CustomerSort.village,
     this.customers = const [],
     this.loading = false,
     this.villageFilter,
@@ -652,10 +692,11 @@ class CustomerListState {
               c.phoneNumber.contains(q))
           .toList();
     }
-    return _applyLockedSort(list);
+    return manaSortCustomers(list, sort);
   }
 
   CustomerListState copyWith({
+    CustomerSort? sort,
     List<CustomerSummary>? customers,
     bool? loading,
     String? villageFilter,
@@ -673,6 +714,7 @@ class CustomerListState {
       customerStatusFilter:
           clearCustomerStatusFilter ? null : (customerStatusFilter ?? this.customerStatusFilter),
       searchQuery: searchQuery ?? this.searchQuery,
+      sort: sort ?? this.sort,
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -694,6 +736,8 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
   }
 
   void setSearchQuery(String q) => state = state.copyWith(searchQuery: q);
+
+  void setSort(CustomerSort s) => state = state.copyWith(sort: s);
   void setVillageFilter(String? v) =>
       state = v == null ? state.copyWith(clearVillageFilter: true) : state.copyWith(villageFilter: v);
   void setCustomerStatusFilter(String? s) => state =

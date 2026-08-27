@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_label_value_row.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
@@ -80,8 +81,9 @@ class _NewLoanWorkflowScreenState extends ConsumerState<NewLoanWorkflowScreen> {
     final stepIndex = _steps.indexOf(state.step);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('new_loan')),
+      appBar: ManaAppBar(
+        homeRoute: '/ow-001',
+        title: ref.t('new_loan'),
         // The two things an Owner reaches for from inside a loan.
         //
         // Both were tiles on the Home dashboard, which meant backing out of a

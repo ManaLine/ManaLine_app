@@ -7,6 +7,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/investor_profile_state.dart';
@@ -36,10 +37,7 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
     final state = ref.watch(investorProfileProviderIW005);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/iw-001')),
-        title: ManaText.raw(ref.t('my_profile_memberships_title')),
-      ),
+      appBar: ManaAppBar(title: ref.t('my_profile_memberships_title'), homeRoute: '/iw-001'),
       body: SafeArea(
         child: state.loading && state.profile == null
             ? const Center(child: CircularProgressIndicator())

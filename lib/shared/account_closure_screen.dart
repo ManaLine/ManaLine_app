@@ -1,11 +1,13 @@
+import 'package:go_router/go_router.dart';
+import 'translation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
+import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_text.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
 import 'network_error_handler.dart';
@@ -88,12 +90,9 @@ class _AccountClosureScreenState extends ConsumerState<AccountClosureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: const ManaText('account'),
+      appBar: ManaAppBar(
+        homeRoute: '/settings',
+        title: ref.t('account'),
       ),
       body: SafeArea(
         child: ListView(

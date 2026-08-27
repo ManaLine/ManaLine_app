@@ -7,6 +7,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_label_value_row.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/withdrawal_request_state.dart';
@@ -55,10 +56,7 @@ class _RequestWithdrawalScreenState
     final state = ref.watch(withdrawalRequestProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/iw-001')),
-        title: ManaText.raw(ref.t('request_withdrawal_title')),
-      ),
+      appBar: ManaAppBar(title: ref.t('request_withdrawal_title'), homeRoute: '/iw-001'),
       body: SafeArea(
         child: state.loadingInvestment && state.investment == null
             ? const Center(child: CircularProgressIndicator())

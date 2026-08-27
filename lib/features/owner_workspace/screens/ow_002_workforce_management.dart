@@ -539,8 +539,9 @@ class AgentProfileScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 6,
       child: Scaffold(
-        appBar: AppBar(
-          title: ManaText.raw(agent.fullName),
+        appBar: ManaAppBar(
+          homeRoute: '/ow-002',
+          title: agent.fullName,
           bottom: TabBar(
             isScrollable: true,
             tabs: [

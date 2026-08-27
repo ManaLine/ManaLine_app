@@ -7,6 +7,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
@@ -62,11 +63,7 @@ class _MyInvestmentsScreenState extends ConsumerState<MyInvestmentsScreen> {
     final state = ref.watch(myInvestmentsListProvider(_key));
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('my_investments')),
-        leading: BackButton(
-            onPressed: () => context.go('/iw-001', extra: widget.businessId)),
-      ),
+      appBar: ManaAppBar(title: ref.t('my_investments'), homeRoute: '/iw-001', homeExtra: widget.businessId),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () =>

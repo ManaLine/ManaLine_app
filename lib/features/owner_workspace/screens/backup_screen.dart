@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/person_identity.dart';
@@ -70,14 +70,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     final r = _result;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          // extra carries the businessId back, so the destination does not fall
-          // through to router.dart's stub-business-id fallback.
-          onPressed: () => context.pop(),
-        ),
-        title: ManaText.raw(ref.t('backup')),
+      appBar: ManaAppBar(
+        homeRoute: '/settings',
+        title: ref.t('backup'),
       ),
       body: SafeArea(
         child: ListView(

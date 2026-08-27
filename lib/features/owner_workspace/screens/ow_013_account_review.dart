@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_card.dart';
@@ -41,14 +41,10 @@ class _AccountReviewScreenState extends ConsumerState<AccountReviewScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(
-          leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/ow-001', extra: widget.businessId)),
-          title: ManaText.raw(ref.t('account_review')),
-          bottom: TabBar(tabs: [
+        appBar: ManaAppBar(title: ref.t('account_review'), homeRoute: '/ow-001', homeExtra: widget.businessId, bottom: TabBar(tabs: [
             Tab(text: ref.t('account_review')),
             Tab(text: ref.t('daily_allowance')),
-          ]),
-        ),
+          ])),
         body: SafeArea(
           child: TabBarView(
             children: [

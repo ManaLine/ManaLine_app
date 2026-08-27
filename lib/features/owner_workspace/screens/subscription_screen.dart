@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../state/subscription_state.dart';
@@ -25,12 +25,9 @@ class SubscriptionScreen extends ConsumerWidget {
     final usage = ref.watch(businessUsageProvider(businessId));
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: ManaText.raw(ref.t('subscription')),
+      appBar: ManaAppBar(
+        homeRoute: '/settings',
+        title: ref.t('subscription'),
       ),
       body: SafeArea(
         child: usage.when(

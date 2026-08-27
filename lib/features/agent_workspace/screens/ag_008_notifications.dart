@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/mana_time.dart';
@@ -141,8 +142,9 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
     final state = ref.watch(agentNotificationsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('notifications')),
+      appBar: ManaAppBar(
+        homeRoute: '/ag-001',
+        title: ref.t('notifications'),
         actions: [
           // An icon, not a TextButton: an AppBar's actions Row cannot shrink
           // its children, and the translated "Mark All Read" label overflowed

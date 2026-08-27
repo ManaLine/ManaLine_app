@@ -92,8 +92,9 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('customer_management')),
+      appBar: ManaAppBar(
+        homeRoute: '/ag-001',
+        title: ref.t('customer_management'),
         actions: [
           // Create Customer — hidden entirely unless can_create_customer.
           if (state.permissions.canCreateCustomer)
@@ -321,8 +322,9 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: AppBar(
-          title: ManaText.raw(customerName),
+        appBar: ManaAppBar(
+          homeRoute: '/ag-004',
+          title: customerName,
           bottom: TabBar(
             isScrollable: true,
             tabs: [

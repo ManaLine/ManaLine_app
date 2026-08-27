@@ -1,10 +1,11 @@
+import 'translation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
+import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_text.dart';
 import '../design/components/mana_amount.dart';
 import 'appearance_state.dart';
@@ -26,12 +27,9 @@ class AppearanceScreen extends ConsumerWidget {
     final current = appearance.textSize;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: const ManaText('appearance'),
+      appBar: ManaAppBar(
+        homeRoute: '/settings',
+        title: ref.t('appearance'),
       ),
       body: SafeArea(
         child: ListView(

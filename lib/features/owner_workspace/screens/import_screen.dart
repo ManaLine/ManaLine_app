@@ -1,12 +1,12 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/import_service.dart';
@@ -111,12 +111,9 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     final outcome = _outcome;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-        title: ManaText.raw(ref.t('import_records')),
+      appBar: ManaAppBar(
+        homeRoute: '/settings',
+        title: ref.t('import_records'),
       ),
       body: SafeArea(
         child: ListView(

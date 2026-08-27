@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../design/tokens/colors.dart';
 import '../../design/components/mana_amount.dart';
 import '../../design/tokens/typography.dart';
 import '../../design/tokens/spacing.dart';
 import '../../shared/translation_service.dart';
+import '../../design/components/mana_app_bar.dart';
 import '../../design/components/mana_text.dart';
 
 
@@ -24,10 +24,7 @@ class AdminPanelScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('admin_panel')),
-        leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/lr-012')),
-      ),
+      appBar: ManaAppBar(title: ref.t('admin_panel'), homeRoute: '/lr-012'),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),

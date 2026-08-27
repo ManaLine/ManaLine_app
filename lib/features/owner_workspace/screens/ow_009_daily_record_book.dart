@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
@@ -46,8 +47,9 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
     final state = ref.watch(recordBookProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('daily_record_book')),
+      appBar: ManaAppBar(
+        homeRoute: '/ow-001',
+        title: ref.t('daily_record_book'),
         actions: [
           PopupMenuButton<String?>(
             tooltip: ref.t('filter_by_status'),

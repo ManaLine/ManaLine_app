@@ -542,8 +542,9 @@ class InvestorProfileScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(
-          title: ManaText.raw(investor.fullName),
+        appBar: ManaAppBar(
+          homeRoute: '/ow-003',
+          title: investor.fullName,
           bottom: TabBar(tabs: [Tab(text: ref.t('overview')), Tab(text: ref.t('investments'))]),
           actions: [
             PopupMenuButton<String>(

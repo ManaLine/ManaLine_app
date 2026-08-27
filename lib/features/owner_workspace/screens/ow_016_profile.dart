@@ -10,6 +10,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
@@ -205,12 +206,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('my_profile')),
-        leading: BackButton(
-            onPressed: () =>
-                context.canPop() ? context.pop() : context.go('/ow-001')),
-      ),
+      appBar: ManaAppBar(title: ref.t('my_profile'), homeRoute: '/ow-001'),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())

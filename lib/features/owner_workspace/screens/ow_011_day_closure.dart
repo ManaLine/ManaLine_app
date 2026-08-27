@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
@@ -65,8 +66,9 @@ class _DayClosureScreenState extends ConsumerState<DayClosureScreen> {
         state.phase == DayClosurePhase.reopened;
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('day_closure')),
+      appBar: ManaAppBar(
+        homeRoute: '/ow-001',
+        title: ref.t('day_closure'),
         actions: [
           if (dayStillOpen)
             TextButton.icon(

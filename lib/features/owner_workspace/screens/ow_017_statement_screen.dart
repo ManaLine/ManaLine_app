@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
@@ -105,7 +106,10 @@ class _StatementScreenState extends ConsumerState<StatementScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: ManaText(ref.t('my_statements'))),
+      appBar: ManaAppBar(
+        title: ref.t('my_statements'),
+        homeRoute: '/ow-001',
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),

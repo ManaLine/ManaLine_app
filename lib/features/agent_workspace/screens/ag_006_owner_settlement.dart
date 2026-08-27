@@ -6,6 +6,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
@@ -62,8 +63,9 @@ class _OwnerSettlementScreenState extends ConsumerState<OwnerSettlementScreen> {
     final state = ref.watch(agentSettlementProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('settlement')),
+      appBar: ManaAppBar(
+        homeRoute: '/ag-001',
+        title: ref.t('settlement'),
         actions: [
           // Only before submission. Once the settlement is Pending or
           // Approved, a new expense would move the float the submitted

@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'translation_service.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
+import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_text.dart';
 import 'widgets/language_selector.dart';
 import 'local_auth_store.dart';
@@ -339,12 +341,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final lang = ref.watch(authFlowProvider).language;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () =>
-                context.go(widget.homeRoute, extra: widget.businessId)),
-        title: const ManaText('settings'),
+      appBar: ManaAppBar(
+        title: ref.t('settings'),
+        homeRoute: widget.homeRoute,
+        homeExtra: widget.businessId,
       ),
       body: SafeArea(
         child: ListView(

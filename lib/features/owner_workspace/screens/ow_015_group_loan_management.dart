@@ -43,10 +43,7 @@ class _GroupLoanManagementScreenState extends ConsumerState<GroupLoanManagementS
     final state = ref.watch(groupLoanListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/ow-001', extra: widget.businessId)),
-        title: ManaText.raw(ref.t('group_loan_management')),
-      ),
+      appBar: ManaAppBar(title: ref.t('group_loan_management'), homeRoute: '/ow-001', homeExtra: widget.businessId),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openCreateGroup(context),
         icon: const Icon(Icons.add),
@@ -258,8 +255,9 @@ class GroupLoanDetailScreen extends ConsumerWidget {
     final asyncDetail = ref.watch(groupLoanDetailProvider(groupId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('group_detail')),
+      appBar: ManaAppBar(
+          homeRoute: '/ow-015',
+        title: ref.t('group_detail'),
         actions: [
           asyncDetail.maybeWhen(
             data: (detail) => PopupMenuButton<String>(

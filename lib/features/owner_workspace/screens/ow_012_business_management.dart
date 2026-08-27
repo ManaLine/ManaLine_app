@@ -503,8 +503,9 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
       length: 5,
       initialIndex: BusinessDetailTab.values.indexOf(initialTab),
       child: Scaffold(
-        appBar: AppBar(
-          title: ManaText.raw(detail?.summary.businessName ?? ref.t('business_detail')),
+        appBar: ManaAppBar(
+          homeRoute: '/ow-012',
+          title: detail?.summary.businessName ?? ref.t('business_detail'),
           actions: [
             // OW-018 — for a business that was already running before it
             // joined. Lives here rather than on OW-001 because it is a

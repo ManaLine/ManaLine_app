@@ -9,6 +9,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_label_value_row.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -108,7 +109,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     final state = ref.watch(customerListProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: ManaAppBar(
         // Explicit leading, not the AppBar-implied one: this screen is
         // reached both via Quick Actions (context.push — canPop is true,
         // default back arrow would appear on its own) AND via the footer
@@ -116,15 +117,10 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         // canPop is false and AppBar quietly omits the back arrow
         // entirely, dead-ending here). Always fall back to Home so
         // there's a way out either way.
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).canPop()
-              ? Navigator.of(context).pop()
-              : context.go('/ow-001', extra: widget.businessId),
-        ),
+        homeRoute: '/ow-001', homeExtra: widget.businessId,
         // The three add-paths moved out of here and into the roster's single
         // Add FAB — see _addActions.
-        title: ManaText.raw(ref.t('customer_management')),
+        title: ref.t('customer_management'),
         // Search, village and status live in the header now.
         //
         // They were the first four things in the body, so on a real handset a
@@ -991,8 +987,9 @@ class CustomerProfileScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 7,
       child: Scaffold(
-        appBar: AppBar(
-          title: ManaText.raw(customer.fullName),
+        appBar: ManaAppBar(
+          homeRoute: '/ow-004',
+          title: customer.fullName,
           bottom: TabBar(
             isScrollable: true,
             tabs: [

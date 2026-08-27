@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -601,36 +602,36 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
       return;
     }
     setState(() => _savingManualVillage = true);
-    try {
-      final rows = await Supabase.instance.client
-          .schema('app')
-          .rpc('add_location_if_missing', params: {
-        'p_pin_code': _pinCode.text.trim(),
-        'p_village_town_name': _manualVillageName.text.trim(),
-        'p_area_type': _manualAreaType,
-        'p_mandal': _manualMandal.text.trim(),
-        'p_district': _manualDistrict.text.trim(),
-        'p_state': _manualState.text.trim(),
-      });
-      final result = (rows as List).first as Map<String, dynamic>;
-      if (!mounted) return;
-      setState(() {
-        _selectedVillage = {
-          'location_id': result['location_id'],
-          'village_town_name': _manualVillageName.text.trim(),
-          'mandal': _manualMandal.text.trim(),
-          'district': _manualDistrict.text.trim(),
-          'state': _manualState.text.trim(),
-        };
-        _villageSearch.text = _manualVillageName.text.trim();
-        _villageResults = [];
-        _manualVillageEntry = false;
-        _savingManualVillage = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _savingManualVillage = false);
-    }
+
+    // Shared, so the four copies of this cannot drift apart again -- and so
+    // that a failure is always SAID. See lib/shared/add_village_if_missing.dart.
+    final locationId = await manaAddVillageIfMissing(
+      context,
+      ref,
+      pinCode: _pinCode.text.trim(),
+      villageTownName: _manualVillageName.text.trim(),
+      areaType: _manualAreaType,
+      mandal: _manualMandal.text.trim(),
+      district: _manualDistrict.text.trim(),
+      state: _manualState.text.trim(),
+    );
+
+    if (!mounted) return;
+    setState(() => _savingManualVillage = false);
+    if (locationId == null) return;
+
+    setState(() {
+      _selectedVillage = {
+        'location_id': locationId,
+        'village_town_name': _manualVillageName.text.trim(),
+        'mandal': _manualMandal.text.trim(),
+        'district': _manualDistrict.text.trim(),
+        'state': _manualState.text.trim(),
+      };
+      _villageSearch.text = _manualVillageName.text.trim();
+      _villageResults = [];
+      _manualVillageEntry = false;
+    });
   }
 
   @override

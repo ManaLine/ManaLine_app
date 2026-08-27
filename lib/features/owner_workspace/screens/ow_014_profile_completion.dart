@@ -9,6 +9,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../state/global_workflow_state.dart';
@@ -414,35 +415,41 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
   }
 
   Future<void> _saveManualVillage() async {
+    // No inline guard here, unlike the other three copies: this screen gates
+    // validity at the button with _manualComplete, so reaching this method
+    // already means the fields are filled.
     setState(() => _savingManual = true);
-    try {
-      final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
-        'p_pin_code': _pinCode.text.trim(),
-        'p_village_town_name': _manualName.text.trim(),
-        'p_area_type': _manualAreaType,
-        'p_mandal': _manualMandal.text.trim(),
-        'p_district': _manualDistrict.text.trim(),
-        'p_state': _manualState.text.trim(),
-      });
-      final result = (rows as List).first as Map<String, dynamic>;
-      if (!mounted) return;
-      setState(() {
-        _selectedVillage = {
-          'location_id': result['location_id'],
-          'village_town_name': _manualName.text.trim(),
-          'mandal': _manualMandal.text.trim(),
-          'district': _manualDistrict.text.trim(),
-          'state': _manualState.text.trim(),
-        };
-        _villageSearch.text = _manualName.text.trim();
-        _villageResults = [];
-        _manualEntry = false;
-        _savingManual = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _savingManual = false);
-    }
+
+    // Shared, so the four copies of this cannot drift apart again -- and so
+    // that a failure is always SAID. The catch here used to be `catch (_)`
+    // with nothing but the spinner clearing.
+    final locationId = await manaAddVillageIfMissing(
+      context,
+      ref,
+      pinCode: _pinCode.text.trim(),
+      villageTownName: _manualName.text.trim(),
+      areaType: _manualAreaType,
+      mandal: _manualMandal.text.trim(),
+      district: _manualDistrict.text.trim(),
+      state: _manualState.text.trim(),
+    );
+
+    if (!mounted) return;
+    setState(() => _savingManual = false);
+    if (locationId == null) return;
+
+    setState(() {
+      _selectedVillage = {
+        'location_id': locationId,
+        'village_town_name': _manualName.text.trim(),
+        'mandal': _manualMandal.text.trim(),
+        'district': _manualDistrict.text.trim(),
+        'state': _manualState.text.trim(),
+      };
+      _villageSearch.text = _manualName.text.trim();
+      _villageResults = [];
+      _manualEntry = false;
+    });
   }
 
   bool get _manualComplete =>

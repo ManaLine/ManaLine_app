@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_card.dart';
@@ -460,31 +461,27 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
       return;
     }
     setState(() => _savingManualVillage = true);
-    Map<String, dynamic>? result;
-    try {
-      final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
-        'p_pin_code': _pinCode.text.trim(),
-        'p_village_town_name': _manualVillageName.text.trim(),
-        'p_area_type': _manualAreaType,
-        'p_mandal': _manualMandal.text.trim(),
-        'p_district': _manualDistrict.text.trim(),
-        'p_state': _manualState.text.trim(),
-      });
-      result = (rows as List).first as Map<String, dynamic>;
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: ManaText.raw(ref.t('could_not_add_village_note').replaceAll('{error}', '$e'))),
-        );
-      }
-    }
+
+    // Shared, so the four copies of this cannot drift apart again -- and so
+    // that a failure is always SAID. See lib/shared/add_village_if_missing.dart.
+    final locationId = await manaAddVillageIfMissing(
+      context,
+      ref,
+      pinCode: _pinCode.text.trim(),
+      villageTownName: _manualVillageName.text.trim(),
+      areaType: _manualAreaType,
+      mandal: _manualMandal.text.trim(),
+      district: _manualDistrict.text.trim(),
+      state: _manualState.text.trim(),
+    );
+
     if (!mounted) return;
     setState(() => _savingManualVillage = false);
-    if (result == null) return;
+    if (locationId == null) return;
 
     setState(() {
       _selectedVillage = {
-        'location_id': result!['location_id'],
+        'location_id': locationId,
         'village_town_name': _manualVillageName.text.trim(),
         'mandal': _manualMandal.text.trim(),
         'district': _manualDistrict.text.trim(),

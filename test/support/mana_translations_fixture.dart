@@ -2443,4 +2443,6 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'refused_payment': {'English': 'Refused Payment', 'Telugu': 'చెల్లింపు నిరాకరించారు'},
   'location': {'English': 'Location', 'Telugu': 'ప్రదేశం'},
   'paid_by': {'English': 'Paid By', 'Telugu': 'చెల్లించినవారు'},
+  'grace_stops_future_penalties_note': {'English': 'Grace stops future penalties. A penalty already applied stays on the balance.', 'Telugu': 'గ్రేస్ భవిష్యత్ జరిమానాలను ఆపుతుంది.'},
+  'grace_resolves_to_note': {'English': 'Saved as {days} days', 'Telugu': '{days} రోజులుగా సేవ్ చేయబడుతుంది'},
 };

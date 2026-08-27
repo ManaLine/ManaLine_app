@@ -117,6 +117,7 @@ class LoanDetailsApiService {
       amountGiven: (row['amount_given'] as num).toInt(),
       outstandingBalance: (row['remaining_balance'] as num).toInt(),
       todaysDue: (row['installment_amount'] as num).toInt(), // precise per-schedule due requires business_date join — see KNOWN SIMPLIFICATION pattern elsewhere this session
+      gracePeriodDays: graceDays,
       completedInstallments: completed,
       // Against the total the loan actually has, not against however many
       // schedule rows happen to exist.
@@ -162,6 +163,24 @@ class LoanDetailsApiService {
         'Defaulted' => LoanStatus.defaulted,
         _ => LoanStatus.active,
       };
+
+  /// Grants grace on a running loan.
+  ///
+  /// Stops FUTURE penalties and never touches one already applied: an applied
+  /// penalty is already inside remaining_balance, so clearing it here would
+  /// move what the customer owes, days later, from a screen about dates. Use
+  /// Waive / Reduce Penalty for that -- it says so and records who did it.
+  Future<void> grantGracePeriod({
+    required String loanId,
+    required int days,
+    required String reason,
+  }) async {
+    await _db.schema('app').rpc('grant_grace_period', params: {
+      'p_loan_id': loanId,
+      'p_days': days,
+      'p_reason': reason,
+    });
+  }
 
   /// No `remarks` parameter, deliberately. Remarks are append-only and go
   /// through addRemark; an "edit" that overwrites one is exactly what the
@@ -438,6 +457,10 @@ class LoanDetail {
   final int amountGiven;
   final int outstandingBalance;
   final int todaysDue;
+  /// Days of grace currently granted on this loan. The Grace Period dialog
+  /// opens on it, so somebody extending 14 days to 21 sees 14 rather than
+  /// an empty box that would read as none.
+  final int gracePeriodDays;
   final int completedInstallments;
   final int remainingInstallments;
   final bool inGracePeriod;
@@ -470,6 +493,7 @@ class LoanDetail {
     required this.amountGiven,
     required this.outstandingBalance,
     required this.todaysDue,
+    this.gracePeriodDays = 0,
     required this.completedInstallments,
     required this.remainingInstallments,
     required this.inGracePeriod,
@@ -571,6 +595,18 @@ class LoanDetailsNotifier extends FamilyAsyncNotifier<LoanDetail, String> {
         await ref.read(loanDetailsApiServiceProvider).closeLoan(loanId: arg, writeOffRemaining: writeOffRemaining);
     await refresh();
     return result;
+  }
+
+  /// Rethrows: a refusal here means the Agent lacks can_grant_grace_period,
+  /// and "it didn't work" would leave them retrying a thing they may not do.
+  Future<bool> grantGracePeriod({required int days, required String reason}) async {
+    await ref.read(loanDetailsApiServiceProvider).grantGracePeriod(
+          loanId: arg,
+          days: days,
+          reason: reason,
+        );
+    await refresh();
+    return true;
   }
 
   /// Rethrows, same reasoning as editAllowedFields above.

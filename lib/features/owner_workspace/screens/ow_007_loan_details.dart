@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -130,7 +131,6 @@ class _SummaryCard extends ConsumerWidget {
             _row(ref.t('repayment_type'), loan.repaymentType),
             _row(ref.t('installment_amount'), manaRupees(loan.installmentAmount)),
             _row(ref.t('loan_amount'), manaRupees(loan.loanAmount)),
-            _row(ref.t('amount_given_locked'), manaRupees(loan.amountGiven)),
             _row(ref.t('outstanding_balance'), manaRupees(loan.outstandingBalance)),
             _row(ref.t('todays_due'), manaRupees(loan.todaysDue)),
             _row(ref.t('completed_installments'), '${loan.completedInstallments}'),
@@ -240,6 +240,11 @@ class _ActionsSection extends ConsumerWidget {
               onPressed: loan.canEditAllowedFields ? () => _showEditFieldsDialog(context, ref) : null,
               icon: const Icon(Icons.edit_outlined, size: 18),
               label: ManaText.raw(ref.t('edit_allowed_fields')),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _showGraceDialog(context, ref),
+              icon: const Icon(Icons.event_available_outlined, size: 18),
+              label: ManaText.raw(ref.t('grace_period')),
             ),
             OutlinedButton.icon(
               onPressed: () => _showAddRemarkDialog(context, ref),
@@ -354,6 +359,112 @@ class _ActionsSection extends ConsumerWidget {
     await NetworkErrorHandler.run(context, () async {
       return ref.read(loanDetailsProvider(loanId).notifier).editAllowedFields(
             futureEffectiveInformation: futureInfo.text.trim(),
+          );
+    });
+  }
+
+  /// Grace, in the unit somebody actually says it in.
+  ///
+  /// Days is what the column holds, but nobody grants "twenty-one days" -- they
+  /// say three weeks, or a month. The unit is converted here rather than
+  /// stored, so there is one number in the database and no question later
+  /// about which month was meant.
+  ///
+  /// The note about applied penalties is not decoration. Somebody granting
+  /// grace on a penalised loan will assume it clears the penalty, and it does
+  /// not: grace stops the NEXT one. Saying so here is cheaper than a dispute
+  /// at a door.
+  Future<void> _showGraceDialog(BuildContext context, WidgetRef ref) async {
+    final amount = TextEditingController(text: '${loan.gracePeriodDays}');
+    final reason = TextEditingController();
+    var unit = _GraceUnit.days;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
+          scrollable: true,
+          title: ManaText.raw(ref.t('grace_period')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ManaText.raw(ref.t('grace_stops_future_penalties_note'),
+                  style: ManaType.note),
+              const SizedBox(height: ManaSpacing.md),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: amount,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration:
+                          InputDecoration(labelText: ref.t('grace_period')),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: ManaSpacing.sm),
+                  Expanded(
+                    child: DropdownButtonFormField<_GraceUnit>(
+                      isExpanded: true,
+                      initialValue: unit,
+                      decoration: InputDecoration(labelText: ref.t('duration')),
+                      items: [
+                        DropdownMenuItem(
+                            value: _GraceUnit.days,
+                            child: ManaText.raw(ref.t('days'))),
+                        DropdownMenuItem(
+                            value: _GraceUnit.weeks,
+                            child: ManaText.raw(ref.t('weeks'))),
+                        DropdownMenuItem(
+                            value: _GraceUnit.months,
+                            child: ManaText.raw(ref.t('months'))),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => unit = v ?? _GraceUnit.days),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: ManaSpacing.sm),
+              // The figure that is actually stored, said back before saving.
+              ManaText.raw(
+                ref.t('grace_resolves_to_note').replaceAll(
+                    '{days}', '${unit.toDays(int.tryParse(amount.text) ?? 0)}'),
+                style: ManaType.note,
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              TextField(
+                controller: reason,
+                decoration:
+                    InputDecoration(labelText: ref.t('reason_required')),
+                maxLines: 2,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: ManaText.raw(ref.t('cancel'))),
+            FilledButton(
+              onPressed: (int.tryParse(amount.text) != null &&
+                      reason.text.trim().isNotEmpty)
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: ManaText.raw(ref.t('save')),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result != true || !context.mounted) return;
+
+    await NetworkErrorHandler.run(context, () async {
+      return ref.read(loanDetailsProvider(loanId).notifier).grantGracePeriod(
+            days: unit.toDays(int.tryParse(amount.text) ?? 0),
+            reason: reason.text.trim(),
           );
     });
   }
@@ -671,4 +782,20 @@ class _PenaltySection extends ConsumerWidget {
       );
     }
   }
+}
+
+/// Days is what the column holds; these are what people say.
+enum _GraceUnit {
+  days,
+  weeks,
+  months;
+
+  /// A month is 30 days here, matching the ROI convention this app already
+  /// uses everywhere else -- interest is per 30-day month. Two different
+  /// month lengths in one lending book is how figures stop reconciling.
+  int toDays(int n) => switch (this) {
+        _GraceUnit.days => n,
+        _GraceUnit.weeks => n * 7,
+        _GraceUnit.months => n * 30,
+      };
 }

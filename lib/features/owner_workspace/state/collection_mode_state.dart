@@ -152,6 +152,7 @@ class CollectionApiService {
       return RecordCollectionOutcome.duplicate(existing);
     }
     return RecordCollectionOutcome.saved(CollectionResult(
+      collectionId: map['collection_id'] as String? ?? '',
       receiptNumber: map['receipt_number'] as String? ?? '',
       resultType: (map['result_type'] as String?) ?? 'Full',
       collectedAmount: (map['collected_amount'] as num?)?.toInt() ?? collectedAmount,
@@ -354,6 +355,9 @@ class CollectionDueRow {
 }
 
 class CollectionResult {
+  /// The row's own id. The server has always returned it; nothing read it
+  /// until the collection needed stamping with where it was taken.
+  final String collectionId;
   final String receiptNumber;
   final String resultType; // Full | Partial | Excess
   final int collectedAmount;
@@ -361,6 +365,7 @@ class CollectionResult {
   final DateTime businessDate;
 
   CollectionResult({
+    this.collectionId = '',
     required this.receiptNumber,
     required this.resultType,
     required this.collectedAmount,

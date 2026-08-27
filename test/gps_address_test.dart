@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mana_line/shared/gps_address_service.dart';
 import 'package:mana_line/shared/mana_location.dart';
 
 /// The rule these tests exist to protect: "couldn't verify" and "doesn't
@@ -7,43 +6,12 @@ import 'package:mana_line/shared/mana_location.dart';
 /// accuses a customer of being somewhere they are not, on the strength of a
 /// weak GPS fix.
 void main() {
-  group('address check wording', () {
-    test('an indeterminate result never reads as a mismatch', () {
-      const check = AddressCheck(
-        distanceM: 4200,
-        // The server can return a large distance AND is_indeterminate at the
-        // same time — a rough fix produces a distance that means nothing.
-        isMatch: false,
-        isIndeterminate: true,
-      );
-      expect(check.isMismatch, isFalse);
-      expect(check.message, contains('Could not check'));
-      expect(check.message.toLowerCase(), isNot(contains('away')));
-    });
-
-    test('a real mismatch says so, with the distance', () {
-      const check =
-          AddressCheck(distanceM: 850, isMatch: false, isIndeterminate: false);
-      expect(check.isMismatch, isTrue);
-      expect(check.message, contains('850m'));
-    });
-
-    test('a match says so', () {
-      const check =
-          AddressCheck(distanceM: 12, isMatch: true, isIndeterminate: false);
-      expect(check.isMismatch, isFalse);
-      expect(check.message, contains('Matches'));
-    });
-
-    test('a null verdict is treated as indeterminate, not as a match', () {
-      // is_match is NULL when there is no stored pin to compare against.
-      const check =
-          AddressCheck(distanceM: null, isMatch: null, isIndeterminate: true);
-      expect(check.isMismatch, isFalse);
-      expect(check.message, contains('Could not check'));
-    });
-  });
-
+  // The 'address check wording' group lived here and is gone with the
+  // feature it described. The collect sheet no longer compares the
+  // Agent's position against the customer's saved address -- it records
+  // where the money was taken instead, which is a statement rather than
+  // a verdict. app.compare_address_gps is left in the database; nothing
+  // in the app calls it.
   group('fix outcomes', () {
     test('every failure mode has its own words', () {
       // A denied permission and a dead satellite are different things to a

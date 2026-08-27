@@ -334,7 +334,39 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
               // The raw result_type read as a warning when it only means the
               // customer paid more than one instalment at once.
               if (e.method != null)
-                _detailLine(ref.t('payment'), ledgerOutcomeLabel(ref, e), null),
+              _detailLine(ref.t('payment'), ledgerOutcomeLabel(ref, e), null),
+              // Where it was taken and who handed it over. Fetched when the
+              // sheet opens rather than carried by the feed, and shown only
+              // when there is something to say -- an absent location is the
+              // normal case for anything recorded before locations were,
+              // and "Location: —" on every old row is noise.
+              if (e.type == LedgerEventType.collection)
+                FutureBuilder<ManaCollectionExtras?>(
+                  future: ref
+                      .read(ledgerHistoryServiceProvider)
+                      .collectionExtras(e.id.split(':').last),
+                  builder: (context, snap) {
+                    final x = snap.data;
+                    if (x == null) return const SizedBox.shrink();
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (x.locationName != null && x.locationName!.isNotEmpty)
+                          _detailLine(ref.t('location'), x.locationName, null),
+                        // Only when it was NOT the customer: saying "Paid By:
+                        // Customer" on every ordinary collection tells nobody
+                        // anything.
+                        if (x.someoneElsePaid)
+                          _detailLine(
+                              ref.t('paid_by'),
+                              [x.payerName, x.payerType]
+                                  .where((v) => v != null && v.isNotEmpty)
+                                  .join(' - '),
+                              null),
+                      ],
+                    );
+                  },
+                ),
             ],
           ),
         ),

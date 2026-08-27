@@ -2441,4 +2441,6 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'natural_disaster': {'English': 'Natural Disaster', 'Telugu': 'ప్రకృతి వైపరీత్యం'},
   'phone_call_not_answered': {'English': 'Phone Call Not Answered', 'Telugu': 'ఫోన్ కాల్‌కు స్పందించలేదు'},
   'refused_payment': {'English': 'Refused Payment', 'Telugu': 'చెల్లింపు నిరాకరించారు'},
+  'location': {'English': 'Location', 'Telugu': 'ప్రదేశం'},
+  'paid_by': {'English': 'Paid By', 'Telugu': 'చెల్లించినవారు'},
 };

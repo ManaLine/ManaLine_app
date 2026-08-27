@@ -394,6 +394,34 @@ class LedgerHistoryService {
   /// fetched a business's entire history with no limit at all, which its own
   /// `PERF:` comment admitted was unbounded over the life of the business.
   ///
+  /// The extra facts a collection carries that the ledger feed does not:
+  /// where it was taken, and who handed the money over.
+  ///
+  /// Fetched on demand rather than widened into ledger_history. That function
+  /// returns a fixed TABLE, so adding two columns means dropping and
+  /// recreating it -- and it is one of the four this codebase has already
+  /// broken once by changing a signature. A collection detail is opened one
+  /// at a time; the feed is read constantly.
+  ///
+  /// Returns null when there is nothing extra to say, which is the normal
+  /// case for a collection taken before locations were recorded.
+  Future<ManaCollectionExtras?> collectionExtras(String collectionId) async {
+    final rows = await _db
+        .from('collections')
+        .select('location_name, payer_type, payer_name')
+        .eq('collection_id', collectionId)
+        .limit(1);
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) return null;
+    final r = list.first;
+    final extras = ManaCollectionExtras(
+      locationName: (r['location_name'] as String?)?.trim(),
+      payerType: (r['payer_type'] as String?)?.trim(),
+      payerName: (r['payer_name'] as String?)?.trim(),
+    );
+    return extras.isEmpty ? null : extras;
+  }
+
   /// `.schema('app')` is required — a bare `.rpc()` targets `public` and 404s.
   Future<List<LedgerEvent>> page({
     required String businessId,
@@ -445,3 +473,27 @@ class LedgerHistoryService {
 final ledgerHistoryServiceProvider = Provider<LedgerHistoryService>(
   (ref) => LedgerHistoryService(Supabase.instance.client),
 );
+
+/// What a collection knows beyond its amount.
+class ManaCollectionExtras {
+  /// The village the pin fell in, or null. Never a guess -- the server leaves
+  /// it empty rather than naming the nearest village when nothing is close.
+  final String? locationName;
+
+  /// 'Customer' when the customer paid themselves, which is not worth saying.
+  final String? payerType;
+  final String? payerName;
+
+  const ManaCollectionExtras({
+    this.locationName,
+    this.payerType,
+    this.payerName,
+  });
+
+  /// Somebody other than the customer handed the money over.
+  bool get someoneElsePaid =>
+      payerType != null && payerType!.isNotEmpty && payerType != 'Customer';
+
+  bool get isEmpty =>
+      (locationName == null || locationName!.isEmpty) && !someoneElsePaid;
+}

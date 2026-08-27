@@ -8,6 +8,8 @@ import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/idempotency.dart';
+import '../../../shared/mana_location.dart';
+import '../../../shared/gps_address_service.dart';
 import '../../../shared/translation_service.dart';
 import '../state/collection_mode_state.dart';
 import '../../../shared/collection_round_view.dart';
@@ -217,6 +219,15 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
     if (!mounted) return;
     // Landed. The next save is a new action, not a replay of this one.
     _idempotencyKey = null;
+
+    // Where it was taken, stamped after the fact and never in the way.
+    //
+    // Deliberately not awaited before the receipt: a phone with no fix, no
+    // permission or no signal must still show the Agent that the money
+    // landed. The location is a record, not a condition -- making it one
+    // would mean a collection failing because a satellite was slow.
+    _stampLocation(outcome.saved!.collectionId);
+
     _showReceipt(outcome.saved!);
   }
 
@@ -250,6 +261,25 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
       if (!mounted) return;
       setState(() => _confirmDuplicate = false); // close — nothing recorded
     }
+  }
+
+  /// Fire and forget. Failures are swallowed ON PURPOSE, which is the one
+  /// place in this file that is acceptable: the collection is already
+  /// recorded, and nothing the Agent can do about a missing fix is worth
+  /// interrupting them at a doorstep to say.
+  void _stampLocation(String collectionId) {
+    if (collectionId.isEmpty) return;
+    () async {
+      try {
+        final fix = await ManaLocation.currentFix();
+        if (!fix.hasPosition) return;
+        await ref
+            .read(gpsAddressServiceProvider)
+            .recordCollectionLocation(collectionId: collectionId, fix: fix);
+      } catch (_) {
+        // See above.
+      }
+    }();
   }
 
   /// The receipt, then back to the round.

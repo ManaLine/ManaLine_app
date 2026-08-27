@@ -32,26 +32,6 @@ class GpsAddressService {
     return (row?['consent_location_capture'] as bool?) ?? false;
   }
 
-  /// Compares where the agent is standing against the customer's stored pin.
-  ///
-  /// Returns null when there is nothing to compare — no stored pin, or no fix.
-  /// A null is "not checked", which the UI must never render as "does not
-  /// match".
-  Future<AddressCheck?> compare({
-    required String customerId,
-    required ManaFix fix,
-  }) async {
-    if (!fix.hasPosition) return null;
-    final rows = await _db.schema('app').rpc('compare_address_gps', params: {
-      'p_customer_id': customerId,
-      'p_agent_lat': fix.latitude,
-      'p_agent_lng': fix.longitude,
-      'p_agent_accuracy_m': fix.accuracyM,
-    });
-    final list = (rows as List).cast<Map<String, dynamic>>();
-    if (list.isEmpty) return null;
-    return AddressCheck.fromRow(list.first);
-  }
 
   /// Stores or refreshes the pin on the customer's CURRENT address.
   ///
@@ -66,6 +46,27 @@ class GpsAddressService {
       'p_customer_id': customerId,
       'p_new_lat': fix.latitude,
       'p_new_lng': fix.longitude,
+      'p_accuracy_m': fix.accuracyM,
+    });
+  }
+
+  /// Stamps where a collection was taken. Called AFTER the collection
+  /// exists, and never allowed to fail it.
+  ///
+  /// The server resolves a village name from the pin and stores it alongside
+  /// the coordinates -- the coordinates are the audit value, the name is the
+  /// only part that goes on a screen. It leaves the name EMPTY rather than
+  /// naming the nearest village when nothing is within 2km: a wrong village
+  /// on a money record is worse than a blank one.
+  Future<void> recordCollectionLocation({
+    required String collectionId,
+    required ManaFix fix,
+  }) async {
+    if (!fix.hasPosition) return;
+    await _db.schema('app').rpc('update_collection_gps', params: {
+      'p_collection_id': collectionId,
+      'p_lat': fix.latitude,
+      'p_lng': fix.longitude,
       'p_accuracy_m': fix.accuracyM,
     });
   }
@@ -85,46 +86,6 @@ class GpsAddressService {
       'p_accuracy_m': fix.accuracyM,
     });
   }
-}
-
-class AddressCheck {
-  final double? distanceM;
-
-  /// Null when it could not be judged at all.
-  final bool? isMatch;
-
-  /// True when the fix was too rough (over 100m accuracy) or there was no
-  /// stored pin to compare against.
-  final bool isIndeterminate;
-
-  const AddressCheck({
-    required this.distanceM,
-    required this.isMatch,
-    required this.isIndeterminate,
-  });
-
-  factory AddressCheck.fromRow(Map<String, dynamic> r) => AddressCheck(
-        distanceM: (r['distance_m'] as num?)?.toDouble(),
-        isMatch: r['is_match'] as bool?,
-        isIndeterminate: (r['is_indeterminate'] as bool?) ?? true,
-      );
-
-  /// THE IMPORTANT DISTINCTION. "Couldn't verify" and "doesn't match" are
-  /// different claims, and showing the second when you mean the first accuses
-  /// a customer of being somewhere they are not. Indeterminate always wins.
-  String get message {
-    if (isIndeterminate) {
-      return 'Could not check this against the saved address.';
-    }
-    if (isMatch == true) {
-      return 'Matches the saved address'
-          '${distanceM != null ? ' (${distanceM!.round()}m away)' : ''}.';
-    }
-    return 'This is ${distanceM != null ? '${distanceM!.round()}m' : 'far'} '
-        'from the saved address.';
-  }
-
-  bool get isMismatch => !isIndeterminate && isMatch == false;
 }
 
 final gpsAddressServiceProvider =

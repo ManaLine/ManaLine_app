@@ -8,7 +8,6 @@ import '../features/owner_workspace/screens/ow_006_collection_mode.dart'
     show ManaCollectionForm, ManaNoCollectionForm, ManaExtensionForm;
 import '../features/owner_workspace/state/collection_mode_state.dart';
 import 'translation_service.dart';
-import 'widgets/address_check_banner.dart';
 
 /// What happens at a door, in one sheet over the round.
 ///
@@ -75,11 +74,6 @@ class _CollectBodyState extends ConsumerState<_CollectBody> {
             ManaText.raw(row.customerName,
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.xs),
-            // Informational only, and deliberately so: collecting at a shop or
-            // a relative's house is ordinary, and a customer who moved has
-            // done nothing wrong. It never blocks a collection.
-            AddressCheckBanner(customerId: row.customerId),
-            const SizedBox(height: ManaSpacing.sm),
             if (_action == _Action.collect)
               ManaCollectionForm(
                 row: row,

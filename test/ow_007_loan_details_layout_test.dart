@@ -203,4 +203,31 @@ void main() {
       });
     }
   }
+  // The edit dialog holds ONE field, and that is a decision rather than an
+  // omission. Remarks used to sit here as an editable box, prefilled with
+  // whatever was said last, so saving replaced it. They are append-only now
+  // and go through Add Remarks; this test fails if the box comes back.
+  testWidgets('the edit dialog does not offer to overwrite remarks', (tester) async {
+    await pumpManaScreen(
+      tester,
+      const LoanDetailsScreen(loanId: 'l1'),
+      overrides: [loanDetailsProvider.overrideWith(_SeededLoanDetailsNotifier.new)],
+    );
+
+    final label = find.text('Edit Allowed Fields');
+    await tester.scrollUntilVisible(label, 400,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    await tester.tap(label.first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+      find.descendant(
+          of: find.byType(AlertDialog), matching: find.byType(TextField)),
+      findsOneWidget,
+      reason: 'only Future Effective Information belongs here -- a remarks '
+          'box in an EDIT dialog overwrites what was said before',
+    );
+  });
 }

@@ -1,19 +1,28 @@
+import '../../login_registration/state/auth_flow_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/mana_time.dart';
 
 /// OW-007 Loan Details — real Supabase wiring over Module 6/7.
 ///
-/// SCHEMA GAP FOUND (this session, not in the original stub's own
-/// flagging): the real `loans` table has NO `remarks` or
-/// `future_effective_information` column — the stub's editAllowedFields/
-/// addRemark methods assumed both exist directly on `loans`, matching the
-/// original spec's PATCH-field list, but 0007_module6_loan_domain.sql has
-/// neither. `collection_agent_membership_id` DOES exist and is wired.
-/// remarks/future_effective_information are left genuinely unimplemented
-/// (not silently dropped, not guessed into some other table) — flagged
-/// for master chat: either a schema addendum adding these columns, or a
-/// dedicated loan_remarks table analogous to customer_remarks.
+/// The schema gap this class used to carry is closed (migration
+/// 20260827123809). It is worth saying what it was, because the shape of the
+/// fix was decided by it: `loans` had neither `remarks` nor
+/// `future_effective_information`, so editAllowedFields and addRemark both
+/// raised UnimplementedError -- OW-007 shipped two buttons whose Save could
+/// never succeed.
+///
+/// They were NOT given the same shape:
+///
+///   future_effective_information is one editable note, so it is a column on
+///   loans. Editing it is the point.
+///
+///   remarks are an append-only log in `loan_remarks`, mirroring
+///   customer_remarks, because a lending record that lets somebody overwrite
+///   yesterday's note has lost what a remark is for. Writing them into
+///   customer_remarks would have been worse than leaving them broken: that
+///   table is scoped to customer_id, not loan_id, and would misattribute a
+///   remark about one loan to every loan that customer holds.
 class LoanDetailsApiService {
   SupabaseClient get _db => Supabase.instance.client;
 
@@ -23,7 +32,7 @@ class LoanDetailsApiService {
         .select('''
           loan_id, business_id, loan_number, loan_status, repayment_type, installment_amount,
           repayment_amount, amount_given, remaining_balance, grace_period_days,
-          collection_agent_membership_id,
+          collection_agent_membership_id, future_effective_information,
           customers!inner(customer_id, persons!inner(full_name)),
           business_members!loans_collection_agent_membership_id_fkey(persons!business_members_person_id_fkey(full_name)),
           guarantors(guarantor_id, guarantor_name, relationship, phone, address, remarks, status),
@@ -98,8 +107,11 @@ class LoanDetailsApiService {
       paymentHistory: const [], // requires a separate collections query scoped by loan_id — not fetched by this detail view
       penaltyEntries: penalties,
       availableActions: const [], // server-computed list per original API BINDING — no such computation exists yet; UI should derive from the getters below instead
-      futureEffectiveInformation: null, // schema gap, see class doc
-      remarks: null, // schema gap, see class doc
+      futureEffectiveInformation:
+          row['future_effective_information'] as String?,
+      // Remarks are a separate append-only table, loaded by
+      // fetchRemarks -- not a column on the loan.
+      remarks: const [],
     );
   }
 
@@ -121,19 +133,37 @@ class LoanDetailsApiService {
         _ => LoanStatus.active,
       };
 
+  /// No `remarks` parameter, deliberately. Remarks are append-only and go
+  /// through addRemark; an "edit" that overwrites one is exactly what the
+  /// append-only rule exists to prevent.
   Future<void> editAllowedFields({
     required String loanId,
     String? collectionAgentMembershipId,
-    String? remarks,
     String? futureEffectiveInformation,
   }) async {
-    if (collectionAgentMembershipId != null) {
-      await _db.from('loans').update({'collection_agent_membership_id': collectionAgentMembershipId}).eq('loan_id', loanId);
-    }
-    if (remarks != null || futureEffectiveInformation != null) {
-      throw UnimplementedError(
-        'remarks/future_effective_information have no backing column on loans — see class-level SCHEMA GAP note.',
-      );
+    final patch = <String, dynamic>{
+      if (collectionAgentMembershipId != null)
+        'collection_agent_membership_id': collectionAgentMembershipId,
+      if (futureEffectiveInformation != null)
+        // Cleared, not blanked: an empty box means "there is no note", and a
+        // null reads that way everywhere else in this file.
+        'future_effective_information':
+            futureEffectiveInformation.isEmpty ? null : futureEffectiveInformation,
+    };
+    if (patch.isEmpty) return;
+
+    // Read back. PostgREST answers an UPDATE that matched no rows exactly
+    // like one that matched, so without this a save the Owner is not
+    // permitted to make reports success -- the same defect the loan transfer
+    // had.
+    final rows = await _db
+        .from('loans')
+        .update(patch)
+        .eq('loan_id', loanId)
+        .select('loan_id');
+    if (rows.isEmpty) {
+      throw Exception(
+          'The change did not save. You may not have permission to edit this loan.');
     }
   }
 
@@ -229,12 +259,42 @@ class LoanDetailsApiService {
     return result == null ? null : DateTime.parse(result as String);
   }
 
-  Future<void> addRemark({required String loanId, required String remark}) async {
-    throw UnimplementedError(
-      'loans has no remarks column and no dedicated loan_remarks table exists in the delivered schema — see '
-      'class-level SCHEMA GAP note. Do not silently write this into customer_remarks; that table is scoped to '
-      'customer_id, not loan_id, and would misattribute the remark.',
-    );
+  Future<void> addRemark({
+    required String loanId,
+    required String remark,
+    required int enteredByPersonId,
+  }) async {
+    final rows = await _db
+        .from('loan_remarks')
+        .insert({
+          'loan_id': loanId,
+          'remark_text': remark,
+          'entered_by_person_id': enteredByPersonId,
+        })
+        .select('remark_id');
+    if (rows.isEmpty) {
+      throw Exception('The remark did not save.');
+    }
+  }
+
+  /// The loan's remarks, newest first. A separate query rather than an embed:
+  /// loan_remarks reaches persons through entered_by_person_id, and this file
+  /// already embeds persons twice through other paths -- a third would be the
+  /// ambiguous-embed error (PGRST201) the guard test exists to catch.
+  Future<List<LoanRemark>> fetchRemarks({required String loanId}) async {
+    final rows = await _db
+        .from('loan_remarks')
+        .select('remark_id, remark_text, business_date, created_at')
+        .eq('loan_id', loanId)
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map((r) => LoanRemark(
+              remarkId: r['remark_id'] as String,
+              text: r['remark_text'] as String,
+              businessDate: DateTime.parse(r['business_date'] as String),
+            ))
+        .toList();
   }
 }
 
@@ -259,6 +319,24 @@ class LoanCloseResult {
 final loanDetailsApiServiceProvider = Provider<LoanDetailsApiService>((ref) {
   return LoanDetailsApiService();
 });
+
+/// One remark on a loan. Append-only: there is no edit and no id-based
+/// update anywhere above this, by design -- see the class note on
+/// LoanDetailsApiService.
+class LoanRemark {
+  final String remarkId;
+  final String text;
+
+  /// The Indian calendar day the remark belongs to, which is what the book
+  /// is kept in -- not the wall-clock timestamp it was typed at.
+  final DateTime businessDate;
+
+  const LoanRemark({
+    required this.remarkId,
+    required this.text,
+    required this.businessDate,
+  });
+}
 
 class GuarantorDetail {
   final String name;
@@ -345,7 +423,9 @@ class LoanDetail {
   final List<PenaltyEntry> penaltyEntries;
   final List<String> availableActions; // server-computed, per API BINDING
   final String? futureEffectiveInformation;
-  final String? remarks;
+
+  /// Append-only, newest first. Empty until fetchRemarks has run.
+  final List<LoanRemark> remarks;
 
   LoanDetail({
     required this.loanId,
@@ -371,7 +451,7 @@ class LoanDetail {
     this.penaltyEntries = const [],
     this.availableActions = const [],
     this.futureEffectiveInformation,
-    this.remarks,
+    this.remarks = const [],
   });
 
   bool get isReadOnlyFinancials =>
@@ -407,18 +487,18 @@ class LoanDetailsNotifier extends FamilyAsyncNotifier<LoanDetail, String> {
     state = await AsyncValue.guard(() => ref.read(loanDetailsApiServiceProvider).fetchLoanDetail(loanId: arg));
   }
 
-  Future<bool> editAllowedFields({String? remarks, String? futureEffectiveInformation}) async {
-    try {
-      await ref.read(loanDetailsApiServiceProvider).editAllowedFields(
-            loanId: arg,
-            remarks: remarks,
-            futureEffectiveInformation: futureEffectiveInformation,
-          );
-      await refresh();
-      return true;
-    } catch (_) {
-      return false;
-    }
+  /// Rethrows. `catch (_) => false` turned every failure into a bare "it
+  /// didn't work" with the reason discarded -- a permission refusal, an
+  /// expired session and a dropped connection all looked identical, and the
+  /// screen above could not say which. NetworkErrorHandler shows the real
+  /// message when it is allowed to see one.
+  Future<bool> editAllowedFields({String? futureEffectiveInformation}) async {
+    await ref.read(loanDetailsApiServiceProvider).editAllowedFields(
+          loanId: arg,
+          futureEffectiveInformation: futureEffectiveInformation,
+        );
+    await refresh();
+    return true;
   }
 
   /// Throws rather than returning false.
@@ -463,15 +543,26 @@ class LoanDetailsNotifier extends FamilyAsyncNotifier<LoanDetail, String> {
     return result;
   }
 
+  /// Rethrows, same reasoning as editAllowedFields above.
   Future<bool> addRemark(String remark) async {
-    try {
-      await ref.read(loanDetailsApiServiceProvider).addRemark(loanId: arg, remark: remark);
-      await refresh();
-      return true;
-    } catch (_) {
-      return false;
+    final personId = ref.read(authFlowProvider).personId;
+    if (personId == null) {
+      throw StateError(
+          'No logged-in person_id available — cannot set entered_by_person_id.');
     }
+    await ref.read(loanDetailsApiServiceProvider).addRemark(
+          loanId: arg,
+          remark: remark,
+          enteredByPersonId: int.parse(personId),
+        );
+    await refresh();
+    return true;
   }
+
+  /// The remark log. Kept off the detail fetch on purpose: the log grows and
+  /// the detail is read on every screen open.
+  Future<List<LoanRemark>> loadRemarks() =>
+      ref.read(loanDetailsApiServiceProvider).fetchRemarks(loanId: arg);
 }
 
 final loanDetailsProvider = AsyncNotifierProvider.family<LoanDetailsNotifier, LoanDetail, String>(

@@ -56,6 +56,8 @@ class LoanDetailsScreen extends ConsumerWidget {
                 _PaymentHistorySection(loan: loan),
                 const SizedBox(height: ManaSpacing.lg),
                 _PenaltySection(loanId: loanId, loan: loan),
+                const SizedBox(height: ManaSpacing.lg),
+                _RemarksSection(loanId: loanId),
               ],
             ),
           ),
@@ -320,8 +322,11 @@ class _ActionsSection extends ConsumerWidget {
   }
 
   Future<void> _showEditFieldsDialog(BuildContext context, WidgetRef ref) async {
-    final remarks = TextEditingController(text: loan.remarks ?? '');
-    final futureInfo = TextEditingController(text: loan.futureEffectiveInformation ?? '');
+    // No remarks field here any more. Remarks are append-only and go through
+    // Add Remarks; an "edit" that silently replaces yesterday's note is what
+    // the append-only rule exists to prevent.
+    final futureInfo =
+        TextEditingController(text: loan.futureEffectiveInformation ?? '');
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -336,8 +341,6 @@ class _ActionsSection extends ConsumerWidget {
               style: ManaType.note,
             ),
             const SizedBox(height: ManaSpacing.md),
-            TextField(controller: remarks, decoration: InputDecoration(labelText: ref.t('remarks'))),
-            const SizedBox(height: ManaSpacing.md),
             TextField(controller: futureInfo, decoration: InputDecoration(labelText: ref.t('future_effective_information'))),
           ],
         ),
@@ -350,7 +353,6 @@ class _ActionsSection extends ConsumerWidget {
     if (result != true || !context.mounted) return;
     await NetworkErrorHandler.run(context, () async {
       return ref.read(loanDetailsProvider(loanId).notifier).editAllowedFields(
-            remarks: remarks.text.trim(),
             futureEffectiveInformation: futureInfo.text.trim(),
           );
     });
@@ -453,6 +455,77 @@ class _PaymentHistorySection extends ConsumerWidget {
                 ),
               )),
       ],
+    );
+  }
+}
+
+/// The loan's remarks. Add Remarks wrote into nothing at all until migration
+/// 20260827123809, and even once it wrote somewhere there was no way to read
+/// it back -- a remark you cannot see is not a record, it is a discarded
+/// keystroke.
+///
+/// Append-only, so there is no edit and no delete here. Newest first, because
+/// the last thing said about a loan is the thing being looked for.
+class _RemarksSection extends ConsumerStatefulWidget {
+  final String loanId;
+  const _RemarksSection({required this.loanId});
+
+  @override
+  ConsumerState<_RemarksSection> createState() => _RemarksSectionState();
+}
+
+class _RemarksSectionState extends ConsumerState<_RemarksSection> {
+  late Future<List<LoanRemark>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ref.read(loanDetailsProvider(widget.loanId).notifier).loadRemarks();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Re-reads whenever the loan itself is refreshed, which is what happens
+    // after a remark is added.
+    ref.listen(loanDetailsProvider(widget.loanId), (_, __) {
+      if (!mounted) return;
+      setState(() {
+        _future =
+            ref.read(loanDetailsProvider(widget.loanId).notifier).loadRemarks();
+      });
+    });
+
+    return FutureBuilder<List<LoanRemark>>(
+      future: _future,
+      builder: (context, snap) {
+        final remarks = snap.data ?? const <LoanRemark>[];
+        if (snap.connectionState == ConnectionState.waiting || remarks.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ManaText.raw(ref.t('remarks'), style: ManaType.strong),
+            const SizedBox(height: ManaSpacing.sm),
+            ...remarks.map((r) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(ManaSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ManaText.raw(r.text),
+                        const SizedBox(height: ManaSpacing.xs),
+                        ManaText.raw(
+                          DateFormat('d MMM yyyy').format(r.businessDate),
+                          style: ManaType.note,
+                        ),
+                      ],
+                    ),
+                  ),
+                )),
+          ],
+        );
+      },
     );
   }
 }

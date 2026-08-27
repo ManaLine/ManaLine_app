@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_centered_scroll.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/aadhaar_dispute_state.dart';
@@ -61,9 +62,12 @@ class _StaffStubGate extends ConsumerWidget {
     return Scaffold(
       backgroundColor: ManaColors.surfaceMuted,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(ManaSpacing.xl),
+        // The gate every step is shown behind, so when it clipped, all seven
+        // steps clipped. At 1.3x the Continue button went off the bottom and
+        // there is nothing else on this screen to press.
+        child: ManaCenteredScroll(
+          padding: const EdgeInsets.all(ManaSpacing.xl),
+          child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -278,15 +282,25 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(ManaSpacing.lg),
-      decoration: BoxDecoration(
-        color: ManaColors.surface,
+    // Material, not a decorated Container. The decision tiles inside are
+    // ListTiles, and a ListTile paints its ink on the nearest Material
+    // ancestor -- with a coloured DecoratedBox in between, the splash went
+    // behind the card and the tap looked like it had not registered. On a
+    // screen where a case worker is choosing Verified or Not Verified about
+    // somebody's identity, silent taps are how the wrong one gets picked.
+    //
+    // Same paint: colour, radius and border are carried onto the Material's
+    // own shape rather than a box drawn over it.
+    return Material(
+      color: ManaColors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ManaColors.surfaceSunken),
+        side: BorderSide(color: ManaColors.surfaceSunken),
       ),
-      child: child,
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        child: SizedBox(width: double.infinity, child: child),
+      ),
     );
   }
 }
@@ -841,8 +855,13 @@ class _CaseClosedStep extends ConsumerWidget {
           children: [
             Icon(Icons.check_circle, color: ManaColors.statusGood),
             const SizedBox(width: ManaSpacing.sm),
-            ManaText.raw(ref.t('case_resolved_slot_freed'),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            // Expanded: the heading is a translated sentence beside a fixed
+            // icon, which ran 127px past the edge in English and 387px in
+            // Telugu -- at 1.0x, before any scaling.
+            Expanded(
+              child: ManaText.raw(ref.t('case_resolved_slot_freed'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
         const SizedBox(height: ManaSpacing.md),

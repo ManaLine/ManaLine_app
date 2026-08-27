@@ -8,6 +8,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_brand_mark.dart' show kManaAppName;
+import '../../../design/components/mana_centered_scroll.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 
@@ -140,14 +141,11 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
         // button do not fit, and a Column would simply clip the button — the
         // one control someone with no signal actually needs. It scrolls
         // instead, and centres whenever there is room, which is almost always.
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+        child: ManaCenteredScroll(
+          padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
               // The wordmark and the tagline used to be laid out again in text
               // underneath a 96px logo. They are both already inside the mark
               // — "MANA LINE" and "EVERY ₹ COUNTS" are drawn into it — so at
@@ -166,11 +164,8 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
                 ManaText.raw(ref.t('loading_ellipsis'),
                     style: TextStyle(color: ManaColors.textPrimary)),
               ],
-                  if (_state == _StartupState.failure)
-                    _FailureCard(onRetry: _retryNow),
-                ],
-              ),
-            ),
+              if (_state == _StartupState.failure) _FailureCard(onRetry: _retryNow),
+            ],
           ),
         ),
       ),

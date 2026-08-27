@@ -6,6 +6,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_centered_scroll.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/investor_discovery_state.dart';
@@ -327,9 +328,13 @@ class _ResultState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.xl),
+    // Scrolls rather than clips. Every one of these three phases ends in a
+    // button -- Continue, Back To Search, Try Again -- and at 2.0x the button
+    // was the part that went off the bottom, on a screen whose entire purpose
+    // is that one action. CW-002 lost 477px in the worst case.
+    return ManaCenteredScroll(
+      padding: const EdgeInsets.all(ManaSpacing.xl),
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

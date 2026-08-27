@@ -1005,15 +1005,35 @@ class _Step5Agreements extends ConsumerWidget {
       child: Column(
         children: ['Customer', 'Agent', 'Investor'].map((type) {
           final created = state.agreementTypesCreated.contains(type);
+          // Not a ListTile. Its trailing slot must fit on the title's line,
+          // and "Upload / Create" translated does not -- at 1.3x Flutter
+          // asserted outright ("trailing widget consumes the entire tile
+          // width"), which is a crash, not a clipped pixel. The action gets
+          // its own line instead, where the label can be as long as the
+          // language needs.
           return Card(
-            child: ListTile(
-              leading: Icon(
-                  created ? Icons.check_circle : Icons.description_outlined,
-                  color: created ? ManaColors.statusGood : ManaColors.brand),
-              title: ManaText.raw('$type Agreement'),
-              trailing: TextButton(
-                onPressed: created ? null : () => _create(context, ref, type),
-                child: ManaText(created ? 'created' : 'upload / create'),
+            child: Padding(
+              padding: const EdgeInsets.all(ManaSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                          created ? Icons.check_circle : Icons.description_outlined,
+                          color: created ? ManaColors.statusGood : ManaColors.brand),
+                      const SizedBox(width: ManaSpacing.md),
+                      Expanded(child: ManaText.raw('$type Agreement')),
+                    ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: created ? null : () => _create(context, ref, type),
+                      child: ManaText(created ? 'created' : 'upload / create'),
+                    ),
+                  ),
+                ],
               ),
             ),
           );

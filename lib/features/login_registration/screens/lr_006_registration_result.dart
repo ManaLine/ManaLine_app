@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_centered_scroll.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/auth_flow_state.dart';
 
@@ -48,7 +49,10 @@ class _RegistrationResultScreenState extends ConsumerState<RegistrationResultScr
       canPop: false, // no back navigation, per spec
       child: Scaffold(
         body: SafeArea(
-          child: Padding(
+          // 146px went off the bottom at 2.0x in Telugu -- taking with it the
+          // confirmation that the person has written their MLID down, which
+          // is the entire point of this screen.
+          child: ManaCenteredScroll(
             padding: const EdgeInsets.all(ManaSpacing.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

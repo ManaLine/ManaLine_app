@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_centered_scroll.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 import '../../../shared/network_error_handler.dart';
@@ -139,7 +140,10 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
       child: Scaffold(
         appBar: AppBar(automaticallyImplyLeading: false),
         body: SafeArea(
-          child: Padding(
+          // Scrolls rather than clips: at 2.0x the pad plus its Continue
+          // button overflowed the bottom by 45px, and Continue is the only
+          // way off this screen -- there is no back, by spec.
+          child: ManaCenteredScroll(
             padding: const EdgeInsets.all(ManaSpacing.lg),
             child: _step == _PinStep.biometric ? _biometricPrompt() : _pinPad(),
           ),

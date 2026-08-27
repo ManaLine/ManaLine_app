@@ -400,13 +400,13 @@ class _AgentLoanWizardFlow extends ConsumerStatefulWidget {
 class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
   static const _steps = LoanWizardStep.values;
 
-  @override
-  void dispose() {
-    // No draft persistence for this wizard (per OW-005, unchanged) —
-    // exiting mid-flow resets progress.
-    ref.read(loanWizardProvider.notifier).reset();
-    super.dispose();
-  }
+  // No dispose-time reset. `ref.read()` inside dispose() is forbidden by
+  // Riverpod -- it threw "Cannot use \"ref\" after the widget was disposed"
+  // every single time somebody left this wizard, so the reset it looked like
+  // it was doing has never once happened. The guarantee it was reaching for
+  // is already met on the way IN: _startNewLoan resets before it pushes this flow, so a fresh wizard
+  // starts empty regardless of how the last one ended.
+
 
   @override
   Widget build(BuildContext context) {

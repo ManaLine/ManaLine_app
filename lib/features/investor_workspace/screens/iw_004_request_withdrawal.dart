@@ -6,6 +6,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/withdrawal_request_state.dart';
@@ -194,27 +195,21 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: ManaSpacing.md),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ManaText.raw(ref.t('available_balance')),
-                    ManaText.raw(
-                      _moneyFormat.format(investment.availableBalance),
-                      style: ManaTypography.amount(),
-                    ),
-                  ],
+                // Was a spaceBetween Row with both children unbounded, which
+                // overflowed by 186px at 1.0x -- the balance is a lakh figure
+                // in the headline amount style, and this is the screen where
+                // an investor asks for that money back.
+                ManaLabelValueRow(
+                  label: ref.t('available_balance'),
+                  value: _moneyFormat.format(investment.availableBalance),
+                  valueStyle: ManaTypography.amount(),
                 ),
                 const SizedBox(height: ManaSpacing.xs),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ManaText.raw(ref.t('principal_amount'),
-                        style: Theme.of(context).textTheme.bodySmall),
-                    ManaText.raw(
-                      _moneyFormat.format(investment.principalAmount),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+                ManaLabelValueRow(
+                  dense: true,
+                  label: ref.t('principal_amount'),
+                  value: _moneyFormat.format(investment.principalAmount),
+                  valueStyle: Theme.of(context).textTheme.bodySmall,
                 ),
                 if (widget.disabled) ...[
                   const SizedBox(height: ManaSpacing.md),

@@ -8,6 +8,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_centered_scroll.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/loan_request_state.dart';
@@ -122,9 +123,9 @@ class _NotAllowedState extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.xl),
+    return ManaCenteredScroll(
+      padding: const EdgeInsets.all(ManaSpacing.xl),
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -161,9 +162,9 @@ class _CooldownState extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cooldown = state.lastResult?.cooldownUntil;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.xl),
+    return ManaCenteredScroll(
+      padding: const EdgeInsets.all(ManaSpacing.xl),
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -522,9 +523,9 @@ class _ResultState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.xl),
+    return ManaCenteredScroll(
+      padding: const EdgeInsets.all(ManaSpacing.xl),
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

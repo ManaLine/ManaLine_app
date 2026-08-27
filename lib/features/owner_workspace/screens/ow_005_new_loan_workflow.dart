@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
@@ -41,12 +42,20 @@ class _NewLoanWorkflowScreenState extends ConsumerState<NewLoanWorkflowScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       ref.read(loanWizardProvider.notifier).reset();
       // BUG FIXED this pass: prefilledCustomerId was declared but never
       // actually read anywhere — every entry point that passed one (e.g.
       // this Loan Requests approval flow) silently landed on the plain
       // empty Step 1 search instead of the intended customer.
       if (widget.prefilledCustomerId != null) {
+        // Guarded on both sides of the await. This is the only postFrame
+        // callback in lib/ that touches ref AFTER an await -- the other
+        // thirty run entirely within the frame that scheduled them, where
+        // the widget cannot have gone. Here it can: selectCustomerById is a
+        // round trip, and backing out of Issue Loan while it is in flight
+        // threw "Cannot use ref after the widget was disposed".
+        if (!mounted) return;
         await ref.read(loanWizardProvider.notifier).selectCustomerById(
               customerId: widget.prefilledCustomerId!,
               sourceRequestId: widget.sourceRequestId,
@@ -55,13 +64,13 @@ class _NewLoanWorkflowScreenState extends ConsumerState<NewLoanWorkflowScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    // Resets on exit at any step per spec's own NAVIGATION section — no
-    // draft persistence for this wizard.
-    ref.read(loanWizardProvider.notifier).reset();
-    super.dispose();
-  }
+  // No dispose-time reset. `ref.read()` inside dispose() is forbidden by
+  // Riverpod -- it threw "Cannot use \"ref\" after the widget was disposed"
+  // every single time somebody left this wizard, so the reset it looked like
+  // it was doing has never once happened. The guarantee it was reaching for
+  // is already met on the way IN: initState resets before the first frame, so a fresh wizard
+  // starts empty regardless of how the last one ended.
+
 
   static const _steps = LoanWizardStep.values;
 
@@ -239,7 +248,10 @@ class _Step2Eligibility extends ConsumerWidget {
                           Icon(c.$2 ? Icons.check_circle : Icons.cancel,
                               size: 16, color: c.$2 ? ManaColors.statusGood : ManaColors.statusBad),
                           const SizedBox(width: ManaSpacing.sm),
-                          ManaText.raw(c.$1, style: ManaType.small),
+                          // Expanded, because an eligibility reason is a
+                          // sentence, not a word -- and it is longer in every
+                          // language other than English.
+                          Expanded(child: ManaText.raw(c.$1, style: ManaType.small)),
                         ],
                       ),
                     )),
@@ -249,9 +261,14 @@ class _Step2Eligibility extends ConsumerWidget {
                         children: [
                           Icon(Icons.schedule, size: 16, color: ManaColors.textSecondary),
                           const SizedBox(width: ManaSpacing.sm),
-                          Expanded(child: ManaText.raw(ref.t(key), style: ManaType.small)),
-                          ManaText.raw(ref.t('at_confirm'),
-                              style: ManaType.note),
+                          Expanded(flex: 3, child: ManaText.raw(ref.t(key), style: ManaType.small)),
+                          const SizedBox(width: ManaSpacing.xs),
+                          // "At Confirm" was bare beside a flexible label, so
+                          // the label yielded and this ran off the edge.
+                          Flexible(
+                            child: ManaText.raw(ref.t('at_confirm'),
+                                style: ManaType.note, textAlign: TextAlign.right),
+                          ),
                         ],
                       ),
                     )),
@@ -743,16 +760,16 @@ class _Step5Confirm extends ConsumerWidget {
             padding: const EdgeInsets.all(ManaSpacing.md),
             child: Column(
               children: [
-                _row(ref.t('customer'), state.customer?.fullName ?? ''),
-                _row(ref.t('repayment_amount_field'), '₹${state.repaymentAmount ?? 0}'),
-                _row(ref.t('interest'), '₹${state.interest ?? 0}'),
-                _row(ref.t('processing_fee'), '₹${state.processingFee ?? 0}'),
-                _row(ref.t('amount_given'), '₹${state.amountGiven}'),
-                _row(ref.t('repayment_type_field'), state.repaymentType),
-                _row(ref.t('duration'), ref.t('duration_note').replaceAll('{count}', '${state.durationValue ?? 0}')),
-                _row(ref.t('installment'), '₹${state.installmentAmount ?? 0}'),
-                _row(ref.t('collection_agent'), state.collectionAgentName ?? ''),
-                _row(ref.t('guarantor'), state.needsGuarantor ? (state.guarantorName ?? '') : ref.t('none')),
+                ManaLabelValueRow(dense: true, label: ref.t('customer'), value: state.customer?.fullName ?? ''),
+                ManaLabelValueRow(dense: true, label: ref.t('repayment_amount_field'), value: '₹${state.repaymentAmount ?? 0}'),
+                ManaLabelValueRow(dense: true, label: ref.t('interest'), value: '₹${state.interest ?? 0}'),
+                ManaLabelValueRow(dense: true, label: ref.t('processing_fee'), value: '₹${state.processingFee ?? 0}'),
+                ManaLabelValueRow(dense: true, label: ref.t('amount_given'), value: '₹${state.amountGiven}'),
+                ManaLabelValueRow(dense: true, label: ref.t('repayment_type_field'), value: state.repaymentType),
+                ManaLabelValueRow(dense: true, label: ref.t('duration'), value: ref.t('duration_note').replaceAll('{count}', '${state.durationValue ?? 0}')),
+                ManaLabelValueRow(dense: true, label: ref.t('installment'), value: '₹${state.installmentAmount ?? 0}'),
+                ManaLabelValueRow(dense: true, label: ref.t('collection_agent'), value: state.collectionAgentName ?? ''),
+                ManaLabelValueRow(dense: true, label: ref.t('guarantor'), value: state.needsGuarantor ? (state.guarantorName ?? '') : ref.t('none')),
               ],
             ),
           ),
@@ -807,13 +824,5 @@ class _Step5Confirm extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(child: ManaText.raw(label, style: ManaType.note)),
-            ManaText.raw(value, style: ManaType.smallStrong),
-          ],
-        ),
-      );
+
 }

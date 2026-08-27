@@ -35,12 +35,18 @@ class ManaLabelValueRow extends StatelessWidget {
   /// this way and the spacing is theirs, not an accident worth flattening.
   final bool dense;
 
+  /// Overrides the value's text style -- for rows whose value is a headline
+  /// amount rather than a plain figure. The bounding is unchanged either way;
+  /// a bigger style is exactly when the old bare-value rows broke.
+  final TextStyle? valueStyle;
+
   const ManaLabelValueRow({
     super.key,
     required this.label,
     required this.value,
     this.trailing,
     this.dense = false,
+    this.valueStyle,
   });
 
   @override
@@ -54,7 +60,8 @@ class ManaLabelValueRow extends StatelessWidget {
             Expanded(
               flex: 6,
               child: ManaText.raw(value,
-                  style: ManaType.smallStrong, textAlign: TextAlign.right),
+                  style: valueStyle ?? ManaType.smallStrong,
+                  textAlign: TextAlign.right),
             ),
             if (trailing != null) trailing!,
           ],

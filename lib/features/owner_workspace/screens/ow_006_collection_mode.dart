@@ -10,6 +10,7 @@ import '../../../shared/mana_time.dart';
 import '../../../shared/idempotency.dart';
 import '../../../shared/mana_location.dart';
 import '../../../shared/gps_address_service.dart';
+import '../../../shared/widgets/owner_footer_nav.dart';
 import '../../../shared/translation_service.dart';
 import '../state/collection_mode_state.dart';
 import '../../../shared/collection_round_view.dart';
@@ -46,6 +47,11 @@ class CollectionModeScreen extends ConsumerWidget {
       businessId: businessId,
       focusLoanId: prefilledLoanId,
       onBack: () => context.go('/ow-001', extra: businessId),
+      // Index 2 is Collections, which is this screen. The bar refuses to
+      // re-navigate to the tab it is already on, so pressing it does nothing
+      // rather than pushing a duplicate route.
+      bottomNavigationBar:
+          ManaOwnerFooterNav(businessId: businessId, currentIndex: 2),
     );
   }
 }

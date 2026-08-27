@@ -26,6 +26,7 @@ import '../state/investor_state.dart' show investorApiServiceProvider, InvestorS
 import 'ow_004_customer_management.dart' show CustomerProfileScreen;
 import 'ow_003_investor_management.dart' show InvestorProfileScreen;
 import 'ow_002_workforce_management.dart' show AgentProfileScreen;
+import '../../../shared/widgets/owner_footer_nav.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/quick_expense.dart';
 import '../../../shared/network_error_handler.dart';
@@ -235,7 +236,8 @@ class _OwnerHomeDashboardScreenState
           },
         ),
       ],
-      bottomNavigationBar: _FooterNav(businessId: widget.businessId),
+      bottomNavigationBar: ManaOwnerFooterNav(
+          businessId: widget.businessId, currentIndex: 0),
       body: SafeArea(
         top: false,
         child: async.when(
@@ -1315,47 +1317,3 @@ class _AttentionRequired extends ConsumerWidget {
 
 // --- C11 Footer Navigation --------------------------------------------
 
-class _FooterNav extends ConsumerWidget {
-  final String businessId;
-  const _FooterNav({required this.businessId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Was a Material NavigationBar. Swapped for the shared ManaBottomNav so
-    // Owner/Agent/Customer/Investor all get identical navigation — the other
-    // three workspaces will adopt the same widget rather than each
-    // reinterpreting it. It also supplies selectedIcon per item (the old
-    // version only set one for Home, so the other three never changed shape
-    // when selected) and refuses to re-navigate to the current tab, which
-    // pushed a duplicate route and broke Back.
-    return ManaBottomNav(
-      currentIndex: 0,
-      items: [
-        ManaNavItem(
-          icon: Icons.home_outlined,
-          selectedIcon: Icons.home,
-          label: ref.t('home'),
-          onTap: () {},
-        ),
-        ManaNavItem(
-          icon: Icons.people_outline,
-          selectedIcon: Icons.people,
-          label: ref.t('customers'),
-          onTap: () => context.go('/ow-004', extra: businessId),
-        ),
-        ManaNavItem(
-          icon: Icons.point_of_sale_outlined,
-          selectedIcon: Icons.point_of_sale,
-          label: ref.t('collections'),
-          onTap: () => context.go('/ow-006', extra: businessId),
-        ),
-        ManaNavItem(
-          icon: Icons.history,
-          selectedIcon: Icons.history_toggle_off,
-          label: ref.t('history'),
-          onTap: () => context.go('/ow-017', extra: businessId),
-        ),
-      ],
-    );
-  }
-}

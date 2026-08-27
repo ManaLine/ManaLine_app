@@ -44,12 +44,21 @@ class ManaCollectionRound extends ConsumerStatefulWidget {
   /// harmless.
   final String? focusLoanId;
 
+  /// The footer nav for whoever is walking this round, or null.
+  ///
+  /// Passed in for the same reason onBack is: the two workspaces have
+  /// different destinations, and this view must not decide which set of four
+  /// an Agent sees. Null leaves the screen without a bar, which is what an
+  /// embedded round wants.
+  final Widget? bottomNavigationBar;
+
   /// Where the app-bar Back arrow goes. The two workspaces have different
   /// homes, and landing an Agent on the Owner's dashboard would show them a
   /// business they do not run.
   final VoidCallback? onBack;
 
   const ManaCollectionRound({
+    this.bottomNavigationBar,
     super.key,
     required this.businessId,
     this.onBack,
@@ -201,6 +210,7 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
     );
 
     return Scaffold(
+      bottomNavigationBar: widget.bottomNavigationBar,
       appBar: ManaAppBar(
         // onBack passes straight through, null included: a null here means
         // this view is embedded and the host owns back, which is the same
@@ -414,9 +424,10 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
   @override
   Widget build(BuildContext context) {
     final row = widget.row;
-    final done = row.collectionStatus == 'Collected' ||
-        row.collectionStatus == 'Partial' ||
-        row.collectionStatus == 'Skipped';
+    // Same rule the sort uses to sink finished doors -- see manaRowSettled.
+    // Two copies of it drifting apart would grey a row that still sorted as
+    // work to do.
+    final done = manaRowSettled(row);
 
     // A finished door stays in the list and goes quiet. Removing it would make
     // the round shorter than the work actually done, and an Agent checking

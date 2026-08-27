@@ -1,3 +1,4 @@
+import 'package:mana_line/shared/widgets/owner_footer_nav.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_006_collection_mode.dart';
@@ -247,5 +248,19 @@ void main() {
     // screen underneath — nothing navigated.
     expect(find.byType(ManaCollectionForm), findsOneWidget);
     expect(find.byType(ManaCollectionRound), findsOneWidget);
+  });
+  testWidgets('the round carries the footer nav, on its own tab', (tester) async {
+    // An Agent who has finished a round should be able to leave it without
+    // pressing back four times. The bar is passed IN rather than built here,
+    // because the Agent's four destinations are not the Owner's.
+    await pumpManaScreen(
+      tester,
+      const CollectionModeScreen(businessId: 'b1'),
+      overrides: [collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))],
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ManaOwnerFooterNav), findsOneWidget,
+        reason: 'the round should offer a way out that is not Back');
   });
 }

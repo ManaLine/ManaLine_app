@@ -464,12 +464,34 @@ List<CollectionDueRow> manaFilterByVillages(
 
 /// Orders a round. Village is not an option here on purpose -- see
 /// [CollectionSort].
+/// This door is finished for today -- collected from, part-paid, or visited
+/// and recorded as nothing collected.
+///
+/// The row widget greys these out and the sort sends them to the end. Both
+/// need the same answer, so there is one place that gives it: two copies of
+/// this rule drifting apart would grey a row that still sorted as work to do.
+bool manaRowSettled(CollectionDueRow r) =>
+    r.collectionStatus == 'Collected' ||
+    r.collectionStatus == 'Partial' ||
+    r.collectionStatus == 'Skipped';
+
 List<CollectionDueRow> manaSortDueRows(
     List<CollectionDueRow> list, CollectionSort mode) {
   final sorted = [...list];
   int byName(CollectionDueRow a, CollectionDueRow b) =>
       a.customerName.toLowerCase().compareTo(b.customerName.toLowerCase());
-  sorted.sort((a, b) => switch (mode) {
+  sorted.sort((a, b) {
+    // Finished doors sink, whatever the chosen sort says.
+    //
+    // A round is worked from the top, and a door already answered is not work
+    // -- leaving it interleaved means scrolling past this morning to find
+    // this afternoon. They stay in the list rather than disappearing: an
+    // Agent checking whether they visited somebody has to be able to find
+    // them.
+    if (manaRowSettled(a) != manaRowSettled(b)) {
+      return manaRowSettled(a) ? 1 : -1;
+    }
+    return switch (mode) {
         CollectionSort.dueToday => b.installmentDue.compareTo(a.installmentDue) != 0
             ? b.installmentDue.compareTo(a.installmentDue)
             : byName(a, b),
@@ -483,7 +505,8 @@ List<CollectionDueRow> manaSortDueRows(
               ? b.outstandingBalance.compareTo(a.outstandingBalance)
               : byName(a, b),
         CollectionSort.name => byName(a, b),
-      });
+    };
+  });
   return sorted;
 }
 

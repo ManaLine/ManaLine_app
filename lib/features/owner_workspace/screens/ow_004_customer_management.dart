@@ -18,6 +18,7 @@ import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../shared/document_viewer.dart';
+import '../../../shared/customer_row.dart';
 import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart';
@@ -217,7 +218,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                   // to the default one.
                   rowBuilder: (entry, _) {
                     final c = state.filtered.firstWhere((x) => x.customerId == entry.id);
-                    return _CustomerRow(
+                    return ManaCustomerRow(
                       customer: c,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
@@ -305,92 +306,6 @@ class _VillageFilterDropdown extends ConsumerWidget {
                 maxLines: 1, overflow: TextOverflow.ellipsis))),
       ],
       onChanged: (v) => ref.read(customerListProvider.notifier).setVillageFilter(v),
-    );
-  }
-}
-
-class _CustomerRow extends ConsumerWidget {
-  final CustomerSummary customer;
-  final VoidCallback onTap;
-  const _CustomerRow({required this.customer, required this.onTap});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final flagged = customer.membershipStatus != 'Active';
-    // NOT a ListTile — same bug/fix as OW-006/AG-002/AG-003's due-rows:
-    // ListTile's trailing slot assumes a bounded width/height, which a
-    // two-line trailing column (amount + "Due X") does not fit inside once
-    // text scale grows or the amount/village strings run long (a real
-    // failure this screen's own first layout test caught — it never had
-    // one before). Amount + Due go on their own row below the name/village
-    // instead of sharing horizontal space with them.
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(ManaSpacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const ManaVerificationRing(isVerified: true, size: 40),
-              const SizedBox(width: ManaSpacing.md),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: ManaText.raw(customer.fullName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: ManaType.emphasis),
-                        ),
-                        if (flagged) ...[
-                          const SizedBox(width: ManaSpacing.xs),
-                          ManaStatusPill(label: customer.membershipStatus, status: ManaStatus.bad),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    ManaText.raw(
-                      '${customer.village} · ${customer.mlid} · LRI ${customer.lineRepaymentIndex}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: ManaType.note,
-                    ),
-                    const SizedBox(height: ManaSpacing.xs),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: ManaText.raw(manaRupees(customer.outstandingBalance),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: ManaType.cardTitle),
-                        ),
-                        if (customer.todaysDue > 0) ...[
-                          const SizedBox(width: ManaSpacing.sm),
-                          Flexible(
-                            child: ManaText.raw(
-                                ref.t('due_note').replaceAll('{amount}', manaRupees(customer.todaysDue)),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.right,
-                                style: TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

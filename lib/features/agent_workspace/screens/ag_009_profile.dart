@@ -8,6 +8,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_identity_header.dart';
 import '../../../design/components/mana_text.dart';
 import '../state/agent_dashboard_state.dart' show AgentAreaAssignment;
 import '../state/agent_profile_state.dart';
@@ -113,6 +114,13 @@ class _Ag009ProfileScreenState extends ConsumerState<Ag009ProfileScreen> {
 /// Date, Current Status. Identity editing is not allowed by the Agent —
 /// same locked pattern as AG-004 — so no edit affordance anywhere here,
 /// not even a disabled one.
+/// The Agent's identity, through the shared header.
+///
+/// onChangePhoto is deliberately NOT passed. Null means the header draws no
+/// photo control at all -- not a disabled one -- which is this screen's
+/// standing rule: identity editing is not allowed by the Agent anywhere
+/// here. The locked padlocks on the rows say the same thing about the
+/// fields.
 class _BasicProfileCard extends ConsumerWidget {
   final AgentProfileSummary profile;
   const _BasicProfileCard({required this.profile});
@@ -125,72 +133,19 @@ class _BasicProfileCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                ManaVerificationRing(
-                  isVerified: true,
-                  photo: profile.profilePhotoUrl != null ? NetworkImage(profile.profilePhotoUrl!) : null,
-                  size: 56,
-                ),
-                const SizedBox(width: ManaSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ManaText.raw(profile.fullName, style: Theme.of(context).textTheme.titleLarge),
-                      const SizedBox(height: 2),
-                      ManaText.raw(profile.mlid, style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: ManaSpacing.xs),
-                Flexible(child: ManaStatusPill(label: profile.currentStatus, status: _statusPillStatus)),
-              ],
-            ),
-            const Divider(height: ManaSpacing.xl),
-            _FieldRow(label: ref.t('phone'), value: profile.phoneNumber ?? '—'),
-            const SizedBox(height: ManaSpacing.sm),
-            _FieldRow(label: ref.t('joined_date_label'), value: _date.format(profile.joinedDate)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A locked, view-only field row — deliberately has no `onEdit` affordance
-/// of any kind (not even disabled), since identity editing is not allowed
-/// by the Agent anywhere on this screen.
-class _FieldRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _FieldRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ManaText.raw(label, style: Theme.of(context).textTheme.labelMedium),
-              const SizedBox(height: 2),
-              ManaText.raw(value, style: Theme.of(context).textTheme.bodyMedium),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(Icons.lock_outline, size: 16, color: ManaColors.textDisabled),
-        ),
+    return ManaIdentityHeader(
+      fullName: profile.fullName,
+      mlid: profile.mlid,
+      statusLabel: profile.currentStatus,
+      statusKind: _statusPillStatus,
+      photoUrl: profile.profilePhotoUrl,
+      fields: [
+        ManaIdentityField(
+            label: ref.t('phone'), value: profile.phoneNumber ?? '—', locked: true),
+        ManaIdentityField(
+            label: ref.t('joined_date_label'),
+            value: _date.format(profile.joinedDate),
+            locked: true),
       ],
     );
   }

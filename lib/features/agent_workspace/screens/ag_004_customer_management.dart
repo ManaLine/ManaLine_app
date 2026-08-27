@@ -7,6 +7,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/customer_row.dart';
 import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
@@ -17,7 +18,7 @@ import '../../../shared/live_photo_upload.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/photo_compression.dart';
-import '../../owner_workspace/state/customer_state.dart' show CustomerSummary, CustomerProfile, CustomerRemark;
+import '../../owner_workspace/state/customer_state.dart' show CustomerProfile, CustomerRemark;
 import '../../owner_workspace/state/collection_mode_state.dart' show CollectionDueRow;
 import 'ag_002_collection_mode.dart' show AgentCollectionModeScreen;
 import '../../../shared/soft_delete_service.dart';
@@ -156,7 +157,7 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
                               itemCount: state.filtered.length,
                               itemBuilder: (context, i) {
                                 final c = state.filtered[i];
-                                return _CustomerRow(
+                                return ManaCustomerRow(
                                   customer: c,
                                   onTap: () => Navigator.of(context).push(
                                     MaterialPageRoute(
@@ -244,48 +245,6 @@ class _FilterChips extends ConsumerWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CustomerRow extends ConsumerWidget {
-  final CustomerSummary customer;
-  final VoidCallback onTap;
-  const _CustomerRow({required this.customer, required this.onTap});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final flagged = customer.membershipStatus != 'Active';
-    return Card(
-      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-      child: ListTile(
-        leading: const ManaVerificationRing(isVerified: true, size: 40),
-        title: Row(
-          children: [
-            Flexible(child: ManaText.raw(customer.fullName, style: ManaType.emphasis)),
-            if (flagged) ...[
-              const SizedBox(width: ManaSpacing.xs),
-              ManaStatusPill(label: customer.membershipStatus, status: ManaStatus.bad),
-            ],
-          ],
-        ),
-        subtitle: ManaText.raw(
-          '${customer.fatherHusbandName} · ${customer.village} · LRI ${customer.lineRepaymentIndex}',
-          style: ManaType.note,
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            ManaText.raw(manaRupees(customer.outstandingBalance),
-                style: ManaType.cardTitle),
-            if (customer.todaysDue > 0)
-              ManaText.raw(ref.t('due_note').replaceAll('{amount}', manaRupees(customer.todaysDue)),
-                  style: TextStyle(fontSize: 16, color: ManaColors.statusWarn)),
-          ],
-        ),
-        onTap: onTap,
-      ),
     );
   }
 }

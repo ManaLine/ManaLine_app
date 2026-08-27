@@ -11,6 +11,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_identity_header.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
@@ -382,80 +383,29 @@ class _IdentityCard extends ConsumerWidget {
     final photoUrl = (person['profile_photo_url'] as String?)?.trim();
     final liveUrl = (person['live_photo_url'] as String?)?.trim();
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Row(
-          children: [
-            // The ring IS the verification signal (BR-191/GC-002) — green or
-            // red edge around the photo. The literal "RED"/"GREEN" word pill
-            // that used to sit at the end of this row is gone: it restated the
-            // ring in words, and shouting a raw enum value at the Owner is not
-            // a status anyone needs to read.
-            //
-            // The photo was never rendered at all because profile_photo_url
-            // was not in the persons select above — hence the generic
-            // silhouette. Falls back to that silhouette when the person has no
-            // photo, or when the signed URL has expired (these are private-
-            // bucket signed URLs with a 1-year expiry; see LivePhotoUpload).
-            // Tappable: this is the only place a profile photo can be set
-            // after registration. Labelled for a screen reader by the
-            // ACTION, and sized past the 48dp floor by the badge below.
-            Semantics(
-              button: true,
-              label: ref.t(photoUrl == null ? 'add_profile_photo' : 'change_profile_photo'),
-              excludeSemantics: true,
-              child: InkWell(
-                onTap: savingPhoto ? null : () => _photoMenu(context, ref, liveUrl),
-                borderRadius: BorderRadius.circular(999),
-                child: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    ManaVerificationRing(
-                      isVerified: (person['verification_ring'] as String?) == 'GREEN',
-                      size: 56,
-                      photo: photoUrl == null ? null : NetworkImage(photoUrl),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: ManaColors.brandDeep,
-                        shape: BoxShape.circle,
-                      ),
-                      child: savingPhoto
-                          ? SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: ManaColors.textOnDark),
-                            )
-                          : Icon(Icons.photo_camera,
-                              size: 12, color: ManaColors.textOnDark),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: ManaSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ManaText.raw(person['full_name'] as String? ?? '',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
-                  ManaText.raw(person['mlid'] as String? ?? '',
-                      style: TextStyle(
-                          color: ManaColors.textSecondary, fontSize: 13)),
-                  ManaText.raw(person['mobile_number'] as String? ?? '',
-                      style: TextStyle(
-                          color: ManaColors.textSecondary, fontSize: 13)),
-                ],
-              ),
-            ),
-          ],
+    // The Owner's half of the shared header. onChangePhoto is non-null here,
+    // which is the whole role difference: this is the only place a profile
+    // photo can be set after registration, and the Agent's screen passes
+    // null so no control is drawn at all.
+    //
+    // The literal "RED"/"GREEN" word pill that used to sit at the end of this
+    // row is gone and stays gone: it restated the ring in words, and shouting
+    // a raw enum value at the Owner is not a status anybody needs to read.
+    return ManaIdentityHeader(
+      fullName: person['full_name'] as String? ?? '',
+      mlid: person['mlid'] as String? ?? '',
+      photoUrl: photoUrl,
+      isVerified: (person['verification_ring'] as String?) == 'GREEN',
+      photoActionLabel:
+          ref.t(photoUrl == null ? 'add_profile_photo' : 'change_profile_photo'),
+      savingPhoto: savingPhoto,
+      onChangePhoto: () => _photoMenu(context, ref, liveUrl),
+      fields: [
+        ManaIdentityField(
+          label: ref.t('mobile_number'),
+          value: person['mobile_number'] as String? ?? '',
         ),
-      ),
+      ],
     );
   }
 }

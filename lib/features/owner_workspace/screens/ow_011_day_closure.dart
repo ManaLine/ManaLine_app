@@ -6,6 +6,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_money_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
@@ -295,13 +296,13 @@ class _CashVerificationState extends ConsumerState<_CashVerification> {
           style: ManaType.secondary,
         ),
         const SizedBox(height: ManaSpacing.lg),
-        _AmountField(
+        ManaRupeeInput(
             label: ref.t('physical_cash'), controller: _cash, onChanged: _onChanged),
-        _AmountField(
+        ManaRupeeInput(
             label: ref.t('upi_balance'), controller: _upi, onChanged: _onChanged),
-        _AmountField(
+        ManaRupeeInput(
             label: ref.t('bank_balance'), controller: _bank, onChanged: _onChanged),
-        _AmountField(
+        ManaRupeeInput(
             label: ref.t('cheque_balance'),
             controller: _cheque,
             onChanged: _onChanged),
@@ -322,27 +323,6 @@ class _CashVerificationState extends ConsumerState<_CashVerification> {
           child: ManaText.raw(ref.t('recalculate')),
         ),
       ],
-    );
-  }
-}
-
-class _AmountField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final VoidCallback onChanged;
-  const _AmountField(
-      {required this.label, required this.controller, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: ManaSpacing.md),
-      child: TextField(
-        controller: controller,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(labelText: label, prefixText: '₹ '),
-        onChanged: (_) => onChanged(),
-      ),
     );
   }
 }
@@ -706,15 +686,14 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
         // ledger did not supply it — a stand-in zero beside the real figures
         // below reads as a day that opened with no cash.
         if (state.openingBalance != null)
-          _SummaryRow(label: ref.t('opening_balance'), value: state.openingBalance!),
+          ManaMoneyRow(label: ref.t('opening_balance'), amount: state.openingBalance!),
         if (expected != null)
-          _SummaryRow(label: ref.t('collections'), value: expected.expectedCash),
-        _SummaryRow(
+          ManaMoneyRow(label: ref.t('collections'), amount: expected.expectedCash),
+        ManaMoneyRow(
             label: ref.t('adjustments'),
-            value: state.recordedAdjustments.fold(0, (a, b) => a + b.amount)),
+            amount: state.recordedAdjustments.fold(0, (a, b) => a + b.amount)),
         const Divider(),
-        _SummaryRow(
-            label: ref.t('closing_balance_label'), value: state.actualTotal, bold: true),
+        ManaMoneyRow(label: ref.t('closing_balance_label'), amount: state.actualTotal, emphasize: true),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -747,37 +726,6 @@ class _FinalReviewState extends ConsumerState<_FinalReview> {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
-  final String label;
-  final int value;
-  final bool bold;
-  const _SummaryRow(
-      {required this.label, required this.value, this.bold = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: ManaText.raw(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: bold ? ManaType.strong : null),
-          ),
-          const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(manaRupees(value),
-              style: bold
-                  ? Theme.of(context).textTheme.titleMedium
-                  : Theme.of(context).textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
-}
-
 // ============================================================================
 // S5 — Closed (receipt view, also reached via OW-010 "past Closed day")
 // ============================================================================
@@ -806,18 +754,15 @@ class _ClosedReceipt extends ConsumerWidget {
                 .replaceAll('{name}', detail.closedByName),
             style: ManaType.secondary),
         const SizedBox(height: ManaSpacing.lg),
-        _SummaryRow(label: ref.t('opening_balance'), value: detail.openingBalance),
-        _SummaryRow(label: ref.t('collections'), value: detail.collections),
-        _SummaryRow(label: ref.t('loans_issued'), value: detail.loansIssued),
-        _SummaryRow(label: ref.t('expenses'), value: detail.expenses),
-        _SummaryRow(
-            label: ref.t('deposits_investor'), value: detail.depositsInvestor),
-        _SummaryRow(
-            label: ref.t('withdrawals_investor'), value: detail.withdrawalsInvestor),
-        _SummaryRow(label: ref.t('adjustments'), value: detail.adjustments),
+        ManaMoneyRow(label: ref.t('opening_balance'), amount: detail.openingBalance),
+        ManaMoneyRow(label: ref.t('collections'), amount: detail.collections),
+        ManaMoneyRow(label: ref.t('loans_issued'), amount: detail.loansIssued),
+        ManaMoneyRow(label: ref.t('expenses'), amount: detail.expenses),
+        ManaMoneyRow(label: ref.t('deposits_investor'), amount: detail.depositsInvestor),
+        ManaMoneyRow(label: ref.t('withdrawals_investor'), amount: detail.withdrawalsInvestor),
+        ManaMoneyRow(label: ref.t('adjustments'), amount: detail.adjustments),
         const Divider(),
-        _SummaryRow(
-            label: ref.t('closing_balance_label'), value: detail.closingBalance, bold: true),
+        ManaMoneyRow(label: ref.t('closing_balance_label'), amount: detail.closingBalance, emphasize: true),
         if (detail.remarks != null) ...[
           const SizedBox(height: ManaSpacing.md),
           ManaText.raw(ref.t('remarks_colon_note').replaceAll('{remarks}', detail.remarks!),

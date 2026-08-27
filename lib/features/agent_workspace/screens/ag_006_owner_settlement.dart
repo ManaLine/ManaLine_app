@@ -7,6 +7,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_money_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
@@ -250,24 +251,24 @@ class _SummaryCard extends ConsumerWidget {
           children: [
             ManaText.raw(ref.t('settlement_summary'), style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: ManaSpacing.sm),
-            _row(ref.t('opening_balance_bf'), preview.openingBalance),
-            _row(ref.t('cash_collected'), preview.cashCollected),
-            _row(ref.t('upi_collected'), preview.upiCollected),
-            _row(ref.t('bank_collection'), preview.bankCollected),
-            _row(ref.t('cheque_collection'), preview.chequeCollected),
-            _row(ref.t('loan_distribution'), preview.loanDistribution),
-            _row(ref.t('expenses'), preview.expenses),
+            ManaMoneyRow(label: ref.t('opening_balance_bf'), amount: preview.openingBalance),
+            ManaMoneyRow(label: ref.t('cash_collected'), amount: preview.cashCollected),
+            ManaMoneyRow(label: ref.t('upi_collected'), amount: preview.upiCollected),
+            ManaMoneyRow(label: ref.t('bank_collection'), amount: preview.bankCollected),
+            ManaMoneyRow(label: ref.t('cheque_collection'), amount: preview.chequeCollected),
+            ManaMoneyRow(label: ref.t('loan_distribution'), amount: preview.loanDistribution),
+            ManaMoneyRow(label: ref.t('expenses'), amount: preview.expenses),
             const Divider(),
             // Expected Closing and Difference exist only once the server
             // has computed them. Rendering a locally-derived stand-in here
             // is what this change removed.
             if (preview.expectedClosingBalance != null)
-              _row(ref.t('expected_closing_balance'), preview.expectedClosingBalance!,
+              ManaMoneyRow(label: ref.t('expected_closing_balance'), amount: preview.expectedClosingBalance!,
                   emphasize: true),
-            _row(ref.t('physical_cash_declared'), physicalCashDeclared, emphasize: true),
+            ManaMoneyRow(label: ref.t('physical_cash_declared'), amount: physicalCashDeclared, emphasize: true),
             if (difference != null) ...[
               const Divider(),
-              _row(ref.t('difference'), difference!,
+              ManaMoneyRow(label: ref.t('difference'), amount: difference!,
                   emphasize: true,
                   color: difference == 0
                       ? ManaColors.statusGood
@@ -279,27 +280,8 @@ class _SummaryCard extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, int amount, {bool emphasize = false, Color? color}) {
-    final style = TextStyle(
-      fontWeight: emphasize ? FontWeight.bold : FontWeight.normal,
-      fontSize: emphasize ? 15 : 13,
-      color: color,
-    );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-              child: ManaText.raw(label,
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: style)),
-          const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(manaRupees(amount), style: style),
-        ],
-      ),
-    );
-  }
 }
+
 
 class _DraftEntryView extends ConsumerStatefulWidget {
   final String businessId;

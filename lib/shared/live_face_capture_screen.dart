@@ -2,10 +2,13 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
+import '../design/components/mana_app_bar.dart';
+import 'translation_service.dart';
 import '../design/components/mana_text.dart';
 
 /// Reusable live-capture screen for every "Live Photo Capture (MANDATORY,
@@ -33,7 +36,7 @@ import '../design/components/mana_text.dart';
 /// verification / face-match against a stored ID photo — the spec does not
 /// require the latter anywhere (confirmed: no "face match" or "facial
 /// recognition" language exists in any locked spec doc).
-class LiveFaceCaptureScreen extends StatefulWidget {
+class LiveFaceCaptureScreen extends ConsumerStatefulWidget {
   const LiveFaceCaptureScreen({super.key});
 
   /// Pushes this screen and returns the captured JPEG bytes, or null if
@@ -45,10 +48,10 @@ class LiveFaceCaptureScreen extends StatefulWidget {
   }
 
   @override
-  State<LiveFaceCaptureScreen> createState() => _LiveFaceCaptureScreenState();
+  ConsumerState<LiveFaceCaptureScreen> createState() => _LiveFaceCaptureScreenState();
 }
 
-class _LiveFaceCaptureScreenState extends State<LiveFaceCaptureScreen> {
+class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   CameraController? _controller;
   FaceDetector? _faceDetector;
   bool _initializing = true;
@@ -172,10 +175,17 @@ class _LiveFaceCaptureScreenState extends State<LiveFaceCaptureScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      // Black, on purpose: this is a camera surface, and app chrome over a
+      // viewfinder makes the preview look like a bug. The colours are the
+      // exception the shared bar allows for exactly this.
+      appBar: ManaAppBar(
+        // live_photo, a key that exists. The old title was
+        // ManaText('live photo capture') -- a key with SPACES that is in no
+        // translation table, so it fell through to the key text and every
+        // language got English.
+        title: ref.t('live_photo'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: const ManaText('live photo capture', style: TextStyle(color: Colors.white)),
       ),
       body: SafeArea(
         child: _initializing

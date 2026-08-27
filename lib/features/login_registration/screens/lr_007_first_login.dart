@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/widgets/language_selector.dart';
 import '../../../shared/local_auth_store.dart';
@@ -375,7 +376,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     if (widget.embedded) return _form(lang, canSubmit);
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: const ManaAppBar(),
       body: SafeArea(
         // SCROLLS. This was a fixed Column, so the login button at the
         // bottom overflowed by ~22px on a real handset — and the keyboard

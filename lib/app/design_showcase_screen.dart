@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/tokens/typography.dart';
+import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_text.dart';
 import '../shared/widgets/language_selector.dart';
 
@@ -25,8 +26,10 @@ class _DesignShowcaseScreenState extends State<DesignShowcaseScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const ManaText('mana line design system'),
+      appBar: ManaAppBar(
+        // A literal, not a key: this is a development screen, not shipped
+        // UI, and inventing a translation row for it would be noise.
+        title: 'MANA LINE Design System',
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: ManaSpacing.md),

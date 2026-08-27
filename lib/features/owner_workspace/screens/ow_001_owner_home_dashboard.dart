@@ -8,6 +8,7 @@ import '../../../shared/auto_refresh.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_info_popup.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -693,8 +694,8 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('search')),
+      appBar: ManaAppBar(
+        title: ref.t('search'),
         // The field sits in the app bar's bottom slot so it stays pinned at
         // the top while the results scroll under it.
         bottom: PreferredSize(

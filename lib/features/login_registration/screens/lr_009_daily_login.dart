@@ -8,6 +8,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_brand_mark.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 import '../../../shared/mana_biometric.dart';
@@ -502,9 +503,7 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
 
   Widget _scaffold(ManaLanguage lang) {
     return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: _handleBack),
-      ),
+      appBar: ManaAppBar(onBack: _handleBack),
       body: SafeArea(
         // Scrollable, and the Column sizes to its content instead of using
         // Spacer to push the footer down.

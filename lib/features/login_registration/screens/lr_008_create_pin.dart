@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_centered_scroll.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
 import '../../../shared/network_error_handler.dart';
@@ -138,7 +139,9 @@ class _CreatePinScreenState extends ConsumerState<CreatePinScreen> {
     return PopScope(
       canPop: false, // no back navigation anywhere on this screen, per spec
       child: Scaffold(
-        appBar: AppBar(automaticallyImplyLeading: false),
+        // implyLeading false: there is no back off this screen, by spec --
+        // leaving it without a PIN is the thing being prevented.
+        appBar: const ManaAppBar(implyLeading: false),
         body: SafeArea(
           // Scrolls rather than clips: at 2.0x the pad plus its Continue
           // button overflowed the bottom by 45px, and Continue is the only

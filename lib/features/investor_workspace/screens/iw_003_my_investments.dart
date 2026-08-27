@@ -231,9 +231,11 @@ class _InvestmentDetailScreen extends ConsumerWidget {
     final async = ref.watch(investmentDetailProvider(investmentId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('investment_detail')),
-        leading: BackButton(onPressed: onBack),
+      appBar: ManaAppBar(
+        title: ref.t('investment_detail'),
+        // onBack, not homeRoute: this view is a page inside IW-003 and the
+        // parent owns what "back" means here.
+        onBack: onBack,
         actions: [
           IconButton(
             tooltip: ref.t('view_statement'),

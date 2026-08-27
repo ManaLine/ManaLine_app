@@ -22,12 +22,44 @@ import 'mana_text.dart';
 class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// Already translated. This takes a String rather than a key so a screen can
   /// title itself with a customer's name as easily as with a label.
-  final String title;
+  ///
+  /// Null for a bar that carries no title -- an OTP screen is its own
+  /// heading, and repeating it in the chrome says nothing.
+  final String? title;
+
+  /// False suppresses the back arrow outright, even when the route could be
+  /// popped.
+  ///
+  /// This is not the same as leaving [homeRoute] null, and the difference is
+  /// load-bearing: LR-008 creates a PIN and has no back BY SPEC, because
+  /// backing out of it leaves an account without one. An implicit arrow would
+  /// hand somebody that exit.
+  final bool implyLeading;
 
   /// Where back goes when the stack is empty — a browser refresh, a deep link,
-  /// or a `go()` that replaced everything. Null means this screen is a root:
-  /// no back arrow is drawn at all.
+  /// or a `go()` that replaced everything.
+  ///
+  /// Null does NOT mean "no arrow". It means this bar names no destination,
+  /// and AppBar's own rule then applies: an arrow when the route can be
+  /// popped, none when it cannot. That is what a root screen gets, and it is
+  /// also why a screen with an implicit arrow today converts to this widget
+  /// unchanged. (An earlier version of this comment said "no back arrow is
+  /// drawn at all", which is only true of a route with nothing behind it.)
   final String? homeRoute;
+
+  /// Back does something other than leave: unwinding a wizard step, warning
+  /// about unsaved work, handing control to a parent that owns the stack.
+  ///
+  /// Takes precedence over [homeRoute]. A screen that wants both should do
+  /// its own popping inside the callback -- if this widget popped first, the
+  /// callback would run against a screen already gone.
+  final VoidCallback? onBack;
+
+  /// Only for a bar that is deliberately not the app's chrome -- a camera
+  /// surface, a support workspace that is not a lending workspace. Passing
+  /// these on an ordinary screen is how a design system stops being one.
+  final Color? backgroundColor;
+  final Color? foregroundColor;
 
   /// Passed as `extra` to [homeRoute]. Every workspace home needs a
   /// businessId to render anything.
@@ -40,9 +72,13 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   const ManaAppBar({
     super.key,
-    required this.title,
+    this.title,
+    this.implyLeading = true,
     this.homeRoute,
     this.homeExtra,
+    this.onBack,
+    this.backgroundColor,
+    this.foregroundColor,
     this.actions = const [],
     this.bottom,
   });
@@ -54,10 +90,17 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      backgroundColor: backgroundColor,
+      foregroundColor: foregroundColor,
       // One line, and it may be a person's name, so it ellipsizes rather than
       // wrapping the bar to two rows at a large text scale.
-      title: ManaText.raw(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      leading: homeRoute == null
+      automaticallyImplyLeading: implyLeading,
+      title: title == null
+          ? null
+          : ManaText.raw(title!, maxLines: 1, overflow: TextOverflow.ellipsis),
+      leading: onBack != null
+          ? BackButton(onPressed: onBack)
+          : homeRoute == null
           ? null
           : BackButton(
               onPressed: () {

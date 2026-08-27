@@ -10,6 +10,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
@@ -55,10 +56,10 @@ class _FirstBusinessSetupScreenState
     final stepIndex = _steps.indexOf(state.currentStep);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText(state.isAdditionalBusiness
-            ? 'set up new business'
-            : 'first business setup'),
+      appBar: ManaAppBar(
+        title: ref.t(state.isAdditionalBusiness
+            ? 'set_up_new_business'
+            : 'first_business_setup'),
       ),
       body: SafeArea(
         child: Column(

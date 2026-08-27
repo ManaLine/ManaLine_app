@@ -5,6 +5,8 @@ import '../../design/tokens/colors.dart';
 import '../../design/components/mana_amount.dart';
 import '../../design/tokens/typography.dart';
 import '../../design/tokens/spacing.dart';
+import '../translation_service.dart';
+import '../../design/components/mana_app_bar.dart';
 import '../../design/components/mana_text.dart';
 import '../network_error_handler.dart';
 import '../soft_delete_service.dart';
@@ -27,7 +29,7 @@ class RecentDeletesScreen extends ConsumerWidget {
     final async = ref.watch(recentDeletesProvider(businessId));
 
     return Scaffold(
-      appBar: AppBar(title: const ManaText('recent deletes')),
+      appBar: ManaAppBar(title: ref.t('recent_deletes')),
       body: SafeArea(
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),

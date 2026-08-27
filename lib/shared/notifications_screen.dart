@@ -20,6 +20,7 @@ import 'package:intl/intl.dart';
 
 import '../design/components/mana_amount.dart';
 import '../design/components/mana_skeleton.dart';
+import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_text.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
@@ -51,8 +52,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final state = ref.watch(inboxProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: ManaText.raw(ref.t('notifications')),
+      appBar: ManaAppBar(
+        title: ref.t('notifications'),
         actions: [
           if (state.unreadCount > 0)
             TextButton(

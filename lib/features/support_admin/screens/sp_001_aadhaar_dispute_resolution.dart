@@ -7,6 +7,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_centered_scroll.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/aadhaar_dispute_state.dart';
@@ -133,11 +134,14 @@ class _CaseWorkspace extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: ManaColors.surfaceMuted,
-      appBar: AppBar(
+      // Dark chrome marks this as the support workspace rather than a
+      // lending one. The bespoke title TextStyle is dropped: the theme's
+      // title style is the point of a shared bar, and this screen had no
+      // reason to be 1px different from every other.
+      appBar: ManaAppBar(
+        title: ref.t('aadhaar_dispute_case'),
         backgroundColor: ManaColors.ink,
         foregroundColor: Colors.white,
-        title: ManaText.raw(ref.t('aadhaar_dispute_case'),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: Column(

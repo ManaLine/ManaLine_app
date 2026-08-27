@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../design/components/mana_amount.dart';
 import '../design/components/mana_collection_search_field.dart';
 import '../design/components/mana_skeleton.dart';
+import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_text.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
@@ -200,9 +201,12 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        leading: widget.onBack == null ? null : BackButton(onPressed: widget.onBack),
-        title: ManaText.raw(ref.t('collection_mode')),
+      appBar: ManaAppBar(
+        // onBack passes straight through, null included: a null here means
+        // this view is embedded and the host owns back, which is the same
+        // thing the conditional leading used to say.
+        onBack: widget.onBack,
+        title: ref.t('collection_mode'),
         actions: [
           IconButton(
             icon: Icon(_searchOpen ? Icons.search_off : Icons.search),

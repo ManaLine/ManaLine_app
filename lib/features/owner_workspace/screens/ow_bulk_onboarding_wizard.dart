@@ -10,6 +10,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/translation_service.dart';
+import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/components/mana_card.dart';
@@ -982,9 +983,12 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
-        title: ManaText.raw(ref.t('bulk_onboarding')),
+      // homeRoute rather than a bare pop(): go_router's pop() throws when
+      // there is nothing to pop, so on a deep link this arrow was broken
+      // rather than merely plain.
+      appBar: ManaAppBar(
+        title: ref.t('bulk_onboarding'),
+        homeRoute: '/ow-001',
       ),
       body: SafeArea(
         child: Column(

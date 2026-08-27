@@ -2420,4 +2420,6 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'will_be_saved_as': {'English': 'Will be saved as:', 'Telugu': 'ఇలా సేవ్ అవుతుంది:'},
   'withdrawal_to': {'English': 'Withdrawal To', 'Telugu': 'ఉపసంహరణ ఇచ్చినది'},
   'your_activity_only_note': {'English': 'Your own activity on this business. Not the full business history.', 'Telugu': 'ఈ వ్యాపారంలో మీ స్వంత కార్యకలాపాలు మాత్రమే. పూర్తి వ్యాపార చరిత్ర కాదు.'},
+  'first_business_setup': {'English': 'First Business Setup', 'Telugu': 'మొదటి వ్యాపార ఏర్పాటు'},
+  'set_up_new_business': {'English': 'Set Up New Business', 'Telugu': 'కొత్త వ్యాపారాన్ని ఏర్పాటు చేయండి'},
 };

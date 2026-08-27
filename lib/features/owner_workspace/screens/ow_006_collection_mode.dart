@@ -447,11 +447,51 @@ class ManaNoCollectionFormState extends ConsumerState<ManaNoCollectionForm> {
   String? _reason;
   bool _submitting = false;
 
-  static const _reasons = ['Customer Not Available', 'Customer Refused', 'Requested Later Visit', 'Other'];
+  /// EVERY value of no_collection_reason_enum, spelled as the database
+  /// spells it, because this string is the wire value.
+  ///
+  /// It used to be a list somebody wrote by hand -- Customer Not Available,
+  /// Customer Refused, Requested Later Visit, Other -- and only the last of
+  /// those is a real enum value. Saving a visit failed with
+  ///
+  ///   invalid input value for enum no_collection_reason_enum: "Customer Refused"
+  ///
+  /// on three choices out of four. The feature worked only if the Agent
+  /// happened to pick the bottom of the list.
+  ///
+  /// Regenerate with:
+  ///   select enumlabel from pg_enum e join pg_type t on t.oid=e.enumtypid
+  ///   where t.typname='no_collection_reason_enum' order by e.enumsortorder;
+  ///
+  /// no_collection_reason_guard_test.dart holds the same list and fails if
+  /// this one drifts from it again.
+  static const _reasons = [
+    'Customer Not Home',
+    'House Locked',
+    'Customer Out Of Village',
+    'Requested Extension',
+    'Medical Emergency',
+    'Festival',
+    'Natural Disaster',
+    'Phone Call Not Answered',
+    'Shifted Village',
+    'Refused Payment',
+    'Other',
+  ];
+
+  /// Label keys. The VALUE above goes to the server; this is only what the
+  /// Agent reads.
   static const _reasonKeys = {
-    'Customer Not Available': 'customer_not_available',
-    'Customer Refused': 'customer_refused',
-    'Requested Later Visit': 'requested_later_visit',
+    'Customer Not Home': 'customer_not_home',
+    'House Locked': 'house_locked',
+    'Customer Out Of Village': 'customer_out_of_village',
+    'Requested Extension': 'requested_extension',
+    'Medical Emergency': 'medical_emergency',
+    'Festival': 'festival',
+    'Natural Disaster': 'natural_disaster',
+    'Phone Call Not Answered': 'phone_call_not_answered',
+    'Shifted Village': 'shifted_village',
+    'Refused Payment': 'refused_payment',
     'Other': 'other',
   };
 

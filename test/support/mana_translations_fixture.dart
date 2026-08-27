@@ -2433,4 +2433,12 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'days_left_note': {'English': '{days} days left', 'Telugu': '{days} రోజులు మిగిలి ఉన్నాయి'},
   'nothing_has_been_deleted': {'English': 'Nothing has been deleted.', 'Telugu': 'ఏదీ తొలగించబడలేదు.'},
   'could_not_load_deleted_records': {'English': 'Could not load deleted records: {error}', 'Telugu': 'తొలగించిన రికార్డులను లోడ్ చేయలేకపోయాము: {error}'},
+  'customer_not_home': {'English': 'Customer Not Home', 'Telugu': 'కస్టమర్ ఇంట్లో లేరు'},
+  'customer_out_of_village': {'English': 'Customer Out Of Village', 'Telugu': 'కస్టమర్ ఊరిలో లేరు'},
+  'requested_extension': {'English': 'Requested Extension', 'Telugu': 'గడువు పొడిగింపు కోరారు'},
+  'medical_emergency': {'English': 'Medical Emergency', 'Telugu': 'వైద్య అత్యవసరం'},
+  'festival': {'English': 'Festival', 'Telugu': 'పండుగ'},
+  'natural_disaster': {'English': 'Natural Disaster', 'Telugu': 'ప్రకృతి వైపరీత్యం'},
+  'phone_call_not_answered': {'English': 'Phone Call Not Answered', 'Telugu': 'ఫోన్ కాల్‌కు స్పందించలేదు'},
+  'refused_payment': {'English': 'Refused Payment', 'Telugu': 'చెల్లింపు నిరాకరించారు'},
 };

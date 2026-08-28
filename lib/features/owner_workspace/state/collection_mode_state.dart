@@ -75,7 +75,7 @@ class CollectionApiService {
         .select('loan_id, customer_id, customer_name, village, loan_number, '
             'total_due, remaining_balance, next_installment_no, is_overdue, '
             'penalty_eligible, loan_status, collection_agent_name, repayment_type, mlid, '
-            'today_result, collected_today, installment_amount')
+            'today_result, collected_today, installment_amount, in_grace, grace_period_days')
         .eq('business_id', businessId);
 
     return (rows as List).map((r) {
@@ -94,7 +94,11 @@ class CollectionApiService {
         collectedToday: (r['collected_today'] as num?)?.toInt() ?? 0,
         collectionAgent: r['collection_agent_name'] as String? ?? '',
         penaltyEligible: r['penalty_eligible'] as bool? ?? false,
-        gracePeriod: r['loan_status'] == 'Grace Period',
+        // The view derives this. It used to read loan_status == 'Grace
+        // Period', a status nothing in this codebase writes, so the round
+        // never showed grace on any loan -- granted or not.
+        gracePeriod: r['in_grace'] as bool? ?? false,
+        gracePeriodDays: (r['grace_period_days'] as num?)?.toInt() ?? 0,
         isOverdue: r['is_overdue'] as bool? ?? false,
         repaymentType: r['repayment_type'] as String? ?? '',
       );
@@ -161,6 +165,10 @@ class CollectionApiService {
         resultType: map['result_type'] as String? ?? '',
         recordedBy: map['recorded_by'] as String? ?? '',
         mine: map['mine'] as bool? ?? false,
+        window: map['window'] as String? ?? 'day',
+        businessDate: map['business_date'] == null
+            ? null
+            : DateTime.tryParse(map['business_date'] as String),
       ));
     }
     return RecordCollectionOutcome.saved(CollectionResult(
@@ -410,6 +418,9 @@ class CollectionDueRow {
   /// visited AND on a visit that collected nothing -- collectionStatus is what
   /// tells those two apart.
   final int collectedToday;
+
+  /// Days of grace granted on this loan. Zero for most of them.
+  final int gracePeriodDays;
   final String collectionAgent;
   final bool penaltyEligible;
   final bool gracePeriod;
@@ -433,6 +444,7 @@ class CollectionDueRow {
     required this.lineRepaymentIndex,
     required this.collectionStatus,
     this.collectedToday = 0,
+    this.gracePeriodDays = 0,
     required this.collectionAgent,
     this.penaltyEligible = false,
     this.gracePeriod = false,
@@ -493,6 +505,18 @@ class ExistingCollection {
   final String resultType;
   final String recordedBy;
 
+  /// 'day' or 'cycle' — which window the server measured.
+  ///
+  /// A Daily loan may be collected on every day of an account period; a
+  /// Weekly or Monthly one may be collected once in the period. So the same
+  /// refusal means two different things, and a message that says "today" over
+  /// a weekly loan sends the Agent back tomorrow to be refused again.
+  final String window;
+
+  /// The day the existing entry was recorded on. Inside a cycle window it is
+  /// not necessarily today.
+  final DateTime? businessDate;
+
   /// Whether the caller is the person who recorded it. An Agent may correct
   /// their own entry; somebody else's is the Owner's to change.
   final bool mine;
@@ -504,6 +528,8 @@ class ExistingCollection {
     required this.resultType,
     required this.recordedBy,
     required this.mine,
+    this.window = 'day',
+    this.businessDate,
   });
 }
 

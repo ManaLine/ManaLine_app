@@ -4,7 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/mana_location.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../owner_workspace/state/customer_state.dart'
-    show CustomerSummary, CustomerLoanSummary, CustomerRemark, CustomerProfile;
+    show
+        CustomerSummary,
+        CustomerLoanSummary,
+        CustomerRemark,
+        CustomerProfile,
+        manaFetchCustomerCollections;
 import '../../../shared/mana_time.dart';
 
 /// AG-004 Customer Management — real Supabase wiring, Agent-side
@@ -108,6 +113,11 @@ class AgentCustomerApiService {
           orElse: () => addresses.isNotEmpty ? addresses.first as Map<String, dynamic> : null,
         );
     final village = (currentAddress?['locations'] as Map<String, dynamic>?)?['village_town_name'] as String? ?? '';
+    // Same query the Owner's profile uses -- see manaFetchCustomerCollections.
+    // This file carried the identical `collections: const []` placeholder, so
+    // the Agent's Collections tab was empty for exactly the same reason.
+    final collections = await manaFetchCustomerCollections(_db, customerId);
+
     final loans = ((row['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
     final todaysDue = activeLoans.fold<int>(0, (sum, l) => sum + (l['installment_amount'] as num).toInt());
@@ -147,7 +157,7 @@ class AgentCustomerApiService {
                 status: l['loan_status'] as String,
               ))
           .toList(),
-      collections: const [], // requires a separate collections query scoped per-loan — same simplification as customer_state.dart
+      collections: collections,
       remarks: ((row['customer_remarks'] as List?) ?? const [])
           .cast<Map<String, dynamic>>()
           .map((r) => CustomerRemark(

@@ -72,7 +72,15 @@ class _Header extends ConsumerWidget {
   final LoanDetail loan;
   const _Header({required this.loan});
 
-  ManaStatus get _statusKind => switch (loan.status) {
+  // Grace overrides the pill.
+  //
+  // loans.loan_status is never written 'Grace Period' by anything -- grace
+  // lives in grace_period_days -- so a loan in grace showed a green Active
+  // pill above a card saying it was in grace. The pill reads the derived
+  // answer, the same one the round's Grace tag reads.
+  ManaStatus get _statusKind => loan.inGracePeriod
+      ? ManaStatus.warn
+      : switch (loan.status) {
         LoanStatus.active => ManaStatus.good,
         LoanStatus.gracePeriod => ManaStatus.warn,
         LoanStatus.penaltyEligible || LoanStatus.penalty => ManaStatus.bad,
@@ -81,7 +89,9 @@ class _Header extends ConsumerWidget {
         LoanStatus.draft => ManaStatus.neutral,
       };
 
-  String get _statusKey => switch (loan.status) {
+  String get _statusKey => loan.inGracePeriod
+      ? 'grace_period'
+      : switch (loan.status) {
         LoanStatus.draft => 'draft',
         LoanStatus.active => 'active',
         LoanStatus.gracePeriod => 'grace_period',
@@ -101,9 +111,13 @@ class _Header extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Wrapped, not ellipsized. A loan number is an identifier
+              // somebody reads out over a phone or matches against a paper
+              // book -- "LN-MIG-2026082..." is not that number, it is a
+              // prefix, and every migrated loan's number is long enough to
+              // be cut. It takes two lines when it needs them.
               ManaText.raw(loan.loanNumber,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                   style: ManaType.sheetTitle),
               ManaText.raw(loan.customerName,
                   maxLines: 1, overflow: TextOverflow.ellipsis, style: ManaType.secondary),
@@ -132,10 +146,34 @@ class _SummaryCard extends ConsumerWidget {
             _row(ref.t('installment_amount'), manaRupees(loan.installmentAmount)),
             _row(ref.t('loan_amount'), manaRupees(loan.loanAmount)),
             _row(ref.t('outstanding_balance'), manaRupees(loan.outstandingBalance)),
+            // What has come back. The card said what is still owed and never
+            // what has been paid, which is the figure a customer asks for at
+            // the door.
+            _row(ref.t('paid'), manaRupees(loan.paidAmount)),
             _row(ref.t('todays_due'), manaRupees(loan.todaysDue)),
             _row(ref.t('completed_installments'), '${loan.completedInstallments}'),
             _row(ref.t('remaining_installments'), '${loan.remainingInstallments}'),
-            _row(ref.t('grace_status'), ref.t(loan.inGracePeriod ? 'in_grace_period' : 'normal')),
+            // Grace, in both halves: how much was granted, and whether it is
+            // running. It used to be one row reading loan_status -- a status
+            // nothing writes -- so a loan carrying seven days of grace said
+            // "Normal" and the grant looked like it had done nothing.
+            if (loan.gracePeriodDays > 0)
+              _row(
+                  ref.t('grace_period'),
+                  ref
+                      .t('days_count')
+                      .replaceAll('{count}', '${loan.gracePeriodDays}')),
+            _row(
+              ref.t('grace_status'),
+              loan.inGracePeriod
+                  ? (loan.graceEndsOn == null
+                      ? ref.t('in_grace_period')
+                      : '${ref.t('in_grace_period')} · '
+                          '${ref.t('until_date').replaceAll('{date}', DateFormat('d MMM').format(loan.graceEndsOn!))}')
+                  : ref.t(loan.gracePeriodDays > 0 && loan.penaltyEligible
+                      ? 'grace_expired'
+                      : 'normal'),
+            ),
             _row(ref.t('penalty_status'), ref.t(loan.penaltyEligible ? 'penalty_eligible' : 'none')),
             _row(ref.t('collection_agent'), loan.collectionAgentName),
           ],
@@ -157,7 +195,7 @@ class _SummaryCard extends ConsumerWidget {
             const SizedBox(width: ManaSpacing.xs),
             Flexible(
               child: ManaText.raw(value,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
                   style: ManaType.smallStrong),

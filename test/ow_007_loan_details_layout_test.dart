@@ -22,6 +22,8 @@ final _seedLoan = LoanDetail(
   completedInstallments: 56,
   remainingInstallments: 44,
   inGracePeriod: true,
+  gracePeriodDays: 7,
+  lastDueDate: DateTime(2026, 8, 25),
   penaltyEligibleFrom: DateTime(2026, 9, 1),
   collectionAgentId: 'a1',
   collectionAgentName: 'Chalasani Ramana',
@@ -72,6 +74,10 @@ const _ow007TeluguTranslations = <String, Map<String, String>>{
   'completed_installments': {'English': 'Completed Installments', 'Telugu': 'పూర్తయిన వాయిదాలు'},
   'remaining_installments': {'English': 'Remaining Installments', 'Telugu': 'మిగిలిన వాయిదాలు'},
   'grace_status': {'English': 'Grace Status', 'Telugu': 'గ్రేస్ స్థితి'},
+  'paid': {'English': 'Paid', 'Telugu': 'చెల్లించినది'},
+  'days_count': {'English': '{count} Days', 'Telugu': '{count} రోజులు'},
+  'until_date': {'English': 'Until {date}', 'Telugu': '{date} వరకు'},
+  'grace_expired': {'English': 'Grace Ended', 'Telugu': 'గ్రేస్ ముగిసింది'},
   'in_grace_period': {'English': 'In Grace Period', 'Telugu': 'గ్రేస్ పీరియడ్‌లో ఉంది'},
   'normal': {'English': 'Normal', 'Telugu': 'సాధారణం'},
   'penalty_status': {'English': 'Penalty Status', 'Telugu': 'జరిమానా స్థితి'},
@@ -128,6 +134,63 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.textContaining('MLLN0000012345'), findsWidgets);
+  });
+
+  testWidgets('OW-007 shows what has been paid, not only what is owed',
+      (tester) async {
+    await pumpManaScreen(
+      tester,
+      const LoanDetailsScreen(loanId: 'l1'),
+      overrides: [loanDetailsProvider.overrideWith(_SeededLoanDetailsNotifier.new)],
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Repayment minus what is still owed. Derived rather than summed over the
+    // receipts, so a migrated loan whose earlier instalments were collected
+    // in a paper book still reads correctly.
+    expect(find.text('Paid'), findsOneWidget);
+    expect(find.text('₹28,000'), findsOneWidget);
+  });
+
+  testWidgets('OW-007 says how much grace was granted and when it ends',
+      (tester) async {
+    await pumpManaScreen(
+      tester,
+      const LoanDetailsScreen(loanId: 'l1'),
+      overrides: [loanDetailsProvider.overrideWith(_SeededLoanDetailsNotifier.new)],
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Granting grace used to change nothing anybody could see: the row read
+    // loan_status == 'Grace Period', which nothing in this codebase writes.
+    expect(find.text('7 Days'), findsOneWidget);
+    expect(find.textContaining('In Grace Period'), findsWidgets);
+    expect(find.textContaining('Until 31 Aug'), findsOneWidget,
+        reason: 'grace runs to the day before penalty eligibility');
+  });
+
+  testWidgets('OW-007 lists the payments it fetched', (tester) async {
+    await pumpManaScreen(
+      tester,
+      const LoanDetailsScreen(loanId: 'l1'),
+      overrides: [loanDetailsProvider.overrideWith(_SeededLoanDetailsNotifier.new)],
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // paymentHistory defaulted to const [] and nothing filled it, so this
+    // section said "No payments yet" on every loan in the app.
+    //
+    // Scrolled to: the body is a lazy list, so a receipt below the fold is
+    // not built and would read as absent whether it was fetched or not.
+    final receipt = find.textContaining('R1001');
+    await tester.scrollUntilVisible(receipt, 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    expect(receipt, findsOneWidget);
+    expect(find.text('No payments yet.'), findsNothing);
   });
   // The Waive / Reduce Penalty dialog. OW-007's body was covered; the dialog
   // on top of it was not. showDialog puts its content on a separate route

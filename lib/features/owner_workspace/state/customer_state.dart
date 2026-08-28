@@ -337,6 +337,8 @@ class CustomerApiService {
       agentName = rawAgentName == null ? null : titleCaseName(rawAgentName);
     }
 
+    final collections = await manaFetchCustomerCollections(_db, customerId);
+
     final loans = ((row['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
     final todaysDue = activeLoans.fold<int>(0, (sum, l) => sum + (l['installment_amount'] as num).toInt());
@@ -381,7 +383,7 @@ class CustomerApiService {
                 status: l['loan_status'] as String,
               ))
           .toList(),
-      collections: const [], // requires a separate collections query scoped per-loan — not fetched by this profile view
+      collections: collections,
       remarks: ((row['customer_remarks'] as List?) ?? const [])
           .cast<Map<String, dynamic>>()
           .map((r) => CustomerRemark(
@@ -519,6 +521,55 @@ class CustomerLoanSummary {
     required this.progressPercent,
     required this.status,
   });
+}
+
+/// A customer's receipts, for whichever workspace is asking.
+///
+/// `collections: const []` was hardcoded in BOTH profile services, so the
+/// Collections tab said "No Collections Yet" for every customer in the app --
+/// including one with eleven payments recorded. The empty state was correct
+/// code rendering data that was never asked for. The tab has been shared
+/// between the two workspaces for a while; the query that fills it is shared
+/// now too, so the Owner's copy and the Agent's copy cannot drift the way the
+/// due list once did.
+///
+/// Scoped through the customer rather than their loans: somebody who closed
+/// one loan and opened another still has one payment history.
+Future<List<CustomerCollectionRow>> manaFetchCustomerCollections(
+    SupabaseClient db, String customerId) async {
+  final rows = await db
+      .from('collections')
+      // The FK is named because collections has TWO into business_members
+      // (collected_by and deleted_by) and PostgREST answers HTTP 300 for the
+      // bare form -- see test/ambiguous_embed_guard_test.dart.
+      .select('business_date, receipt_number, collected_amount, '
+          'difference_amount, '
+          'collection_payment_splits(payment_mode, amount), '
+          'business_members!collections_collected_by_membership_id_fkey('
+          'persons!business_members_person_id_fkey(full_name))')
+      .eq('customer_id', customerId)
+      .isFilter('deleted_at', null)
+      .order('business_date', ascending: false)
+      .order('entry_timestamp', ascending: false);
+
+  return (rows as List).cast<Map<String, dynamic>>().map((c) {
+    final splits = ((c['collection_payment_splits'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>();
+    final member = c['business_members'] as Map<String, dynamic>?;
+    final person = member?['persons'] as Map<String, dynamic>?;
+    return CustomerCollectionRow(
+      businessDate: DateTime.parse(c['business_date'] as String),
+      amount: (c['collected_amount'] as num).toInt(),
+      // Every mode it arrived in. One mode read off the row would say Cash
+      // for a payment that was half UPI.
+      paymentMode: splits.isEmpty
+          ? ''
+          : splits.map((s) => s['payment_mode'] as String).join(' + '),
+      collector: titleCaseName(person?['full_name'] as String? ?? ''),
+      receiptNumber: c['receipt_number'] as String? ?? '',
+      difference: (c['difference_amount'] as num?)?.toInt() ?? 0,
+    );
+  }).toList();
 }
 
 class CustomerCollectionRow {

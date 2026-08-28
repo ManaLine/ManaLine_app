@@ -176,7 +176,30 @@ void main() {
     await _submit(tester);
 
     expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Already Collected Today'), findsOneWidget);
     expect(find.text('Continue'), findsNothing,
         reason: 'Continue recorded a SECOND payment against the same loan');
+  });
+
+  testWidgets('a cycle-window refusal says cycle, and names the day',
+      (tester) async {
+    // A Weekly loan may be collected once per account period, so the entry
+    // that blocks today's may have been taken days ago. Saying "today" here
+    // sends the Agent back tomorrow to be refused again.
+    _AmendNotifier.existing = ExistingCollection(
+      collectionId: 'col-1',
+      receiptNumber: 'RCT-20260819-abc123',
+      collectedAmount: 6300,
+      resultType: 'Full',
+      recordedBy: 'Karri Siri Manikanta Reddy',
+      mine: true,
+      window: 'cycle',
+      businessDate: DateTime(2026, 8, 19),
+    );
+    await _pump(tester);
+    await _submit(tester);
+
+    expect(find.text('Already Collected This Account Cycle'), findsOneWidget);
+    expect(find.textContaining('19 Aug'), findsOneWidget);
   });
 }

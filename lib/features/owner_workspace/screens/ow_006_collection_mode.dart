@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -400,12 +401,31 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
       builder: (dialogContext) => AlertDialog(
         // Scrolls if it does not fit -- see ow_011_day_closure.dart.
         scrollable: true,
-        title: ManaText.raw(ref.t('already_collected_today')),
-        content: ManaText.raw(
-          ref
-              .t('already_collected_note')
-              .replaceAll('{by}', existing.recordedBy)
-              .replaceAll('{amount}', manaRupees(existing.collectedAmount)),
+        title: ManaText.raw(ref.t(existing.window == 'cycle'
+            ? 'already_collected_this_cycle'
+            : 'already_collected_today')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ManaText.raw(
+              ref
+                  .t('already_collected_note')
+                  .replaceAll('{by}', existing.recordedBy)
+                  .replaceAll('{amount}', manaRupees(existing.collectedAmount)),
+            ),
+            // Inside a cycle window the entry is not necessarily today's, and
+            // a message that says "today" over a Weekly loan sends the Agent
+            // back tomorrow to be refused again.
+            if (existing.window == 'cycle' && existing.businessDate != null) ...[
+              const SizedBox(height: ManaSpacing.xs),
+              ManaText.raw(
+                ref.t('recorded_on_note').replaceAll('{date}',
+                    DateFormat('d MMM').format(existing.businessDate!)),
+                style: ManaType.note,
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(

@@ -42,6 +42,24 @@ class LoanDetailsApiService {
         .eq('loan_id', loanId)
         .single();
 
+    // The receipts, fetched with the loan rather than left empty.
+    //
+    // paymentHistory defaulted to const [] and nothing ever filled it, so
+    // Payment History said "No Payments Yet" on every loan in the app --
+    // including one with eleven collections against it. The empty state was
+    // correct code rendering data that was never asked for.
+    final paymentRows = await _db
+        .from('collections')
+        .select('collection_id, business_date, receipt_number, collected_amount, '
+            'result_type, difference_amount, remarks, '
+            'collection_payment_splits(payment_mode, amount), '
+            'business_members!collections_collected_by_membership_id_fkey('
+            'persons!business_members_person_id_fkey(full_name))')
+        .eq('loan_id', loanId)
+        .isFilter('deleted_at', null)
+        .order('business_date', ascending: false)
+        .order('entry_timestamp', ascending: false);
+
     final customer = row['customers'] as Map<String, dynamic>;
     final customerPerson = customer['persons'] as Map<String, dynamic>;
     final agentMember = row['business_members'] as Map<String, dynamic>?;
@@ -104,6 +122,44 @@ class LoanDetailsApiService {
             ))
         .toList();
 
+    final payments = (paymentRows as List)
+        .cast<Map<String, dynamic>>()
+        .map((r) {
+          final splits = ((r['collection_payment_splits'] as List?) ?? const [])
+              .cast<Map<String, dynamic>>();
+          final member = r['business_members'] as Map<String, dynamic>?;
+          final person = member?['persons'] as Map<String, dynamic>?;
+          return LoanPaymentHistoryRow(
+            businessDate: DateTime.parse(r['business_date'] as String),
+            receiptNumber: r['receipt_number'] as String? ?? '',
+            amount: (r['collected_amount'] as num).toInt(),
+            // Every mode the payment actually arrived in. Reading one mode off
+            // the row would say Cash for a split that was half UPI.
+            paymentMode: splits.isEmpty
+                ? ''
+                : splits.map((s) => s['payment_mode'] as String).join(' + '),
+            collector: person?['full_name'] as String? ?? '',
+            difference: (r['difference_amount'] as num?)?.toInt() ?? 0,
+            remarks: r['remarks'] as String?,
+          );
+        })
+        .toList();
+
+    // Grace, derived. See migration 20260828083731: grant_grace_period writes
+    // grace_period_days and nothing else, so a screen asking loan_status for
+    // it gets 'Active' on a loan that is very much in grace.
+    //
+    // Grace runs from the day after the last scheduled instalment to the day
+    // before penalty eligibility -- the same boundary the penalty gate uses.
+    final today = manaNowIst();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final inGrace = graceDays > 0 &&
+        owed > 0 &&
+        lastDue != null &&
+        todayDate.isAfter(lastDue) &&
+        penaltyEligibleFrom != null &&
+        todayDate.isBefore(penaltyEligibleFrom);
+
     return LoanDetail(
       loanId: row['loan_id'] as String,
       businessId: row['business_id'] as String,
@@ -122,7 +178,9 @@ class LoanDetailsApiService {
       // Against the total the loan actually has, not against however many
       // schedule rows happen to exist.
       remainingInstallments: (totalInstallments - completed).clamp(0, totalInstallments),
-      inGracePeriod: status == LoanStatus.gracePeriod,
+      inGracePeriod: inGrace,
+      lastDueDate: lastDue,
+      paymentHistory: payments,
       penaltyEligibleFrom: penaltyEligibleFrom,
       collectionAgentId: row['collection_agent_membership_id'] as String,
       collectionAgentName: agentPerson?['full_name'] as String? ?? '',
@@ -135,7 +193,6 @@ class LoanDetailsApiService {
               address: guarantorRows.first['address'] as String,
               remarks: guarantorRows.first['remarks'] as String?,
             ),
-      paymentHistory: const [], // requires a separate collections query scoped by loan_id — not fetched by this detail view
       penaltyEntries: penalties,
       availableActions: const [], // server-computed list per original API BINDING — no such computation exists yet; UI should derive from the getters below instead
       futureEffectiveInformation:
@@ -469,6 +526,9 @@ class LoanDetail {
   /// which case eligibility cannot be assessed and stays false. Mirrors
   /// `app.loan_penalty_eligible_from`, which the server's hard gate uses.
   final DateTime? penaltyEligibleFrom;
+
+  /// The loan's last scheduled instalment. Grace starts the day after it.
+  final DateTime? lastDueDate;
   final String collectionAgentId;
   final String collectionAgentName;
   final GuarantorDetail? guarantor;
@@ -498,6 +558,7 @@ class LoanDetail {
     required this.remainingInstallments,
     required this.inGracePeriod,
     this.penaltyEligibleFrom,
+    this.lastDueDate,
     required this.collectionAgentId,
     required this.collectionAgentName,
     this.guarantor,
@@ -510,6 +571,15 @@ class LoanDetail {
 
   bool get isReadOnlyFinancials =>
       status == LoanStatus.closed || status == LoanStatus.cancelled || status == LoanStatus.defaulted;
+
+  /// What has come back on this loan. Repayment minus what is still owed --
+  /// not a sum over the receipts, which would miss a migrated loan whose
+  /// earlier instalments were collected in a paper book.
+  int get paidAmount => (loanAmount - outstandingBalance).clamp(0, loanAmount);
+
+  /// The last day grace covers. Penalty starts the day after.
+  DateTime? get graceEndsOn => penaltyEligibleFrom
+      ?.subtract(const Duration(days: 1));
 
   bool get canCollectPayment => !isReadOnlyFinancials;
   bool get canTransferAgent => !isReadOnlyFinancials;

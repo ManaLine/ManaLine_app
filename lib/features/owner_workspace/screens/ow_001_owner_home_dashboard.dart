@@ -911,7 +911,8 @@ class _BfRow extends ConsumerWidget {
     return Semantics(
       button: true,
       excludeSemantics: true,
-      label: 'Brought forward, ${manaRupees(data.openingBalance)}. '
+      label: '${ref.t('owner_cash_in_hand')}, ${manaRupees(data.ownerCash)}. '
+          '${ref.t('held_by_agents')}, ${manaRupees(data.agentsHold)}. '
           "Opens today's business summary",
       child: ManaPressable(
         onTap: () => _openSheet(context, ref),
@@ -923,17 +924,46 @@ class _BfRow extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(
                   horizontal: ManaSpacing.md, vertical: ManaSpacing.sm),
+              // The Owner's own cash, named as such, with the rest of the
+              // business's money accounted for underneath.
+              //
+              // This row said BF and showed day_ledger.opening_balance -- the
+              // whole business's cash, Rs 2,67,320, while the Owner's own pot
+              // was Rs 30. Every other screen that says BF means the pot: Add
+              // BF is refused against it, Account Review reports it,
+              // transfer-to-agent spends it. The figure was not wrong; it was
+              // wearing the other one's name, one screen away from the
+              // refusal that quotes the real one.
               child: Row(
                 children: [
-                  ManaInfoWord(ref.t('brought_forward'),
-                      infoKey: 'bf',
-                      style: ManaType.strong),
-                  const SizedBox(width: ManaSpacing.sm),
-                  ManaText.raw('=',
-                      style: ManaType.secondary),
-                  const SizedBox(width: ManaSpacing.sm),
                   Expanded(
-                    child: ManaAmount(data.openingBalance),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Label above amount, not beside it.
+                        //
+                        // Side by side, "Owner Cash In Hand = Rs 30" overflows
+                        // a 360dp card by 6.8px at 1.0x in English before any
+                        // translation is measured -- the label is an
+                        // unflexible child next to a flexible one, which is
+                        // the shape this codebase has shipped an overflow in
+                        // five times. Stacked, neither has to give way.
+                        ManaInfoWord(ref.t('owner_cash_in_hand'),
+                            infoKey: 'bf', style: ManaType.strong),
+                        ManaAmount(data.ownerCash),
+                        // Where the rest of it is. An Owner seeing Rs 30 needs
+                        // to know the other Rs 2,69,190 is in the agents'
+                        // pockets and not missing.
+                        ManaText.raw(
+                          '${ref.t('held_by_agents')} ${manaRupees(data.agentsHold)}'
+                          '  ·  ${ref.t('business_cash_total')} '
+                          '${manaRupees(data.ownerCash + data.agentsHold)}',
+                          maxLines: 2,
+                          style: ManaType.note,
+                        ),
+                      ],
+                    ),
                   ),
                   Icon(Icons.chevron_right,
                       color: ManaColors.textSecondary),

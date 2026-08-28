@@ -54,6 +54,9 @@ const _ow001TeluguTranslations = <String, Map<String, String>>{
   },
   'not_a_member_of_business': {'English': 'Not a member of this business.', 'Telugu': 'ఈ వ్యాపారంలో సభ్యుడు కాదు.'},
   'brought_forward': {'English': 'BF', 'Telugu': 'BF'},
+  'owner_cash_in_hand': {'English': 'Owner Cash In Hand', 'Telugu': 'యజమాని వద్ద నగదు'},
+  'held_by_agents': {'English': 'Held By Agents', 'Telugu': 'ఏజెంట్ల వద్ద ఉన్నది'},
+  'business_cash_total': {'English': 'Business Cash Total', 'Telugu': 'మొత్తం వ్యాపార నగదు'},
   'opening_balance': {'English': 'Opening Balance', 'Telugu': 'ప్రారంభ నిల్వ'},
   'todays_collections': {'English': "Today's Collections", 'Telugu': 'నేటి వసూళ్లు'},
   'todays_loan_distribution': {'English': "Today's Loan Distribution", 'Telugu': 'నేటి రుణ పంపిణీ'},
@@ -91,13 +94,74 @@ void main() {
     businessName: 'Sri Venkateswara Rural Finance and Chit Fund Society',
   );
 
+  // The live shape this row got wrong: the Owner's own pot is Rs 30 while the
+  // business's cash is Rs 2,69,220, because the agents are carrying the rest.
+  final realSeed = OwnerDashboardData.zero(
+    businessName: 'Sri Venkateswara Rural Finance and Chit Fund Society',
+    openingBalance: 267320,
+    ownerCash: 30,
+    agentsHold: 269190,
+  );
+
+  group('the BF row says whose money it is', () {
+    // The bug: the row read "BF = Rs 2,67,320" -- day_ledger.opening_balance,
+    // the whole business's cash -- while businesses.owner_bf_balance, which
+    // is what BF means everywhere the Owner spends it, was Rs 30. Add BF
+    // refuses against that figure ("Owner BF is only 50"), Account Review
+    // reports it, transfer-to-agent spends it. One name, two figures, one
+    // screen apart.
+    testWidgets("it shows the Owner's own cash, not the business total",
+        (tester) async {
+      await pumpManaScreen(
+        tester,
+        const OwnerHomeDashboardScreen(businessId: 'b1'),
+        location: '/ow-001',
+        overrides: [
+          ownerDashboardProvider.overrideWith(() => _SeededOwnerDashboardNotifier(realSeed))
+        ],
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Owner Cash In Hand'), findsOneWidget);
+      expect(find.textContaining('30'), findsWidgets);
+      expect(find.textContaining('2,67,320'), findsNothing,
+          reason: "the day's opening balance is not the Owner's BF");
+    });
+
+    testWidgets('and accounts for the rest of it', (tester) async {
+      // An Owner seeing Rs 30 has to be able to tell that the other
+      // Rs 2,69,190 is in the agents' pockets rather than missing.
+      await pumpManaScreen(
+        tester,
+        const OwnerHomeDashboardScreen(businessId: 'b1'),
+        location: '/ow-001',
+        overrides: [
+          ownerDashboardProvider.overrideWith(() => _SeededOwnerDashboardNotifier(realSeed))
+        ],
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('Held By Agents'), findsOneWidget);
+      expect(find.textContaining('2,69,190'), findsOneWidget);
+      // 30 + 2,69,190. The row adds up, which is the point of showing all
+      // three rather than picking one.
+      expect(find.textContaining('2,69,220'), findsOneWidget);
+    });
+  });
+
   for (final scale in kManaTextScales) {
     testWidgets('OW-001 Owner Dashboard survives text scale ${scale}x', (tester) async {
       await pumpManaScreen(
         tester,
         const OwnerHomeDashboardScreen(businessId: 'b1'),
+        location: '/ow-001',
         textScale: scale,
-        overrides: [ownerDashboardProvider.overrideWith(() => _SeededOwnerDashboardNotifier(seed))],
+        // The real figures, not zeros: "Held By Agents Rs 2,69,190 · Business
+        // Cash Total Rs 2,69,220" is a much wider line than "Rs 0 · Rs 0",
+        // and width is what this test exists to measure.
+        overrides: [ownerDashboardProvider.overrideWith(() => _SeededOwnerDashboardNotifier(realSeed))],
       );
       expectNoLayoutFault(tester, 'OW-001 Owner Dashboard at ${scale}x');
     });

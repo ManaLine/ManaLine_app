@@ -329,6 +329,33 @@ class OwnerApiService {
     final openingBf =
         ledgerOpening ?? (business['owner_bf_balance'] as num?)?.toInt() ?? 0;
 
+    // The Owner's own pot, and what the agents are holding.
+    //
+    // The dashboard's headline said BF and showed day_ledger.opening_balance,
+    // which is the whole business's cash -- Rs 2,67,320 against an
+    // owner_bf_balance of Rs 30. Everywhere else in the app BF means the
+    // Owner's pot: Add BF refuses against it ("Owner BF is only 50"),
+    // Account Review reports it, transfer-to-agent spends it. One name, two
+    // figures, on adjacent screens.
+    //
+    // Both are fetched so the row can say which is which rather than picking
+    // one and hoping.
+    final ownerCash = (business['owner_bf_balance'] as num?)?.toInt() ?? 0;
+    int agentsHold = 0;
+    try {
+      final held = await _db
+          .from('agent_bf_assignments')
+          .select('agent_bf_current, business_members!inner(business_id, role)')
+          .eq('business_members.business_id', businessId)
+          .eq('business_members.role', 'Agent');
+      agentsHold = (held as List).cast<Map<String, dynamic>>().fold<int>(
+          0, (sum, r) => sum + ((r['agent_bf_current'] as num?)?.toInt() ?? 0));
+    } catch (_) {
+      // Non-fatal: the row falls back to showing the Owner's own cash alone
+      // rather than taking the dashboard down for a secondary figure.
+      agentsHold = 0;
+    }
+
     int countWhere(String role, String status) =>
         members.where((m) => m['role'] == role && m['membership_status'] == status).length;
     int countRole(String role) => (members).where((m) => m['role'] == role).length;
@@ -383,6 +410,8 @@ class OwnerApiService {
       // only reached when no ledger row exists at all, and a business with
       // no ledger has nothing in an agent's pocket either.
       openingBalance: openingBf,
+      ownerCash: ownerCash,
+      agentsHold: agentsHold,
       todaysCollections: 0, // ditto — day-scoped aggregate, not duplicated here to avoid two different "today" computations drifting apart
       todaysLoanDistribution: 0,
       todaysInvestments: 0,
@@ -1016,7 +1045,19 @@ class OwnerDashboardData {
   final int pendingAcceptances;
   final bool pendingDayClosure;
 
+  /// The business day's opening balance -- all the cash the business has,
+  /// wherever it is sitting. Shown in the summary sheet as Opening Balance.
   final int openingBalance;
+
+  /// businesses.owner_bf_balance: the Owner's OWN cash, with the agents'
+  /// floats already subtracted out. This is what "BF" means everywhere the
+  /// Owner spends it, and it is what Add BF is refused against.
+  final int ownerCash;
+
+  /// What the agents are carrying between them. ownerCash + agentsHold is the
+  /// business's cash, which is why the row can show all three and add up.
+  final int agentsHold;
+
   final int todaysCollections;
   final int todaysLoanDistribution;
   final int todaysInvestments;
@@ -1067,6 +1108,8 @@ class OwnerDashboardData {
     required this.pendingAcceptances,
     required this.pendingDayClosure,
     required this.openingBalance,
+    this.ownerCash = 0,
+    this.agentsHold = 0,
     required this.todaysCollections,
     required this.todaysLoanDistribution,
     required this.todaysInvestments,
@@ -1106,14 +1149,25 @@ class OwnerDashboardData {
 
   /// Zero-state factory — S3 (brand-new business right after OW-000):
   /// sections show zero counts, never hidden (per OW-001 STATES).
-  factory OwnerDashboardData.zero({required String businessName}) => OwnerDashboardData(
+  /// An empty dashboard. The cash figures are overridable because a test that
+  /// only ever sees zeros cannot tell a row showing the Owner's pot from one
+  /// showing the whole business's cash -- which is exactly the bug this row
+  /// shipped.
+  factory OwnerDashboardData.zero({
+    required String businessName,
+    int openingBalance = 0,
+    int ownerCash = 0,
+    int agentsHold = 0,
+  }) => OwnerDashboardData(
         businessName: businessName,
         businessOpen: true,
         pendingApprovals: 0,
         pendingInvitations: 0,
         pendingAcceptances: 0,
         pendingDayClosure: false,
-        openingBalance: 0,
+        openingBalance: openingBalance,
+        ownerCash: ownerCash,
+        agentsHold: agentsHold,
         todaysCollections: 0,
         todaysLoanDistribution: 0,
         todaysInvestments: 0,

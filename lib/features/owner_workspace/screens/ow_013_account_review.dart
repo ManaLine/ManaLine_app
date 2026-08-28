@@ -135,16 +135,21 @@ class _OwnerBfPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('owner_bf'), style: Theme.of(context).textTheme.titleMedium),
+            ManaText.raw(ref.t('business_cash'), style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: ManaSpacing.sm),
-            _bfRow(ref.t('balance_before_today'), data.balanceBeforeToday),
-            _bfRow(ref.t('assigned_out_this_session'), data.totalAssignedThisSession),
-            _bfRow(ref.t('returning_this_session'), data.totalReturningThisSession),
+            // Named halves, then their sum. "Owner BF" over four rows that
+            // were three reads of one column invited exactly the reading it
+            // got -- that Rs 30 beside the dashboard's Rs 2,69,220 was a
+            // stale figure -- when the Rs 30 is the Owner's own pocket and
+            // the rest is in the Agent's bag.
+            _bfRow(ref.t('owner_cash_in_hand'), data.ownerCashInHand),
+            _bfRow(ref.t('held_by_agents'), data.heldByAgents),
             const Divider(),
-            _bfRow(ref.t('owner_bf_current'), data.ownerBfCurrent, emphasize: true),
+            _bfRow(ref.t('business_cash_total'), data.businessCashTotal, emphasize: true),
             const SizedBox(height: 4),
+            _bfRow(ref.t('returning_this_session'), data.returningThisSession),
             ManaText.raw(
-              ref.t('provisional_until_approved_note'),
+              ref.t('returning_already_counted_note'),
               style: ManaType.note,
             ),
           ],

@@ -148,7 +148,14 @@ class _BfCashPanel extends ConsumerWidget {
             // BF cash an Agent is holding ran 26px off the card at 2.0x.
             ManaLabelValueRow(
               label: ref.t('current_bf_cash_balance'),
-              value: bfAssignment == null ? '—' : manaRupees(bfAssignment!.openingBf),
+              // currentBf, not openingBf. This panel is titled "Current BF
+              // Cash Balance" and showed the session's OPENING figure, which
+              // is never updated after the session starts -- so an Agent who
+              // had collected all morning still read what they set out with,
+              // and an Agent whose opening was zero read zero while holding
+              // the round's cash. app.create_loan_with_bf_check spends
+              // agent_bf_current; this now shows the same column it spends.
+              value: bfAssignment == null ? '—' : manaRupees(bfAssignment!.currentBf),
               valueStyle: ManaType.sheetTitle,
             ),
             if (bfAssignment == null) ...[
@@ -555,7 +562,7 @@ class _AgStep2Eligibility extends ConsumerWidget {
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
                 ref.t('current_bf_cash_balance_note').replaceAll(
-                    '{amount}', bf == null ? '—' : manaRupees(bf.openingBf)),
+                    '{amount}', bf == null ? '—' : manaRupees(bf.currentBf)),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
@@ -1002,7 +1009,20 @@ class _AgStep5Confirm extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(ManaSpacing.md),
             decoration: BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
-            child: ManaText.raw(state.error!, style: ManaType.bad),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText.raw(state.error!, style: ManaType.bad),
+                // A loan that failed to save used to take everything typed
+                // with it AND leave nothing in Drafts. It is parked now, and
+                // saying so is the difference between retyping the loan and
+                // opening Draft Transactions.
+                if (state.savedDraftId != null) ...[
+                  const SizedBox(height: ManaSpacing.xs),
+                  ManaText.raw(ref.t('saved_as_draft_note'), style: ManaType.note),
+                ],
+              ],
+            ),
           ),
         ],
         const SizedBox(height: ManaSpacing.lg),

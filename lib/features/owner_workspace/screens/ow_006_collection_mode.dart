@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -74,6 +73,15 @@ class ManaCollectionForm extends ConsumerStatefulWidget {
   final String businessId;
   final VoidCallback onCancel;
 
+  /// Non-null when this form is CORRECTING an entry rather than taking a new
+  /// one. The round long-presses a settled row into here.
+  ///
+  /// One entry per loan per day is enforced server-side, so the alternative
+  /// to correcting is a second row -- which is how one payment ends up with
+  /// two receipts. The window closes when the account goes to the Owner;
+  /// app.amend_collection refuses after that and says so.
+  final CollectionEdit? editing;
+
   /// A collection landed. The form no longer knows what should happen next --
   /// it used to pop two routes, which only worked because it lived on a screen
   /// of its own. Inline in the round, the row closes and the round reloads.
@@ -85,6 +93,7 @@ class ManaCollectionForm extends ConsumerStatefulWidget {
     required this.businessId,
     required this.onCancel,
     this.onRecorded,
+    this.editing,
   });
 
   @override
@@ -97,6 +106,19 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
   @override
   void initState() {
     super.initState();
+    final editing = widget.editing;
+    if (editing != null) {
+      // Correcting: the form opens on what was actually recorded, not on the
+      // instalment. Retyping an entry to change one figure in it is how the
+      // other three figures get changed by accident.
+      _amount.text = '${editing.collectedAmount}';
+      _amount.selection = TextSelection(
+          baseOffset: 0, extentOffset: _amount.text.length);
+      _modeAmounts.addAll(editing.splits);
+      _payerType = editing.payerType;
+      _payerName.text = editing.payerName ?? '';
+      return;
+    }
     // Already written in, at today's due.
     //
     // The Agent used to type this figure on every collection, having just read
@@ -114,6 +136,7 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
     if (due > 0) {
       _amount.text = '$due';
       _amount.selection = TextSelection(baseOffset: 0, extentOffset: '$due'.length);
+      _modeAmounts['Cash'] = due;
     }
   }
 
@@ -128,8 +151,9 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
   void dispose() {
     _amount.dispose();
     _payerName.dispose();
-    _cashAmount.dispose();
-    _upiAmount.dispose();
+    for (final c in _modeFields.values) {
+      c.dispose();
+    }
     super.dispose();
   }
   // Customer unless the Agent says otherwise. Asking who paid on every single
@@ -137,25 +161,65 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
   // at a doorstep — so the question only appears when it is answered.
   String _payerType = 'Customer';
   final _payerName = TextEditingController();
-  bool _mixed = false;
-  final _cashAmount = TextEditingController();
-  final _upiAmount = TextEditingController();
+
+  /// What was handed over, by mode. Absent = that mode was not used.
+  ///
+  /// Replaces a `Mixed Payment` switch over two hardcoded fields. Without the
+  /// switch every collection was written as Cash -- the splits list was
+  /// literally `[PaymentSplit('Cash', _collected)]` -- so a customer paying
+  /// entirely by UPI, cheque or bank transfer was recorded as having handed
+  /// over notes, and there was no way at all to say otherwise for the two
+  /// modes the switch did not offer. The database has carried all four since
+  /// payment_mode_enum was created.
+  ///
+  /// Cash starts holding the instalment so the common case is still one tap.
+  final Map<String, int> _modeAmounts = {};
+
+  /// One per mode, owned by this State.
+  ///
+  /// Created per dialog and disposed when it returned, which disposed a
+  /// controller the dialog's own exit animation was still reading -- "A
+  /// TextEditingController was used after being disposed" on every second
+  /// mode entered. Their lifetime is the form's.
+  final Map<String, TextEditingController> _modeFields = {
+    for (final m in _modes) m: TextEditingController(),
+  };
+
+  static const _modes = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
+
+  static const _modeKeys = {
+    'Cash': 'cash',
+    'UPI': 'upi',
+    'Bank Transfer': 'bank_transfer',
+    'Cheque': 'cheque',
+  };
+
   String? _excessDisposition;
   bool _submitting = false;
-  // Becomes true after the user taps "Continue" on the duplicate warning,
-  // so the retry tells the server to record the payment anyway.
-  bool _confirmDuplicate = false;
 
   /// Minted once per save the person commits to, and reused by every retry of
-  /// it — including NetworkErrorHandler's Retry button and the "Continue"
-  /// path out of the duplicate warning, which both re-enter _submit(). On a
+  /// it — including NetworkErrorHandler's Retry button, which re-enters
+  /// _submit(). On a
   /// dropped 2G reply that is what stops the same collection being recorded
   /// twice. Cleared after a save lands so the next one is a new action.
   String? _idempotencyKey;
 
   // Whole rupees (M8) — money is never a double in this app.
   int get _collected => int.tryParse(_amount.text) ?? 0;
-  int get _splitSum => (int.tryParse(_cashAmount.text) ?? 0) + (int.tryParse(_upiAmount.text) ?? 0);
+
+  /// The modes actually carrying money, in a stable order.
+  List<String> get _activeModes =>
+      [for (final m in _modes) if ((_modeAmounts[m] ?? 0) > 0) m];
+
+  int get _modeSum =>
+      _modeAmounts.values.fold<int>(0, (sum, v) => sum + v);
+
+  /// Typing in Collected Amount is only unambiguous while ONE mode is
+  /// carrying the money -- with two, the app cannot know which one the extra
+  /// rupees went into, and guessing is how a receipt ends up naming a mode
+  /// nobody used. With one it rebalances silently; with more the field reads
+  /// back the sum the modes state.
+  bool get _amountFollowsModes => _activeModes.length > 1;
 
   /// The same rule the server applies, against the same number.
   ///
@@ -176,7 +240,11 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
 
   bool get _canSubmit {
     if (_collected <= 0) return false;
-    if (_mixed && (_splitSum - _collected) != 0) return false;
+    // The splits ARE the collected amount now rather than a parallel figure
+    // that had to be reconciled against it, so they cannot disagree -- but a
+    // collection with no mode against it would be written as money from
+    // nowhere.
+    if (_modeSum != _collected) return false;
     // No longer a gate. The server carries an unstated surplus as an Advance
     // rather than refusing the record -- a customer standing there with cash
     // is not a validation error, and refusing does not make the money go away.
@@ -184,17 +252,99 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
     return true;
   }
 
+  /// Enter (or clear) the amount handed over in one mode.
+  ///
+  /// A tap on the mode opens the box for it and Save adds it in -- the app
+  /// totals the modes rather than asking the Agent to total them and then
+  /// checking their arithmetic, which is what the old Mixed Payment switch
+  /// did with its "Split sum must equal collected amount" warning.
+  ///
+  /// Clearing the box, or saving a zero, drops the mode: a mode holding zero
+  /// is a line on a receipt naming a payment nobody made.
+  Future<void> _editMode(String mode) async {
+    final existing = _modeAmounts[mode] ?? 0;
+    final controller = _modeFields[mode]!;
+    controller.text = existing > 0 ? '$existing' : '';
+    controller.selection =
+        TextSelection(baseOffset: 0, extentOffset: controller.text.length);
+    final saved = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+        scrollable: true,
+        title: ManaText.raw(ref.t(_modeKeys[mode]!)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(labelText: ref.t('amount')),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: ManaText.raw(ref.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(int.tryParse(controller.text.trim()) ?? 0),
+            child: ManaText.raw(ref.t('save')),
+          ),
+        ],
+      ),
+    );
+    if (saved == null || !mounted) return;
+    setState(() {
+      if (saved > 0) {
+        _modeAmounts[mode] = saved;
+      } else {
+        _modeAmounts.remove(mode);
+      }
+      // The collected amount is the sum of what was handed over. It is not a
+      // separate figure that has to agree with the modes -- that reconciling
+      // is exactly what the Mixed switch made the Agent do at a doorstep.
+      _amount.text = _modeSum > 0 ? '$_modeSum' : '';
+    });
+  }
+
   Future<void> _submit() async {
     // Minted here, on the first attempt only: a key created inside the retry
     // closure would be new every time, which is the same as having none.
     _idempotencyKey ??= manaIdempotencyKey();
     setState(() => _submitting = true);
-    final splits = _mixed
-        ? [
-            PaymentSplit(paymentMode: 'Cash', amount: int.tryParse(_cashAmount.text) ?? 0),
-            PaymentSplit(paymentMode: 'UPI', amount: int.tryParse(_upiAmount.text) ?? 0),
-          ]
-        : [PaymentSplit(paymentMode: 'Cash', amount: _collected)];
+    // Every mode that carries money, and nothing else. A zero-rupee split
+    // for a mode nobody used is a line on a receipt claiming a payment that
+    // did not happen.
+    final splits = [
+      for (final m in _activeModes)
+        PaymentSplit(paymentMode: m, amount: _modeAmounts[m]!),
+    ];
+
+    final editing = widget.editing;
+    if (editing != null) {
+      // No idempotency key, and none needed: an amendment sets the entry to
+      // an absolute figure rather than moving it by a delta, so replaying one
+      // after a dropped reply lands on the same amount and the same balance.
+      // A retry of a NEW collection is what needs a key -- it would otherwise
+      // be a second payment.
+      final amended = await NetworkErrorHandler.run(context, () {
+        return ref.read(collectionModeProvider.notifier).amendCollection(
+              collectionId: editing.collectionId,
+              collectedAmount: _collected,
+              payerType: _payerType,
+              payerName:
+                  _payerName.text.trim().isEmpty ? null : _payerName.text.trim(),
+              paymentSplits: splits,
+              excessDisposition: _excessDisposition,
+              previousAmount: editing.collectedAmount,
+            );
+      });
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      if (amended == null) return;
+      _idempotencyKey = null;
+      _showReceipt(amended);
+      return;
+    }
 
     final outcome = await NetworkErrorHandler.run(context, () async {
       final o = await ref.read(collectionModeProvider.notifier).recordCollection(
@@ -207,7 +357,6 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
             businessDate: manaBusinessDate(),
             businessId: widget.businessId,
             excessDisposition: _excessDisposition,
-            confirmDuplicate: _confirmDuplicate,
             idempotencyKey: _idempotencyKey,
           );
       if (o == null) throw Exception('Collection could not be saved.');
@@ -217,9 +366,10 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
     setState(() => _submitting = false);
     if (outcome == null) return;
 
-    // Another member already collected this loan today — warn and ask.
-    if (outcome.duplicateWarning) {
-      await _showDuplicateDialog(outcome.existing);
+    // This loan already has an entry today. Nothing was written -- the way
+    // forward is to correct that entry, not to add a second one.
+    if (outcome.alreadyRecorded != null) {
+      await _showAlreadyRecordedDialog(outcome.alreadyRecorded!);
       return;
     }
     if (!mounted) return;
@@ -237,36 +387,36 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
     _showReceipt(outcome.saved!);
   }
 
-  /// Warns that this loan already has a payment recorded today by someone
-  /// else. "Close" aborts; "Continue" re-saves with the confirmation flag.
-  Future<void> _showDuplicateDialog(List<Map<String, dynamic>> existing) async {
-    final first = existing.isNotEmpty ? existing.first : const <String, dynamic>{};
-    final amount = (first['collected_amount'] as num?)?.toDouble() ?? 0;
-    final by = first['recorded_by'] as String? ?? 'another agent';
-    final action = await showDialog<bool>(
+  /// This loan already has an entry today, so nothing was written.
+  ///
+  /// The old version of this offered "Continue", which recorded a SECOND
+  /// payment against the same loan -- two receipts for one collection, and a
+  /// balance short by the difference. There is one entry per loan per day
+  /// now; the only way forward is to correct the one that exists, and the
+  /// round's long press is where that is done.
+  Future<void> _showAlreadyRecordedDialog(ExistingCollection existing) async {
+    await showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
+        // Scrolls if it does not fit -- see ow_011_day_closure.dart.
+        scrollable: true,
         title: ManaText.raw(ref.t('already_collected_today')),
         content: ManaText.raw(
           ref
               .t('already_collected_note')
-              .replaceAll('{by}', by)
-              .replaceAll('{amount}', manaRupees(amount)),
+              .replaceAll('{by}', existing.recordedBy)
+              .replaceAll('{amount}', manaRupees(existing.collectedAmount)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: ManaText.raw(ref.t('close'))),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: ManaText.raw(ref.t('continue_button'))),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: ManaText.raw(ref.t('close')),
+          ),
         ],
       ),
     );
     if (!mounted) return;
-    if (action == true) {
-      setState(() => _confirmDuplicate = true);
-      await _submit(); // retry — this time the server records it
-    } else {
-      if (!mounted) return;
-      setState(() => _confirmDuplicate = false); // close — nothing recorded
-    }
+    widget.onCancel();
   }
 
   /// Fire and forget. Failures are swallowed ON PURPOSE, which is the one
@@ -332,8 +482,23 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
         TextField(
           controller: _amount,
           keyboardType: TextInputType.number,
-          decoration: InputDecoration(labelText: ref.t('collected_amount_field')),
-          onChanged: (_) => setState(() {}),
+          readOnly: _amountFollowsModes,
+          decoration: InputDecoration(
+            labelText: ref.t('collected_amount_field'),
+            helperText: _amountFollowsModes ? ref.t('added_up_from_modes_note') : null,
+            helperMaxLines: 2,
+          ),
+          // With one mode active this figure IS that mode's amount, so it
+          // follows the typing rather than sitting beside it as a second
+          // number to reconcile.
+          onChanged: (v) => setState(() {
+            final only = _activeModes.length == 1 ? _activeModes.first : 'Cash';
+            final n = int.tryParse(v) ?? 0;
+            _modeAmounts
+              ..removeWhere((k, _) => k != only)
+              ..[only] = n;
+            if (n <= 0) _modeAmounts.remove(only);
+          }),
         ),
         const SizedBox(height: ManaSpacing.md),
         // Nothing to answer in the normal case; one tap opens it when somebody
@@ -372,32 +537,41 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
           ),
         ],
         const SizedBox(height: ManaSpacing.md),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: ManaText.raw(ref.t('mixed_payment')),
-          value: _mixed,
-          onChanged: (v) => setState(() => _mixed = v),
+        ManaText.raw(ref.t('how_it_was_paid'), style: ManaType.note),
+        const SizedBox(height: ManaSpacing.xs),
+        // Wrap, not a Row: these are translated labels, so their width is
+        // data, and four of them do not fit on one 360px line in Telugu at
+        // 2.0x. A Row here would be the fifth shipped overflow.
+        Wrap(
+          spacing: ManaSpacing.xs,
+          runSpacing: ManaSpacing.xs,
+          children: [
+            for (final mode in _modes)
+              // ChoiceChip, and the label carries the mode's NAME only.
+              //
+              // An InputChip here overflowed by 55px at 2.0x in Telugu --
+              // its delete/check affordance leaves less room for a scaled
+              // label than a ChoiceChip does, and the amount in the label
+              // then pushed it to two lines. ChoiceChip is what OW-001's
+              // quick-action groups use at the same scales. The amounts read
+              // below, in text that is allowed to wrap.
+              ChoiceChip(
+                label: ManaText.raw(ref.t(_modeKeys[mode]!),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                selected: (_modeAmounts[mode] ?? 0) > 0,
+                onSelected: (_) => _editMode(mode),
+              ),
+          ],
         ),
-        if (_mixed) ...[
-          TextField(
-            controller: _cashAmount,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: ref.t('cash')),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: ManaSpacing.sm),
-          TextField(
-            controller: _upiAmount,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: ref.t('upi')),
-            onChanged: (_) => setState(() {}),
-          ),
+        if (_activeModes.isNotEmpty) ...[
           const SizedBox(height: ManaSpacing.xs),
-          ManaText.raw(ref.t('split_sum_note').replaceAll('{amount}', manaRupees(_splitSum)),
-              style: TextStyle(
-                fontSize: 16,
-                color: (_splitSum - _collected) != 0 ? ManaColors.statusBad : ManaColors.statusGood,
-              )),
+          ManaText.raw(
+            [
+              for (final m in _activeModes)
+                '${ref.t(_modeKeys[m]!)} ${manaRupees(_modeAmounts[m]!)}'
+            ].join('  ·  '),
+            style: ManaType.note,
+          ),
         ],
         if (_collected > 0)
           Padding(
@@ -447,9 +621,13 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : ManaText.raw(
-                        _collected > 0
-                            ? ref.t('collect_amount').replaceAll('{amount}', manaRupees(_collected))
-                            : ref.t('save'),
+                        _collected <= 0
+                            ? ref.t('save')
+                            : ref
+                                .t(widget.editing != null
+                                    ? 'update_amount'
+                                    : 'collect_amount')
+                                .replaceAll('{amount}', manaRupees(_collected)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

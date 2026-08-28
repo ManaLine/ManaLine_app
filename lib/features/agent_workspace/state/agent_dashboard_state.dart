@@ -68,8 +68,13 @@ class AgentApiService {
     final rows = await _db
         .from('agent_bf_assignments')
         .select(
-            'assignment_id, opening_bf, confirmed_by_agent, update_requested')
+            'assignment_id, opening_bf, agent_bf_current, confirmed_by_agent, update_requested')
         .eq('membership_id', membershipId)
+        // business_date first, matching app.create_loan_with_bf_check's own
+        // ORDER BY. This read created_at while the loan check read
+        // business_date, so with more than one assignment row the screen
+        // could show one row's float while the server spent another's.
+        .order('business_date', ascending: false, nullsFirst: false)
         .order('created_at', ascending: false)
         .limit(1);
     // No row yet does NOT mean the Agent is locked out — it means they hold
@@ -84,6 +89,7 @@ class AgentApiService {
       return AgentBfAssignment(
         bfAssignmentId: c['assignment_id'] as String,
         openingBf: (c['opening_bf'] as num).toInt(),
+        currentBf: (c['agent_bf_current'] as num?)?.toInt() ?? 0,
         confirmedByAgent: c['confirmed_by_agent'] as bool,
         updateRequested: c['update_requested'] as bool,
       );
@@ -92,6 +98,7 @@ class AgentApiService {
     return AgentBfAssignment(
       bfAssignmentId: r['assignment_id'] as String,
       openingBf: (r['opening_bf'] as num).toInt(),
+      currentBf: (r['agent_bf_current'] as num?)?.toInt() ?? 0,
       confirmedByAgent: r['confirmed_by_agent'] as bool,
       updateRequested: r['update_requested'] as bool,
     );
@@ -492,13 +499,31 @@ final agentApiServiceProvider = Provider<AgentApiService>((ref) {
 
 class AgentBfAssignment {
   final String bfAssignmentId;
+
+  /// What the Agent was handed at the START of the session. Written once and
+  /// never moved again -- app.submit_agent_settlement reads it as the
+  /// session's opening figure.
+  ///
+  /// It is NOT what the Agent is holding, and every Agent-facing screen used
+  /// to show it as though it were: an Agent carrying Rs 2,69,190 of the day's
+  /// collections read Rs 0 on their own BF panel and was refused their own
+  /// New Loan screen, while the Owner's workforce view of the same person
+  /// read Rs 2,69,190.
   final int openingBf;
+
+  /// Cash in hand, now. Collections add to it, disbursements subtract, and
+  /// app.create_loan_with_bf_check locks THIS column to decide whether a loan
+  /// can be funded. Anything that answers "how much does this Agent have"
+  /// answers with this.
+  final int currentBf;
+
   final bool confirmedByAgent;
   final bool updateRequested;
 
   AgentBfAssignment({
     required this.bfAssignmentId,
     required this.openingBf,
+    this.currentBf = 0,
     this.confirmedByAgent = false,
     this.updateRequested = false,
   });
@@ -843,6 +868,7 @@ class AgentDashboardNotifier extends Notifier<AgentDashboardState> {
         bf: AgentBfAssignment(
           bfAssignmentId: state.bfAssignment!.bfAssignmentId,
           openingBf: state.bfAssignment!.openingBf,
+          currentBf: state.bfAssignment!.currentBf,
           confirmedByAgent: true,
         ),
       );

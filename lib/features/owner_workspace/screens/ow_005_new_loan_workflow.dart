@@ -796,7 +796,20 @@ class _Step5Confirm extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(ManaSpacing.md),
             decoration: BoxDecoration(color: ManaColors.statusBadFaint, borderRadius: BorderRadius.circular(8)),
-            child: ManaText.raw(state.error!, style: ManaType.bad),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText.raw(state.error!, style: ManaType.bad),
+                // A loan that failed to save used to take everything typed
+                // with it AND leave nothing in Drafts. It is parked now, and
+                // saying so is the difference between retyping the loan and
+                // opening Draft Transactions.
+                if (state.savedDraftId != null) ...[
+                  const SizedBox(height: ManaSpacing.xs),
+                  ManaText.raw(ref.t('saved_as_draft_note'), style: ManaType.note),
+                ],
+              ],
+            ),
           ),
         ],
         const SizedBox(height: ManaSpacing.lg),

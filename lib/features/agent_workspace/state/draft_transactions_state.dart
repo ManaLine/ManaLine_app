@@ -79,8 +79,21 @@ class DraftTransactionsApiService {
     // the id straight out threw a null-cast, which reached the screen as a
     // Dart type error instead of the reason the server actually gave.
     if (result['passed'] == false) {
-      throw DraftSubmitRefused(
-          result['failure_reason'] as String? ?? 'The draft could not be submitted.');
+      final reason = result['failure_reason'] as String?;
+      // The server answers with a CODE for the two refusals it knows about.
+      // Passed through raw, the screen showed the Agent the word
+      // "already_recorded", which says nothing about what to do next.
+      throw DraftSubmitRefused(switch (reason) {
+        'already_recorded' =>
+          'This loan already has a collection recorded for that day. '
+              'Correct that entry from the round instead — long-press the '
+              'customer. The draft is still here.',
+        'INSUFFICIENT_FLOAT' =>
+          'There is not enough BF cash to fund this loan yet. The draft stays '
+              'until there is.',
+        null => 'The draft could not be submitted.',
+        _ => reason,
+      });
     }
     final id = (result['loan_id'] ?? result['collection_id'] ?? result['remark_id'] ?? result['document_id']) as String;
     return DraftSubmitResult(resultingRecordId: id);

@@ -40,11 +40,18 @@ class AccountReviewApiService {
     final settlements = (rows as List).map((r) => _toSummary(r)).toList();
 
     final business = await _db.from('businesses').select('owner_bf_balance').eq('business_id', businessId).single();
+    // agent_bf_current, not opening_bf. opening_bf is what each Agent set out
+    // with and is never updated again, so this row read Rs 0 on a day when
+    // the agents between them were carrying Rs 2,69,190 of collections -- and
+    // the Owner, reading "Assigned Out 0" beside "Owner BF 30", concluded the
+    // BF figures were out of sync when they were merely two different
+    // quantities. What the agents hold is agent_bf_current.
     final assignmentRows = await _db
         .from('agent_bf_assignments')
-        .select('opening_bf, business_members!inner(business_id)')
+        .select('agent_bf_current, business_members!inner(business_id)')
         .eq('business_members.business_id', businessId);
-    final totalAssigned = (assignmentRows as List).fold<int>(0, (sum, a) => sum + (a['opening_bf'] as num).toInt());
+    final heldByAgents = (assignmentRows as List)
+        .fold<int>(0, (sum, a) => sum + ((a['agent_bf_current'] as num?)?.toInt() ?? 0));
     // "Returning this session" = sum of settlements' opening_balance for
     // settlements actually submitted (Pending/Approved) this session —
     // approximated here as the sum over the just-fetched pending list;
@@ -54,11 +61,11 @@ class AccountReviewApiService {
     // the Owner BF Panel's original spec didn't fully pin down either).
     final totalReturning = settlements.fold<int>(0, (sum, s) => sum + s.handOverTotal);
 
+    final ownerCash = (business['owner_bf_balance'] as num).toInt();
     final bfPanel = OwnerBfPanelData(
-      balanceBeforeToday: (business['owner_bf_balance'] as num).toInt(),
-      totalAssignedThisSession: totalAssigned,
-      totalReturningThisSession: totalReturning,
-      ownerBfCurrent: (business['owner_bf_balance'] as num).toInt(), // provisional — see class field doc; real "current" needs the Approve-time transfer to have already landed
+      ownerCashInHand: ownerCash,
+      heldByAgents: heldByAgents,
+      returningThisSession: totalReturning,
     );
 
     final accessDayRows = await _db
@@ -247,17 +254,40 @@ class AccountSettlementDetail {
   AccountSettlementDetail({required this.summary, this.adjustments = const [], this.agentRemarks});
 }
 
+/// The Owner's cash, in the two places it can be.
+///
+/// The panel used to show one figure called "Owner BF" four ways -- balance
+/// before today, assigned out, returning, current -- three of which read the
+/// same column and one of which read the wrong one. Standing beside the
+/// dashboard's business-cash total it looked like a sync fault: Rs 30 here,
+/// Rs 2,69,220 there. Neither was stale. `businesses.owner_bf_balance` is the
+/// Owner's OWN pot -- the day's closing minus whatever the agents are
+/// carrying -- so with an agent holding Rs 2,69,190 of a Rs 2,69,220 book,
+/// Rs 30 is exactly right.
+///
+/// So the panel now names both halves and adds them up, and nothing here is
+/// called "BF" without saying whose.
 class OwnerBfPanelData {
-  final int balanceBeforeToday;
-  final int totalAssignedThisSession;
-  final int totalReturningThisSession;
-  final int ownerBfCurrent; // provisional until each pending account is actually Approved
+  /// businesses.owner_bf_balance -- derived, never a running total. See
+  /// app.recompute_business_bf().
+  final int ownerCashInHand;
+
+  /// Sum of agent_bf_assignments.agent_bf_current across the business.
+  final int heldByAgents;
+
+  /// Hand-overs sitting in Pending Owner Review. Already counted inside
+  /// [heldByAgents] until the Owner approves them -- which is why it is shown
+  /// as a memo line below the total, not added to it.
+  final int returningThisSession;
+
   OwnerBfPanelData({
-    required this.balanceBeforeToday,
-    required this.totalAssignedThisSession,
-    required this.totalReturningThisSession,
-    required this.ownerBfCurrent,
+    required this.ownerCashInHand,
+    required this.heldByAgents,
+    required this.returningThisSession,
   });
+
+  /// Every rupee the business is holding, wherever it is standing.
+  int get businessCashTotal => ownerCashInHand + heldByAgents;
 }
 
 class AgentAccessDay {

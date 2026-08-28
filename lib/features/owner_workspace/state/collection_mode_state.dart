@@ -110,10 +110,16 @@ class CollectionApiService {
   /// database transaction, and also decides Full / Partial / Excess
   /// server-side so the phone never recomputes that classification.
   ///
-  /// DUPLICATE GUARD: if another member already recorded a payment on this
-  /// loan TODAY, the RPC returns a `duplicate_warning` instead of saving.
-  /// The caller should show "Close / Continue" and, on Continue, call again
-  /// with confirmDuplicate: true.
+  /// ONE ENTRY PER LOAN PER DAY: if this loan already has an entry for this
+  /// business date -- whoever recorded it -- the RPC writes nothing and
+  /// returns `already_recorded` naming that entry. There is no override. A
+  /// correction goes through [amendCollection]; a second row is how one
+  /// payment ends up with two receipts.
+  ///
+  /// [confirmDuplicate] is inert. It used to turn the old warning into a
+  /// second insert, and it is kept only because dropping it from the RPC's
+  /// parameter list means DROP + CREATE, which this codebase has had answer
+  /// HTTP 300 four times.
   Future<RecordCollectionOutcome> recordCollection({
     required String loanId,
     required String customerId,
@@ -126,7 +132,7 @@ class CollectionApiService {
     required String businessId, // used to resolve the caller's own membership
     String? excessDisposition, // Advance | Refund | Next Installment
     String? remarks,
-    bool confirmDuplicate = false, // true = "Continue" after the warning
+    bool confirmDuplicate = false, // inert; see the note above
     // Same key on every retry of one save; see shared/idempotency.dart.
     String? idempotencyKey,
   }) async {
@@ -147,9 +153,15 @@ class CollectionApiService {
     });
 
     final map = response as Map<String, dynamic>;
-    if (map['status'] == 'duplicate_warning') {
-      final existing = (map['existing'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
-      return RecordCollectionOutcome.duplicate(existing);
+    if (map['status'] == 'already_recorded') {
+      return RecordCollectionOutcome.already(ExistingCollection(
+        collectionId: map['collection_id'] as String? ?? '',
+        receiptNumber: map['receipt_number'] as String? ?? '',
+        collectedAmount: (map['collected_amount'] as num?)?.toInt() ?? 0,
+        resultType: map['result_type'] as String? ?? '',
+        recordedBy: map['recorded_by'] as String? ?? '',
+        mine: map['mine'] as bool? ?? false,
+      ));
     }
     return RecordCollectionOutcome.saved(CollectionResult(
       collectionId: map['collection_id'] as String? ?? '',
@@ -159,6 +171,81 @@ class CollectionApiService {
       newOutstandingBalance: (map['remaining_balance'] as num?)?.toInt() ?? 0,
       businessDate: DateTime.parse(businessDate),
     ));
+  }
+
+  /// The entry standing against this loan today, if there is one, with
+  /// enough of it to open the form on.
+  ///
+  /// Fetched on demand rather than carried on every due row: it is needed
+  /// only when somebody actually presses to correct an entry, and the round
+  /// loads fifty-odd rows on every open.
+  Future<CollectionEdit?> fetchTodaysCollection({
+    required String loanId,
+    required String businessDate,
+  }) async {
+    final rows = await _db
+        .from('collections')
+        .select('collection_id, receipt_number, collected_amount, payer_type, '
+            'payer_name, remarks, collection_payment_splits(payment_mode, amount)')
+        .eq('loan_id', loanId)
+        .eq('business_date', businessDate)
+        .isFilter('deleted_at', null)
+        .order('entry_timestamp', ascending: false)
+        .limit(1);
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) return null;
+    final r = list.first;
+    final splitRows = ((r['collection_payment_splits'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>();
+    return CollectionEdit(
+      collectionId: r['collection_id'] as String,
+      receiptNumber: r['receipt_number'] as String? ?? '',
+      collectedAmount: (r['collected_amount'] as num).toInt(),
+      payerType: r['payer_type'] as String? ?? 'Customer',
+      payerName: r['payer_name'] as String?,
+      remarks: r['remarks'] as String?,
+      splits: {
+        for (final s in splitRows)
+          s['payment_mode'] as String: (s['amount'] as num).toInt(),
+      },
+    );
+  }
+
+  /// Corrects an entry in place, balance and splits with it.
+  ///
+  /// Deliberately NOT a delete-and-re-record: the receipt number the customer
+  /// is holding stays valid. app.amend_collection refuses once a settlement
+  /// covering the day is with the Owner, which is the window the Owner asked
+  /// for -- editable until the account is submitted.
+  Future<CollectionResult> amendCollection({
+    required String collectionId,
+    required int collectedAmount,
+    required String payerType,
+    String? payerName,
+    required List<PaymentSplit> paymentSplits,
+    String? excessDisposition,
+    String? remarks,
+  }) async {
+    final response = await _db.schema('app').rpc('amend_collection', params: {
+      'p_collection_id': collectionId,
+      'p_collected_amount': collectedAmount,
+      'p_payer_type': payerType,
+      'p_payer_name': payerName,
+      'p_splits': paymentSplits
+          .map((s) => {'payment_mode': s.paymentMode, 'amount': s.amount})
+          .toList(),
+      'p_excess_disposition': excessDisposition,
+      'p_remarks': remarks,
+    });
+    final map = response as Map<String, dynamic>;
+    return CollectionResult(
+      collectionId: map['collection_id'] as String? ?? collectionId,
+      receiptNumber: map['receipt_number'] as String? ?? '',
+      resultType: map['result_type'] as String? ?? 'Full',
+      collectedAmount: (map['collected_amount'] as num?)?.toInt() ?? collectedAmount,
+      newOutstandingBalance: (map['remaining_balance'] as num?)?.toInt() ?? 0,
+      businessDate: DateTime.parse(manaBusinessDate()),
+    );
   }
 
   /// POST /no_collection_visits — a single-table insert with no derived
@@ -379,18 +466,67 @@ class CollectionResult {
 /// recorded a payment on this loan today (details in [existing]).
 class RecordCollectionOutcome {
   final CollectionResult? saved;
-  final bool duplicateWarning;
-  final List<Map<String, dynamic>> existing;
+
+  /// This loan already has an entry for this day, so nothing was written.
+  ///
+  /// Was `duplicateWarning`, and it only ever fired when SOMEBODY ELSE had
+  /// collected -- the same person could record a second and third payment on
+  /// one loan without a word. One entry per loan per day is the rule now, and
+  /// a correction is an amendment of the entry named here rather than another
+  /// row beside it.
+  final ExistingCollection? alreadyRecorded;
 
   RecordCollectionOutcome.saved(CollectionResult result)
       : saved = result,
-        duplicateWarning = false,
-        existing = const [];
+        alreadyRecorded = null;
 
-  RecordCollectionOutcome.duplicate(List<Map<String, dynamic>> existingEntries)
+  RecordCollectionOutcome.already(ExistingCollection existing)
       : saved = null,
-        duplicateWarning = true,
-        existing = existingEntries;
+        alreadyRecorded = existing;
+}
+
+/// The entry that is already standing against a loan today.
+class ExistingCollection {
+  final String collectionId;
+  final String receiptNumber;
+  final int collectedAmount;
+  final String resultType;
+  final String recordedBy;
+
+  /// Whether the caller is the person who recorded it. An Agent may correct
+  /// their own entry; somebody else's is the Owner's to change.
+  final bool mine;
+
+  const ExistingCollection({
+    required this.collectionId,
+    required this.receiptNumber,
+    required this.collectedAmount,
+    required this.resultType,
+    required this.recordedBy,
+    required this.mine,
+  });
+}
+
+/// An entry being opened for correction: what it holds now, so the form can
+/// come up showing it rather than an empty box the Agent has to retype.
+class CollectionEdit {
+  final String collectionId;
+  final String receiptNumber;
+  final int collectedAmount;
+  final String payerType;
+  final String? payerName;
+  final String? remarks;
+  final Map<String, int> splits;
+
+  const CollectionEdit({
+    required this.collectionId,
+    required this.receiptNumber,
+    required this.collectedAmount,
+    required this.payerType,
+    this.payerName,
+    this.remarks,
+    this.splits = const {},
+  });
 }
 
 final collectionApiServiceProvider = Provider<CollectionApiService>((ref) {
@@ -587,6 +723,48 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
     }
   }
 
+  /// The entry standing against this loan today, for correcting it.
+  Future<CollectionEdit?> loadTodaysCollection({
+    required String loanId,
+    required String businessDate,
+  }) {
+    return ref.read(collectionApiServiceProvider).fetchTodaysCollection(
+          loanId: loanId,
+          businessDate: businessDate,
+        );
+  }
+
+  /// Corrects an entry. Rethrows -- the reason an amendment was refused (the
+  /// account is already with the Owner, the caller did not take the money) is
+  /// the whole content of the failure.
+  Future<CollectionResult> amendCollection({
+    required String collectionId,
+    required int collectedAmount,
+    required String payerType,
+    String? payerName,
+    required List<PaymentSplit> paymentSplits,
+    String? excessDisposition,
+    String? remarks,
+    required int previousAmount,
+  }) async {
+    final result = await ref.read(collectionApiServiceProvider).amendCollection(
+          collectionId: collectionId,
+          collectedAmount: collectedAmount,
+          payerType: payerType,
+          payerName: payerName,
+          paymentSplits: paymentSplits,
+          excessDisposition: excessDisposition,
+          remarks: remarks,
+        );
+    // The running total follows the correction rather than counting the
+    // money twice: what changed is the difference, not the whole entry.
+    state = state.copyWith(
+      liveCollectionAmount:
+          state.liveCollectionAmount + (collectedAmount - previousAmount),
+    );
+    return result;
+  }
+
   Future<RecordCollectionOutcome?> recordCollection({
     required String loanId,
     required String customerId,
@@ -619,8 +797,8 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
         remarks: remarks,
         confirmDuplicate: confirmDuplicate,
       );
-      // Count the money only when it was actually saved (a duplicate
-      // warning means nothing was recorded).
+      // Count the money only when it was actually saved (an entry that
+      // already exists means nothing was recorded).
       if (outcome.saved != null) {
         state = state.copyWith(liveCollectionAmount: state.liveCollectionAmount + collectedAmount);
       }

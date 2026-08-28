@@ -697,8 +697,12 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
     // Consent is now asked once at first login (LR-007) and the pin is
     // captured best-effort below, after the loan exists.
     state = state.copyWith(submitting: true, clearError: true);
+    // Declared out here so the catch below can still park a draft when the
+    // failure lands AFTER the photo was uploaded -- otherwise the recovery
+    // path would throw away a photo that has to be taken live.
+    String? photoUrl;
     try {
-      final photoUrl = await LivePhotoUpload.upload(
+      photoUrl = await LivePhotoUpload.upload(
         bytes: state.livePhotoBytes!,
         businessId: businessId,
         pathSegment: 'loans/${state.customer!.customerId}-${DateTime.now().millisecondsSinceEpoch}',
@@ -732,28 +736,7 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
         // replays through create_loan_with_bf_check: the retry runs the same
         // code path as the first attempt rather than a second one that could
         // drift from it.
-        String? draftId;
-        try {
-          draftId = await ref.read(draftTransactionsApiServiceProvider).saveLoanDraft(
-            membershipId: state.collectionAgentId!,
-            payload: {
-              'customer_id': state.customer!.customerId,
-              'customer_name': state.customer!.fullName,
-              'repayment_amount': state.repaymentAmount,
-              'interest_amount': state.interest ?? 0,
-              'processing_fee': state.processingFee ?? 0,
-              'repayment_type': state.repaymentType,
-              'duration_value': state.durationValue,
-              'installment_amount': state.installmentAmount,
-              'grace_period_days': state.gracePeriodDays,
-              'effective_date': state.effectiveDate,
-              'live_photo_url': photoUrl,
-            },
-          );
-        } catch (_) {
-          // Non-fatal. Failing to save the draft must not replace the reason
-          // the loan was refused with a second, less useful error.
-        }
+        final draftId = await _parkDraft(photoUrl);
         state = state.copyWith(
           submitting: false,
           error: result.failureReason ?? 'Loan could not be created.',
@@ -819,7 +802,96 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
       state = state.copyWith(submitting: false, createdLoanNumber: result.loanNumber);
       return result.loanNumber;
     } catch (e) {
-      state = state.copyWith(submitting: false, error: e.toString());
+      // A THROWN failure loses just as much as a refused one, and used to
+      // lose it silently: a dropped reply, a timeout, an RLS refusal came
+      // out here, set an error string and returned, and every figure in the
+      // wizard went with it -- including a live photo that cannot be
+      // retaken from the wizard's own state.
+      //
+      // The refusal path had parked a draft since e892a39; this one had not,
+      // which is why a loan that "failed to save" was also absent from
+      // Drafts. Same helper, same payload, so the two recovery paths cannot
+      // drift.
+      //
+      // NOT parked if the throw came from the photo upload itself
+      // (photoUrl still null): submit_draft replays through
+      // create_loan_with_bf_check, and loans.live_photo_url is NOT NULL, so
+      // a photoless draft could never be submitted and would sit in the list
+      // as permanent, unresolvable work.
+      // Before parking anything: the throw may have been the REPLY going
+      // missing rather than the write failing.
+      final landed = await _loanAlreadyCreated(businessId);
+      if (landed != null) {
+        state = state.copyWith(submitting: false, createdLoanNumber: landed);
+        return landed;
+      }
+
+      final draftId = photoUrl == null ? null : await _parkDraft(photoUrl);
+      state = state.copyWith(
+        submitting: false,
+        error: e.toString(),
+        savedDraftId: draftId,
+      );
+      return null;
+    }
+  }
+
+  /// Parks everything typed so far as a 'Loan Distribution' draft, which
+  /// app.submit_draft replays through create_loan_with_bf_check -- the retry
+  /// runs the same code path as the first attempt rather than a second one
+  /// that could drift from it.
+  ///
+  /// Returns null rather than throwing: failing to save the draft must not
+  /// replace the reason the loan failed with a second, less useful error.
+  /// Did the loan land anyway?
+  ///
+  /// A timeout is not proof that nothing was written -- the server can create
+  /// the loan and lose the reply on the way back, which is exactly the
+  /// failure that cost this project a double import of 54 loans. Parking a
+  /// draft in that case would hand the Owner a Submit button that creates the
+  /// SAME loan a second time.
+  ///
+  /// Matched on customer + effective date + repayment amount, the same key
+  /// the migration import's duplicate guard uses.
+  Future<String?> _loanAlreadyCreated(String businessId) async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('loans')
+          .select('loan_number')
+          .eq('business_id', businessId)
+          .eq('customer_id', state.customer!.customerId)
+          .eq('effective_date', state.effectiveDate)
+          .eq('repayment_amount', state.repaymentAmount!)
+          .isFilter('deleted_at', null)
+          .limit(1);
+      final list = (rows as List).cast<Map<String, dynamic>>();
+      return list.isEmpty ? null : list.first['loan_number'] as String?;
+    } catch (_) {
+      // The check itself failing tells us nothing either way. Fall through to
+      // the draft: an unsubmitted draft is recoverable, a lost loan is not.
+      return null;
+    }
+  }
+
+  Future<String?> _parkDraft(String photoUrl) async {
+    try {
+      return await ref.read(draftTransactionsApiServiceProvider).saveLoanDraft(
+        membershipId: state.collectionAgentId!,
+        payload: {
+          'customer_id': state.customer!.customerId,
+          'customer_name': state.customer!.fullName,
+          'repayment_amount': state.repaymentAmount,
+          'interest_amount': state.interest ?? 0,
+          'processing_fee': state.processingFee ?? 0,
+          'repayment_type': state.repaymentType,
+          'duration_value': state.durationValue,
+          'installment_amount': state.installmentAmount,
+          'grace_period_days': state.gracePeriodDays,
+          'effective_date': state.effectiveDate,
+          'live_photo_url': photoUrl,
+        },
+      );
+    } catch (_) {
       return null;
     }
   }

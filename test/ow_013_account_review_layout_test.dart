@@ -8,10 +8,9 @@ import 'support/mana_harness.dart';
 
 final _seed = AccountReviewState(
   bfPanel: OwnerBfPanelData(
-    balanceBeforeToday: 250000,
-    totalAssignedThisSession: 50000,
-    totalReturningThisSession: 187500,
-    ownerBfCurrent: 387500,
+    ownerCashInHand: 250000,
+    heldByAgents: 50000,
+    returningThisSession: 187500,
   ),
   settlements: [
     AccountSettlementSummary(

@@ -15,6 +15,7 @@ import '../features/owner_workspace/state/collection_mode_state.dart';
 import 'apply_penalty_sheet.dart';
 import 'collect_sheet.dart';
 import 'mana_time.dart';
+import 'network_error_handler.dart';
 import 'translation_service.dart';
 
 /// The collection round, for whoever is walking it.
@@ -370,6 +371,41 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
     if (recorded && mounted) widget.onDone();
   }
 
+  /// Long press on a door already answered: open what was recorded and
+  /// correct it.
+  ///
+  /// A wrong figure used to be permanent. The row went quiet, the tap did
+  /// nothing, and the only recovery was an Owner deleting the collection --
+  /// which is not available to somebody standing in a village. One entry per
+  /// loan per day is enforced server-side now, so this is the ONLY way to
+  /// change one, and app.amend_collection closes the window once the account
+  /// has gone to the Owner.
+  Future<void> _correct() async {
+    final existing = await NetworkErrorHandler.run(context, () {
+      return ref.read(collectionModeProvider.notifier).loadTodaysCollection(
+            loanId: widget.row.loanId,
+            businessDate: manaBusinessDate(),
+          );
+    });
+    if (!mounted) return;
+    if (existing == null) {
+      // A door recorded as "no collection" has a visit but no entry, and a
+      // long press on it would otherwise do nothing at all -- which reads as
+      // a broken screen rather than as an answer.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: ManaText.raw(ref.t('nothing_to_correct'))),
+      );
+      return;
+    }
+    final amended = await showCollectSheet(
+      context,
+      row: widget.row,
+      businessId: widget.businessId,
+      editing: existing,
+    );
+    if (amended && mounted) widget.onDone();
+  }
+
   Future<void> _penalty() async {
     final applied = await showApplyPenaltySheet(
       context,
@@ -398,6 +434,9 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
         margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
         child: InkWell(
           onTap: done ? null : _collect,
+          // Settled rows only. A long press on a door not yet visited has
+          // nothing to correct.
+          onLongPress: done ? _correct : null,
           child: Padding(
             padding: const EdgeInsets.all(ManaSpacing.md),
             child: Column(
@@ -481,6 +520,14 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
                   overflow: TextOverflow.ellipsis,
                   style: ManaType.note,
                 ),
+                // Correcting an entry is a long press, and a gesture nobody
+                // is told about is a gesture nobody uses. Only on the rows it
+                // applies to.
+                if (done) ...[
+                  const SizedBox(height: 2),
+                  ManaText.raw(ref.t('long_press_to_correct'),
+                      maxLines: 2, style: ManaType.note),
+                ],
                 const SizedBox(height: ManaSpacing.xs),
                 // Both figures labelled. They are not interchangeable and the
                 // whole point of the row is that nobody confuses them: the

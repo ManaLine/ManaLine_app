@@ -71,10 +71,22 @@ void main() {
         await pumpManaScreen(
           tester,
           Scaffold(
-            body: ManaCollectionForm(
-              row: row,
-              businessId: 'b1',
-              onCancel: () {},
+            // Scrolled, because its real host scrolls: collect_sheet.dart
+            // puts this form inside a SingleChildScrollView above the
+            // keyboard inset. Hosted in a bare Scaffold the form had to fit
+            // 640px at 2.0x, so adding the four payment modes -- which a
+            // customer paying by UPI needs and which production scrolls to
+            // reach -- failed here while working on the handset.
+            //
+            // Horizontal overflow, which is the class this codebase actually
+            // ships (a bare unflexible child beside a flexible one), is
+            // still caught: a SingleChildScrollView scrolls one axis only.
+            body: SingleChildScrollView(
+              child: ManaCollectionForm(
+                row: row,
+                businessId: 'b1',
+                onCancel: () {},
+              ),
             ),
           ),
           textScale: scale,

@@ -28,6 +28,10 @@ Future<bool> showCollectSheet(
   BuildContext context, {
   required CollectionDueRow row,
   required String businessId,
+
+  /// The entry being CORRECTED, when the round long-pressed a settled row.
+  /// Null takes a new collection, which is every ordinary visit.
+  CollectionEdit? editing,
 }) async {
   final recorded = await showModalBottomSheet<bool>(
     context: context,
@@ -35,7 +39,8 @@ Future<bool> showCollectSheet(
     showDragHandle: true,
     // Tap outside closes it and nothing is written.
     isDismissible: true,
-    builder: (sheetContext) => _CollectBody(row: row, businessId: businessId),
+    builder: (sheetContext) =>
+        _CollectBody(row: row, businessId: businessId, editing: editing),
   );
   return recorded ?? false;
 }
@@ -45,7 +50,9 @@ enum _Action { collect, noCollection, extension }
 class _CollectBody extends ConsumerStatefulWidget {
   final CollectionDueRow row;
   final String businessId;
-  const _CollectBody({required this.row, required this.businessId});
+  final CollectionEdit? editing;
+  const _CollectBody(
+      {required this.row, required this.businessId, this.editing});
 
   @override
   ConsumerState<_CollectBody> createState() => _CollectBodyState();
@@ -74,10 +81,24 @@ class _CollectBodyState extends ConsumerState<_CollectBody> {
             ManaText.raw(row.customerName,
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: ManaType.cardTitle),
             const SizedBox(height: ManaSpacing.xs),
+            if (widget.editing != null) ...[
+              const SizedBox(height: ManaSpacing.xs),
+              // Says what this sheet is. Opened on a settled row it looks
+              // identical to a fresh collection, and an Agent who thinks they
+              // are adding one while they are replacing one will not notice
+              // until the day's total is short.
+              ManaText.raw(
+                ref.t('correcting_receipt').replaceAll(
+                    '{receipt}', widget.editing!.receiptNumber),
+                style: ManaType.note,
+              ),
+              const SizedBox(height: ManaSpacing.xs),
+            ],
             if (_action == _Action.collect)
               ManaCollectionForm(
                 row: row,
                 businessId: widget.businessId,
+                editing: widget.editing,
                 onCancel: () => Navigator.of(context).pop(false),
                 onRecorded: () => Navigator.of(context).pop(true),
               )
@@ -93,7 +114,9 @@ class _CollectBodyState extends ConsumerState<_CollectBody> {
                 onCancel: () => setState(() => _action = _Action.collect),
                 onRecorded: () => Navigator.of(context).pop(true),
               ),
-            if (_action == _Action.collect) ...[
+            // Not offered while correcting: "no collection" and an extension
+            // are answers to a visit, and this visit already has one.
+            if (_action == _Action.collect && widget.editing == null) ...[
               const Divider(height: ManaSpacing.lg),
               // The two outcomes that are not a payment. On a normal round
               // they are the exception, so they sit quietly -- but at the same

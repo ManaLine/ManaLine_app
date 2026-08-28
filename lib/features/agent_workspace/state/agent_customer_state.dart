@@ -9,7 +9,8 @@ import '../../owner_workspace/state/customer_state.dart'
         CustomerLoanSummary,
         CustomerRemark,
         CustomerProfile,
-        manaFetchCustomerCollections;
+        manaFetchCustomerCollections,
+        manaFetchLoansInGrace;
 import '../../../shared/mana_time.dart';
 
 /// AG-004 Customer Management — real Supabase wiring, Agent-side
@@ -117,6 +118,7 @@ class AgentCustomerApiService {
     // This file carried the identical `collections: const []` placeholder, so
     // the Agent's Collections tab was empty for exactly the same reason.
     final collections = await manaFetchCustomerCollections(_db, customerId);
+    final inGrace = await manaFetchLoansInGrace(_db, customerId);
 
     final loans = ((row['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
@@ -155,6 +157,7 @@ class AgentCustomerApiService {
                         (((l['remaining_balance'] as num).toInt() / (l['repayment_amount'] as num).toInt()) *
                             100),
                 status: l['loan_status'] as String,
+                inGrace: inGrace.contains(l['loan_id'] as String),
               ))
           .toList(),
       collections: collections,

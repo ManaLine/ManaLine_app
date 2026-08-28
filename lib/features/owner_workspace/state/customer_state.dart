@@ -338,6 +338,7 @@ class CustomerApiService {
     }
 
     final collections = await manaFetchCustomerCollections(_db, customerId);
+    final inGrace = await manaFetchLoansInGrace(_db, customerId);
 
     final loans = ((row['loans'] as List?) ?? const []).cast<Map<String, dynamic>>();
     final activeLoans = loans.where((l) => ['Active', 'Grace Period', 'Penalty'].contains(l['loan_status']));
@@ -381,6 +382,7 @@ class CustomerApiService {
                         (((l['remaining_balance'] as num).toInt() / (l['repayment_amount'] as num).toInt()) *
                             100),
                 status: l['loan_status'] as String,
+                inGrace: inGrace.contains(l['loan_id'] as String),
               ))
           .toList(),
       collections: collections,
@@ -511,6 +513,15 @@ class CustomerLoanSummary {
   final double progressPercent; // percentage — not money, stays double
   final String status;
 
+  /// Whether grace is RUNNING on this loan right now.
+  ///
+  /// Not part of [status], and it cannot be: loans.loan_status holds Active,
+  /// Closed and so on, and granting grace writes grace_period_days instead --
+  /// so a loan in grace reads "Active" there, which is true and incomplete.
+  /// Grace is a condition sitting on top of the status, derived by
+  /// app.v_collection_due from the same boundary the penalty gate uses.
+  final bool inGrace;
+
   CustomerLoanSummary({
     required this.loanId,
     required this.loanNumber,
@@ -520,7 +531,30 @@ class CustomerLoanSummary {
     required this.todaysDue,
     required this.progressPercent,
     required this.status,
+    this.inGrace = false,
   });
+}
+
+/// Which of a customer's loans are in grace right now, by loan_id.
+///
+/// A second small read rather than a wider profile query: grace is derived
+/// from the loan's last scheduled instalment and its granted days, which the
+/// profile's `loans(...)` embed cannot express -- app.v_collection_due already
+/// works it out for the round, and this asks the same view the same question.
+///
+/// Only Active, Grace Period and Penalty loans appear in that view, which is
+/// exactly right: a closed loan is not in grace.
+Future<Set<String>> manaFetchLoansInGrace(
+    SupabaseClient db, String customerId) async {
+  final rows = await db
+      .schema('app')
+      .from('v_collection_due')
+      .select('loan_id, in_grace')
+      .eq('customer_id', customerId);
+  return {
+    for (final r in (rows as List).cast<Map<String, dynamic>>())
+      if (r['in_grace'] == true) r['loan_id'] as String,
+  };
 }
 
 /// A customer's receipts, for whichever workspace is asking.

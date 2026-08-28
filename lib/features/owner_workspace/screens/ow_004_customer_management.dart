@@ -1120,13 +1120,21 @@ class _LoansTab extends ConsumerWidget {
                         .replaceAll('{amount}', manaRupees(l.outstanding)),
                     style: const TextStyle(fontSize: 16),
                   ),
+                  // Grace overrides the status shown here.
+                  //
+                  // loans.loan_status never says 'Grace Period' -- nothing
+                  // writes it -- so a loan carrying granted grace read
+                  // "Active" in this list while the loan detail, its pill and
+                  // the round's tag all said otherwise.
                   trailing: ManaTrailingStatus(
-                    label: l.status,
-                    status: l.status == 'Active'
-                        ? ManaStatus.good
-                        : l.status == 'Penalty'
-                            ? ManaStatus.bad
-                            : ManaStatus.neutral,
+                    label: l.inGrace ? ref.t('grace_period') : l.status,
+                    status: l.inGrace
+                        ? ManaStatus.warn
+                        : l.status == 'Active'
+                            ? ManaStatus.good
+                            : l.status == 'Penalty'
+                                ? ManaStatus.bad
+                                : ManaStatus.neutral,
                   ),
                   // Stale comment fixed: OW-007 has been built for a
                   // while (reachable from ow_009_daily_record_book.dart)

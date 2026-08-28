@@ -677,13 +677,18 @@ class _LoanInformationTab extends ConsumerWidget {
                         children: [
                           Expanded(
                               child: ManaText.raw(l.loanNumber, style: ManaType.emphasis)),
+                          // Grace overrides the status -- see the Owner's
+                          // copy of this list. loans.loan_status never says
+                          // 'Grace Period'; nothing writes it.
                           ManaStatusPill(
-                            label: l.status,
-                            status: l.status == 'Active'
-                                ? ManaStatus.good
-                                : l.status == 'Penalty'
-                                    ? ManaStatus.bad
-                                    : ManaStatus.neutral,
+                            label: l.inGrace ? ref.t('grace_period') : l.status,
+                            status: l.inGrace
+                                ? ManaStatus.warn
+                                : l.status == 'Active'
+                                    ? ManaStatus.good
+                                    : l.status == 'Penalty'
+                                        ? ManaStatus.bad
+                                        : ManaStatus.neutral,
                           ),
                         ],
                       ),

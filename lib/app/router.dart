@@ -123,10 +123,17 @@ const _needsBusiness = ['/ow-', '/ag-'];
 /// to the start when there is no person at all. Login and registration are
 /// left alone: they are how somebody gets a session in the first place.
 String? manaSessionRedirect(BuildContext context, GoRouterState state) =>
-    manaSessionRedirectFor(state.uri.path);
+    manaSessionRedirectFor(state.uri.path,
+        carriedBusinessId: state.extra is String ? state.extra as String : null);
 
 /// The decision itself, free of a BuildContext so it can be tested directly.
-String? manaSessionRedirectFor(String path) {
+///
+/// [carriedBusinessId] is the businessId the navigation itself is carrying, if
+/// any. It matters because this runs BEFORE the route builder, and the builder
+/// is where `extra` used to be recorded -- so a workspace opened with a
+/// perfectly good business in hand was judged to have none, bounced to the
+/// selector, and never reached the builder that would have remembered it.
+String? manaSessionRedirectFor(String path, {String? carriedBusinessId}) {
   // Login, registration and admin are how a session is obtained. Redirecting
   // them for want of a session would loop forever, and admin identities live
   // in admin_accounts, so currentPersonId is null for them and always will be.
@@ -135,6 +142,7 @@ String? manaSessionRedirectFor(String path) {
   }
   if (ManaSession.instance.currentPersonId == null) return '/lr-001';
   if (_needsBusiness.any(path.startsWith) &&
+      (carriedBusinessId ?? '').isEmpty &&
       (ManaSession.instance.lastBusinessId ?? '').isEmpty) {
     return '/lr-012';
   }

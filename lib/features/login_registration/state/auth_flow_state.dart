@@ -221,6 +221,19 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
   /// LR-012 selection (or its single-business auto-collapse).
   void selectBusiness(String businessId) {
     state = state.copyWith(selectedBusinessId: businessId);
+    // Remembered here, where the choice is actually made.
+    //
+    // It used to be recorded only by router.dart's _resolveBusinessId, inside
+    // the route BUILDER -- and GoRouter runs its redirect before any builder.
+    // So picking a business and then a role went: LR-013 navigates to
+    // /ow-001, the guard finds no business in the session, bounces to LR-012,
+    // and the builder that would have recorded the business never runs. A
+    // loop that only appeared on a session with nothing stored yet, which is
+    // to say on a fresh install or the first login after a logout.
+    //
+    // rememberBusinessId sets the in-memory field synchronously and lets the
+    // storage write trail behind it, so the very next navigation sees it.
+    ManaSession.instance.rememberBusinessId(businessId);
   }
 
   /// LR-013 selection (or its single-role auto-collapse).

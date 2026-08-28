@@ -341,19 +341,37 @@ class OwnerApiService {
     // Both are fetched so the row can say which is which rather than picking
     // one and hoping.
     final ownerCash = (business['owner_bf_balance'] as num?)?.toInt() ?? 0;
-    int agentsHold = 0;
+
+    // Each agent by name, not a lump.
+    //
+    // "Held By Agents Rs 2,69,190" is not an answer when there are five of
+    // them and the Owner is asking who to collect from.
+    var agentCash = <AgentCashHolding>[];
     try {
       final held = await _db
           .from('agent_bf_assignments')
-          .select('agent_bf_current, business_members!inner(business_id, role)')
+          // The FK is named because business_members has TWO into persons --
+          // the member and whoever invited them -- and the unqualified embed
+          // takes the whole dashboard down with PGRST201.
+          .select('agent_bf_current, business_members!inner(business_id, role, '
+              'persons!business_members_person_id_fkey(full_name))')
           .eq('business_members.business_id', businessId)
           .eq('business_members.role', 'Agent');
-      agentsHold = (held as List).cast<Map<String, dynamic>>().fold<int>(
-          0, (sum, r) => sum + ((r['agent_bf_current'] as num?)?.toInt() ?? 0));
+      agentCash = (held as List).cast<Map<String, dynamic>>().map((r) {
+        final member = r['business_members'] as Map<String, dynamic>?;
+        final person = member?['persons'] as Map<String, dynamic>?;
+        return AgentCashHolding(
+          name: titleCaseName(person?['full_name'] as String? ?? ''),
+          amount: (r['agent_bf_current'] as num?)?.toInt() ?? 0,
+        );
+      }).toList()
+        // Most cash first: the Owner opening this is usually looking for
+        // where the money is, not for a particular person.
+        ..sort((a, b) => b.amount.compareTo(a.amount));
     } catch (_) {
-      // Non-fatal: the row falls back to showing the Owner's own cash alone
-      // rather than taking the dashboard down for a secondary figure.
-      agentsHold = 0;
+      // Non-fatal: the sheet shows the Owner's own cash alone rather than
+      // taking the dashboard down for a secondary figure.
+      agentCash = const [];
     }
 
     int countWhere(String role, String status) =>
@@ -411,7 +429,7 @@ class OwnerApiService {
       // no ledger has nothing in an agent's pocket either.
       openingBalance: openingBf,
       ownerCash: ownerCash,
-      agentsHold: agentsHold,
+      agentCash: agentCash,
       todaysCollections: 0, // ditto — day-scoped aggregate, not duplicated here to avoid two different "today" computations drifting apart
       todaysLoanDistribution: 0,
       todaysInvestments: 0,
@@ -1035,6 +1053,13 @@ class OperatingAreaResult {
 /// Mirrors GET .../owner-dashboard's single pre-aggregated response —
 /// Business Status Bar + Today's Summary + Overview + Snapshots in one call,
 /// per OW-001 API BINDING.
+/// One agent's cash in hand, for the Owner's BF breakdown.
+class AgentCashHolding {
+  final String name;
+  final int amount;
+  const AgentCashHolding({required this.name, required this.amount});
+}
+
 class OwnerDashboardData {
   final String businessName;
   final String? logoUrl;
@@ -1054,9 +1079,18 @@ class OwnerDashboardData {
   /// Owner spends it, and it is what Add BF is refused against.
   final int ownerCash;
 
-  /// What the agents are carrying between them. ownerCash + agentsHold is the
-  /// business's cash, which is why the row can show all three and add up.
-  final int agentsHold;
+  /// What each agent is carrying, by name. An Owner with five agents needs to
+  /// know which of them is holding the money, not merely that somebody is.
+  final List<AgentCashHolding> agentCash;
+
+  /// The agents' floats together.
+  int get agentsHold =>
+      agentCash.fold<int>(0, (sum, a) => sum + a.amount);
+
+  /// Every rupee the business has: the Owner's pot plus what the agents hold.
+  /// Equal to the latest day_ledger closing, because owner_bf_balance is
+  /// derived as that closing minus the floats.
+  int get businessCash => ownerCash + agentsHold;
 
   final int todaysCollections;
   final int todaysLoanDistribution;
@@ -1109,7 +1143,7 @@ class OwnerDashboardData {
     required this.pendingDayClosure,
     required this.openingBalance,
     this.ownerCash = 0,
-    this.agentsHold = 0,
+    this.agentCash = const [],
     required this.todaysCollections,
     required this.todaysLoanDistribution,
     required this.todaysInvestments,
@@ -1157,7 +1191,7 @@ class OwnerDashboardData {
     required String businessName,
     int openingBalance = 0,
     int ownerCash = 0,
-    int agentsHold = 0,
+    List<AgentCashHolding> agentCash = const [],
   }) => OwnerDashboardData(
         businessName: businessName,
         businessOpen: true,
@@ -1167,7 +1201,7 @@ class OwnerDashboardData {
         pendingDayClosure: false,
         openingBalance: openingBalance,
         ownerCash: ownerCash,
-        agentsHold: agentsHold,
+        agentCash: agentCash,
         todaysCollections: 0,
         todaysLoanDistribution: 0,
         todaysInvestments: 0,

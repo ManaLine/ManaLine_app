@@ -723,7 +723,7 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
     'Telugu': 'ఫోన్, MANA LINE ID, ఆధార్ లేదా పేరు ద్వారా శోధించండి.',
   },
   'not_a_member_of_business': {'English': 'Not a member of this business.', 'Telugu': 'ఈ వ్యాపారంలో సభ్యుడు కాదు.'},
-  'brought_forward': {'English': 'BF', 'Telugu': 'BF'},
+  'brought_forward': {'English': 'Brought Forward (BF)', 'Telugu': 'నిల్వ (BF)'},
   'todays_investments': {'English': 'Today\'s Investments', 'Telugu': 'నేటి పెట్టుబడులు'},
   'todays_withdrawals': {'English': 'Today\'s Withdrawals', 'Telugu': 'నేటి ఉపసంహరణలు'},
   'todays_expenses': {'English': 'Today\'s Expenses', 'Telugu': 'నేటి ఖర్చులు'},

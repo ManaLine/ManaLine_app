@@ -53,7 +53,11 @@ const _ow001TeluguTranslations = <String, Map<String, String>>{
     'Telugu': 'ఫోన్, MANA LINE ID, ఆధార్ లేదా పేరు ద్వారా శోధించండి.',
   },
   'not_a_member_of_business': {'English': 'Not a member of this business.', 'Telugu': 'ఈ వ్యాపారంలో సభ్యుడు కాదు.'},
-  'brought_forward': {'English': 'BF', 'Telugu': 'BF'},
+  // The REAL row, not the abbreviation: a vendored label narrower than the
+  // shipped one measures a layout that does not exist.
+  'brought_forward': {'English': 'Brought Forward (BF)', 'Telugu': 'నిల్వ (BF)'},
+  'business_cash': {'English': 'Business Cash', 'Telugu': 'వ్యాపార నగదు'},
+  'agent': {'English': 'Agent', 'Telugu': 'ఏజెంట్'},
   'owner_cash_in_hand': {'English': 'Owner Cash In Hand', 'Telugu': 'యజమాని వద్ద నగదు'},
   'held_by_agents': {'English': 'Held By Agents', 'Telugu': 'ఏజెంట్ల వద్ద ఉన్నది'},
   'business_cash_total': {'English': 'Business Cash Total', 'Telugu': 'మొత్తం వ్యాపార నగదు'},
@@ -96,11 +100,18 @@ void main() {
 
   // The live shape this row got wrong: the Owner's own pot is Rs 30 while the
   // business's cash is Rs 2,69,220, because the agents are carrying the rest.
+  // Four agents, because one lump sum is exactly what this sheet exists to
+  // stop being the answer.
   final realSeed = OwnerDashboardData.zero(
     businessName: 'Sri Venkateswara Rural Finance and Chit Fund Society',
     openingBalance: 267320,
     ownerCash: 30,
-    agentsHold: 269190,
+    agentCash: const [
+      AgentCashHolding(name: 'Karri Siri Manikanta Reddy', amount: 240000),
+      AgentCashHolding(name: 'Nagabhushanam Venkata Subba Reddy', amount: 20000),
+      AgentCashHolding(name: 'Chalasani Ramana', amount: 8190),
+      AgentCashHolding(name: 'Peddireddy Venkata Subbamma', amount: 1000),
+    ],
   );
 
   group('the BF row says whose money it is', () {
@@ -123,15 +134,16 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Owner Cash In Hand'), findsOneWidget);
-      expect(find.textContaining('30'), findsWidgets);
+      expect(find.text('Brought Forward (BF)'), findsOneWidget);
+      expect(find.text('₹30'), findsOneWidget);
       expect(find.textContaining('2,67,320'), findsNothing,
           reason: "the day's opening balance is not the Owner's BF");
     });
 
-    testWidgets('and accounts for the rest of it', (tester) async {
-      // An Owner seeing Rs 30 has to be able to tell that the other
-      // Rs 2,69,190 is in the agents' pockets rather than missing.
+    testWidgets('tapping it names every agent holding cash', (tester) async {
+      // "Held by agents, Rs 2,69,190" does not answer the question an Owner
+      // opens this to ask, which is WHICH agent. With four of them it is the
+      // only useful form.
       await pumpManaScreen(
         tester,
         const OwnerHomeDashboardScreen(businessId: 'b1'),
@@ -143,11 +155,22 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.textContaining('Held By Agents'), findsOneWidget);
-      expect(find.textContaining('2,69,190'), findsOneWidget);
-      // 30 + 2,69,190. The row adds up, which is the point of showing all
-      // three rather than picking one.
-      expect(find.textContaining('2,69,220'), findsOneWidget);
+      await tester.tap(find.text('Brought Forward (BF)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Karri Siri Manikanta Reddy'), findsOneWidget);
+      expect(find.text('₹2,40,000'), findsOneWidget);
+      expect(find.text('Chalasani Ramana'), findsOneWidget);
+      expect(find.text('Peddireddy Venkata Subbamma'), findsOneWidget);
+      // Biggest float first: the question is where the money is.
+      expect(
+        tester.getTopLeft(find.text('Karri Siri Manikanta Reddy')).dy <
+            tester.getTopLeft(find.text('Chalasani Ramana')).dy,
+        isTrue,
+      );
+      // 30 + 2,40,000 + 20,000 + 8,190 + 1,000.
+      expect(find.text('₹2,69,220'), findsOneWidget,
+          reason: 'the breakdown must add up to the business cash');
     });
   });
 

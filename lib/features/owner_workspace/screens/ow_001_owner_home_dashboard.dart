@@ -893,6 +893,10 @@ class _BfRow extends ConsumerWidget {
           controller: scrollController,
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
+            ManaText.raw(ref.t('business_cash'), style: ManaType.sheetTitle),
+            const SizedBox(height: ManaSpacing.md),
+            _CashHolders(data: data),
+            const SizedBox(height: ManaSpacing.xl),
             ManaText.raw(ref.t('todays_business_summary'),
                 style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.md),
@@ -911,9 +915,8 @@ class _BfRow extends ConsumerWidget {
     return Semantics(
       button: true,
       excludeSemantics: true,
-      label: '${ref.t('owner_cash_in_hand')}, ${manaRupees(data.ownerCash)}. '
-          '${ref.t('held_by_agents')}, ${manaRupees(data.agentsHold)}. '
-          "Opens today's business summary",
+      label: '${ref.t('brought_forward')}, ${manaRupees(data.ownerCash)}. '
+          "Opens who is holding the business's cash",
       child: ManaPressable(
         onTap: () => _openSheet(context, ref),
         borderRadius: BorderRadius.circular(ManaRadius.md),
@@ -941,27 +944,9 @@ class _BfRow extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Label above amount, not beside it.
-                        //
-                        // Side by side, "Owner Cash In Hand = Rs 30" overflows
-                        // a 360dp card by 6.8px at 1.0x in English before any
-                        // translation is measured -- the label is an
-                        // unflexible child next to a flexible one, which is
-                        // the shape this codebase has shipped an overflow in
-                        // five times. Stacked, neither has to give way.
-                        ManaInfoWord(ref.t('owner_cash_in_hand'),
+                        ManaInfoWord(ref.t('brought_forward'),
                             infoKey: 'bf', style: ManaType.strong),
                         ManaAmount(data.ownerCash),
-                        // Where the rest of it is. An Owner seeing Rs 30 needs
-                        // to know the other Rs 2,69,190 is in the agents'
-                        // pockets and not missing.
-                        ManaText.raw(
-                          '${ref.t('held_by_agents')} ${manaRupees(data.agentsHold)}'
-                          '  ·  ${ref.t('business_cash_total')} '
-                          '${manaRupees(data.ownerCash + data.agentsHold)}',
-                          maxLines: 2,
-                          style: ManaType.note,
-                        ),
                       ],
                     ),
                   ),
@@ -975,6 +960,61 @@ class _BfRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Who is holding the business's cash, by name.
+///
+/// The row above shows BF -- the Owner's own pot -- and on a good day that is
+/// a small number while most of the money is out on the round. "Held by
+/// agents, Rs 2,69,190" does not answer the question an Owner opens this to
+/// ask, which is WHICH agent. With five of them it is the only useful form.
+///
+/// Ordered by amount, because the question is usually about where the money
+/// is rather than about a particular person.
+class _CashHolders extends ConsumerWidget {
+  final OwnerDashboardData data;
+  const _CashHolders({required this.data});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _line(ref.t('owner_cash_in_hand'), data.ownerCash),
+        if (data.agentCash.isEmpty)
+          _line(ref.t('held_by_agents'), 0)
+        else
+          for (final a in data.agentCash)
+            _line(a.name.isEmpty ? ref.t('agent') : a.name, a.amount),
+        const Divider(height: ManaSpacing.xl),
+        _line(ref.t('business_cash_total'), data.businessCash, strong: true),
+      ],
+    );
+  }
+
+  /// Name and figure, both flexible. A person's name is not a label of known
+  /// width -- "Nagabhushanam Venkata Subba Reddy" is a real one on this book.
+  Widget _line(String name, int amount, {bool strong = false}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ManaText.raw(name,
+                  maxLines: 2,
+                  style: strong ? ManaType.strong : null),
+            ),
+            const SizedBox(width: ManaSpacing.sm),
+            Flexible(
+              child: ManaText.raw(manaRupees(amount),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: strong ? ManaType.strong : ManaType.emphasis),
+            ),
+          ],
+        ),
+      );
 }
 
 class _TodaysSummary extends ConsumerWidget {

@@ -134,6 +134,28 @@ class SoftDeleteService {
     });
   }
 
+  /// The whole selection, in one request.
+  ///
+  /// The screen used to loop [purge] once per record and await each. With 627
+  /// rows in the bin that is 627 round trips inside a single client timeout,
+  /// so the timeout won long before the loop did -- and because the ones it
+  /// reached were already committed, the bin came back smaller each time and
+  /// the Owner had to select and try again. One call, one transaction: either
+  /// the selection goes or none of it does, which is the honest behaviour for
+  /// something with no undo.
+  ///
+  /// Returns how many were purged.
+  Future<int> purgeAll(List<({String entityWireName, String recordId})> records) async {
+    if (records.isEmpty) return 0;
+    final result = await _db.schema('app').rpc('purge_records', params: {
+      'p_records': [
+        for (final r in records)
+          {'entity': r.entityWireName, 'record_id': r.recordId},
+      ],
+    });
+    return ((result as Map<String, dynamic>)['purged'] as num?)?.toInt() ?? 0;
+  }
+
   /// The bin. Must be an RPC: the restrictive RLS policies hide deleted
   /// rows from every ordinary table read, which is exactly what makes them
   /// vanish from the rest of the app.

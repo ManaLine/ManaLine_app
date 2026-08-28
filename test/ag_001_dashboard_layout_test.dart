@@ -74,7 +74,7 @@ AgentDashboardData _seedData() => AgentDashboardData(
 /// exercises the Quick Actions grid, previously untested here.
 const _ag001TeluguTranslations = <String, Map<String, String>>{
   'customers': {'English': 'Customers', 'Telugu': 'కస్టమర్లు'},
-  'customer_management': {'English': 'Customer Management', 'Telugu': 'కస్టమర్ నిర్వహణ'},
+  'customer_management': {'English': 'Customers', 'Telugu': 'కస్టమర్లు'},
   'todays_route': {'English': "Today's Route", 'Telugu': 'నేటి మార్గం'},
   'my_work': {'English': 'My Work', 'Telugu': 'నా పని'},
   'draft_transactions': {'English': 'Draft Transactions', 'Telugu': 'డ్రాఫ్ట్ లావాదేవీలు'},
@@ -110,7 +110,7 @@ const _ag001TeluguTranslations = <String, Map<String, String>>{
   'short': {'English': 'Short', 'Telugu': 'తక్కువ'},
   'excess': {'English': 'Excess', 'Telugu': 'అధికం'},
   'quick_actions': {'English': 'Quick Actions', 'Telugu': 'త్వరిత చర్యలు'},
-  'collection_mode': {'English': 'Collection Mode', 'Telugu': 'వసూలు మోడ్'},
+  'collection_mode': {'English': 'Collections', 'Telugu': 'వసూళ్లు'},
   'universal_search': {'English': 'Universal Search', 'Telugu': 'యూనివర్సల్ శోధన'},
   'attention_required': {'English': 'Attention Required', 'Telugu': 'శ్రద్ధ అవసరం'},
   'pending_customer_requests': {'English': 'Pending Customer Requests', 'Telugu': 'పెండింగ్ కస్టమర్ అభ్యర్థనలు'},

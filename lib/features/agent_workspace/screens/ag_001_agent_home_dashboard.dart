@@ -84,6 +84,17 @@ class _AgentHomeDashboardScreenState
     });
   }
 
+
+  /// Add somebody to the business, and carry straight on to a loan if that is
+  /// what was asked for.
+  Future<void> _addCustomer(BuildContext context) async {
+    final customerId =
+        await context.push<String?>('/customer-new', extra: widget.businessId);
+    if (customerId == null || !context.mounted) return;
+    if (!mounted) return;
+    context.push('/ag-007?customerId=$customerId', extra: widget.businessId);
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(translationLoaderProvider);
@@ -116,12 +127,13 @@ class _AgentHomeDashboardScreenState
         //
         // agentId, so it comes off the float in their hand rather than off
         // the business.
+        // Adds a customer, like every other + in the app. Recording an
+        // expense moved to the drawer.
         ManaHeaderAction(
           icon: Icons.add,
           bold: true,
-          label: ref.t('add_expense'),
-          onPressed: () => showQuickExpense(context, ref,
-              businessId: widget.businessId, agentId: widget.agentId),
+          label: ref.t('add_a_customer'),
+          onPressed: () => _addCustomer(context),
         ),
         // Search, not Profile. Profile is a drawer row already -- it is in
         // manaGlobalDrawerSections below, shared with the other three
@@ -201,6 +213,10 @@ class _AgentHomeDashboardScreenState
         // row. That row is gone — they are drawer rows now, shared with the
         // other three workspaces so the order and labels cannot drift.
         ...manaGlobalDrawerSections(
+          // agentId, so an Agent's expense comes off the float in their hand
+          // rather than off the business.
+          onRecordExpense: () => showQuickExpense(context, ref,
+              businessId: widget.businessId, agentId: widget.agentId),
           onProfile: () => context.push('/ag-009'),
           onSwitchWorkspace: () => context.go('/lr-012'),
           onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),

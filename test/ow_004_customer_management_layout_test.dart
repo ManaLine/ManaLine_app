@@ -23,7 +23,7 @@ class _SeededCustomerListNotifier extends CustomerListNotifier {
 /// list view only (search, filters, customer rows), not the tabbed
 /// Customer Profile drill-in.
 const _ow004TeluguTranslations = <String, Map<String, String>>{
-  'customer_management': {'English': 'Customer Management', 'Telugu': 'కస్టమర్ నిర్వహణ'},
+  'customer_management': {'English': 'Customers', 'Telugu': 'కస్టమర్లు'},
   'add_customer': {'English': 'Add Customer', 'Telugu': 'కస్టమర్ జోడించండి'},
   'existing_customers': {'English': 'Existing Customers', 'Telugu': 'ఇప్పటికే ఉన్న కస్టమర్లు'},
   'pre_existing_customer': {'English': 'Pre-Existing Customer', 'Telugu': 'ముందుగా ఉన్న కస్టమర్'},

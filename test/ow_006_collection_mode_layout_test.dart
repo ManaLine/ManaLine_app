@@ -22,7 +22,7 @@ class _SeededCollectionModeNotifier extends CollectionModeNotifier {
 /// The real ui_translations rows this screen was wired against (migration
 /// 20260807172612 + reused earlier keys) — same reasoning as the dashboards.
 const _ow006TeluguTranslations = <String, Map<String, String>>{
-  'collection_mode': {'English': 'Collection Mode', 'Telugu': 'వసూలు మోడ్'},
+  'collection_mode': {'English': 'Collections', 'Telugu': 'వసూళ్లు'},
   'sorted_by_note': {
     'English': "Sorted by: penalty → grace period → today's due → village → name",
     'Telugu': 'క్రమం: జరిమానా → గ్రేస్ పీరియడ్ → నేటి బకాయి → గ్రామం → పేరు',

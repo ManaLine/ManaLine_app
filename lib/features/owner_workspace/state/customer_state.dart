@@ -892,6 +892,23 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
     }
   }
 
+  /// The customer row a person holds in this business.
+  ///
+  /// linkExisting returns only whether it worked, and "add them and lend to
+  /// them" needs the id to open the wizard on. Looked up by person_id rather
+  /// than by name: a village where several people share one is exactly where
+  /// a name lookup opens the wrong record.
+  Future<String?> customerIdForPerson(String businessId, int personId) async {
+    final rows = await Supabase.instance.client
+        .from('customers')
+        .select('customer_id, business_members!customers_membership_id_fkey!inner(business_id, person_id)')
+        .eq('business_members.business_id', businessId)
+        .eq('business_members.person_id', personId)
+        .limit(1);
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    return list.isEmpty ? null : list.first['customer_id'] as String;
+  }
+
   /// [createNew] but hands back the new customer_id.
   ///
   /// The migration form needs it: it registers the person and records their

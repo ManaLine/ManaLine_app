@@ -98,6 +98,11 @@ class ManaDrawerAction {
 /// A null callback renders the row disabled rather than dropping it — same
 /// reasoning as [ManaDrawerAction.onTap].
 List<ManaDrawerSection> manaGlobalDrawerSections({
+  /// Recording an expense. It was the header's + until the Owner asked for
+  /// that slot to add a customer instead -- a round produces new borrowers
+  /// far more often than receipts to file -- so it lives here, still one tap
+  /// from wherever somebody is standing.
+  VoidCallback? onRecordExpense,
   VoidCallback? onProfile,
   VoidCallback? onSwitchWorkspace,
   VoidCallback? onSwitchRole,
@@ -105,6 +110,11 @@ List<ManaDrawerSection> manaGlobalDrawerSections({
   VoidCallback? onLogout,
 }) {
   return [
+    ManaDrawerSection(
+      icon: Icons.receipt_long_outlined,
+      labelKey: 'add_expense',
+      onTap: onRecordExpense,
+    ),
     ManaDrawerSection(
       icon: Icons.person_outline,
       labelKey: 'profile',
@@ -254,95 +264,91 @@ class _ShellHeader extends StatelessWidget {
       // brand is 4.51:1 — too thin to read outdoors in sunlight.
       color: ManaColors.brandDeep,
       padding: EdgeInsets.only(
-        top: MediaQuery.paddingOf(context).top + ManaSpacing.sm,
+        // Tight: the header is chrome on the screen somebody looks at most,
+        // and every dp here is one the dashboard does not get.
+        top: MediaQuery.paddingOf(context).top + ManaSpacing.xs,
         left: ManaSpacing.sm,
         right: ManaSpacing.sm,
-        bottom: ManaSpacing.sm,
+        bottom: ManaSpacing.xs,
       ),
-      // Two rows, because a business name is not an abbreviation.
+      // One row, and the name is allowed two lines inside it.
       //
-      // Everything used to share one line: menu, logo, name, and three or four
-      // action icons. The name is the only one of those that can be shortened,
-      // so it was the one that got shortened -- "Sri Satyanarayana Bus..." on
-      // the screen whose job is to say which business this is. Names here run
-      // to "Sri Venkateswara Rural Finance and Chit Fund Society".
+      // This was one row, then two, and is one again -- worth writing down.
+      // Everything on a single line meant the name was the only thing that
+      // could be shortened, so "Sri Satyanarayana Bus..." was what the screen
+      // said. Moving the icons to a second row fixed that and cost a whole
+      // row of height on the screen somebody looks at most.
       //
-      // The name now has the row to itself, sharing it only with the menu and
-      // the logo, and takes two lines when it needs them. The actions drop to
-      // the date line underneath, where there is nothing but a short date to
-      // sit beside.
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      // A name that WRAPS needs neither. The icons keep the first line, the
+      // name takes up to two lines beside them, and the date sits under it in
+      // the same column -- roughly half the height of the two-row version and
+      // still no ellipsis until a name runs past two lines.
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              // Builder, because opening the drawer needs a context BELOW the
-              // Scaffold — `Scaffold.of(context)` at the shell's own level
-              // finds the parent route's Scaffold, or throws.
-              Builder(
-                builder: (inner) => _ShellIcon(
-                  icon: Icons.menu,
-                  label: 'Menu',
-                  onPressed: () => Scaffold.of(inner).openDrawer(),
+          // Builder, because opening the drawer needs a context BELOW the
+          // Scaffold — `Scaffold.of(context)` at the shell's own level
+          // finds the parent route's Scaffold, or throws.
+          Builder(
+            builder: (inner) => _ShellIcon(
+              icon: Icons.menu,
+              label: 'Menu',
+              onPressed: () => Scaffold.of(inner).openDrawer(),
+            ),
+          ),
+          if (leading != null) ...[
+            Semantics(
+              button: onLeadingTap != null,
+              label: onLeadingTap != null ? 'Business Profile' : null,
+              child: InkWell(
+                onTap: onLeadingTap,
+                borderRadius: BorderRadius.circular(ManaRadius.ring),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(ManaRadius.ring),
+                  child: SizedBox(width: 28, height: 28, child: leading),
                 ),
               ),
-              if (leading != null) ...[
+            ),
+            const SizedBox(width: ManaSpacing.sm),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Semantics(
-                  button: onLeadingTap != null,
-                  label: onLeadingTap != null ? 'Business Profile' : null,
-                  child: InkWell(
-                    onTap: onLeadingTap,
-                    borderRadius: BorderRadius.circular(ManaRadius.ring),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(ManaRadius.ring),
-                      child: SizedBox(width: 32, height: 32, child: leading),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: ManaSpacing.sm),
-              ],
-              Expanded(
-                child: Semantics(
                   header: true,
                   child: Text(
                     (businessName != null && businessName!.isNotEmpty)
                         ? businessName!
                         : userName,
-                    // Two lines, and only then an ellipsis. A name that has
-                    // to be cut is at least cut late.
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 16,
+                      // 15, not 16: two lines of a long name at 16 pushed the
+                      // header taller than the single row it replaced.
+                      fontSize: 15,
+                      height: 1.15,
                       fontWeight: FontWeight.w700,
                       color: ManaColors.textOnDark,
                     ),
                   ),
                 ),
-              ),
-            ],
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.2,
+                      color: ManaColors.textOnDark,
+                    ),
+                  ),
+              ],
+            ),
           ),
-          Row(
-            children: [
-              // Aligned under the name rather than the menu, so the two rows
-              // read as one block instead of two lists.
-              const SizedBox(width: kManaMinTapTarget),
-              Expanded(
-                child: subtitle == null || subtitle!.isEmpty
-                    ? const SizedBox.shrink()
-                    : Text(
-                        subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: ManaColors.textOnDark,
-                        ),
-                      ),
-              ),
-              ...actions,
-            ],
-          ),
+          ...actions,
         ],
       ),
     );

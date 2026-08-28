@@ -109,15 +109,12 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
       appBar: ManaAppBar(
         homeRoute: '/ag-001',
         title: ref.t('customer_management'),
-        actions: [
-          // Create Customer — hidden entirely unless can_create_customer.
-          if (state.permissions.canCreateCustomer)
-            IconButton(
-              tooltip: ref.t('create_customer'),
-              icon: const Icon(Icons.person_add_alt_1_outlined),
-              onPressed: () => _showCreateCustomerNotice(context),
-            ),
-        ],
+        // No Create Customer action here any more.
+        //
+        // It was a snackbar reading "TODO: wire shared sheet" -- pressing it
+        // told the Agent to go away. The header's + on every Owner and Agent
+        // screen opens the real thing now, so a second entry point beside it
+        // would be two buttons for one job, one of which never worked.
       ),
       body: SafeArea(
         child: state.loading && state.customers.isEmpty
@@ -194,14 +191,6 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
     );
   }
 
-  void _showCreateCustomerNotice(BuildContext context) {
-    // Create Customer reuses OW-004's identity-search + create-new flow
-    // (same fields/endpoint); wiring the shared sheet here is out of scope
-    // for this pass — flagged for cross-check with the OW-004 owner.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: ManaText.raw(ref.t('create_customer_todo_note'))),
-    );
-  }
 }
 
 class _FilterChips extends ConsumerWidget {

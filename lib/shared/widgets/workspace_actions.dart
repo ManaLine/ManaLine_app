@@ -7,7 +7,6 @@ import '../../design/components/mana_header.dart';
 import '../../features/login_registration/state/auth_flow_state.dart';
 import '../notification_bell.dart';
 import '../translation_service.dart';
-import 'quick_expense.dart';
 import 'workspace_nav.dart';
 
 /// The three actions every Owner and Agent screen carries, in one order:
@@ -26,14 +25,10 @@ List<Widget> manaWorkspaceActions({
   required ManaWorkspace workspace,
   required String businessId,
 
-  /// The Agent's `agents.agent_id`. An Agent's expense comes out of their own
-  /// float; the Owner's comes out of the business. Null means the Owner.
-  String? agentId,
 }) =>
     [
       const ManaNotificationBell(),
-      _ExpenseAction(
-          workspace: workspace, businessId: businessId, agentId: agentId),
+      _AddCustomerAction(workspace: workspace, businessId: businessId),
       _SearchAction(workspace: workspace, businessId: businessId),
     ];
 
@@ -59,47 +54,56 @@ void manaInstallWorkspaceActions() {
     return manaWorkspaceActions(
       workspace: workspace,
       businessId: ManaSession.instance.lastBusinessId ?? '',
-      agentId: workspace == ManaWorkspace.agent
-          ? ManaSession.instance.lastAgentId
-          : null,
     );
   };
 }
 
-/// Recording an expense, from wherever the person is standing.
+/// Adding a customer, from wherever the person is standing.
 ///
-/// This was a `+ Expense` floating button on the two home screens, which meant
-/// an Agent who spent Rs 40 on fuel between two villages had to leave the
-/// round, go home, record it, and find their place again. It is in the header
-/// of every screen they might be on instead.
-class _ExpenseAction extends ConsumerWidget {
+/// The + used to record an expense. It adds a customer now, at the Owner's
+/// instruction: a round produces new borrowers far more often than it
+/// produces receipts to file, and adding one meant leaving whatever screen
+/// you were on for Customer Management. Recording an expense moved to the
+/// drawer, where it is still one tap from anywhere.
+///
+/// Ends with a choice -- add them, or add them and go straight to a loan --
+/// so somebody standing in front of a new borrower does not have to find
+/// them again in a list of fifty-six to lend to them.
+class _AddCustomerAction extends ConsumerWidget {
   final ManaWorkspace workspace;
   final String businessId;
-  final String? agentId;
 
-  const _ExpenseAction({
-    required this.workspace,
-    required this.businessId,
-    this.agentId,
-  });
+  const _AddCustomerAction({required this.workspace, required this.businessId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ManaHeaderAction(
-      // Bold, per the Owner's own spec: this is the only action in the bar
-      // that CREATES something, and at a glance among three glyphs the weight
-      // is what separates it from the two that only look things up.
+      // Bold: this is the only action in the bar that CREATES something, and
+      // at a glance among three glyphs the weight is what separates it from
+      // the two that only look things up.
       icon: Icons.add,
       bold: true,
-      label: ref.t('add_expense'),
+      label: ref.t('add_a_customer'),
       // Disabled rather than hidden when there is no business in scope --
       // first-run setup, a profile screen reached before a workspace is
       // chosen. A greyed control says "not here"; a control that vanishes on
       // some screens and not others reads as a bug.
       onPressed: businessId.isEmpty
           ? null
-          : () => showQuickExpense(context, ref,
-              businessId: businessId, agentId: agentId),
+          : () async {
+              final customerId = await context.push<String?>(
+                  '/customer-new', extra: businessId);
+              if (customerId == null || !context.mounted) return;
+              // They asked to lend to the person they just added. Each
+              // workspace issues loans from its own screen.
+              context.push(
+                switch (workspace) {
+                  ManaWorkspace.owner => '/ow-005?customerId=$customerId',
+                  ManaWorkspace.agent => '/ag-007?customerId=$customerId',
+                },
+                extra: businessId,
+              );
+            },
     );
   }
 }

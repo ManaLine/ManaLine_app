@@ -19,7 +19,7 @@ class _SeededCollectionModeNotifier extends CollectionModeNotifier {
 /// The real ui_translations rows this screen was wired against (migration
 /// 20260807173447 + reused earlier keys).
 const _ag002TeluguTranslations = <String, Map<String, String>>{
-  'collection_mode': {'English': 'Collection Mode', 'Telugu': 'వసూలు మోడ్'},
+  'collection_mode': {'English': 'Collections', 'Telugu': 'వసూళ్లు'},
   'customers_due': {'English': 'Customers Due', 'Telugu': 'బకాయి కస్టమర్లు'},
   'collected': {'English': 'Collected', 'Telugu': 'వసూలైంది'},
   'pending': {'English': 'Pending', 'Telugu': 'పెండింగ్'},

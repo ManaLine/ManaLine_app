@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../../../shared/text_utils.dart';
+import '../../../shared/person_identity.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -531,6 +533,30 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               ManaText.raw(
                 ref.t('welcome_back'),
                 style: Theme.of(context).textTheme.titleLarge,
+              ),
+              // Whose account this is.
+              //
+              // A shared handset shows one PIN pad and four dots, and until
+              // now nothing on it said which person those four digits belong
+              // to -- an Agent could type their own PIN into the Owner's
+              // session and only find out from what loaded. Empty when the
+              // name is not known rather than filled with something
+              // plausible: this is the screen that decides who somebody is.
+              Consumer(
+                builder: (context, ref, _) {
+                  final name =
+                      ref.watch(personDisplayNameProvider).valueOrNull ?? '';
+                  if (name.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: ManaSpacing.xs),
+                    child: ManaText.raw(
+                      titleCaseName(name),
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      style: ManaType.strong,
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: ManaSpacing.xl),
               if (_passwordMode)

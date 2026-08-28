@@ -74,7 +74,7 @@ const _ow001TeluguTranslations = <String, Map<String, String>>{
   'customers': {'English': 'Customers', 'Telugu': 'కస్టమర్లు'},
   'new_loan': {'English': 'New Loan', 'Telugu': 'కొత్త రుణం'},
   'collections': {'English': 'Collections', 'Telugu': 'వసూళ్లు'},
-  'customer_management': {'English': 'Customer Management', 'Telugu': 'కస్టమర్ నిర్వహణ'},
+  'customer_management': {'English': 'Customers', 'Telugu': 'కస్టమర్లు'},
   'loan_requests': {'English': 'Loan Requests', 'Telugu': 'రుణ అభ్యర్థనలు'},
   'group_loans': {'English': 'Group Loans', 'Telugu': 'సమూహ రుణాలు'},
   'workforce': {'English': 'Workforce', 'Telugu': 'శ్రామికులు'},

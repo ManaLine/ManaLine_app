@@ -152,6 +152,17 @@ class _OwnerHomeDashboardScreenState
   Future<void> _refresh() =>
       ref.read(ownerDashboardProvider.notifier).load(widget.businessId);
 
+
+  /// Add somebody to the business, and carry straight on to a loan if that is
+  /// what was asked for.
+  Future<void> _addCustomer(BuildContext context) async {
+    final customerId =
+        await context.push<String?>('/customer-new', extra: widget.businessId);
+    if (customerId == null || !context.mounted) return;
+    if (!mounted) return;
+    context.push('/ow-005?customerId=$customerId', extra: widget.businessId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(ownerDashboardProvider);
@@ -206,12 +217,13 @@ class _OwnerHomeDashboardScreenState
         // ManaHeaderBlock rather than a ManaAppBar, so the route-based
         // installation does not reach it -- but the person using it must not
         // be able to tell.
+        // Adds a customer, like every other + in the app. Recording an
+        // expense moved to the drawer.
         ManaHeaderAction(
           icon: Icons.add,
           bold: true,
-          label: ref.t('add_expense'),
-          onPressed: () =>
-              showQuickExpense(context, ref, businessId: widget.businessId),
+          label: ref.t('add_a_customer'),
+          onPressed: () => _addCustomer(context),
         ),
         ManaHeaderAction(
           icon: Icons.search,
@@ -232,6 +244,8 @@ class _OwnerHomeDashboardScreenState
       sections: [
         ..._ownerDrawerSections(context, widget.businessId),
         ...manaGlobalDrawerSections(
+          onRecordExpense: () => showQuickExpense(context, ref,
+              businessId: widget.businessId),
           onProfile: () => context.push('/ow-016'),
           onSwitchWorkspace: () => context.go('/lr-012'),
           onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),

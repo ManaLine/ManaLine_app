@@ -44,6 +44,18 @@ class _OwnerTrashScreenState extends ConsumerState<OwnerTrashScreen> {
         }
       });
 
+  /// The selection, narrowed to what is actually on screen.
+  ///
+  /// _selected held ids from lists that had since shrunk -- a partial purge
+  /// removed rows without clearing the ids that pointed at them -- so the
+  /// header read "701 of 627 selected", and Select All compared a stale
+  /// count against a fresh list and did the wrong thing. Counting the
+  /// intersection means the number always describes what somebody can see.
+  Set<String> _liveSelection(List<DeletedRecord> rows) {
+    final visible = {for (final r in rows) r.recordId};
+    return _selected.intersection(visible);
+  }
+
   Future<void> _purgeSelected(List<DeletedRecord> all) async {
     final chosen = all.where((r) => _selected.contains(r.recordId)).toList();
     if (chosen.isEmpty) return;
@@ -86,21 +98,25 @@ class _OwnerTrashScreenState extends ConsumerState<OwnerTrashScreen> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _working = true);
-    final ok = await NetworkErrorHandler.run(context, () async {
-      // One at a time, so a refusal on one record does not quietly take the
-      // rest of the batch down with it.
-      for (final r in chosen) {
-        await ref.read(softDeleteServiceProvider).purge(
-              entityWireName: r.entityWireName,
-              recordId: r.recordId,
-            );
-      }
+    // One request for the lot.
+    //
+    // This looped once per record and awaited each, which put 627 round trips
+    // inside one client timeout: the timeout won, the records it had already
+    // reached stayed deleted, and the Owner was left selecting the remainder
+    // and trying again. The server does the loop in a transaction now.
+    await NetworkErrorHandler.run(context, () async {
+      await ref.read(softDeleteServiceProvider).purgeAll([
+        for (final r in chosen)
+          (entityWireName: r.entityWireName, recordId: r.recordId),
+      ]);
       return true;
     });
     if (!mounted) return;
     setState(() {
       _working = false;
-      if (ok == true) _selected.clear();
+      // Cleared either way. On success they are gone; on failure the list
+      // reloads and stale ids are exactly what produced "701 of 627".
+      _selected.clear();
     });
     ref.invalidate(recentDeletesProvider(widget.businessId));
   }
@@ -180,7 +196,7 @@ class _OwnerTrashScreenState extends ConsumerState<OwnerTrashScreen> {
                           child: ManaText.raw(
                             ref
                                 .t('n_of_m_selected')
-                                .replaceAll('{count}', '${_selected.length}')
+                                .replaceAll('{count}', '${_liveSelection(rows).length}')
                                 .replaceAll('{total}', '${rows.length}'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -191,7 +207,7 @@ class _OwnerTrashScreenState extends ConsumerState<OwnerTrashScreen> {
                         Flexible(
                           child: TextButton(
                             onPressed: () => setState(() {
-                              if (_selected.length == rows.length) {
+                              if (_liveSelection(rows).length == rows.length) {
                                 _selected.clear();
                               } else {
                                 _selected
@@ -200,7 +216,7 @@ class _OwnerTrashScreenState extends ConsumerState<OwnerTrashScreen> {
                               }
                             }),
                             child: ManaText.raw(
-                                _selected.length == rows.length
+                                _liveSelection(rows).length == rows.length
                                     ? ref.t('clear_selection')
                                     : ref.t('select_all'),
                                 maxLines: 1,

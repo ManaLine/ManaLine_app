@@ -290,6 +290,18 @@ final manaRouter = GoRouter(
     // it. It was reachable only from OW-001, pushed as a MaterialPageRoute --
     // which would put it above the router's pages on every screen that now
     // offers it, the same shape that broke the Agent's back button.
+    // Adding somebody to the business, from the header's + on any Owner or
+    // Agent screen. A route rather than a bottom sheet opened directly,
+    // because the shared header lives in shared/ and must not import a
+    // workspace screen to do it -- and because a search-then-create flow is
+    // a place you go, not a panel over where you were.
+    //
+    // Pops with a customerId when the person chose "Add and Issue Loan", and
+    // the caller carries them straight into the wizard.
+    GoRoute(
+      path: '/customer-new',
+      builder: (c, s) => ManaAddCustomerScreen(businessId: _resolveBusinessId(s)),
+    ),
     GoRoute(
       path: '/ow-search',
       builder: (c, s) => UniversalSearchScreen(businessId: _resolveBusinessId(s)),
@@ -522,7 +534,9 @@ final manaRouter = GoRouter(
       builder: (c, s) => Ag007LoanDistributionScreen(
         agentId: ManaSession.instance.lastAgentId ?? '',
         businessId: _resolveBusinessId(s),
-        prefilledCustomerId: null,
+        // Set when the Agent has just added somebody and asked to lend to
+        // them, so the wizard opens on that customer instead of a search.
+        prefilledCustomerId: s.uri.queryParameters['customerId'],
       ),
     ),
     GoRoute(

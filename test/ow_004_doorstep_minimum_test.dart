@@ -46,8 +46,13 @@ void main() {
   Finder inSheet(Finder f) =>
       find.descendant(of: find.byType(BottomSheet), matching: f);
 
+  /// The sheet ends with two choices now -- Add Only, and Add & Issue Loan --
+  /// because adding somebody and lending to them are two decisions. Both are
+  /// gated by the same field rules, so either one answers "is the form
+  /// satisfied"; Add Only is the closer analogue of the single button this
+  /// used to be.
   Finder createButton() =>
-      inSheet(find.widgetWithText(ElevatedButton, 'Create & Link to Business'));
+      inSheet(find.widgetWithText(OutlinedButton, 'Add Only'));
 
   Future<void> openSheet(WidgetTester tester) async {
     await pumpManaScreen(
@@ -112,7 +117,7 @@ void main() {
 
     // No mobile, no Aadhaar, no address. This is the doorstep case.
     expect(
-      tester.widget<ElevatedButton>(btn).onPressed,
+      tester.widget<OutlinedButton>(btn).onPressed,
       isNotNull,
       reason: 'name + father/husband + gender must be enough -- the server '
           'accepts exactly that, and the form must not be stricter',
@@ -141,7 +146,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final btn = await revealCreate(tester);
-    expect(tester.widget<ElevatedButton>(btn).onPressed, isNull,
+    expect(tester.widget<OutlinedButton>(btn).onPressed, isNull,
         reason: 'a partial mobile number must still block the save');
   });
 }

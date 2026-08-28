@@ -127,12 +127,57 @@ class _ManaLoanCustomerSearchState extends ConsumerState<ManaLoanCustomerSearch>
     return [for (final k in keys) MapEntry(k, groups[k]!)];
   }
 
+  /// Somebody already on the book is simply selected. Somebody who is not
+  /// gets the question, because adding them and lending to them are two
+  /// decisions and this screen used to make both at once.
   Future<void> _choose(CustomerSummary c) async {
     if (c.customerId.isNotEmpty) {
       widget.onSelected(c);
       return;
     }
     if (c.personId == null) return;
+
+    final andLend = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ManaText.raw(c.fullName, style: ManaType.sheetTitle),
+              const SizedBox(height: ManaSpacing.xs),
+              ManaText.raw(ref.t('not_on_this_book_yet'), style: ManaType.note),
+              const SizedBox(height: ManaSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(true),
+                  child: ManaText.raw(ref.t('add_and_issue_loan')),
+                ),
+              ),
+              const SizedBox(height: ManaSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(false),
+                  child: ManaText.raw(ref.t('add_only')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (andLend == null || !mounted) return; // dismissed
+
+    if (!andLend) {
+      await _addOnly(c);
+      return;
+    }
     setState(() => _adding = c.personId);
     // Link Existing, not Create New: the person already has an identity and an
     // MLID somewhere in the system. Making a second one would split their
@@ -161,6 +206,31 @@ class _ManaLoanCustomerSearchState extends ConsumerState<ManaLoanCustomerSearch>
       customerStatus: 'Active',
       membershipStatus: 'Active',
     ));
+  }
+
+  /// Add them to the book and stay here.
+  ///
+  /// The row becomes an ordinary customer, so the next thing the person does
+  /// -- lend to somebody else, or close the wizard -- starts from a book that
+  /// already has them on it.
+  Future<void> _addOnly(CustomerSummary c) async {
+    setState(() => _adding = c.personId);
+    final customerId = await NetworkErrorHandler.run(context, () async {
+      return ref.read(customerApiServiceProvider).createCustomer(
+            businessId: widget.businessId,
+            existingPersonId: c.personId,
+          );
+    });
+    if (!mounted) return;
+    setState(() => _adding = null);
+    if (customerId == null) return;
+    // Re-run the search so the row redraws as somebody on the book rather
+    // than still offering to add them.
+    await _search();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: ManaText.raw(ref.t('added_to_this_business'))),
+    );
   }
 
   @override

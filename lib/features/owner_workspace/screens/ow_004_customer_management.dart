@@ -15,6 +15,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/location_api_service.dart';
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/soft_delete_service.dart';
@@ -62,7 +63,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
-          builder: (_) => _AddCustomerSheet(businessId: widget.businessId),
+          builder: (_) => ManaAddCustomerSheet(businessId: widget.businessId),
         ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId));
       }
     });
@@ -83,7 +84,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
           onTap: () => showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            builder: (_) => _AddCustomerSheet(businessId: widget.businessId),
+            builder: (_) => ManaAddCustomerSheet(businessId: widget.businessId),
           ).then((_) => _reload()),
         ),
         // Locked to search-and-link: a customer who already holds a MANA LINE
@@ -95,7 +96,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
           onTap: () => showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            builder: (_) => _AddCustomerSheet(businessId: widget.businessId, existingOnly: true),
+            builder: (_) => ManaAddCustomerSheet(businessId: widget.businessId, existingOnly: true),
           ).then((_) => _reload()),
         ),
         MemberAction(
@@ -348,20 +349,28 @@ class _VillageFilterDropdown extends ConsumerWidget {
 
 // --- C4 Create Customer sub-flow ---------------------------------------
 
-class _AddCustomerSheet extends ConsumerStatefulWidget {
+/// Adding somebody to this business, and deciding what happens next.
+///
+/// Pops with null when the caller should stop there, and with the new
+/// customer's id when the person choosing asked to go straight on to a loan.
+/// Public because three places need it and each had been going its own way:
+/// OW-004's own FAB, the header's + on every Owner and Agent screen, and
+/// AG-004, whose Create Customer was a snackbar reading "TODO: wire shared
+/// sheet".
+class ManaAddCustomerSheet extends ConsumerStatefulWidget {
   final String businessId;
   /// Opened from the "Existing Customers" header action — a miss stays on
   /// the search stage instead of falling through to Create New.
   final bool existingOnly;
-  const _AddCustomerSheet({required this.businessId, this.existingOnly = false});
+  const ManaAddCustomerSheet({super.key, required this.businessId, this.existingOnly = false});
 
   @override
-  ConsumerState<_AddCustomerSheet> createState() => _AddCustomerSheetState();
+  ConsumerState<ManaAddCustomerSheet> createState() => _AddCustomerSheetState();
 }
 
 enum _AddCustomerStage { search, found, createNew }
 
-class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
+class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
 
   // Disposed with the State that owns them.
   //
@@ -462,7 +471,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
     });
   }
 
-  Future<void> _linkExisting() async {
+  Future<void> _linkExisting({bool thenLoan = false}) async {
     if (_foundIdentity == null || _foundIdentity!.personId == null) return;
     setState(() => _submitting = true);
     final ok = await NetworkErrorHandler.run(context, () async {
@@ -470,7 +479,20 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
     });
     if (!mounted) return;
     setState(() => _submitting = false);
-    if (ok == true && mounted) Navigator.of(context).pop();
+    if (ok != true || !mounted) return;
+
+    // Linking does not hand back a customer_id, and the loan wizard needs
+    // one. Looked up by the person just linked rather than by name: a
+    // village where several people share one is exactly where guessing goes
+    // wrong.
+    String? customerId;
+    if (thenLoan) {
+      customerId = await NetworkErrorHandler.run<String?>(context, () async {
+        return ref.read(customerListProvider.notifier).customerIdForPerson(
+            widget.businessId, int.parse(_foundIdentity!.personId!));
+      });
+    }
+    if (mounted) Navigator.of(context).pop(customerId);
   }
 
   Future<void> _searchVillages(String query) async {
@@ -490,6 +512,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
       return;
     }
     try {
+      // Villages already in use by somebody.
       final rows = await Supabase.instance.client
           .from('locations')
           .select('location_id, village_town_name, mandal, district, state, pin_code')
@@ -497,9 +520,51 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           .eq('pin_code', pin)
           .ilike('village_town_name', '%${query.trim()}%')
           .limit(10);
+      final existing = (rows as List).cast<Map<String, dynamic>>();
+
+      // …and what the LGD reference says exists at this PIN, whether or not
+      // anybody has used it yet.
+      //
+      // Without this the search could only ever find villages the business
+      // had already typed in once. GPS prefills the box with a name the
+      // reference knows and `locations` does not -- "Aphb Colony" -- which
+      // matched nothing, so the only way forward on screen was Add New
+      // Village. That is how "Panagal, Tirupati, Andhrapradesh" came to sit
+      // beside the reference's own "Panagallu (Rural), Chittoor, Andhra
+      // Pradesh": not a typo, a dead end.
+      final needle = query.trim().toLowerCase();
+      final suggestions = await ref
+          .read(locationApiServiceProvider)
+          .suggestFromReference(pin);
+
+      final seen = <String>{
+        for (final e in existing)
+          (e['village_town_name'] as String).toLowerCase(),
+      };
+      final offered = <Map<String, dynamic>>[...existing];
+      for (final sug in suggestions) {
+        final name = (sug['village_town_name'] ?? '').toString();
+        if (name.isEmpty) continue;
+        if (!name.toLowerCase().contains(needle)) continue;
+        // The reference carries the same village under both the old and new
+        // district names, so a PIN answers twice for every village in it.
+        if (!seen.add(name.toLowerCase())) continue;
+        offered.add({
+          // No location_id: this one does not exist yet. Picking it writes
+          // it, with the reference's own mandal, district and state rather
+          // than whatever somebody would have typed.
+          'location_id': null,
+          'village_town_name': name,
+          'mandal': sug['mandal'],
+          'district': sug['district'],
+          'state': sug['state'],
+          'pin_code': pin,
+        });
+      }
+
       if (!mounted) return;
       setState(() {
-        _villageResults = (rows as List).cast<Map<String, dynamic>>();
+        _villageResults = offered;
         _villageSearchAttempted = true;
       });
     } catch (e) {
@@ -514,6 +579,38 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
         _villageSearchAttempted = true;
       });
     }
+  }
+
+  /// Picking one of the offered villages.
+  ///
+  /// An existing one is just an id. A reference one has none until somebody
+  /// uses it, so this writes it first -- through add_location_if_missing,
+  /// which is idempotent, so two Agents choosing the same village on the same
+  /// morning end up pointing at one row rather than two.
+  Future<void> _chooseVillage(Map<String, dynamic> v, String label) async {
+    var id = v['location_id'] as String?;
+    if (id == null) {
+      final created = await NetworkErrorHandler.run(context, () async {
+        final village = await ref.read(locationApiServiceProvider).addIfMissing(
+              pinCode: (v['pin_code'] ?? '').toString(),
+              villageTownName: (v['village_town_name'] ?? '').toString(),
+              areaType: 'Village',
+              mandal: (v['mandal'] ?? '').toString(),
+              district: (v['district'] ?? '').toString(),
+              state: (v['state'] ?? '').toString(),
+            );
+        return village.locationId;
+      });
+      if (created == null) return; // network failure — already reported
+      id = created;
+    }
+    if (!mounted) return;
+    setState(() {
+      _villageId = id;
+      _selectedVillageLabel = label;
+      _villageSearch.text = (v['village_town_name'] ?? '').toString();
+      _villageResults = [];
+    });
   }
 
   Future<void> _saveManualVillage() async {
@@ -586,10 +683,13 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
       ((_pinCode.text.trim().isEmpty && _villageId == null) ||
           (_pinCode.text.trim().length == 6 && _villageId != null));
 
-  Future<void> _createNew() async {
+  Future<void> _createNew({bool thenLoan = false}) async {
     setState(() => _submitting = true);
-    final ok = await NetworkErrorHandler.run(context, () async {
-      return ref.read(customerListProvider.notifier).createNew(
+    // createNewReturningId either way: the id costs nothing to receive and
+    // is the difference between offering a loan next and asking the person
+    // to find their own customer again.
+    final id = await NetworkErrorHandler.run(context, () async {
+      return ref.read(customerListProvider.notifier).createNewReturningId(
             businessId: widget.businessId,
             fullName: _fullName.text.trim(),
             fatherHusbandName: _fatherHusband.text.trim(),
@@ -603,7 +703,8 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
     });
     if (!mounted) return;
     setState(() => _submitting = false);
-    if (ok == true && mounted) Navigator.of(context).pop();
+    if (id == null || !mounted) return;
+    Navigator.of(context).pop(thenLoan ? id : null);
   }
 
   @override
@@ -698,11 +799,14 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
             ),
           ),
         const SizedBox(height: ManaSpacing.lg),
-        ElevatedButton(
-          onPressed: (_submitting || _foundIdentity == null) ? null : _linkExisting,
-          child: _submitting
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : ManaText.raw(ref.t('confirm_and_link_to_business')),
+        // Two endings, because adding somebody and lending to them are two
+        // decisions and the second one usually follows immediately. Making
+        // it one button meant finding the customer again on another screen.
+        _AddEndings(
+          submitting: _submitting,
+          enabled: _foundIdentity != null,
+          onAddOnly: () => _linkExisting(),
+          onAddAndLend: () => _linkExisting(thenLoan: true),
         ),
         TextButton(
           onPressed: () => setState(() => _stage = _AddCustomerStage.search),
@@ -822,15 +926,18 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
               itemBuilder: (_, i) {
                 final v = _villageResults[i];
                 final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
+                final inUse = v['location_id'] != null;
                 return ListTile(
                   dense: true,
                   title: ManaText.raw(label, style: ManaType.small),
-                  onTap: () => setState(() {
-                    _villageId = v['location_id'] as String;
-                    _selectedVillageLabel = label;
-                    _villageSearch.text = v['village_town_name'] as String;
-                    _villageResults = [];
-                  }),
+                  // A village nobody has used yet is still a real place. It
+                  // is offered the same way and marked, so choosing it is
+                  // obviously safe rather than obviously new.
+                  subtitle: inUse
+                      ? null
+                      : ManaText.raw(ref.t('from_the_pin_code_directory'),
+                          style: ManaType.note),
+                  onTap: () => _chooseVillage(v, label),
                 );
               },
             ),
@@ -940,13 +1047,67 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
               style: ManaType.note),
         ],
         const SizedBox(height: ManaSpacing.lg),
-        ElevatedButton(
-          onPressed: (_canCreateNew && !_submitting) ? _createNew : null,
-          child: _submitting
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : ManaText.raw(ref.t('create_and_link_to_business')),
+        _AddEndings(
+          submitting: _submitting,
+          enabled: _canCreateNew,
+          onAddOnly: () => _createNew(),
+          onAddAndLend: () => _createNew(thenLoan: true),
         ),
       ];
+}
+
+/// Add them, or add them and lend to them.
+///
+/// One button meant an Agent standing with somebody new had to add them,
+/// leave, find them again in a list of fifty-six, and start the loan from
+/// there. The second decision follows the first closely enough that the
+/// screen should carry it.
+class _AddEndings extends ConsumerWidget {
+  final bool submitting;
+  final bool enabled;
+  final VoidCallback onAddOnly;
+  final VoidCallback onAddAndLend;
+
+  const _AddEndings({
+    required this.submitting,
+    required this.enabled,
+    required this.onAddOnly,
+    required this.onAddAndLend,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (submitting) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(ManaSpacing.md),
+          child: SizedBox(
+              width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+    // Stacked, not side by side: both labels are sentences in five
+    // languages, and a Row of two would put each on three lines at 2.0x.
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: enabled ? onAddAndLend : null,
+            child: ManaText.raw(ref.t('add_and_issue_loan')),
+          ),
+        ),
+        const SizedBox(height: ManaSpacing.sm),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: enabled ? onAddOnly : null,
+            child: ManaText.raw(ref.t('add_only')),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // --- C5 Customer Profile (tabbed drill-in) ------------------------------
@@ -1311,6 +1472,25 @@ class _AuditTab extends ConsumerWidget {
           style: ManaType.secondary,
         ),
       ),
+    );
+  }
+}
+
+/// The add-customer flow as a screen, for the header's + .
+///
+/// The sheet itself is unchanged — this only gives it somewhere to live that
+/// a route can point at, so shared/ can open it by path instead of importing
+/// a workspace screen. It hands back whatever the sheet popped with: null to
+/// stop, or a customerId to carry on to a loan.
+class ManaAddCustomerScreen extends ConsumerWidget {
+  final String businessId;
+  const ManaAddCustomerScreen({super.key, required this.businessId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: ManaAppBar(title: ref.t('add_a_customer'), homeRoute: '/ow-004'),
+      body: SafeArea(child: ManaAddCustomerSheet(businessId: businessId)),
     );
   }
 }

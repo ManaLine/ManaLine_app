@@ -28,7 +28,6 @@ import 'ow_003_investor_management.dart' show InvestorProfileScreen;
 import 'ow_002_workforce_management.dart' show AgentProfileScreen;
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/translation_service.dart';
-import '../../../shared/widgets/quick_expense.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 
@@ -244,8 +243,6 @@ class _OwnerHomeDashboardScreenState
       sections: [
         ..._ownerDrawerSections(context, widget.businessId),
         ...manaGlobalDrawerSections(
-          onRecordExpense: () => showQuickExpense(context, ref,
-              businessId: widget.businessId),
           onProfile: () => context.push('/ow-016'),
           onSwitchWorkspace: () => context.go('/lr-012'),
           onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),

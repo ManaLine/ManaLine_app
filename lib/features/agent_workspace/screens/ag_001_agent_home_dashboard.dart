@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/auto_refresh.dart';
-import '../../../shared/widgets/quick_expense.dart';
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/tokens/colors.dart';
@@ -213,10 +212,6 @@ class _AgentHomeDashboardScreenState
         // row. That row is gone — they are drawer rows now, shared with the
         // other three workspaces so the order and labels cannot drift.
         ...manaGlobalDrawerSections(
-          // agentId, so an Agent's expense comes off the float in their hand
-          // rather than off the business.
-          onRecordExpense: () => showQuickExpense(context, ref,
-              businessId: widget.businessId, agentId: widget.agentId),
           onProfile: () => context.push('/ag-009'),
           onSwitchWorkspace: () => context.go('/lr-012'),
           onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),

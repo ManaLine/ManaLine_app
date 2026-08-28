@@ -98,11 +98,6 @@ class ManaDrawerAction {
 /// A null callback renders the row disabled rather than dropping it — same
 /// reasoning as [ManaDrawerAction.onTap].
 List<ManaDrawerSection> manaGlobalDrawerSections({
-  /// Recording an expense. It was the header's + until the Owner asked for
-  /// that slot to add a customer instead -- a round produces new borrowers
-  /// far more often than receipts to file -- so it lives here, still one tap
-  /// from wherever somebody is standing.
-  VoidCallback? onRecordExpense,
   VoidCallback? onProfile,
   VoidCallback? onSwitchWorkspace,
   VoidCallback? onSwitchRole,
@@ -110,11 +105,6 @@ List<ManaDrawerSection> manaGlobalDrawerSections({
   VoidCallback? onLogout,
 }) {
   return [
-    ManaDrawerSection(
-      icon: Icons.receipt_long_outlined,
-      labelKey: 'add_expense',
-      onTap: onRecordExpense,
-    ),
     ManaDrawerSection(
       icon: Icons.person_outline,
       labelKey: 'profile',

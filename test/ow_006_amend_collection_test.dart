@@ -21,6 +21,9 @@ class _AmendNotifier extends CollectionModeNotifier {
   /// Set to make recordCollection answer "there is already one of these".
   static ExistingCollection? existing;
 
+  /// The receipt id the form sent on its retry, if any.
+  static String? parentSent;
+
   @override
   CollectionModeState build() => const CollectionModeState();
 
@@ -39,7 +42,9 @@ class _AmendNotifier extends CollectionModeNotifier {
     String? remarks,
     bool confirmDuplicate = false,
     String? idempotencyKey,
+    String? parentCollectionId,
   }) async {
+    parentSent = parentCollectionId;
     if (existing != null) return RecordCollectionOutcome.already(existing!);
     return RecordCollectionOutcome.saved(CollectionResult(
       receiptNumber: 'RCT-1',
@@ -133,6 +138,7 @@ void main() {
     _AmendNotifier.amendedSplits = null;
     _AmendNotifier.previousAmount = null;
     _AmendNotifier.existing = null;
+    _AmendNotifier.parentSent = null;
   });
 
   testWidgets('an entry opened for correction shows what was recorded',
@@ -179,6 +185,40 @@ void main() {
     expect(find.text('Already Collected Today'), findsOneWidget);
     expect(find.text('Continue'), findsNothing,
         reason: 'Continue recorded a SECOND payment against the same loan');
+
+    // The two things a second visit can mean, named separately. Neither is
+    // "Continue": one adds a dated payment to the receipt, the other amends
+    // what is already there.
+    expect(find.text('Add Payment'), findsOneWidget);
+    expect(find.text('Correct'), findsOneWidget);
+  });
+
+  testWidgets('Add Payment sends the receipt it belongs to', (tester) async {
+    // A Weekly customer paying Rs 100 a day against a Rs 300 instalment: the
+    // second day is not a duplicate, and the server only accepts it when the
+    // caller names the receipt.
+    _AmendNotifier.existing = const ExistingCollection(
+      collectionId: 'receipt-1',
+      receiptNumber: 'RCT-20260828-abc123',
+      collectedAmount: 100,
+      cycleTotal: 200,
+      resultType: 'Partial',
+      recordedBy: 'Karri Siri Manikanta Reddy',
+      mine: true,
+      window: 'cycle',
+    );
+    await _pump(tester);
+    await _submit(tester);
+
+    // The note quotes the CYCLE total, not the last day.
+    expect(find.textContaining('200'), findsWidgets);
+
+    _AmendNotifier.existing = null; // the retry must be allowed to save
+    await tester.tap(find.text('Add Payment'));
+    await tester.pumpAndSettle();
+
+    expect(_AmendNotifier.parentSent, 'receipt-1',
+        reason: 'without the parent the server refuses it as a duplicate');
   });
 
   testWidgets('a cycle-window refusal says cycle, and names the day',

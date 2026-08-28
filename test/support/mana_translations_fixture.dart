@@ -816,6 +816,8 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'sort_order': {'English': 'Order', 'Telugu': 'క్రమం'},
   'bf_received': {'English': 'BF Received', 'Telugu': 'BF అందింది'},
   'account_summary': {'English': 'Account Summary', 'Telugu': 'ఖాతా సారాంశం'},
+  'add_payment': {'English': 'Add Payment', 'Telugu': 'చెల్లింపు జోడించండి'},
+  'correct_entry': {'English': 'Correct', 'Telugu': 'సరిచేయండి'},
   'entries_count': {'English': '{count} entries', 'Telugu': '{count} నమోదులు'},
   'add_expense': {'English': 'Add Expense', 'Telugu': 'ఖర్చు జోడించండి'},
   'highest_first': {'English': 'Highest First', 'Telugu': 'ఎక్కువ మొదట'},

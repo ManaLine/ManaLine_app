@@ -145,8 +145,15 @@ class CollectionApiService {
     bool confirmDuplicate = false, // inert; see the note above
     // Same key on every retry of one save; see shared/idempotency.dart.
     String? idempotencyKey,
+
+    /// The receipt this payment belongs to, when a cycle is being paid across
+    /// several days. Null mints a new receipt -- and if one is already open in
+    /// the window the server refuses, rather than guessing which the Agent
+    /// meant.
+    String? parentCollectionId,
   }) async {
     final response = await _db.schema('app').rpc('record_collection', params: {
+      'p_parent_collection_id': parentCollectionId,
       'p_loan_id': loanId,
       'p_customer_id': customerId,
       'p_collected_amount': collectedAmount,
@@ -172,6 +179,9 @@ class CollectionApiService {
         recordedBy: map['recorded_by'] as String? ?? '',
         mine: map['mine'] as bool? ?? false,
         window: map['window'] as String? ?? 'day',
+        cycleTotal: (map['cycle_total'] as num?)?.toInt() ??
+            (map['collected_amount'] as num?)?.toInt() ??
+            0,
         businessDate: map['business_date'] == null
             ? null
             : DateTime.tryParse(map['business_date'] as String),
@@ -527,6 +537,12 @@ class ExistingCollection {
   final String collectionId;
   final String receiptNumber;
   final int collectedAmount;
+
+  /// Everything taken in this window, across every day of the receipt. The
+  /// figure to show when asking "add another payment?" -- collectedAmount is
+  /// only the most recent day.
+  final int cycleTotal;
+
   final String resultType;
   final String recordedBy;
 
@@ -555,6 +571,7 @@ class ExistingCollection {
     required this.mine,
     this.window = 'day',
     this.businessDate,
+    this.cycleTotal = 0,
   });
 }
 
@@ -657,8 +674,25 @@ List<CollectionDueRow> manaFilterByVillages(
 /// The row widget greys these out and the sort sends them to the end. Both
 /// need the same answer, so there is one place that gives it: two copies of
 /// this rule drifting apart would grey a row that still sorted as work to do.
-bool manaRowSettled(CollectionDueRow r) =>
-    _answered(r.collectionStatus) || _answered(r.cycleStatus);
+bool manaRowSettled(CollectionDueRow r) {
+  // Answered today: this door has been to, whatever it gave.
+  if (_answered(r.collectionStatus)) return true;
+  // Nothing left to collect at all.
+  if (r.outstandingBalance <= 0) return true;
+  // The cycle's instalment is complete, however many days it took to get
+  // there. A customer who paid the whole Rs 300 on Tuesday is done for the
+  // week; one who has paid Rs 200 of it is not, and must stay in the round
+  // where the Agent will walk past them tomorrow.
+  //
+  // This used to sink anyone with ANY payment in the cycle, which is right
+  // for a weekly customer paying weekly and wrong for one paying Rs 100 a
+  // day -- they dropped to the bottom after Tuesday and had to be hunted for
+  // on each of the next five mornings.
+  if (r.installmentAmount > 0 && r.cycleCollected >= r.installmentAmount) {
+    return true;
+  }
+  return false;
+}
 
 /// A door is answered when money was taken, part of it was, or the visit was
 /// recorded as collecting nothing.
@@ -861,10 +895,16 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
     String? remarks,
     bool confirmDuplicate = false,
     String? idempotencyKey,
+
+    /// The receipt this payment belongs to, when a cycle is being paid across
+    /// several days. Null mints a new receipt -- and if one is already open in
+    /// the window, the server refuses rather than guessing.
+    String? parentCollectionId,
   }) async {
     try {
       final api = ref.read(collectionApiServiceProvider);
       final outcome = await api.recordCollection(
+        parentCollectionId: parentCollectionId,
         loanId: loanId,
         customerId: customerId,
         collectedAmount: collectedAmount,

@@ -37,6 +37,7 @@ class _FakeCollectionNotifier extends CollectionModeNotifier {
     String? remarks,
     bool confirmDuplicate = false,
     String? idempotencyKey,
+    String? parentCollectionId,
   }) async =>
       RecordCollectionOutcome.saved(CollectionResult(
         receiptNumber: 'MLRC0000123456',

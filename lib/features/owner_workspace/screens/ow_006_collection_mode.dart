@@ -90,6 +90,12 @@ class ManaCollectionForm extends ConsumerStatefulWidget {
   /// of its own. Inline in the round, the row closes and the round reloads.
   final VoidCallback? onRecorded;
 
+  /// The Agent chose to correct the entry already standing rather than add a
+  /// payment to it. The round reopens the row in edit mode -- the same thing
+  /// a long press does -- because this form cannot amend an entry it was not
+  /// opened against.
+  final void Function(ExistingCollection existing)? onCorrect;
+
   const ManaCollectionForm({
     super.key,
     required this.row,
@@ -97,6 +103,7 @@ class ManaCollectionForm extends ConsumerStatefulWidget {
     required this.onCancel,
     this.onRecorded,
     this.editing,
+    this.onCorrect,
   });
 
   @override
@@ -199,6 +206,13 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
 
   String? _excessDisposition;
   bool _submitting = false;
+
+  /// The receipt this payment is being added to, set by the Add Payment
+  /// choice on the already-collected dialog. Null on an ordinary collection.
+  String? _addToReceipt;
+
+  /// The Agent chose to correct the standing entry instead of adding to it.
+  bool _correct = false;
 
   /// Minted once per save the person commits to, and reused by every retry of
   /// it — including NetworkErrorHandler's Retry button, which re-enters
@@ -361,6 +375,10 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
             businessId: widget.businessId,
             excessDisposition: _excessDisposition,
             idempotencyKey: _idempotencyKey,
+            // Set only when the Agent chose Add Payment on the
+            // already-collected dialog. Null on a first collection, which is
+            // what makes the duplicate guard bite.
+            parentCollectionId: _addToReceipt,
           );
       if (o == null) throw Exception('Collection could not be saved.');
       return o;
@@ -392,11 +410,25 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
 
   /// This loan already has an entry today, so nothing was written.
   ///
-  /// The old version of this offered "Continue", which recorded a SECOND
-  /// payment against the same loan -- two receipts for one collection, and a
-  /// balance short by the difference. There is one entry per loan per day
-  /// now; the only way forward is to correct the one that exists, and the
-  /// round's long press is where that is done.
+  /// Already collected in this window -- so which of the two things is this?
+  ///
+  /// The old version offered "Continue", which recorded a SECOND payment
+  /// against the same loan: two receipts for one collection, and a balance
+  /// short by the difference. Then it offered nothing but Close, which was
+  /// safe and wrong in the other direction -- a Weekly customer paying Rs 100
+  /// a day against a Rs 300 instalment had no way to record Tuesday.
+  ///
+  /// Both are real, and they mean opposite things to the balance, so the
+  /// screen asks rather than guessing:
+  ///
+  ///   Add Payment -- another day against the same receipt. A new dated row,
+  ///                  linked to it, so Tuesday's money lands on Tuesday in
+  ///                  the day book.
+  ///   Correct     -- the figure recorded was wrong. Amends what is there;
+  ///                  no new money.
+  ///
+  /// A blind second entry is still impossible: the server refuses one unless
+  /// the caller names the receipt it belongs to.
   Future<void> _showAlreadyRecordedDialog(ExistingCollection existing) async {
     await showDialog<void>(
       context: context,
@@ -414,7 +446,7 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
               ref
                   .t('already_collected_note')
                   .replaceAll('{by}', existing.recordedBy)
-                  .replaceAll('{amount}', manaRupees(existing.collectedAmount)),
+                  .replaceAll('{amount}', manaRupees(existing.cycleTotal)),
             ),
             // Inside a cycle window the entry is not necessarily today's, and
             // a message that says "today" over a Weekly loan sends the Agent
@@ -434,10 +466,39 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: ManaText.raw(ref.t('close')),
           ),
+          // Correcting is only offered on an entry this person recorded.
+          // Somebody else's is the Owner's to change.
+          if (existing.mine)
+            TextButton(
+              onPressed: () {
+                _correct = true;
+                Navigator.of(dialogContext).pop();
+              },
+              child: ManaText.raw(ref.t('correct_entry')),
+            ),
+          FilledButton(
+            onPressed: () {
+              _addToReceipt = existing.collectionId;
+              Navigator.of(dialogContext).pop();
+            },
+            child: ManaText.raw(ref.t('add_payment')),
+          ),
         ],
       ),
     );
     if (!mounted) return;
+
+    // Add Payment: the amount already typed, recorded as another day against
+    // that receipt.
+    if (_addToReceipt != null) {
+      await _submit();
+      return;
+    }
+    if (_correct) {
+      _correct = false;
+      widget.onCorrect?.call(existing);
+      return;
+    }
     widget.onCancel();
   }
 

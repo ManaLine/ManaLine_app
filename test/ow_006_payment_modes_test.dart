@@ -38,6 +38,7 @@ class _CapturingNotifier extends CollectionModeNotifier {
     String? remarks,
     bool confirmDuplicate = false,
     String? idempotencyKey,
+    String? parentCollectionId,
   }) async {
     lastSplits = paymentSplits;
     lastAmount = collectedAmount;

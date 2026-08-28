@@ -316,7 +316,8 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
                                   _EntryList(
                                     entries: detail.collections,
                                     emptyLabel: ref.t('no_collections_this_day'),
-                                    onOpenSource: (loanId) => _goTo(context, '/ow-006', loanId),
+                                    onOpenSource: (loanId) => _goTo(
+                                        context, '/ow-006?loan=$loanId', null),
                                     deletableAs: DeletableEntity.collection,
                                     businessId: widget.businessId,
                                   ),
@@ -400,9 +401,15 @@ class _DayDetailsSheetState extends ConsumerState<_DayDetailsSheet>
     );
   }
 
+  /// Closes the day-detail sheet, then opens the record it came from.
+  ///
+  /// `extra` is the businessId where a route wants one. A route that needs to
+  /// know WHICH record takes it in the path -- /ow-006 read a loan id off
+  /// `extra` until the footer nav started sending a business id through the
+  /// same channel.
   void _goTo(BuildContext context, String route, String? extra) {
     Navigator.of(context).pop();
-    context.push(route, extra: extra);
+    context.push(route, extra: extra ?? widget.businessId);
   }
 }
 

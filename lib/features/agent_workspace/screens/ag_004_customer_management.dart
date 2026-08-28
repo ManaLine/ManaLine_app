@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/customer_row.dart';
+import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
@@ -20,7 +22,6 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/photo_compression.dart';
 import '../../owner_workspace/state/customer_state.dart' show CustomerProfile, CustomerRemark;
 import '../../owner_workspace/state/collection_mode_state.dart' show CollectionDueRow;
-import 'ag_002_collection_mode.dart' show AgentCollectionModeScreen;
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/agent_customer_state.dart';
@@ -78,6 +79,13 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
     // Can View Customers gates the whole screen (PRIMARY PERMISSION).
     if (!state.loading && state.customers.isEmpty && state.error == null && !state.permissions.canViewCustomers) {
       return Scaffold(
+        // The bar stays even here. An Agent who may not view customers landed
+        // on a permission notice with no back arrow (this bar's tabs use
+        // go(), so there is nothing to pop) and no way off the screen.
+        bottomNavigationBar: ManaWorkspaceNav(
+            workspace: ManaWorkspace.agent,
+            businessId: widget.businessId,
+            currentIndex: 2),
         appBar: ManaAppBar(title: ref.t('customer_management')),
         body: Center(
           child: Padding(
@@ -93,6 +101,11 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
     }
 
     return Scaffold(
+      // Index 2 is Customers, which is this screen.
+      bottomNavigationBar: ManaWorkspaceNav(
+          workspace: ManaWorkspace.agent,
+          businessId: widget.businessId,
+          currentIndex: 2),
       appBar: ManaAppBar(
         homeRoute: '/ag-001',
         title: ref.t('customer_management'),
@@ -359,12 +372,11 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
         // itself now, so there is no separate entry screen to push -- and
         // arriving at the round also shows the Agent what else is due at the
         // same door, which the old screen hid.
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AgentCollectionModeScreen(
-                businessId: businessId, focusLoanId: dueRow.loanId),
-          ),
-        );
+        // Through the router, and the loan in the path: a pushed page sits
+        // above GoRouter's pages, and the round carries the footer nav whose
+        // tabs go(). The loan id is a query param rather than `extra`,
+        // because `extra` is how every route here receives the businessId.
+        await context.push('/ag-002?loan=${dueRow.loanId}', extra: businessId);
         ref.invalidate(agentCustomerProfileProvider(customerId));
       case 'view_loan':
       case 'create_loan':

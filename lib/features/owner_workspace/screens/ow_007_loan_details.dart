@@ -264,7 +264,8 @@ class _ActionsSection extends ConsumerWidget {
           children: [
             FilledButton.icon(
               onPressed: loan.canCollectPayment
-                  ? () => context.push('/ow-006', extra: loan.loanId)
+                  ? () => context.push('/ow-006?loan=${loan.loanId}',
+                      extra: loan.businessId)
                   : null,
               icon: const Icon(Icons.point_of_sale_outlined, size: 18),
               label: ManaText.raw(ref.t('collect_payment')),

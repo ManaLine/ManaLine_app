@@ -15,6 +15,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/widgets/use_my_location_button.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
@@ -112,6 +113,11 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     final state = ref.watch(customerListProvider);
 
     return Scaffold(
+      // Index 2 is Customers, which is this screen.
+      bottomNavigationBar: ManaWorkspaceNav(
+          workspace: ManaWorkspace.owner,
+          businessId: widget.businessId,
+          currentIndex: 2),
       appBar: ManaAppBar(
         // Explicit leading, not the AppBar-implied one: this screen is
         // reached both via Quick Actions (context.push — canPop is true,
@@ -1019,7 +1025,13 @@ class CustomerProfileScreen extends ConsumerWidget {
         // read as businessId until prefilledCustomerId was activated.
         context.push('/ow-005?customerId=${customer.customerId}', extra: businessId);
       case 'collect':
-        context.push('/ow-006', extra: customer.customerId);
+        // The round, not a focused row: this menu knows a customer, and the
+        // round focuses a LOAN. It used to pass the customer id as the loan
+        // id, which matched nothing and quietly opened the plain round -- so
+        // this is what it already did, said honestly. A customer with two
+        // live loans has no single row to open anyway; the round's search
+        // finds them by name.
+        context.push('/ow-006', extra: businessId);
       case 'suspend':
       case 'archive':
         final status = action == 'suspend' ? 'Suspended' : 'Removed';

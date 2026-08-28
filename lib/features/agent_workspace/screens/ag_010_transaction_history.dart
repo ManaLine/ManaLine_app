@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/ledger_history_view.dart';
+import '../../../shared/widgets/workspace_nav.dart';
 
 /// AG-010 — Transaction History, Agent view.
 ///
@@ -27,6 +28,11 @@ class Ag010TransactionHistoryScreen extends ConsumerWidget {
       businessId: businessId,
       membershipId: agentMembershipId,
       homeRoute: '/ag-001',
+      // Index 3 is History, which is this screen.
+      bottomNavigationBar: ManaWorkspaceNav(
+          workspace: ManaWorkspace.agent,
+          businessId: businessId,
+          currentIndex: 3),
     );
   }
 }

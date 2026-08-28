@@ -49,12 +49,17 @@ class ManaLedgerHistoryView extends ConsumerStatefulWidget {
   /// Owner-only. Null draws no action.
   final String? statementRoute;
 
+  /// Passed in for the same reason homeRoute is: History is the fourth tab in
+  /// both workspaces, and the four destinations behind it differ by role.
+  final Widget? bottomNavigationBar;
+
   const ManaLedgerHistoryView({
     super.key,
     required this.businessId,
     required this.homeRoute,
     this.membershipId,
     this.statementRoute,
+    this.bottomNavigationBar,
   });
 
   @override
@@ -147,6 +152,7 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
     final state = ref.watch(ledgerHistoryProvider(widget.businessId));
 
     return Scaffold(
+      bottomNavigationBar: widget.bottomNavigationBar,
       appBar: ManaAppBar(
         title: ref.t('history'),
         homeRoute: widget.homeRoute,

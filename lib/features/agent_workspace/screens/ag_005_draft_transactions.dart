@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
@@ -11,8 +12,6 @@ import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_card.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/draft_transactions_state.dart';
-import 'ag_002_collection_mode.dart';
-import 'ag_004_customer_management.dart';
 import 'ag_007_loan_distribution.dart';
 
 final _dateTimeFmt = DateFormat('dd-MM-yyyy, hh:mm a');
@@ -189,9 +188,7 @@ class _DraftCard extends ConsumerWidget {
       case DraftType.collection:
         // Hands off into AG-002's own screen/provider — resume mechanics for
         // a pre-filled Collection Entry live there, not reimplemented here.
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => AgentCollectionModeScreen(businessId: businessId)),
-        );
+        context.push('/ag-002', extra: businessId);
         break;
       case DraftType.loanDistribution:
         Navigator.of(context).push(
@@ -202,11 +199,7 @@ class _DraftCard extends ConsumerWidget {
         break;
       case DraftType.customerRemark:
       case DraftType.documentUpload:
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AgentCustomerManagementScreen(businessId: businessId, agentMembershipId: membershipId),
-          ),
-        );
+        context.push('/ag-004', extra: businessId);
         break;
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/auto_refresh.dart';
+import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/quick_expense.dart';
 import '../../../design/tokens/colors.dart';
@@ -18,14 +19,11 @@ import '../../../shared/person_identity.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/agent_dashboard_state.dart';
-import 'ag_002_collection_mode.dart';
-import 'ag_004_customer_management.dart';
 import 'ag_005_draft_transactions.dart';
 import 'ag_006_owner_settlement.dart';
 import 'ag_007_loan_distribution.dart';
 import 'ag_008_notifications.dart';
 import 'ag_009_profile.dart';
-import 'ag_010_transaction_history.dart';
 
 final _time = DateFormat('h:mm a');
 final _date = DateFormat('d MMM yyyy');
@@ -151,12 +149,7 @@ class _AgentHomeDashboardScreenState
             // nothing.
             ManaDrawerAction(
               labelKey: 'collection_mode',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      AgentCollectionModeScreen(businessId: widget.businessId),
-                ),
-              ),
+              onTap: () => context.push('/ag-002', extra: widget.businessId),
             ),
           ],
         ),
@@ -212,8 +205,10 @@ class _AgentHomeDashboardScreenState
           },
         ),
       ],
-      bottomNavigationBar: _AgentFooterNav(
-          businessId: widget.businessId, agentId: widget.agentId),
+      bottomNavigationBar: ManaWorkspaceNav(
+          workspace: ManaWorkspace.agent,
+          businessId: widget.businessId,
+          currentIndex: 0),
       body: SafeArea(
         child: switch (state.stage) {
           // Structure-shaped placeholder instead of a spinner while the
@@ -242,64 +237,6 @@ class _AgentHomeDashboardScreenState
     );
   }
 }
-
-// --- Footer Navigation (new this batch) -----------------------------------
-
-/// Same Home/Customers/Collections pattern as OW-001's own `_FooterNav`,
-/// plus a 4th "History" tab (AG-010, new this batch) since the Agent
-/// side has no pre-existing equivalent of Owner's OW-017 Daily Record
-/// Book. Home (index 0) is a no-op — this screen already IS Home.
-class _AgentFooterNav extends ConsumerWidget {
-  final String businessId;
-  final String agentId;
-  const _AgentFooterNav({required this.businessId, required this.agentId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return NavigationBar(
-      selectedIndex: 0,
-      destinations: [
-        NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: ref.t('home')),
-        NavigationDestination(
-            icon: const Icon(Icons.people_outline), label: ref.t('customers')),
-        NavigationDestination(
-            icon: const Icon(Icons.point_of_sale_outlined),
-            label: ref.t('collections')),
-        NavigationDestination(
-            icon: const Icon(Icons.history), label: ref.t('history')),
-      ],
-      onDestinationSelected: (i) {
-        switch (i) {
-          case 1:
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => AgentCustomerManagementScreen(
-                    businessId: businessId, agentMembershipId: agentId),
-              ),
-            );
-          case 2:
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                  builder: (_) =>
-                      AgentCollectionModeScreen(businessId: businessId)),
-            );
-          case 3:
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => Ag010TransactionHistoryScreen(
-                    businessId: businessId, agentMembershipId: agentId),
-              ),
-            );
-        }
-      },
-    );
-  }
-}
-
-// --- Opening BF Confirm/Update Gate (mobile scenario-testing 2026-07-19) ---
 
 class _BfGate extends ConsumerStatefulWidget {
   final AgentDashboardState state;
@@ -899,31 +836,23 @@ class _QuickActions extends ConsumerWidget {
                         icon: a.$2,
                         onTap: () {
                           switch (a.$1) {
+                            // The four screens that carry the footer nav go
+                            // through the ROUTER, never Navigator.push. A
+                            // pushed page sits above GoRouter's pages, so the
+                            // bar's own go() would replace the screen
+                            // underneath while the pushed one stayed put --
+                            // which is exactly how AG-002's back button came
+                            // to look broken.
                             case 'Collection Mode':
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => AgentCollectionModeScreen(
-                                        businessId: businessId)),
-                              );
+                              context.push('/ag-002', extra: businessId);
                               break;
                             case 'Area Work Session':
                               // Merged into Collection Mode — see the drawer
                               // action above for why.
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => AgentCollectionModeScreen(
-                                        businessId: businessId)),
-                              );
+                              context.push('/ag-002', extra: businessId);
                               break;
                             case 'Customer List':
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => AgentCustomerManagementScreen(
-                                    businessId: businessId,
-                                    agentMembershipId: agentId,
-                                  ),
-                                ),
-                              );
+                              context.push('/ag-004', extra: businessId);
                               break;
                             case 'Loan Distribution':
                               Navigator.of(context).push(
@@ -981,14 +910,7 @@ class _QuickActions extends ConsumerWidget {
                               // this reuses it rather than inventing a
                               // second search screen with nothing to
                               // query.
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => AgentCustomerManagementScreen(
-                                    businessId: businessId,
-                                    agentMembershipId: agentId,
-                                  ),
-                                ),
-                              );
+                              context.push('/ag-004', extra: businessId);
                               break;
                           }
                         },

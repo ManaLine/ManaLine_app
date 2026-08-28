@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/ledger_history_view.dart';
+import '../../../shared/widgets/workspace_nav.dart';
 
 /// OW-017 — Transaction History, Owner view.
 ///
@@ -21,6 +22,11 @@ class TransactionHistoryScreen extends ConsumerWidget {
       businessId: businessId,
       homeRoute: '/ow-001',
       statementRoute: '/ow-017-statement',
+      // Index 3 is History, which is this screen.
+      bottomNavigationBar: ManaWorkspaceNav(
+          workspace: ManaWorkspace.owner,
+          businessId: businessId,
+          currentIndex: 3),
     );
   }
 }

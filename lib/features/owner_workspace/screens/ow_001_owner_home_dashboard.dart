@@ -26,7 +26,7 @@ import '../state/investor_state.dart' show investorApiServiceProvider, InvestorS
 import 'ow_004_customer_management.dart' show CustomerProfileScreen;
 import 'ow_003_investor_management.dart' show InvestorProfileScreen;
 import 'ow_002_workforce_management.dart' show AgentProfileScreen;
-import '../../../shared/widgets/owner_footer_nav.dart';
+import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/quick_expense.dart';
 import '../../../shared/network_error_handler.dart';
@@ -236,8 +236,10 @@ class _OwnerHomeDashboardScreenState
           },
         ),
       ],
-      bottomNavigationBar: ManaOwnerFooterNav(
-          businessId: widget.businessId, currentIndex: 0),
+      bottomNavigationBar: ManaWorkspaceNav(
+          workspace: ManaWorkspace.owner,
+          businessId: widget.businessId,
+          currentIndex: 0),
       body: SafeArea(
         top: false,
         child: async.when(

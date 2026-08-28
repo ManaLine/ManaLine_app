@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/collection_round_view.dart';
+import '../../../shared/widgets/workspace_nav.dart';
 
 /// AG-002 — Collection Mode (Agent).
 ///
@@ -31,7 +32,17 @@ class AgentCollectionModeScreen extends ConsumerWidget {
     return ManaCollectionRound(
       businessId: businessId,
       focusLoanId: focusLoanId,
+      // This worked as written and did nothing on screen. The Agent's home
+      // reached this screen with Navigator.push, and a pushed page sits ABOVE
+      // GoRouter's pages -- so go() replaced the route underneath while this
+      // one stayed exactly where it was. The footer navigates through the
+      // router now, so there is nothing sitting on top of it and back leaves.
       onBack: () => context.go('/ag-001', extra: businessId),
+      // Index 1 is Collections, which is this screen.
+      bottomNavigationBar: ManaWorkspaceNav(
+          workspace: ManaWorkspace.agent,
+          businessId: businessId,
+          currentIndex: 1),
     );
   }
 }

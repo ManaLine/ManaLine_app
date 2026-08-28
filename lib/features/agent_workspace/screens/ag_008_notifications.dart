@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
@@ -12,7 +13,6 @@ import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../owner_workspace/screens/ow_007_loan_details.dart';
 import '../state/agent_notifications_state.dart';
-import 'ag_004_customer_management.dart';
 import 'ag_006_owner_settlement.dart';
 
 final _dateTime = DateFormat('d MMM yyyy, h:mm a');
@@ -98,14 +98,7 @@ class _Ag008NotificationsScreenState extends ConsumerState<Ag008NotificationsScr
         // Extension Request → AG-004 Customer Management, opened to this
         // Agent's assigned-customer roster (relatedEntityId is the
         // customer_id; AG-004's list screen handles selecting into it).
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AgentCustomerManagementScreen(
-              businessId: widget.businessId,
-              agentMembershipId: widget.agentId,
-            ),
-          ),
-        );
+        context.push('/ag-004', extra: widget.businessId);
         return;
       case RelatedEntityType.loan:
         // Any loan-related notification opens THAT loan. Penalty Applied used

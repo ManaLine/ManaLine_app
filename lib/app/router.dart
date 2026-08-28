@@ -59,6 +59,7 @@ import '../features/agent_workspace/screens/ag_006_owner_settlement.dart';
 import '../features/agent_workspace/screens/ag_007_loan_distribution.dart';
 import '../features/agent_workspace/screens/ag_008_notifications.dart';
 import '../features/agent_workspace/screens/ag_009_profile.dart';
+import '../features/agent_workspace/screens/ag_010_transaction_history.dart';
 import '../features/customer_workspace/screens/cw_001_customer_home_dashboard.dart';
 import '../features/customer_workspace/screens/cw_002_find_a_business.dart' as cw002;
 import '../features/customer_workspace/screens/cw_003_request_new_loan.dart';
@@ -265,9 +266,16 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ow-006',
+      // The loan to open on is a QUERY PARAM, not `extra`.
+      //
+      // It read `s.extra as String?` while every nav-bar tap arrives here as
+      // `go('/ow-006', extra: businessId)` -- so the footer handed this screen
+      // a business id and it went looking for a loan with that id. It found
+      // none and did nothing, which is why nobody noticed; one `extra` cannot
+      // mean two things.
       builder: (c, s) => CollectionModeScreen(
-        businessId: ManaSession.instance.lastBusinessId ?? '',
-        prefilledLoanId: s.extra as String?,
+        businessId: _resolveBusinessId(s),
+        prefilledLoanId: s.uri.queryParameters['loan'],
       ),
     ),
     GoRoute(
@@ -425,11 +433,15 @@ final manaRouter = GoRouter(
     GoRoute(path: '/iw-settings', builder: (c, s) => SettingsScreen(homeRoute: '/iw-001', businessId: s.extra as String?)),
 
     // --- Agent Workspace -------------------------------------------------
-    // AG-001 through AG-009 are real, built screens. AG-010 (Transaction
-    // History) also exists but is deliberately NOT registered here — it is
-    // the Agent footer's 4th tab and is pushed by AG-001 with the agent's
-    // membershipId, which no deep link can supply. It is the one screen ID
-    // without a route; see ag_010_transaction_history.dart.
+    // AG-001 through AG-010 are real, built screens, and all ten are
+    // registered. AG-010 used to be the exception — it was pushed by AG-001
+    // with the agent's membershipId "which no deep link can supply", so it
+    // had no route. It has one now, resolved the same way AG-004 and AG-005
+    // already resolve theirs: from ManaSession. That was not a cosmetic
+    // change. The Agent's footer pushed its tabs with Navigator.push because
+    // History had nowhere to go(), and a pushed page sits ABOVE the router's
+    // pages — so AG-002's `context.go('/ag-001')` back button rewrote the
+    // stack underneath a page that stayed on screen, and Back looked dead.
     // agentId/businessId passed via `extra` where relevant — falls back to
     // stub ids so each route is directly reachable during review.
     GoRoute(
@@ -442,7 +454,10 @@ final manaRouter = GoRouter(
     ),
     GoRoute(
       path: '/ag-002',
-      builder: (c, s) => AgentCollectionModeScreen(businessId: _resolveBusinessId(s)),
+      builder: (c, s) => AgentCollectionModeScreen(
+        businessId: _resolveBusinessId(s),
+        focusLoanId: s.uri.queryParameters['loan'],
+      ),
     ),
     // AG-003 was Today's Route / Area Work Session. It listed the same loans
     // as Collection Mode, off its own query, and offered a subset of what
@@ -455,7 +470,10 @@ final manaRouter = GoRouter(
     // than on a 404.
     GoRoute(
       path: '/ag-003',
-      builder: (c, s) => AgentCollectionModeScreen(businessId: _resolveBusinessId(s)),
+      builder: (c, s) => AgentCollectionModeScreen(
+        businessId: _resolveBusinessId(s),
+        focusLoanId: s.uri.queryParameters['loan'],
+      ),
     ),
     GoRoute(
       path: '/ag-004',
@@ -489,6 +507,13 @@ final manaRouter = GoRouter(
         agentId: ManaSession.instance.lastAgentId ?? '',
         businessId: _resolveBusinessId(s),
         prefilledCustomerId: null,
+      ),
+    ),
+    GoRoute(
+      path: '/ag-010',
+      builder: (c, s) => Ag010TransactionHistoryScreen(
+        businessId: _resolveBusinessId(s),
+        agentMembershipId: ManaSession.instance.lastMembershipId ?? '',
       ),
     ),
     GoRoute(

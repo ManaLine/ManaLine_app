@@ -48,17 +48,27 @@ class ManaFilterChip<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selected = options.where((o) => o.value == value).firstOrNull;
-    return PopupMenuButton<T>(
-      initialValue: value,
-      onSelected: onChanged,
+    final index = options.indexWhere((o) => o.value == value);
+    final selected = index < 0 ? null : options[index];
+
+    // Keyed by INDEX, not by value.
+    //
+    // PopupMenuButton cannot tell a selection of null from a dismissed menu --
+    // its own callback is `if (newValue == null) onCanceled() else
+    // onSelected(newValue)`. Every "All" option here is null by design (all
+    // villages, any status, any frequency), so choosing All did nothing at
+    // all: pick Panagallu and there was no way back to the whole round.
+    // An index is never null, so the menu can always say what was chosen.
+    return PopupMenuButton<int>(
+      initialValue: index < 0 ? null : index,
+      onSelected: (i) => onChanged(options[i].value),
       tooltip: label,
       position: PopupMenuPosition.under,
       itemBuilder: (context) => [
-        for (final o in options)
-          PopupMenuItem<T>(
-            value: o.value,
-            child: ManaText.raw(o.label),
+        for (var i = 0; i < options.length; i++)
+          PopupMenuItem<int>(
+            value: i,
+            child: ManaText.raw(options[i].label),
           ),
       ],
       child: Container(

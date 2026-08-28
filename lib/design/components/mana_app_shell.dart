@@ -259,48 +259,58 @@ class _ShellHeader extends StatelessWidget {
         right: ManaSpacing.sm,
         bottom: ManaSpacing.sm,
       ),
-      child: Row(
+      // Two rows, because a business name is not an abbreviation.
+      //
+      // Everything used to share one line: menu, logo, name, and three or four
+      // action icons. The name is the only one of those that can be shortened,
+      // so it was the one that got shortened -- "Sri Satyanarayana Bus..." on
+      // the screen whose job is to say which business this is. Names here run
+      // to "Sri Venkateswara Rural Finance and Chit Fund Society".
+      //
+      // The name now has the row to itself, sharing it only with the menu and
+      // the logo, and takes two lines when it needs them. The actions drop to
+      // the date line underneath, where there is nothing but a short date to
+      // sit beside.
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Builder, because opening the drawer needs a context BELOW the
-          // Scaffold — `Scaffold.of(context)` at the shell's own level
-          // finds the parent route's Scaffold, or throws.
-          Builder(
-            builder: (inner) => _ShellIcon(
-              icon: Icons.menu,
-              label: 'Menu',
-              onPressed: () => Scaffold.of(inner).openDrawer(),
-            ),
-          ),
-          if (leading != null) ...[
-            Semantics(
-              button: onLeadingTap != null,
-              label: onLeadingTap != null ? 'Business Profile' : null,
-              child: InkWell(
-                onTap: onLeadingTap,
-                borderRadius: BorderRadius.circular(ManaRadius.ring),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(ManaRadius.ring),
-                  child: SizedBox(width: 32, height: 32, child: leading),
+          Row(
+            children: [
+              // Builder, because opening the drawer needs a context BELOW the
+              // Scaffold — `Scaffold.of(context)` at the shell's own level
+              // finds the parent route's Scaffold, or throws.
+              Builder(
+                builder: (inner) => _ShellIcon(
+                  icon: Icons.menu,
+                  label: 'Menu',
+                  onPressed: () => Scaffold.of(inner).openDrawer(),
                 ),
               ),
-            ),
-            const SizedBox(width: ManaSpacing.sm),
-          ],
-          // Expanded so the title yields to the action icons instead of
-          // pushing them off the edge — an unflexible child beside flexible
-          // siblings is the exact shape that has overflowed here five times.
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
+              if (leading != null) ...[
                 Semantics(
+                  button: onLeadingTap != null,
+                  label: onLeadingTap != null ? 'Business Profile' : null,
+                  child: InkWell(
+                    onTap: onLeadingTap,
+                    borderRadius: BorderRadius.circular(ManaRadius.ring),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(ManaRadius.ring),
+                      child: SizedBox(width: 32, height: 32, child: leading),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: ManaSpacing.sm),
+              ],
+              Expanded(
+                child: Semantics(
                   header: true,
                   child: Text(
                     (businessName != null && businessName!.isNotEmpty)
                         ? businessName!
                         : userName,
-                    maxLines: 1,
+                    // Two lines, and only then an ellipsis. A name that has
+                    // to be cut is at least cut late.
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 16,
@@ -309,20 +319,30 @@ class _ShellHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (subtitle != null && subtitle!.isNotEmpty)
-                  Text(
-                    subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: ManaColors.textOnDark,
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
-          ...actions,
+          Row(
+            children: [
+              // Aligned under the name rather than the menu, so the two rows
+              // read as one block instead of two lists.
+              const SizedBox(width: kManaMinTapTarget),
+              Expanded(
+                child: subtitle == null || subtitle!.isEmpty
+                    ? const SizedBox.shrink()
+                    : Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: ManaColors.textOnDark,
+                        ),
+                      ),
+              ),
+              ...actions,
+            ],
+          ),
         ],
       ),
     );

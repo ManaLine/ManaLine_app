@@ -275,9 +275,23 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
         ));
       }
       for (final e in day.events) {
+        // A BF grant read from the Agent's own ledger.
+        //
+        // The event is the business's: money moving from the Owner's pocket
+        // to an Agent's, a transfer that changes no total, which is what the
+        // Owner's ledger correctly shows in grey as "BF Given To <agent>".
+        // Read from inside the Agent's own book it is the opposite -- cash
+        // arriving -- and it was drawn grey, with a sideways arrow, naming the
+        // Agent to themselves. Same row, wrong reader.
+        final bfToMe =
+            widget.membershipId != null && e.type == LedgerEventType.bfGrant;
         slivers.add(ManaLedgerRow(
           event: e,
-          actionLabel: ledgerActionLabel(ref, e),
+          actionLabel: bfToMe ? ref.t('bf_received') : ledgerActionLabel(ref, e),
+          directionFor: bfToMe ? LedgerDirection.moneyIn : null,
+          // The counterparty on this row IS this agent. Naming the reader to
+          // themselves says nothing; the label already says what happened.
+          showCounterparty: !bfToMe,
           timeLabel: ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
           onTap: () => _showDetail(e),
         ));
@@ -308,6 +322,11 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
   }
 
   void _showDetail(LedgerEvent e) {
+    // Same reader, same perspective as the row that was tapped -- see the
+    // list above. A detail sheet that contradicts the row it opened from is
+    // worse than either version alone.
+    final bfToMe =
+        widget.membershipId != null && e.type == LedgerEventType.bfGrant;
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -320,16 +339,17 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ManaText.raw(
-                ledgerActionLabel(ref, e),
+                bfToMe ? ref.t('bf_received') : ledgerActionLabel(ref, e),
                 style: ManaType.note,
               ),
-              if (e.counterparty != null)
+              if (!bfToMe && e.counterparty != null)
                 ManaText.raw(
                   e.counterparty!,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
               const SizedBox(height: ManaSpacing.md),
-              _detailLine(ref.t('amount'), null, e),
+              _detailLine(ref.t('amount'), null, e,
+                  directionFor: bfToMe ? LedgerDirection.moneyIn : null),
               _detailLine(ref.t('date'), ledgerDayLabel(e.businessDate), null),
               // Only when the ledger actually knows one — see
               // ledgerHasKnownTime.
@@ -380,7 +400,8 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
     );
   }
 
-  Widget _detailLine(String label, String? value, LedgerEvent? amountOf) {
+  Widget _detailLine(String label, String? value, LedgerEvent? amountOf,
+      {LedgerDirection? directionFor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -393,7 +414,7 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
           ),
           const SizedBox(width: ManaSpacing.sm),
           if (amountOf != null)
-            ManaLedgerAmount(event: amountOf)
+            ManaLedgerAmount(event: amountOf, directionFor: directionFor)
           else
             Flexible(
               child: ManaText.raw(value ?? '',

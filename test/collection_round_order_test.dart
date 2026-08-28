@@ -1,82 +1,92 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/state/collection_mode_state.dart';
 
-/// What this pins: a door already answered is not work, so it sinks.
+/// What counts as a finished door, and where finished doors go.
 ///
-/// The round is worked from the top. With finished doors left interleaved,
-/// an Agent halfway through a village scrolls past this morning to find this
-/// afternoon, and the longer the round the worse it gets.
-///
-/// They still appear -- an Agent checking whether they visited somebody has to
-/// be able to find them. They are simply last.
+/// The round only ever knew about TODAY: `today_result` is scoped to
+/// CURRENT_DATE. So a Weekly customer collected from yesterday came back to
+/// the top of this morning's round as unanswered work — and the server then
+/// refused the entry, because a Weekly loan's one-entry window is the account
+/// cycle, not the day. The Agent was being sent to a door the database would
+/// not let them record.
 CollectionDueRow _row(
   String name, {
-  required String status,
+  String? today,
+  String? cycle,
+  DateTime? firstAt,
   int due = 1000,
-  int outstanding = 50000,
-  bool penalty = false,
 }) =>
     CollectionDueRow(
       loanId: 'l-$name',
       customerId: 'c-$name',
       customerName: name,
-      village: 'Uranduru',
+      village: 'Panagallu',
       loanNumber: 'LN-$name',
+      mlid: 'MLCU$name',
       installmentDue: due,
-      outstandingBalance: outstanding,
+      installmentAmount: due,
+      outstandingBalance: 10000,
       lineRepaymentIndex: 0,
-      collectionStatus: status,
+      collectionStatus: today ?? 'Pending',
+      cycleStatus: cycle,
+      cycleFirstAt: firstAt,
       collectionAgent: 'm1',
-      penaltyEligible: penalty,
     );
 
 void main() {
-  group('finished doors sink, whatever the sort', () {
-    for (final mode in CollectionSort.values) {
-      test('under ${mode.name}', () {
-        final rows = [
-          _row('Collected One', status: 'Collected', due: 9000, outstanding: 900000, penalty: true),
-          _row('Pending One', status: 'Pending', due: 100, outstanding: 100),
-          _row('Skipped One', status: 'Skipped', due: 8000, outstanding: 800000, penalty: true),
-          _row('Partial One', status: 'Partial', due: 7000, outstanding: 700000),
-          _row('Pending Two', status: 'Pending', due: 200, outstanding: 200),
-        ];
+  group('a door answered earlier in the cycle is not work', () {
+    test('collected yesterday, in this cycle, counts as settled', () {
+      // No status today, because it was not collected today.
+      final r = _row('Weekly Customer',
+          cycle: 'Collected', firstAt: DateTime(2026, 8, 27, 9));
+      expect(manaRowSettled(r), isTrue,
+          reason: 'the server would refuse a second entry on this loan');
+    });
 
-        final sorted = manaSortDueRows(rows, mode);
-        final settled = sorted.map(manaRowSettled).toList();
+    test('never collected in the window is still work', () {
+      expect(manaRowSettled(_row('Untouched')), isFalse);
+    });
 
-        // Every unfinished row comes before every finished one. Deliberately
-        // asserted for EVERY sort mode: the seeded figures are rigged so that
-        // due-today, outstanding and penalty-first would each pull a finished
-        // row to the top if the rule were not applied first.
-        final firstSettled = settled.indexOf(true);
-        expect(firstSettled, isNot(-1), reason: 'the seed has settled rows');
-        expect(settled.sublist(firstSettled).every((s) => s), isTrue,
-            reason: 'a pending door appeared after a finished one under '
-                '${mode.name}');
-      });
-    }
+    test("a visit that collected nothing is answered too", () {
+      expect(manaRowSettled(_row('Skipped', cycle: 'Skipped')), isTrue);
+    });
+  });
 
-    test('nothing is dropped', () {
+  group('where the finished doors sit', () {
+    test('settled sink below unanswered, first-answered furthest down', () {
       final rows = [
-        _row('A', status: 'Collected'),
-        _row('B', status: 'Pending'),
-        _row('C', status: 'Skipped'),
+        _row('Answered First',
+            cycle: 'Collected', firstAt: DateTime(2026, 8, 28, 9)),
+        _row('Still Due A'),
+        _row('Answered Last',
+            cycle: 'Collected', firstAt: DateTime(2026, 8, 28, 17)),
+        _row('Still Due B'),
       ];
-      final sorted = manaSortDueRows(rows, CollectionSort.dueToday);
-      expect(sorted.length, 3,
-          reason: 'finished doors move to the end, they do not disappear -- an '
-              'Agent checking whether they visited somebody must find them');
+
+      final sorted = manaSortDueRows(rows, CollectionSort.name);
+      final names = sorted.map((r) => r.customerName).toList();
+
+      // Work first, in the chosen order.
+      expect(names.take(2), ['Still Due A', 'Still Due B']);
+      // Then the answered ones, newest first — so the one answered at 9am is
+      // at the very bottom, where the Agent is least likely to be looking.
+      expect(names.skip(2), ['Answered Last', 'Answered First']);
     });
 
-    test('a door not yet knocked on is not settled', () {
-      expect(manaRowSettled(_row('X', status: 'Pending')), isFalse);
-    });
+    test('reversing the sort does not float finished doors back up', () {
+      final rows = [
+        _row('Answered', cycle: 'Collected', firstAt: DateTime(2026, 8, 28, 9)),
+        _row('Still Due'),
+      ];
 
-    test('visited and paid nothing IS settled', () {
-      // Skipped means somebody went and recorded an outcome. That is done
-      // work, and it is not the same as a door nobody has reached.
-      expect(manaRowSettled(_row('X', status: 'Skipped')), isTrue);
+      for (final ascending in [true, false]) {
+        final names = manaSortDueRows(rows, CollectionSort.name,
+                ascending: ascending)
+            .map((r) => r.customerName)
+            .toList();
+        expect(names.last, 'Answered',
+            reason: 'direction applies to the work, not to what is done');
+      }
     });
   });
 }

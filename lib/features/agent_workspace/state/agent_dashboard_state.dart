@@ -343,7 +343,7 @@ class AgentApiService {
     final roundRows = ((await _db
             .schema('app')
             .from('v_collection_due')
-            .select('loan_id, customer_id, total_due, today_result, collected_today')
+            .select('loan_id, customer_id, total_due, today_result, collected_today, cycle_result')
             .eq('business_id', businessId)
             .eq('collection_agent_membership_id', membershipId)) as List)
         .cast<Map<String, dynamic>>();
@@ -435,8 +435,15 @@ class AgentApiService {
       customersAssigned: customersAssignedCount.length,
       // Doors knocked on: a payment OR a recorded visit without one. Counted
       // by CUSTOMER, not by loan -- one person with two loans is one door.
+      //
+      // Over the ACCOUNT PERIOD, not the day. This summary describes the
+      // account the Agent is working -- opened on one day, handed over on
+      // another -- and counting only today reset it to zero every morning
+      // while the account itself stayed open. cycle_result falls back to the
+      // day when no period covers it, so a session-less agent still sees
+      // their own round.
       customersVisited: roundRows
-          .where((r) => r['today_result'] != null)
+          .where((r) => r['cycle_result'] != null)
           .map((r) => r['customer_id'])
           .toSet()
           .length,
@@ -450,7 +457,7 @@ class AgentApiService {
       // Still owed at a door not yet answered for. Was every active loan the
       // Agent holds, which never moved as the round was worked.
       pendingCollections:
-          roundRows.where((r) => r['today_result'] == null).length,
+          roundRows.where((r) => r['cycle_result'] == null).length,
       skippedCustomers: roundRows
           .where((r) => r['today_result'] == 'No Collection')
           .length,

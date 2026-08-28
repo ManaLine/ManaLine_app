@@ -596,7 +596,10 @@ class _RunningDashboard extends ConsumerWidget {
                 agentId: agentId),
             const SizedBox(height: ManaSpacing.md),
             _SectionCard(
-              title: ref.t('today_summary'),
+              // "Account Summary", not "Today Summary": these figures cover
+              // the account period the Agent is working, which opens on one
+              // day and is handed over on another.
+              title: ref.t('account_summary'),
               // The one section open on arrival: it is the day.
               initiallyExpanded: true,
               summary:

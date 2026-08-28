@@ -50,23 +50,34 @@ import 'mana_text.dart';
 /// Exists so the sign/tone rule lives in one place: every other call site
 /// would otherwise have to remember that credits get a `+` and debits do not.
 class ManaLedgerAmount extends StatelessWidget {
+  /// See ManaLedgerRow.directionFor -- the amount's tone and sign follow the
+  /// same reader's perspective as the row it sits in.
+  ///
   final LedgerEvent event;
   final ManaAmountSize size;
+
+  final LedgerDirection? directionFor;
 
   const ManaLedgerAmount({
     super.key,
     required this.event,
     this.size = ManaAmountSize.standard,
+    this.directionFor,
   });
 
   @override
-  Widget build(BuildContext context) => ManaAmount(
-        event.amount,
-        size: size,
-        tone: ledgerVisual(event.isMoneyIn, isTransfer: event.isTransfer).tone,
-        // No sign on a transfer: a leading + would read as income.
-        showSign: event.isMoneyIn && !event.isTransfer,
-      );
+  Widget build(BuildContext context) {
+    final direction = directionFor ?? event.type.direction;
+    final isMoneyIn = direction == LedgerDirection.moneyIn;
+    final isTransfer = direction == LedgerDirection.transfer;
+    return ManaAmount(
+      event.amount,
+      size: size,
+      tone: ledgerVisual(isMoneyIn, isTransfer: isTransfer).tone,
+      // No sign on a transfer: a leading + would read as income.
+      showSign: isMoneyIn && !isTransfer,
+    );
+  }
 }
 
 /// One money movement.
@@ -88,17 +99,36 @@ class ManaLedgerRow extends StatelessWidget {
 
   final VoidCallback? onTap;
 
+  /// Overrides the event's own direction for THIS reader.
+  ///
+  /// A BF grant is a transfer to the business -- money moving between two of
+  /// its own pockets, changing no total -- and that is what the Owner's ledger
+  /// must show. In the Agent's own ledger it is unambiguously money arriving,
+  /// and drawing it grey with a sideways arrow told them the opposite of what
+  /// happened. The event is the same; who is reading it is not.
+  final LedgerDirection? directionFor;
+
+  /// False where the counterparty is the reader themselves. An Agent's own
+  /// ledger saying "BF Received From Karri Siri Manikanta Reddy" to Karri Siri
+  /// Manikanta Reddy is a row naming its own reader.
+  final bool showCounterparty;
+
   const ManaLedgerRow({
     super.key,
     required this.event,
     required this.actionLabel,
     required this.timeLabel,
     this.onTap,
+    this.directionFor,
+    this.showCounterparty = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final v = ledgerVisual(event.isMoneyIn, isTransfer: event.isTransfer);
+    final direction = directionFor ?? event.type.direction;
+    final isMoneyIn = direction == LedgerDirection.moneyIn;
+    final isTransfer = direction == LedgerDirection.transfer;
+    final v = ledgerVisual(isMoneyIn, isTransfer: isTransfer);
     // Time is usually present; the other two often are not, and a row reading
     // "9:32 AM · · " would look broken. It is dropped entirely for a
     // backdated entry, where the ledger knows the day and not the hour —
@@ -143,7 +173,9 @@ class ManaLedgerRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
                   ),
-                  if (event.counterparty != null && event.counterparty!.isNotEmpty)
+                  if (showCounterparty &&
+                      event.counterparty != null &&
+                      event.counterparty!.isNotEmpty)
                     ManaText.raw(
                       event.counterparty!,
                       maxLines: 1,
@@ -164,7 +196,7 @@ class ManaLedgerRow extends StatelessWidget {
             ManaAmount(
               event.amount,
               tone: v.tone,
-              showSign: event.isMoneyIn && !event.isTransfer,
+              showSign: isMoneyIn && !isTransfer,
               semanticLabel: actionLabel,
             ),
           ],

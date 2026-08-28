@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_001_owner_home_dashboard.dart';
 import 'package:mana_line/features/owner_workspace/state/owner_api_service.dart';
@@ -113,6 +114,36 @@ void main() {
       AgentCashHolding(name: 'Peddireddy Venkata Subbamma', amount: 1000),
     ],
   );
+
+  testWidgets('the business name gets the row to itself', (tester) async {
+    // "Sri Satyanarayana Bus..." on the screen whose job is to say which
+    // business this is. Everything shared one line -- menu, logo, name, and
+    // three action icons -- and the name was the only one of them that could
+    // be shortened, so it was.
+    await pumpManaScreen(
+      tester,
+      const OwnerHomeDashboardScreen(businessId: 'b1'),
+      location: '/ow-001',
+      overrides: [
+        ownerDashboardProvider.overrideWith(() => _SeededOwnerDashboardNotifier(realSeed))
+      ],
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final name = find.text('Sri Venkateswara Rural Finance and Chit Fund Society');
+    expect(name, findsOneWidget);
+    expect(tester.widget<Text>(name).maxLines, 2,
+        reason: 'a long name wraps before it is cut');
+
+    // The actions sit BELOW it now, on the date line.
+    expect(
+      tester.getTopLeft(find.byIcon(Icons.search)).dy >
+          tester.getTopLeft(name).dy,
+      isTrue,
+      reason: 'the icons moved to the second row to free the name',
+    );
+  });
 
   group('the BF row says whose money it is', () {
     // The bug: the row read "BF = Rs 2,67,320" -- day_ledger.opening_balance,

@@ -75,7 +75,8 @@ class CollectionApiService {
         .select('loan_id, customer_id, customer_name, village, loan_number, '
             'total_due, remaining_balance, next_installment_no, is_overdue, '
             'penalty_eligible, loan_status, collection_agent_name, repayment_type, mlid, '
-            'today_result, collected_today, installment_amount, in_grace, grace_period_days')
+            'today_result, collected_today, installment_amount, in_grace, grace_period_days, '
+            'cycle_result, cycle_collected, cycle_first_at')
         .eq('business_id', businessId);
 
     return (rows as List).map((r) {
@@ -99,6 +100,11 @@ class CollectionApiService {
         // never showed grace on any loan -- granted or not.
         gracePeriod: r['in_grace'] as bool? ?? false,
         gracePeriodDays: (r['grace_period_days'] as num?)?.toInt() ?? 0,
+        cycleStatus: r['cycle_result'] as String?,
+        cycleCollected: (r['cycle_collected'] as num?)?.toInt() ?? 0,
+        cycleFirstAt: r['cycle_first_at'] == null
+            ? null
+            : DateTime.tryParse(r['cycle_first_at'] as String),
         isOverdue: r['is_overdue'] as bool? ?? false,
         repaymentType: r['repayment_type'] as String? ?? '',
       );
@@ -421,6 +427,22 @@ class CollectionDueRow {
 
   /// Days of grace granted on this loan. Zero for most of them.
   final int gracePeriodDays;
+
+  /// The result of the last collection inside this loan's ONE-ENTRY WINDOW --
+  /// the account cycle for a Weekly or Monthly loan, the day for a Daily one.
+  /// Null means the door has not been answered in that window.
+  ///
+  /// Distinct from collectionStatus, which is today's answer. A Weekly
+  /// customer collected from yesterday has no status today and is still not
+  /// work: the server would refuse a second entry.
+  final String? cycleStatus;
+
+  /// Taken from this customer in the window.
+  final int cycleCollected;
+
+  /// When the FIRST collection in the window was recorded. The order settled
+  /// doors sink in: earliest answered ends up furthest down.
+  final DateTime? cycleFirstAt;
   final String collectionAgent;
   final bool penaltyEligible;
   final bool gracePeriod;
@@ -445,6 +467,9 @@ class CollectionDueRow {
     required this.collectionStatus,
     this.collectedToday = 0,
     this.gracePeriodDays = 0,
+    this.cycleStatus,
+    this.cycleCollected = 0,
+    this.cycleFirstAt,
     required this.collectionAgent,
     this.penaltyEligible = false,
     this.gracePeriod = false,
@@ -633,9 +658,12 @@ List<CollectionDueRow> manaFilterByVillages(
 /// need the same answer, so there is one place that gives it: two copies of
 /// this rule drifting apart would grey a row that still sorted as work to do.
 bool manaRowSettled(CollectionDueRow r) =>
-    r.collectionStatus == 'Collected' ||
-    r.collectionStatus == 'Partial' ||
-    r.collectionStatus == 'Skipped';
+    _answered(r.collectionStatus) || _answered(r.cycleStatus);
+
+/// A door is answered when money was taken, part of it was, or the visit was
+/// recorded as collecting nothing.
+bool _answered(String? status) =>
+    status == 'Collected' || status == 'Partial' || status == 'Skipped';
 
 /// Narrows the round to one collection status -- Pending, Collected, Partial,
 /// Skipped. Null is all of them.
@@ -670,6 +698,16 @@ List<CollectionDueRow> manaSortDueRows(
     // them.
     if (manaRowSettled(a) != manaRowSettled(b)) {
       return manaRowSettled(a) ? 1 : -1;
+    }
+    // Among the finished doors: first answered, furthest down.
+    //
+    // The Agent works from the top, so the bottom of the list is where they
+    // are least likely to look -- which is exactly where this morning's
+    // first collection belongs by the time it is afternoon. Newest settled
+    // sits just under the remaining work.
+    if (manaRowSettled(a) && a.cycleFirstAt != null && b.cycleFirstAt != null) {
+      final byRecency = b.cycleFirstAt!.compareTo(a.cycleFirstAt!);
+      if (byRecency != 0) return byRecency;
     }
     return sign * switch (mode) {
         CollectionSort.dueToday => b.installmentDue.compareTo(a.installmentDue) != 0

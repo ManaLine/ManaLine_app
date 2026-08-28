@@ -193,7 +193,15 @@ class _SummaryCard extends ConsumerWidget {
                   style: ManaType.note),
             ),
             const SizedBox(width: ManaSpacing.xs),
-            Flexible(
+            // Expanded, not Flexible.
+            //
+            // Flexible hands its child LOOSE constraints, so the Text sized
+            // itself to its own content and textAlign.right had nothing to
+            // align within: every value sat wherever the label happened to
+            // end, and the column zig-zagged down the card. Expanded fills the
+            // slot, so the figures line up on their right edge and can be read
+            // as a column.
+            Expanded(
               child: ManaText.raw(value,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -595,13 +603,20 @@ class _PaymentHistorySection extends ConsumerWidget {
         if (loan.paymentHistory.isEmpty)
           ManaText.raw(ref.t('no_payments_yet'), style: ManaType.secondary)
         else
+          // Date leads, amount is the figure on the right.
+          //
+          // It was the other way round: the amount was the headline and the
+          // date a grey note beside it. A receipt list is read down the dates
+          // -- "what came in on the 12th" -- and the amount is what the eye
+          // then jumps to, which is the column it belongs in.
           ...loan.paymentHistory.map((p) => Card(
                 child: ListTile(
                   leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
-                  title: ManaText.raw(manaRupees(p.amount)),
+                  title: ManaText.raw(
+                      DateFormat('d MMM yyyy').format(p.businessDate)),
                   subtitle: ManaText.raw('${p.paymentMode} · ${p.collector} · #${p.receiptNumber}'),
-                  trailing: ManaText.raw(DateFormat('d MMM').format(p.businessDate),
-                      style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
+                  trailing: ManaText.raw(manaRupees(p.amount),
+                      style: ManaType.strong),
                 ),
               )),
       ],

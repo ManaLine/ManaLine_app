@@ -17,6 +17,7 @@ CollectionDueRow _row(
   int due = 1000,
   int cycleCollected = 0,
   int outstanding = 10000,
+  DateTime? extendedUntil,
 }) =>
     CollectionDueRow(
       loanId: 'l-$name',
@@ -33,6 +34,7 @@ CollectionDueRow _row(
       cycleStatus: cycle,
       cycleCollected: cycleCollected,
       cycleFirstAt: firstAt,
+      extendedUntil: extendedUntil,
       collectionAgent: 'm1',
     );
 
@@ -77,6 +79,20 @@ void main() {
 
     test('a loan with nothing left owing is finished', () {
       expect(manaRowSettled(_row('Cleared', outstanding: 0)), isTrue);
+    });
+
+    test('an approved extension settles the door until it runs out', () {
+      // Unlike everything else here, an extension settles the row for MORE
+      // than today: the customer has been given until that date, and sending
+      // the Agent back tomorrow would be the app forgetting what it granted.
+      final live = _row('Extended',
+          extendedUntil: DateTime.now().add(const Duration(days: 3)));
+      expect(manaRowSettled(live), isTrue);
+
+      final expired = _row('Extension Ran Out',
+          extendedUntil: DateTime.now().subtract(const Duration(days: 1)));
+      expect(manaRowSettled(expired), isFalse,
+          reason: 'once the time granted has passed it is a door again');
     });
 
     test('a daily collection sinks today and is back on top tomorrow', () {

@@ -76,7 +76,7 @@ class CollectionApiService {
             'total_due, remaining_balance, next_installment_no, is_overdue, '
             'penalty_eligible, loan_status, collection_agent_name, repayment_type, mlid, '
             'today_result, collected_today, installment_amount, in_grace, grace_period_days, '
-            'cycle_result, cycle_collected, cycle_first_at')
+            'cycle_result, cycle_collected, cycle_first_at, extended_until')
         .eq('business_id', businessId);
 
     return (rows as List).map((r) {
@@ -105,6 +105,9 @@ class CollectionApiService {
         cycleFirstAt: r['cycle_first_at'] == null
             ? null
             : DateTime.tryParse(r['cycle_first_at'] as String),
+        extendedUntil: r['extended_until'] == null
+            ? null
+            : DateTime.tryParse(r['extended_until'] as String),
         isOverdue: r['is_overdue'] as bool? ?? false,
         repaymentType: r['repayment_type'] as String? ?? '',
       );
@@ -293,7 +296,8 @@ class CollectionApiService {
   /// prevented — RLS (0015) already pins this at the policy layer, but we
   /// also set it correctly here rather than relying on RLS to silently
   /// reject a wrong value with a confusing error.
-  Future<String> requestExtension({required String loanId, String? remarks}) async {
+  Future<String> requestExtension(
+      {required String loanId, String? remarks, int? extendByDays}) async {
     final loan = await _db.from('loans').select('business_id').eq('loan_id', loanId).single();
     final personId = ref.read(authFlowProvider).personId;
     if (personId == null) throw StateError('No logged-in person_id available.');
@@ -312,6 +316,9 @@ class CollectionApiService {
           'requested_by': requestedBy,
           'status': 'Pending',
           'business_date': manaBusinessDate(),
+          // How much time is being asked for. The decision reads it back, so
+          // an approval does not have to be told twice.
+          'extend_by_days': extendByDays,
         })
         .select('extension_id')
         .single();
@@ -324,16 +331,25 @@ class CollectionApiService {
     return inserted['extension_id'] as String;
   }
 
-  /// PATCH /extension_requests/{id} — Owner decision only (schema: "Owner
-  /// decision"). `decided_by_person_id` set to the current person; RLS
-  /// restricts the actual UPDATE to Owner-context callers regardless.
-  Future<void> decideExtension({required String extensionRequestId, required bool approved}) async {
-    final personId = ref.read(authFlowProvider).personId;
-    if (personId == null) throw StateError('No logged-in person_id available.');
-    await _db.from('extension_requests').update({
-      'status': approved ? 'Approved' : 'Rejected',
-      'decided_by_person_id': int.parse(personId),
-    }).eq('extension_id', extensionRequestId);
+  /// The decision AND the time it buys, in one transaction.
+  ///
+  /// This used to be a bare UPDATE setting status to Approved, and that is
+  /// all approving did: the loan was untouched, the penalty clock kept
+  /// running, and the Agent who had just promised somebody a week had nothing
+  /// to show for it. app.decide_extension grants the days as grace -- which is
+  /// what an extension means, and the mechanism the penalty gate already
+  /// reads -- so a row marked Approved and a loan without the days cannot come
+  /// apart.
+  Future<void> decideExtension({
+    required String extensionRequestId,
+    required bool approved,
+    int? extendByDays,
+  }) async {
+    await _db.schema('app').rpc('decide_extension', params: {
+      'p_extension_id': extensionRequestId,
+      'p_approve': approved,
+      'p_extend_by_days': extendByDays,
+    });
   }
 }
 
@@ -453,6 +469,10 @@ class CollectionDueRow {
   /// When the FIRST collection in the window was recorded. The order settled
   /// doors sink in: earliest answered ends up furthest down.
   final DateTime? cycleFirstAt;
+
+  /// The day an approved extension runs to, if one is live. The customer has
+  /// been given until then, so the door is not work until it passes.
+  final DateTime? extendedUntil;
   final String collectionAgent;
   final bool penaltyEligible;
   final bool gracePeriod;
@@ -480,6 +500,7 @@ class CollectionDueRow {
     this.cycleStatus,
     this.cycleCollected = 0,
     this.cycleFirstAt,
+    this.extendedUntil,
     required this.collectionAgent,
     this.penaltyEligible = false,
     this.gracePeriod = false,
@@ -675,6 +696,16 @@ List<CollectionDueRow> manaFilterByVillages(
 /// need the same answer, so there is one place that gives it: two copies of
 /// this rule drifting apart would grey a row that still sorted as work to do.
 bool manaRowSettled(CollectionDueRow r) {
+  // An approved extension: the customer has been given until that day, so
+  // this is not a door to knock on until it passes. Unlike everything else
+  // here it settles the row for MORE than today -- that is what was granted.
+  final extended = r.extendedUntil;
+  if (extended != null) {
+    final today = manaNowIst();
+    if (!DateTime(today.year, today.month, today.day).isAfter(extended)) {
+      return true;
+    }
+  }
   // Answered today: this door has been to, whatever it gave.
   if (_answered(r.collectionStatus)) return true;
   // Nothing left to collect at all.
@@ -950,11 +981,19 @@ class CollectionModeNotifier extends Notifier<CollectionModeState> {
     }
   }
 
-  Future<bool> requestAndDecideExtension({required String loanId, required bool approve}) async {
+  Future<bool> requestAndDecideExtension({
+    required String loanId,
+    required bool approve,
+    int? extendByDays,
+  }) async {
     try {
       final api = ref.read(collectionApiServiceProvider);
-      final requestId = await api.requestExtension(loanId: loanId);
-      await api.decideExtension(extensionRequestId: requestId, approved: approve);
+      final requestId =
+          await api.requestExtension(loanId: loanId, extendByDays: extendByDays);
+      await api.decideExtension(
+          extensionRequestId: requestId,
+          approved: approve,
+          extendByDays: extendByDays);
       return true;
     } catch (e) {
       state = state.copyWith(error: e.toString());

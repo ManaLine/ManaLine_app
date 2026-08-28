@@ -495,14 +495,14 @@ final manaRouter = GoRouter(
       path: '/ag-004',
       builder: (c, s) => AgentCustomerManagementScreen(
         businessId: _resolveBusinessId(s),
-        agentMembershipId: ManaSession.instance.lastMembershipId ?? '',
+        agentMembershipId: ManaSession.instance.lastAgentMembershipId ?? '',
       ),
     ),
     GoRoute(
       path: '/ag-005',
       builder: (c, s) => DraftTransactionsScreen(
         businessId: _resolveBusinessId(s),
-        membershipId: ManaSession.instance.lastMembershipId ?? '',
+        membershipId: ManaSession.instance.lastAgentMembershipId ?? '',
       ),
     ),
     GoRoute(
@@ -529,7 +529,7 @@ final manaRouter = GoRouter(
       path: '/ag-010',
       builder: (c, s) => Ag010TransactionHistoryScreen(
         businessId: _resolveBusinessId(s),
-        agentMembershipId: ManaSession.instance.lastMembershipId ?? '',
+        agentMembershipId: ManaSession.instance.lastAgentMembershipId ?? '',
       ),
     ),
     GoRoute(

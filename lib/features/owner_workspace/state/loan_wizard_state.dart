@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'customer_state.dart' show CustomerSummary, customerApiServiceProvider;
+import 'customer_state.dart'
+    show CustomerSummary, customerApiServiceProvider, customerProfileProvider;
+import '../../agent_workspace/state/agent_customer_state.dart'
+    show agentCustomerProfileProvider;
 import '../../../shared/live_photo_upload.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/mana_time.dart';
@@ -799,6 +802,21 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
         }
       }
 
+      // The customer's profile is cached, and it has just gone stale.
+      //
+      // A loan created here did not appear on the customer's Loans tab: the
+      // profile provider had already loaded and nothing told it the borrower
+      // now has a loan. It showed in History, because that is a different
+      // query -- so the loan was real and the screen was old.
+      //
+      // Both workspaces' profiles are invalidated, because the same wizard is
+      // reached from OW-005 and AG-007 and neither should have to remember.
+      final borrower = state.customer?.customerId;
+      if (borrower != null) {
+        ref.invalidate(customerProfileProvider(borrower));
+        ref.invalidate(agentCustomerProfileProvider(borrower));
+      }
+
       state = state.copyWith(submitting: false, createdLoanNumber: result.loanNumber);
       return result.loanNumber;
     } catch (e) {
@@ -822,6 +840,13 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
       // missing rather than the write failing.
       final landed = await _loanAlreadyCreated(businessId);
       if (landed != null) {
+        // Same as the success path: the loan exists, so the cached profile
+        // is stale whichever way we found out about it.
+        final borrower = state.customer?.customerId;
+        if (borrower != null) {
+          ref.invalidate(customerProfileProvider(borrower));
+          ref.invalidate(agentCustomerProfileProvider(borrower));
+        }
         state = state.copyWith(submitting: false, createdLoanNumber: landed);
         return landed;
       }

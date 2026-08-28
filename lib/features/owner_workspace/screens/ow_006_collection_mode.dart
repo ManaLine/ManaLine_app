@@ -860,15 +860,45 @@ class ManaExtensionForm extends ConsumerStatefulWidget {
   ConsumerState<ManaExtensionForm> createState() => ManaExtensionFormState();
 }
 
+/// Days, weeks or months — stored as days.
+///
+/// Same shape as the grace dialog's unit picker, and for the same reason: an
+/// extension is asked for in whichever unit the conversation at the door used,
+/// and two units for one quantity is how a fortnight becomes fourteen months.
+enum _ExtendUnit { days, weeks, months }
+
 class ManaExtensionFormState extends ConsumerState<ManaExtensionForm> {
   bool _submitting = false;
+  final _amount = TextEditingController();
+  _ExtendUnit _unit = _ExtendUnit.days;
+
+  /// Whatever was typed, in days. Zero when the box is empty or not a number,
+  /// which is what disables Approve.
+  int get _days {
+    final n = int.tryParse(_amount.text.trim()) ?? 0;
+    if (n <= 0) return 0;
+    return switch (_unit) {
+      _ExtendUnit.days => n,
+      _ExtendUnit.weeks => n * 7,
+      _ExtendUnit.months => n * 30,
+    };
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
 
   Future<void> _decide(bool approve) async {
     setState(() => _submitting = true);
     final ok = await NetworkErrorHandler.run(context, () async {
       return ref
           .read(collectionModeProvider.notifier)
-          .requestAndDecideExtension(loanId: widget.row.loanId, approve: approve);
+          .requestAndDecideExtension(
+              loanId: widget.row.loanId,
+              approve: approve,
+              extendByDays: approve ? _days : null);
     });
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -889,6 +919,51 @@ class ManaExtensionFormState extends ConsumerState<ManaExtensionForm> {
           ref.t('extension_note'),
           style: ManaType.note,
         ),
+        const SizedBox(height: ManaSpacing.md),
+        // How long. Approving used to grant an unspecified amount of nothing;
+        // the duration is what makes it an extension.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _amount,
+                keyboardType: TextInputType.number,
+                decoration:
+                    InputDecoration(labelText: ref.t('extend_by')),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            const SizedBox(width: ManaSpacing.md),
+            Expanded(
+              child: DropdownButtonFormField<_ExtendUnit>(
+                initialValue: _unit,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: ref.t('unit')),
+                items: [
+                  DropdownMenuItem(
+                      value: _ExtendUnit.days, child: ManaText.raw(ref.t('days'))),
+                  DropdownMenuItem(
+                      value: _ExtendUnit.weeks, child: ManaText.raw(ref.t('weeks'))),
+                  DropdownMenuItem(
+                      value: _ExtendUnit.months, child: ManaText.raw(ref.t('months'))),
+                ],
+                onChanged: (u) =>
+                    setState(() => _unit = u ?? _ExtendUnit.days),
+              ),
+            ),
+          ],
+        ),
+        if (_days > 0) ...[
+          const SizedBox(height: ManaSpacing.xs),
+          ManaText.raw(
+            ref.t('extension_resolves_to_note')
+                .replaceAll('{days}', '$_days')
+                .replaceAll('{date}',
+                    DateFormat('d MMM yyyy').format(manaNowIst().add(Duration(days: _days)))),
+            style: ManaType.note,
+          ),
+        ],
         const SizedBox(height: ManaSpacing.lg),
         Row(
           children: [
@@ -901,7 +976,8 @@ class ManaExtensionFormState extends ConsumerState<ManaExtensionForm> {
             const SizedBox(width: ManaSpacing.md),
             Expanded(
               child: ElevatedButton(
-                onPressed: _submitting ? null : () => _decide(true),
+                onPressed:
+                    (_submitting || _days <= 0) ? null : () => _decide(true),
                 child: _submitting
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : ManaText.raw(ref.t('approve')),

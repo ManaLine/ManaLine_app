@@ -310,6 +310,9 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
       agentId: agentId,
       customerId: customerId,
       investorId: investorId,
+      // Which role this membership belongs to, so an Agent membership is
+      // kept apart from an Owner one held by the same person.
+      role: role,
     );
 
     // A role selected with no resolvable entity row is a real problem —
@@ -353,6 +356,7 @@ class ManaSession {
   static const _kPersonId = 'mana_session_person_id';
   static const _kLastBusinessId = 'mana_session_last_business_id';
   static const _kLastMembershipId = 'mana_session_last_membership_id';
+  static const _kLastAgentMembershipId = 'mana_session_last_agent_membership_id';
   static const _kLastAgentId = 'mana_session_last_agent_id';
   static const _kLastCustomerId = 'mana_session_last_customer_id';
   static const _kLastInvestorId = 'mana_session_last_investor_id';
@@ -361,6 +365,18 @@ class ManaSession {
   String? _personId;
   String? _lastBusinessId;
   String? _lastMembershipId;
+
+  /// The AGENT membership specifically, kept apart from [_lastMembershipId].
+  ///
+  /// One person can hold two memberships in the same business -- Owner and
+  /// Agent -- and on this book somebody does. With a single slot, resolving
+  /// the Owner role overwrote it, and every /ag- route then handed the
+  /// Owner's membership to an Agent screen: AG-010 asked for "my agent
+  /// ledger" and was given the Owner's, which is how the Agent's history came
+  /// to show the Owner's. The role-specific ids beside this one
+  /// (agentId/customerId/investorId) were already kept apart for exactly this
+  /// reason; the membership was the one that was not.
+  String? _lastAgentMembershipId;
   String? _lastAgentId;
   String? _lastCustomerId;
   String? _lastInvestorId;
@@ -390,6 +406,12 @@ class ManaSession {
   /// query needed for this one). Read synchronously by router.dart for
   /// routes that take a membership id directly (AG-003/004/005 etc.).
   String? get lastMembershipId => _lastMembershipId;
+
+  /// The Agent membership, for /ag- routes. Falls back to the generic slot
+  /// only for a person who has never resolved an Agent role -- in which case
+  /// they are not standing in an Agent workspace either.
+  String? get lastAgentMembershipId =>
+      _lastAgentMembershipId ?? _lastMembershipId;
 
   /// agents.agent_id / customers.customer_id / investors.investor_id for
   /// the same resolved membership — one lookup query each, done once in
@@ -444,6 +466,11 @@ class ManaSession {
     String? agentId,
     String? customerId,
     String? investorId,
+
+    /// The role this membership was resolved FOR. An Agent membership is
+    /// remembered in its own slot as well, because a person can hold two in
+    /// one business and the /ag- routes must never be handed the Owner's.
+    String? role,
   }) async {
     // Only overwrite what was actually resolved. This used to assign all
     // four unconditionally, so a role switch blanked the other three in
@@ -452,11 +479,16 @@ class ManaSession {
     // router.dart reads memory. A blanked agentId is what makes /ag-001
     // build with 'stub-agent-id' and query an agent that does not exist.
     if (membershipId != null) _lastMembershipId = membershipId;
+    if (membershipId != null && role == 'Agent') {
+      _lastAgentMembershipId = membershipId;
+    }
     if (agentId != null) _lastAgentId = agentId;
     if (customerId != null) _lastCustomerId = customerId;
     if (investorId != null) _lastInvestorId = investorId;
     await Future.wait([
       if (membershipId != null) _storage.write(key: _kLastMembershipId, value: membershipId),
+      if (membershipId != null && role == 'Agent')
+        _storage.write(key: _kLastAgentMembershipId, value: membershipId),
       if (agentId != null) _storage.write(key: _kLastAgentId, value: agentId),
       if (customerId != null) _storage.write(key: _kLastCustomerId, value: customerId),
       if (investorId != null) _storage.write(key: _kLastInvestorId, value: investorId),
@@ -468,6 +500,7 @@ class ManaSession {
     _personId = null;
     _lastBusinessId = null;
     _lastMembershipId = null;
+    _lastAgentMembershipId = null;
     _lastAgentId = null;
     _lastCustomerId = null;
     _lastInvestorId = null;
@@ -475,6 +508,7 @@ class ManaSession {
     await _storage.delete(key: _kPersonId);
     await _storage.delete(key: _kLastBusinessId);
     await _storage.delete(key: _kLastMembershipId);
+    await _storage.delete(key: _kLastAgentMembershipId);
     await _storage.delete(key: _kLastAgentId);
     await _storage.delete(key: _kLastCustomerId);
     await _storage.delete(key: _kLastInvestorId);
@@ -504,6 +538,7 @@ class ManaSession {
     _personId = await _storage.read(key: _kPersonId);
     _lastBusinessId = await _storage.read(key: _kLastBusinessId);
     _lastMembershipId = await _storage.read(key: _kLastMembershipId);
+    _lastAgentMembershipId = await _storage.read(key: _kLastAgentMembershipId);
     _lastAgentId = await _storage.read(key: _kLastAgentId);
     _lastCustomerId = await _storage.read(key: _kLastCustomerId);
     _lastInvestorId = await _storage.read(key: _kLastInvestorId);

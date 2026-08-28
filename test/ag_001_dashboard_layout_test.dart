@@ -242,5 +242,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(FloatingActionButton), findsNothing);
+
+    // It is in the header instead, where every other Agent screen carries it.
+    expect(find.byIcon(Icons.add), findsOneWidget);
   });
 }

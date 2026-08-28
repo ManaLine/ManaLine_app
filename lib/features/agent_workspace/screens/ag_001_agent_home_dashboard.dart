@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/auto_refresh.dart';
+import '../../../shared/widgets/quick_expense.dart';
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/tokens/colors.dart';
@@ -107,6 +108,21 @@ class _AgentHomeDashboardScreenState
         // Now the shared inbox, which also carries the invitations that used
         // to be scattered across six other screens.
         const ManaNotificationBell(),
+        // The same + every other Agent screen's header carries. This screen
+        // builds its own actions because its header is the coloured
+        // ManaHeaderBlock rather than a ManaAppBar, so the route-based
+        // installation does not reach it -- but the Agent must not be able to
+        // tell, and the dashboard is where a day starts.
+        //
+        // agentId, so it comes off the float in their hand rather than off
+        // the business.
+        ManaHeaderAction(
+          icon: Icons.add,
+          bold: true,
+          label: ref.t('add_expense'),
+          onPressed: () => showQuickExpense(context, ref,
+              businessId: widget.businessId, agentId: widget.agentId),
+        ),
         // Search, not Profile. Profile is a drawer row already -- it is in
         // manaGlobalDrawerSections below, shared with the other three
         // workspaces -- and having it here as well spent one of four header

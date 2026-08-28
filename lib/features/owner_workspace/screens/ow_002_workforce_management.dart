@@ -13,6 +13,7 @@ import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart' show manaRupees;
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/ledger_history_view.dart';
 import '../../../shared/translation_service.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
@@ -723,13 +724,38 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         if (agent.membershipId != null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: _openTopUpSheet,
-                icon: const Icon(Icons.add, size: 18),
-                label: ManaText.raw(ref.t('add_bf')),
-              ),
+            child: Wrap(
+              spacing: ManaSpacing.sm,
+              runSpacing: ManaSpacing.sm,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _openTopUpSheet,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: ManaText.raw(ref.t('add_bf')),
+                ),
+                // What the agent has actually been doing with it.
+                //
+                // The Owner could see the FIGURE an agent was holding and
+                // nothing behind it -- no way to ask "where did that
+                // Rs 5,08,930 come from" until the account was settled and
+                // the settlement listed totals. This opens the agent's own
+                // ledger, the same day-by-day view the agent sees, scoped to
+                // their membership: every collection, loan and expense with
+                // dates, running to today.
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ManaLedgerHistoryView(
+                        businessId: widget.businessId,
+                        membershipId: agent.membershipId!,
+                        homeRoute: '/ow-002',
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: ManaText.raw(ref.t('view_transactions')),
+                ),
+              ],
             ),
           ),
         _infoRow(ref.t('todays_collections_label'),

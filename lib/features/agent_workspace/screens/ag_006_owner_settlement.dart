@@ -13,7 +13,6 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/widgets/record_expense_sheet.dart';
 import '../state/agent_settlement_state.dart';
-import '../../../design/components/mana_info_hint.dart';
 
 final _dateFmt = DateFormat('dd-MM-yyyy');
 
@@ -232,6 +231,35 @@ class _ReturnedView extends ConsumerWidget {
   }
 }
 
+/// What the Agent is handing over.
+///
+/// Derived from what they hold, not from what they type. The Owner asked for
+/// one number and the fewest taps that can carry it: this, and Submit.
+class _AmountHeldCard extends ConsumerWidget {
+  final int amount;
+  const _AmountHeldCard({required this.amount});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Card(
+      color: ManaColors.brandFaint,
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ManaText.raw(ref.t('total_amount'), style: ManaType.strong),
+            const SizedBox(height: ManaSpacing.xs),
+            ManaAmount(amount, size: ManaAmountSize.hero),
+            const SizedBox(height: ManaSpacing.sm),
+            ManaText.raw(ref.t('total_amount_note'), style: ManaType.note),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SummaryCard extends ConsumerWidget {
   final SettlementPreview preview;
   final int physicalCashDeclared;
@@ -360,49 +388,22 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
           ],
         ),
         const SizedBox(height: ManaSpacing.md),
-        _SummaryCard(
-          preview: state.preview!,
-          physicalCashDeclared: state.physicalCashDeclared,
-          difference: state.difference,
-        ),
-        const SizedBox(height: ManaSpacing.lg),
-        ManaText.raw(ref.t('settlement_details'), style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: ManaSpacing.sm),
-        TextField(
-          controller: _cashController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: ref.t('physical_cash_field')),
-          onChanged: (v) => ref.read(agentSettlementProvider.notifier).setPhysicalCash(int.tryParse(v) ?? 0),
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        TextField(
-          controller: _chequeCountController,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: ref.t('cheque_count_field'),
-            suffixIcon: ManaInfoHint(ref
-                .t('cheque_count_helper')
-                .replaceAll('{amount}', manaRupees(state.preview!.chequeCollected))),
-          ),
-          onChanged: (v) => ref.read(agentSettlementProvider.notifier).setChequeCountTally(int.tryParse(v) ?? 0),
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        TextField(
-          controller: _remarksController,
-          maxLines: 3,
-          decoration: InputDecoration(
-            labelText: ref.t('supporting_remarks_field'),
-            hintText: ref.t('supporting_remarks_hint'),
-          ),
-          onChanged: (v) => ref.read(agentSettlementProvider.notifier).setRemarks(v),
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        const _DifferencePendingNote(),
+        // One figure, and it is the only one that matters here: everything
+        // this Agent is holding, in whatever form it arrived.
+        //
+        // What was here before: a breakdown card, a box asking the Agent to
+        // count their physical cash, a cheque tally, a remarks field, and a
+        // note explaining what would happen if the counted figure disagreed
+        // with the expected one. Five inputs and a reconciliation, for a
+        // number the app already knows -- and the Submit button stayed
+        // disabled until the arithmetic agreed, which is why "Submit
+        // settlement" so often did nothing at all.
+        _AmountHeldCard(amount: state.preview!.expectedClosingBalance ?? 0),
         const SizedBox(height: ManaSpacing.lg),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: state.canSubmit && !state.submitting ? () => _submit(context) : null,
+            onPressed: state.submitting ? null : () => _submit(context),
             child: state.submitting
                 ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
                 : ManaText.raw(ref.t('submit_settlement')),
@@ -429,25 +430,3 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
 /// difference is zero" off a figure the phone derived with a different
 /// formula from the server's. Telling an agent their cash balances is a
 /// claim only the server can make, and it makes it at submit.
-class _DifferencePendingNote extends ConsumerWidget {
-  const _DifferencePendingNote();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      color: ManaColors.statusWarnFaint,
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, color: ManaColors.statusWarn),
-            const SizedBox(width: ManaSpacing.sm),
-            Expanded(
-              child: ManaText.raw(ref.t('count_cash_declare_note')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

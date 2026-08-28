@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../shared/mana_time.dart';
 
 /// OW-013 Account Review — real Supabase wiring.
 ///
@@ -148,20 +147,24 @@ class AccountReviewApiService {
     );
   }
 
-  // PATCH — single status-changing call. Owner has full write access to
-  // account_settlements per rls_role_matrix.md ("O: full"), so this is a
-  // safe direct UPDATE, unlike the Agent-side submit.
+  /// Approving is where the cash moves from the Agent's float to the Owner's.
+  ///
+  /// The flag left here said this "does not itself move
+  /// agent_bf_assignments.agent_bf_current back into
+  /// businesses.owner_bf_balance", because the transfer was thought to belong
+  /// to the Agent's submit. It did happen there -- which meant a settlement
+  /// marked "Pending Owner Review" had already handed the money over, and
+  /// approving it approved something that was over.
+  ///
+  /// It moves here now, and only here. An RPC rather than an UPDATE for the
+  /// obvious reason: three tables change together (the settlement, the
+  /// agent's float, the Owner's balance) plus the period, and a status set
+  /// without the transfer is exactly the half-done state this flag was
+  /// describing.
   Future<void> approveSettlement({required String settlementId}) async {
-    await _db.from('account_settlements').update({
-      'status': 'Approved',
-      'reviewed_at': manaTimestamp(),
-    }).eq('settlement_id', settlementId);
-    // NOTE: does not itself move agent_bf_assignments.agent_bf_current back
-    // into businesses.owner_bf_balance — per Merged Addendum item 4 that
-    // transfer happens "at Agent settlement", which this session reads as
-    // the Agent's submit-time RPC (BLOCKED, see agent_settlement_state.dart),
-    // not the Owner's later Approve action. Flagged: if the real intended
-    // trigger point is Approve (not Submit), this needs to move there instead.
+    await _db.schema('app').rpc('approve_agent_settlement', params: {
+      'p_settlement_id': settlementId,
+    });
   }
 
   Future<void> returnSettlement({required String settlementId, required String reason}) async {

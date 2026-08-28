@@ -29,6 +29,10 @@ class InboxState {
   List<InboxAction> get invitations =>
       actions.where((a) => a.kind == InboxActionKind.invitation).toList();
 
+  /// Accounts an Agent has handed over and is waiting on.
+  List<InboxAction> get settlements =>
+      actions.where((a) => a.kind == InboxActionKind.settlement).toList();
+
   /// What the bell badges. Actionable items only — an unread informational
   /// notice is not something the person has to do, and badging both would
   /// train people to ignore the badge.
@@ -87,6 +91,15 @@ class InboxNotifier extends Notifier<InboxState> {
           await _svc.decideRequest(requestId: action.itemId, approve: yes);
         case InboxActionKind.invitation:
           await _svc.respondToInvitation(membershipId: action.itemId, accept: yes);
+        case InboxActionKind.settlement:
+          // Only approval happens here. Returning one needs a reason the
+          // Agent can act on, which belongs on Account Review, so the card
+          // for a settlement offers no "no".
+          if (!yes) {
+            throw StateError(
+                'Returning a settlement needs a reason — open Account Review.');
+          }
+          await _svc.approveSettlement(settlementId: action.itemId);
       }
       // Reload rather than removing locally: approving a membership request
       // can create a membership, which may itself change what is pending.

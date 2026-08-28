@@ -33,11 +33,20 @@ enum InboxActionKind {
   approval('approval'),
 
   /// A business added you and is waiting — accept or decline.
-  invitation('invitation');
+  invitation('invitation'),
+
+  /// An Agent has handed you their account and is waiting to be released.
+  /// Approving moves their float into your balance and closes the period,
+  /// so the Agent can start the next round; until then the money is still
+  /// in their name.
+  settlement('settlement');
 
   const InboxActionKind(this.wire);
   final String wire;
 
+  /// Throws on an unknown kind, deliberately: a row the app cannot act on is
+  /// a row somebody is waiting behind, and swallowing it would leave them
+  /// waiting silently. Adding a kind server-side means adding it here.
   static InboxActionKind fromWire(String v) => InboxActionKind.values.firstWhere(
         (k) => k.wire == v,
         orElse: () => throw ArgumentError('Unknown inbox action kind: $v'),
@@ -164,6 +173,23 @@ class InboxService {
     await _db.from('business_members').update({
       'membership_status': accept ? 'Active' : 'Removed',
     }).eq('membership_id', membershipId);
+    return true;
+  }
+
+  /// Releasing an Agent's account from the bell.
+  ///
+  /// The fewest taps the Owner asked for: the bell already names the Agent
+  /// and the amount, so approving there is one tap on the figure being
+  /// approved. An RPC, because it moves money between two balances and
+  /// closes the period -- see app.approve_agent_settlement.
+  ///
+  /// Returning a settlement is NOT offered here: it needs a reason the Agent
+  /// can act on, and a reason box does not belong in a notification list.
+  /// Account Review is where that happens.
+  Future<bool> approveSettlement({required String settlementId}) async {
+    await _db.schema('app').rpc('approve_agent_settlement', params: {
+      'p_settlement_id': settlementId,
+    });
     return true;
   }
 }

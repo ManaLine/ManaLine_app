@@ -217,10 +217,15 @@ class AgentSettlementApiService {
   /// app.submit_agent_settlement now performs that transfer atomically in
   /// the same transaction as the account_settlements insert — confirmed
   /// correct against both files' matching assumption, not guessed at.
+  /// Hands the account to the Owner. Moves no money -- see
+  /// app.submit_agent_settlement.
+  ///
+  /// No physical cash to declare: the app knows what the Agent is holding, so
+  /// there is nothing for them to count at the end of a round and nothing for
+  /// the two figures to disagree about.
   Future<SettlementSubmitResult> submitSettlement({
     required String agentId,
     required String cycleType,
-    required int physicalCashDeclared, // whole rupees (M8)
   }) async {
     final membershipId = await _resolveMembershipId(agentId);
 
@@ -244,14 +249,16 @@ class AgentSettlementApiService {
       'p_account_period_id': periodRow['account_period_id'],
       'p_agent_id': agentId,
       'p_cycle_type': cycleType,
-      'p_physical_cash_declared': physicalCashDeclared,
     });
 
     final map = result as Map<String, dynamic>;
+    final held = (map['amount_held'] as num).toInt();
     return SettlementSubmitResult(
       settlementId: map['settlement_id'] as String,
-      expectedClosingBalance: (map['expected_closing_balance'] as num).toInt(),
-      difference: (map['difference'] as num).toInt(),
+      // One figure now: what was handed over. Expected and declared were two
+      // names for it the moment the Agent stopped being asked to count.
+      expectedClosingBalance: held,
+      difference: 0,
       status: SettlementStatus.pendingOwnerReview,
     );
   }
@@ -562,7 +569,8 @@ class AgentSettlementNotifier extends Notifier<AgentSettlementState> {
   Future<SettlementSubmitResult?> submit({
     required String agentId,
   }) async {
-    if (!state.canSubmit) return null; // Difference ≠ 0 with empty remarks — Submit must stay disabled at the UI layer too
+    // No canSubmit gate any more: it existed to stop a submit whose declared
+    // cash disagreed with the expected figure, and nobody declares cash now.
     if (state.preview == null) {
       state = state.copyWith(error: 'No settlement preview loaded — cannot submit without one.');
       return null;
@@ -573,12 +581,10 @@ class AgentSettlementNotifier extends Notifier<AgentSettlementState> {
       final result = await api.submitSettlement(
         agentId: agentId,
         cycleType: state.cycleType,
-        physicalCashDeclared: state.physicalCashDeclared,
       );
-      // On submission: Opening BF/Expected Closing Balance always returns
-      // to businesses.owner_bf_balance in full, and agent_bf_current
-      // resets to ₹0 — both are backend-side effects of this same call,
-      // nothing further to send from this screen.
+      // Nothing has moved yet. The Agent has handed the account over and the
+      // Owner has been asked; the float stays in the Agent's name until the
+      // Owner approves, which is the only place it transfers.
       state = state.copyWith(submitting: false, stage: SettlementScreenStage.pendingReview);
       return result;
     } catch (e) {

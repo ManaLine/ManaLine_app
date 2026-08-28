@@ -97,6 +97,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           )));
     }
 
+    if (state.settlements.isNotEmpty) {
+      // First, above everything: an Agent who has handed their account over
+      // cannot start the next round until this is answered, and the money is
+      // still in their name while it waits.
+      rows.add(_SectionHeader(
+        label: ref.t('accounts_handed_to_you'),
+        count: state.settlements.length,
+      ));
+      rows.addAll(state.settlements.map((a) => _ActionCard(
+            action: a,
+            busy: state.busyItemId == a.itemId,
+            yesLabel: ref.t('approve'),
+            // No "no" on this card: returning a settlement needs a reason the
+            // Agent can act on, and that belongs on Account Review.
+            noLabel: null,
+          )));
+    }
+
     if (state.invitations.isNotEmpty) {
       rows.add(_SectionHeader(
         label: ref.t('invitations_to_you'),
@@ -167,7 +185,9 @@ class _ActionCard extends ConsumerWidget {
   final InboxAction action;
   final bool busy;
   final String yesLabel;
-  final String noLabel;
+  /// Null for a card with no "no" -- a settlement, whose refusal needs a
+  /// reason and therefore a screen.
+  final String? noLabel;
 
   const _ActionCard({
     required this.action,
@@ -180,15 +200,24 @@ class _ActionCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // An approval names the person asking; an invitation names the business
     // asking. Either way the headline is "who wants what".
-    final who = action.kind == InboxActionKind.approval
-        ? (action.personName ?? '')
-        : action.businessName;
-    final detail = action.kind == InboxActionKind.approval
-        ? ref
-            .t('wants_to_join_as_note')
-            .replaceAll('{business}', action.businessName)
-            .replaceAll('{role}', action.role)
-        : ref.t('invited_you_as_note').replaceAll('{role}', action.role);
+    final who = switch (action.kind) {
+      InboxActionKind.approval => action.personName ?? '',
+      InboxActionKind.settlement => action.personName ?? '',
+      InboxActionKind.invitation => action.businessName,
+    };
+    final detail = switch (action.kind) {
+      InboxActionKind.approval => ref
+          .t('wants_to_join_as_note')
+          .replaceAll('{business}', action.businessName)
+          .replaceAll('{role}', action.role),
+      // The figure is the whole point of the card: this is what approving
+      // moves out of the Agent's hands and into the Owner's.
+      InboxActionKind.settlement => ref
+          .t('handed_over_amount_note')
+          .replaceAll('{amount}', manaRupees((action.amount ?? 0).toInt())),
+      InboxActionKind.invitation =>
+        ref.t('invited_you_as_note').replaceAll('{role}', action.role),
+    };
 
     return Card(
       margin: const EdgeInsets.fromLTRB(
@@ -222,12 +251,13 @@ class _ActionCard extends ConsumerWidget {
               alignment: WrapAlignment.end,
               spacing: ManaSpacing.sm,
               children: [
-                TextButton(
-                  onPressed: busy
-                      ? null
-                      : () => ref.read(inboxProvider.notifier).decide(action, yes: false),
-                  child: ManaText.raw(noLabel),
-                ),
+                if (noLabel != null)
+                  TextButton(
+                    onPressed: busy
+                        ? null
+                        : () => ref.read(inboxProvider.notifier).decide(action, yes: false),
+                    child: ManaText.raw(noLabel!),
+                  ),
                 ElevatedButton(
                   onPressed: busy
                       ? null

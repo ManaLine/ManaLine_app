@@ -6,7 +6,7 @@ import '../design/components/mana_amount.dart';
 import '../design/components/mana_collection_search_field.dart';
 import '../design/components/mana_skeleton.dart';
 import '../design/components/mana_app_bar.dart';
-import '../design/components/mana_filter_row.dart';
+import '../design/components/mana_filter_rail.dart';
 import '../design/components/mana_text.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
@@ -124,25 +124,15 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
     final current =
         sorted.any((v) => v.village == selected) ? selected : null;
 
-    return ManaFilterDropdown<String?>(
+    return ManaFilterChip<String?>(
       label: ref.t('village'),
       value: current,
-      items: [
-        DropdownMenuItem<String?>(
-          value: null,
-          child: ManaText.raw('${ref.t('all_villages')} · $total',
-              maxLines: 1, overflow: TextOverflow.ellipsis, style: ManaType.small),
-        ),
+      active: current != null,
+      options: [
+        ManaFilterOption(null, '${ref.t('all_villages')} · $total'),
         for (final v in sorted)
-          DropdownMenuItem<String?>(
-            value: v.village,
-            child: ManaText.raw(
-              '${v.village.isEmpty ? "—" : v.village} · ${v.rows}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: ManaType.small,
-            ),
-          ),
+          ManaFilterOption(
+              v.village, '${v.village.isEmpty ? "—" : v.village} · ${v.rows}'),
       ],
       onChanged: (v) => setState(() {
         _villages.clear();
@@ -151,35 +141,56 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
     );
   }
 
-  Widget _frequencyDropdown() => ManaFilterDropdown<String?>(
+  /// Sort direction. Default descending, which is what a round wants: the
+  /// biggest amount due at the top.
+  bool _ascending = false;
+
+  /// Collection status, or null for every door.
+  String? _status;
+
+  Widget _orderChip() => ManaFilterChip<bool>(
+        label: ref.t('sort_order'),
+        value: _ascending,
+        active: _ascending,
+        options: [
+          ManaFilterOption(false, ref.t('highest_first')),
+          ManaFilterOption(true, ref.t('lowest_first')),
+        ],
+        onChanged: (v) => setState(() => _ascending = v),
+      );
+
+  Widget _statusChip() => ManaFilterChip<String?>(
+        label: ref.t('status'),
+        value: _status,
+        active: _status != null,
+        options: [
+          ManaFilterOption(null, ref.t('all')),
+          for (final s in const ['Pending', 'Collected', 'Partial', 'Skipped'])
+            ManaFilterOption(s, ref.t(s.toLowerCase())),
+        ],
+        onChanged: (v) => setState(() => _status = v),
+      );
+
+  Widget _frequencyChip() => ManaFilterChip<String?>(
         label: ref.t('frequency'),
         value: _frequency,
-        items: [
-          DropdownMenuItem<String?>(
-            value: null,
-            child: ManaText.raw(ref.t('all'), style: ManaType.small),
-          ),
+        active: _frequency != null,
+        options: [
+          ManaFilterOption(null, ref.t('all')),
           for (final f in const ['Daily', 'Weekly', 'Monthly'])
-            DropdownMenuItem<String?>(
-              value: f,
-              child: ManaText.raw(f, style: ManaType.small),
-            ),
+            ManaFilterOption(f, f),
         ],
         onChanged: (f) => setState(() => _frequency = f),
       );
 
-  Widget _sortDropdown() => ManaFilterDropdown<CollectionSort>(
+  Widget _sortChip() => ManaFilterChip<CollectionSort>(
         label: ref.t('sorted_by'),
         value: _sort,
-        items: [
-          for (final m in CollectionSort.values)
-            DropdownMenuItem(
-              value: m,
-              child: ManaText.raw(m.label,
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: ManaType.small),
-            ),
+        active: _sort != CollectionSort.dueToday,
+        options: [
+          for (final m in CollectionSort.values) ManaFilterOption(m, m.label),
         ],
-        onChanged: (m) => setState(() => _sort = m ?? CollectionSort.dueToday),
+        onChanged: (m) => setState(() => _sort = m),
       );
 
   @override
@@ -203,12 +214,16 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
     }
 
     final visible = manaSortDueRows(
-      manaFilterDueRows(
-        manaFilterByVillages(state.sorted, _villages),
-        _query,
-        frequency: _frequency,
+      manaFilterByStatus(
+        manaFilterDueRows(
+          manaFilterByVillages(state.sorted, _villages),
+          _query,
+          frequency: _frequency,
+        ),
+        _status,
       ),
       _sort,
+      ascending: _ascending,
     );
 
     return Scaffold(
@@ -219,23 +234,16 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
         // thing the conditional leading used to say.
         onBack: widget.onBack,
         title: ref.t('collection_mode'),
-        actions: [
-          IconButton(
-            icon: Icon(_searchOpen ? Icons.search_off : Icons.search),
-            tooltip: ref.t('search'),
-            onPressed: () => setState(() {
-              _searchOpen = !_searchOpen;
-              // Closing the search restores the full round. Leaving a filter
-              // applied behind a collapsed box is how a round is finished in
-              // the belief that everyone was visited.
-              if (!_searchOpen) _query = '';
-            }),
-          ),
-        ],
+        // No search action up here. The header carries Universal Search on
+        // every Owner and Agent screen now, and this screen's own search
+        // narrows THIS round -- two different questions that were about to
+        // share a magnifier, side by side, in the same bar. The round's own
+        // search moved down into the filter rail, where the rest of the
+        // narrowing controls are.
         // The filters live in the header, above the round rather than inside
         // it, so scrolling the list never scrolls the controls away.
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(_searchOpen ? 116 : 60),
+          preferredSize: Size.fromHeight(_searchOpen ? 132 : 68),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
                 ManaSpacing.md, 0, ManaSpacing.md, ManaSpacing.xs),
@@ -246,13 +254,30 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                   ManaCollectionSearchField(
                     onChanged: (v) => setState(() => _query = v),
                   ),
-                // Village, order, frequency -- the same row Customer
-                // Management uses, so the two screens filter the same book
-                // through the same control.
-                ManaFilterRow(
-                  village: _villageDropdown(state.sorted),
-                  sort: _sortDropdown(),
-                  third: _frequencyDropdown(),
+                // Order, village, sort, status, frequency -- the same rail
+                // Customer Management uses, so the two screens filter the same
+                // book through the same control. It scrolls sideways rather
+                // than wrapping: five filters in a grid is three rows of
+                // controls above a list that is the point of the screen.
+                ManaFilterRail(
+                  leading: IconButton(
+                    icon: Icon(_searchOpen ? Icons.search_off : Icons.person_search),
+                    tooltip: ref.t('search_this_round'),
+                    onPressed: () => setState(() {
+                      _searchOpen = !_searchOpen;
+                      // Closing the search restores the full round. Leaving a
+                      // filter applied behind a collapsed box is how a round
+                      // is finished in the belief that everyone was visited.
+                      if (!_searchOpen) _query = '';
+                    }),
+                  ),
+                  filters: [
+                    _orderChip(),
+                    _villageDropdown(state.sorted),
+                    _sortChip(),
+                    _statusChip(),
+                    _frequencyChip(),
+                  ],
                 ),
               ],
             ),

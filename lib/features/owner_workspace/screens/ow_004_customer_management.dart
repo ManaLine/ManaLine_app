@@ -10,7 +10,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_app_bar.dart';
-import '../../../design/components/mana_filter_row.dart';
+import '../../../design/components/mana_filter_rail.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_skeleton.dart';
@@ -23,7 +23,6 @@ import '../../../shared/document_viewer.dart';
 import '../../../shared/customer_row.dart';
 import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
-import 'ow_001_owner_home_dashboard.dart' show UniversalSearchScreen;
 import '../state/customer_state.dart';
 import '../../../design/components/mana_info_hint.dart';
 import '../../../design/components/mana_call_button.dart';
@@ -130,24 +129,12 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         // The three add-paths moved out of here and into the roster's single
         // Add FAB — see _addActions.
         title: ref.t('customer_management'),
-        actions: [
-          // Search is an ICON, not a box holding a third of the header.
-          //
-          // It opens the same global search the rest of the app uses, which
-          // finds a person across every workspace rather than filtering this
-          // one list -- an Owner looking for somebody usually does not know
-          // which screen they are on.
-          IconButton(
-            tooltip: ref.t('search'),
-            icon: const Icon(Icons.search),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    UniversalSearchScreen(businessId: widget.businessId),
-              ),
-            ),
-          ),
-        ],
+        // No search action here any more, and no notifications either: the
+        // header carries the same three on every Owner screen now, installed
+        // once. This screen's own search opened Universal Search -- the same
+        // destination -- so keeping it would have drawn the magnifier twice
+        // side by side.
+
         // Village, order and status live in the header now.
         //
         // They were the first four things in the body, so on a real handset a
@@ -167,10 +154,16 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                 // order, and which of them. The two screens filter the same
                 // book and had drifted into different shapes -- and the sort
                 // was a line of grey text nobody could change.
-                ManaFilterRow(
-                  village: _VillageFilterDropdown(state: state),
-                  sort: _SortDropdown(state: state),
-                  third: _StatusFilterDropdown(state: state),
+                // Order, village, sort by, status -- the same rail the round
+                // uses, so the two screens filter the same book through the
+                // same control.
+                ManaFilterRail(
+                  filters: [
+                    _OrderChip(state: state),
+                    _VillageFilterDropdown(state: state),
+                    _SortDropdown(state: state),
+                    _StatusFilterDropdown(state: state),
+                  ],
                 ),
               ],
             ),
@@ -244,30 +237,47 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
 /// outstanding -> today's due -> name" -- describing an order nobody could
 /// change. Village stays the default, because a round is walked one village
 /// at a time; the rest answer questions asked at a desk.
+/// Which way the chosen order runs.
+///
+/// New control. The list has always sorted one way per mode, so an Owner
+/// wanting the smallest balances -- the ones close to closing -- had to read
+/// to the bottom of the roster.
+class _OrderChip extends ConsumerWidget {
+  final CustomerListState state;
+  const _OrderChip({required this.state});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ManaFilterChip<bool>(
+      label: ref.t('sort_order'),
+      value: state.ascending,
+      active: !state.ascending,
+      options: [
+        ManaFilterOption(true, ref.t('lowest_first')),
+        ManaFilterOption(false, ref.t('highest_first')),
+      ],
+      onChanged: (v) => ref.read(customerListProvider.notifier).setAscending(v),
+    );
+  }
+}
+
 class _SortDropdown extends ConsumerWidget {
   final CustomerListState state;
   const _SortDropdown({required this.state});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ManaFilterDropdown<CustomerSort>(
+    return ManaFilterChip<CustomerSort>(
       label: ref.t('sorted_by'),
       value: state.sort,
-      items: [
-        DropdownMenuItem(
-            value: CustomerSort.village, child: ManaText.raw(ref.t('village'))),
-        DropdownMenuItem(
-            value: CustomerSort.outstanding,
-            child: ManaText.raw(ref.t('outstanding'))),
-        DropdownMenuItem(
-            value: CustomerSort.todaysDue,
-            child: ManaText.raw(ref.t('todays_due'))),
-        DropdownMenuItem(
-            value: CustomerSort.name, child: ManaText.raw(ref.t('name_field'))),
+      active: state.sort != CustomerSort.village,
+      options: [
+        ManaFilterOption(CustomerSort.village, ref.t('village')),
+        ManaFilterOption(CustomerSort.outstanding, ref.t('outstanding')),
+        ManaFilterOption(CustomerSort.todaysDue, ref.t('todays_due')),
+        ManaFilterOption(CustomerSort.name, ref.t('name_field')),
       ],
-      onChanged: (v) => ref
-          .read(customerListProvider.notifier)
-          .setSort(v ?? CustomerSort.village),
+      onChanged: (v) => ref.read(customerListProvider.notifier).setSort(v),
     );
   }
 }
@@ -284,19 +294,14 @@ class _StatusFilterDropdown extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return DropdownButtonFormField<String?>(
-      initialValue: state.customerStatusFilter,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: ref.t('status'), isDense: true),
-      items: [
-        DropdownMenuItem(
-            value: null,
-            child: ManaText.raw(ref.t('all'),
-                maxLines: 1, overflow: TextOverflow.ellipsis)),
+    return ManaFilterChip<String?>(
+      label: ref.t('status'),
+      value: state.customerStatusFilter,
+      active: state.customerStatusFilter != null,
+      options: [
+        ManaFilterOption(null, ref.t('all')),
         for (final v in const ['Active', 'Suspended'])
-          DropdownMenuItem(
-              value: v,
-              child: ManaText.raw(v, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ManaFilterOption(v, ref.t(v.toLowerCase())),
       ],
       onChanged: (v) =>
           ref.read(customerListProvider.notifier).setCustomerStatusFilter(v),
@@ -323,24 +328,18 @@ class _VillageFilterDropdown extends ConsumerWidget {
     }
     final villages = counts.keys.toList()..sort();
     if (villages.isEmpty) return const SizedBox.shrink();
-    return DropdownButtonFormField<String?>(
-      initialValue: state.villageFilter,
-      // isExpanded: without it, the button sizes itself to the selected
-      // item's intrinsic width — a long village name (or a wide Telugu
-      // translation of "All Villages") then overflows the Row DropdownButton
-      // lays its selected-value + arrow out in, since that Row has nothing
-      // to constrain it to the field's actual width.
-      isExpanded: true,
-      decoration: InputDecoration(labelText: ref.t('village'), isDense: true),
-      items: [
-        DropdownMenuItem(
-            value: null,
-            child: ManaText.raw('${ref.t('all_villages')} · ${state.customers.length}',
-                maxLines: 1, overflow: TextOverflow.ellipsis)),
-        ...villages.map((v) => DropdownMenuItem(
-            value: v,
-            child: ManaText.raw('$v · ${counts[v]}',
-                maxLines: 1, overflow: TextOverflow.ellipsis))),
+    // A chip rather than a dropdown in a fixed slot. The old control had to
+    // ellipsize its own value to fit a quarter of the header -- and village is
+    // the one filter whose value is a name that varies in length, so
+    // "Srikalahasti — Uranduru Colony" was the thing being cut.
+    return ManaFilterChip<String?>(
+      label: ref.t('village'),
+      value: state.villageFilter,
+      active: state.villageFilter != null,
+      options: [
+        ManaFilterOption(
+            null, '${ref.t('all_villages')} · ${state.customers.length}'),
+        for (final v in villages) ManaFilterOption(v, '$v · ${counts[v]}'),
       ],
       onChanged: (v) => ref.read(customerListProvider.notifier).setVillageFilter(v),
     );

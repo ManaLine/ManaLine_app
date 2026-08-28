@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mana_line/design/components/mana_filter_row.dart';
+import 'package:mana_line/design/components/mana_filter_rail.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_004_customer_management.dart';
 import 'package:mana_line/features/owner_workspace/state/customer_state.dart';
@@ -81,6 +81,7 @@ void main() {
       await pumpManaScreen(
         tester,
         const CustomerManagementScreen(businessId: 'b1'),
+        location: '/ow-004',
         textScale: scale,
         overrides: [customerListProvider.overrideWith(() => _SeededCustomerListNotifier(seed))],
       );
@@ -91,6 +92,7 @@ void main() {
       await pumpManaScreen(
         tester,
         const CustomerManagementScreen(businessId: 'b1'),
+        location: '/ow-004',
         textScale: scale,
         language: ManaLanguage.telugu,
         translations: _ow004TeluguTranslations,
@@ -133,7 +135,7 @@ void main() {
     expect(find.textContaining("Today's Due"), findsNothing,
         reason: "today's due belongs to the round, not to this list");
   });
-  testWidgets('one filter row: village, order, status', (tester) async {
+  testWidgets('one filter rail: order, village, sort by, status', (tester) async {
     // The round and this list are the same book asked different questions,
     // and they had drifted into different shapes -- this one kept its sort as
     // a line of grey text nobody could change.
@@ -144,7 +146,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(ManaFilterRow), findsOneWidget);
+    expect(find.byType(ManaFilterRail), findsOneWidget);
+    // The four the Owner asked for, by name. They scroll rather than wrap:
+    // four labelled dropdowns across 360dp is 84dp each before a single
+    // Telugu label is measured.
+    expect(find.byType(ManaFilterChip<bool>), findsOneWidget,
+        reason: 'sort order');
+    expect(find.byType(ManaFilterChip<String?>), findsNWidgets(2),
+        reason: 'village and status');
+    expect(find.byType(ManaFilterChip<CustomerSort>), findsOneWidget,
+        reason: 'sort by');
     expect(find.textContaining('Sorted by:'), findsNothing,
         reason: 'the fixed sort note is replaced by a control');
   });
@@ -153,12 +164,19 @@ void main() {
     await pumpManaScreen(
       tester,
       const CustomerManagementScreen(businessId: 'b1'),
+      // At its own route, because the header's three actions are installed by
+      // route prefix. Pumped at '/' this screen renders a bar the app never
+      // draws.
+      location: '/ow-004',
       overrides: [customerListProvider.overrideWith(() => _SeededCustomerListNotifier(seed))],
     );
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.search), findsWidgets,
-        reason: 'search moved to the header');
+    // Exactly one. This screen used to carry its own search action opening
+    // Universal Search -- the same destination the header's now opens -- so
+    // it drew the magnifier twice side by side.
+    expect(find.byIcon(Icons.search), findsOneWidget,
+        reason: "search is the header's, and only the header's");
     // The header search FIELD is gone; the only TextFields left belong to
     // sheets that are not open.
     expect(

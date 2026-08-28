@@ -20,6 +20,25 @@ import 'mana_text.dart';
 /// slot for the handful of screens with tabs or a filter row. Anything a
 /// screen wants beyond that belongs in its body, not in the chrome.
 class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
+  /// The standard trailing actions -- notifications, add expense, search --
+  /// which every Owner and Agent screen carries and no screen assembles.
+  ///
+  /// A FUNCTION POINTER, set once by the app layer at startup, because those
+  /// three actions read app state (the inbox count, the current session's
+  /// business) and this is the design layer. A component library that knows
+  /// about membership requests is no longer a component library -- the same
+  /// reason ManaNotificationBell lives in shared/ rather than here.
+  ///
+  /// It is given the route it is drawing on, and answers with nothing for the
+  /// routes that have no workspace behind them: login and registration, and
+  /// the customer and investor workspaces, where there is no business to
+  /// record an expense against.
+  ///
+  /// Null until set, so a bar drawn in a test or the design showcase is
+  /// simply a bar.
+  static List<Widget> Function(BuildContext context, String location)?
+      trailingActionsBuilder;
+
   /// Already translated. This takes a String rather than a key so a screen can
   /// title itself with a customer's name as easily as with a label.
   ///
@@ -65,6 +84,12 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// businessId to render anything.
   final Object? homeExtra;
 
+  /// Extra, screen-specific actions.
+  ///
+  /// On an Owner or Agent screen these come BEFORE the standard three
+  /// (notifications, add expense, search), which the screen does not assemble
+  /// -- see [manaWorkspaceActions]. A header that each screen fills in for
+  /// itself is how this app ended up with 79 different bars.
   final List<Widget> actions;
 
   /// Tabs, a search field, a filter row. Supply [bottomHeight] with it.
@@ -86,6 +111,21 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => Size.fromHeight(
       kToolbarHeight + (bottom?.preferredSize.height ?? 0));
+
+  /// The standard three, for the route this bar is drawing on.
+  ///
+  /// Guarded: a bar rendered outside a GoRoute -- the design showcase, a
+  /// widget test that pumps a screen bare -- has no location to ask about,
+  /// and chrome must never be the thing that takes a screen down.
+  List<Widget> _trailing(BuildContext context) {
+    final builder = trailingActionsBuilder;
+    if (builder == null) return const [];
+    try {
+      return builder(context, GoRouterState.of(context).uri.path);
+    } catch (_) {
+      return const [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +153,7 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
                 }
               },
             ),
-      actions: actions,
+      actions: [...actions, ..._trailing(context)],
       bottom: bottom,
     );
   }

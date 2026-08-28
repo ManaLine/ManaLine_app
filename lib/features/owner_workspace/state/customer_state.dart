@@ -671,12 +671,23 @@ enum CustomerSort { village, outstanding, todaysDue, name }
 /// itself between rebuilds, and a customer who moves while being tapped is a
 /// customer somebody opens by mistake.
 List<CustomerSummary> manaSortCustomers(
-    List<CustomerSummary> list, CustomerSort sort) {
-  if (sort == CustomerSort.village) return _applyLockedSort(list);
+    List<CustomerSummary> list, CustomerSort sort,
+    {bool ascending = true}) {
+  if (sort == CustomerSort.village) {
+    final locked = _applyLockedSort(list);
+    return ascending ? locked : locked.reversed.toList();
+  }
   final sorted = [...list];
   int byName(CustomerSummary a, CustomerSummary b) =>
       a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase());
-  sorted.sort((a, b) => switch (sort) {
+  // The named orders are all "biggest first" as written, so ascending flips
+  // them. Name is the exception in feel but not in code: A-Z is what its
+  // comparator gives, and reversing it gives Z-A, which is what somebody
+  // asking for the other direction means.
+  final sign = sort == CustomerSort.name
+      ? (ascending ? 1 : -1)
+      : (ascending ? -1 : 1);
+  sorted.sort((a, b) => sign * switch (sort) {
         CustomerSort.outstanding =>
           b.outstandingBalance.compareTo(a.outstandingBalance) != 0
               ? b.outstandingBalance.compareTo(a.outstandingBalance)
@@ -716,10 +727,17 @@ class CustomerListState {
   /// Defaults to village, which is the order the screen had before it was
   /// selectable at all.
   final CustomerSort sort;
+
+  /// Which way the chosen order runs. Ascending by default, which is what
+  /// village and name want; an Owner looking for the biggest balances flips
+  /// it, and until now could not.
+  final bool ascending;
+
   final String? error;
 
   const CustomerListState({
     this.sort = CustomerSort.village,
+    this.ascending = true,
     this.customers = const [],
     this.loading = false,
     this.villageFilter,
@@ -743,11 +761,12 @@ class CustomerListState {
               c.phoneNumber.contains(q))
           .toList();
     }
-    return manaSortCustomers(list, sort);
+    return manaSortCustomers(list, sort, ascending: ascending);
   }
 
   CustomerListState copyWith({
     CustomerSort? sort,
+    bool? ascending,
     List<CustomerSummary>? customers,
     bool? loading,
     String? villageFilter,
@@ -789,6 +808,7 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
   void setSearchQuery(String q) => state = state.copyWith(searchQuery: q);
 
   void setSort(CustomerSort s) => state = state.copyWith(sort: s);
+  void setAscending(bool a) => state = state.copyWith(ascending: a);
   void setVillageFilter(String? v) =>
       state = v == null ? state.copyWith(clearVillageFilter: true) : state.copyWith(villageFilter: v);
   void setCustomerStatusFilter(String? s) => state =

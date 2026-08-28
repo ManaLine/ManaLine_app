@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'shared/widgets/workspace_actions.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -76,6 +77,10 @@ Future<void> main() async {
   // restores a persisted session token/person_id from flutter_secure_storage
   // before the router's first health-check redirect decision fires.
   await ManaSession.instance.hydrateFromSecureStorage();
+
+  // The three actions every Owner and Agent header carries. Installed once
+  // rather than assembled at 45 call sites -- see manaInstallWorkspaceActions.
+  manaInstallWorkspaceActions();
 
   runApp(const ProviderScope(child: ManaLineApp()));
 }

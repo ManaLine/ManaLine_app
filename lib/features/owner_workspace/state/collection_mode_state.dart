@@ -637,11 +637,29 @@ bool manaRowSettled(CollectionDueRow r) =>
     r.collectionStatus == 'Partial' ||
     r.collectionStatus == 'Skipped';
 
+/// Narrows the round to one collection status -- Pending, Collected, Partial,
+/// Skipped. Null is all of them.
+///
+/// The round shows every door including the answered ones, on purpose: an
+/// Agent checking whether they visited somebody has to be able to find them.
+/// That is also why the filter exists -- at the end of a long round, "show me
+/// the ones I have not done" is the question being asked.
+List<CollectionDueRow> manaFilterByStatus(
+    List<CollectionDueRow> list, String? status) {
+  if (status == null) return list;
+  return [for (final r in list) if (r.collectionStatus == status) r];
+}
+
 List<CollectionDueRow> manaSortDueRows(
-    List<CollectionDueRow> list, CollectionSort mode) {
+    List<CollectionDueRow> list, CollectionSort mode,
+    {bool ascending = false}) {
   final sorted = [...list];
   int byName(CollectionDueRow a, CollectionDueRow b) =>
       a.customerName.toLowerCase().compareTo(b.customerName.toLowerCase());
+  // Direction applies to the chosen order and NOT to the settled rule below:
+  // reversing the sort must not float this morning's finished doors back to
+  // the top of the afternoon's work.
+  final sign = ascending ? -1 : 1;
   sorted.sort((a, b) {
     // Finished doors sink, whatever the chosen sort says.
     //
@@ -653,7 +671,7 @@ List<CollectionDueRow> manaSortDueRows(
     if (manaRowSettled(a) != manaRowSettled(b)) {
       return manaRowSettled(a) ? 1 : -1;
     }
-    return switch (mode) {
+    return sign * switch (mode) {
         CollectionSort.dueToday => b.installmentDue.compareTo(a.installmentDue) != 0
             ? b.installmentDue.compareTo(a.installmentDue)
             : byName(a, b),

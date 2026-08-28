@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/agent_workspace/screens/ag_001_agent_home_dashboard.dart';
 import 'package:mana_line/features/agent_workspace/state/agent_dashboard_state.dart';
@@ -36,7 +37,17 @@ AgentDashboardData _seedData() => AgentDashboardData(
       skippedCustomers: 2,
       shortAmount: 500,
       excessAmount: 0,
-      visibleQuickActions: const {'Collection Mode', 'Notifications', 'Universal Search'},
+      // Collection Mode and Universal Search are still PERMITTED here and
+      // still not drawn: the quick actions offer three, and those two go
+      // where the footer's Collections tab and the header's magnifier
+      // already go.
+      visibleQuickActions: const {
+        'Collection Mode',
+        'Universal Search',
+        'Loan Distribution',
+        'Draft Transactions',
+        'Settlement',
+      },
       liveActivity: const [],
       businessName: 'Sri Venkateswara Rural Finance and Chit Fund Society',
       ownerName: 'Karri Siri Manikanta Reddy',
@@ -156,12 +167,80 @@ void main() {
     });
   }
 
-  testWidgets('AG-001 shows the assigned route', (tester) async {
+  testWidgets('AG-001 shows the assigned route, once Business Status is opened',
+      (tester) async {
     await pumpManaScreen(
       tester,
       const AgentHomeDashboardScreen(businessId: 'b1', agentId: 'a1'),
+      location: '/ag-001',
       overrides: [agentDashboardProvider.overrideWith(() => _SeededAgentDashboardNotifier(seed))],
     );
+    await tester.pumpAndSettle();
+
+    // Shut on arrival, and that is the point: five sections open at once was
+    // four screens of scrolling before the last one was reached.
+    expect(find.textContaining('Srikalahasti'), findsNothing);
+
+    final header = find.text('Business Status');
+    await tester.scrollUntilVisible(header, 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    await tester.tap(header);
+    await tester.pumpAndSettle();
     expect(find.textContaining('Srikalahasti'), findsWidgets);
+  });
+
+  testWidgets('the day starts with cash in hand, then three actions',
+      (tester) async {
+    await pumpManaScreen(
+      tester,
+      const AgentHomeDashboardScreen(businessId: 'b1', agentId: 'a1'),
+      location: '/ag-001',
+      overrides: [agentDashboardProvider.overrideWith(() => _SeededAgentDashboardNotifier(seed))],
+    );
+    await tester.pumpAndSettle();
+
+    // BF was not on this screen at all -- it lived on AG-007, two taps away,
+    // reading the column the Agent set out with rather than the one they hold.
+    expect(find.text('Cash in Hand (BF)'), findsOneWidget);
+
+    // Three, not seven. Collection Mode, Customer List, Notifications and
+    // Universal Search all went where the footer, the bell and the header
+    // magnifier already go.
+    expect(find.text('Loan Distribution'), findsOneWidget);
+    expect(find.text('Draft Transactions'), findsOneWidget);
+    expect(find.text('Settlement'), findsOneWidget);
+    expect(find.text('Customer List'), findsNothing);
+    expect(find.text('Collection Mode'), findsNothing);
+  });
+
+  testWidgets("Today's Summary is the one section open on arrival",
+      (tester) async {
+    await pumpManaScreen(
+      tester,
+      const AgentHomeDashboardScreen(businessId: 'b1', agentId: 'a1'),
+      location: '/ag-001',
+      overrides: [agentDashboardProvider.overrideWith(() => _SeededAgentDashboardNotifier(seed))],
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Customers Assigned'), findsOneWidget,
+        reason: "the day's own figures are what this screen is for");
+  });
+
+  testWidgets('no + Expense button floating over the dashboard',
+      (tester) async {
+    // It sat over the bottom-right of the one screen an Agent is NOT on when
+    // they buy petrol between two villages. The action is in the header of
+    // every other Agent screen now.
+    await pumpManaScreen(
+      tester,
+      const AgentHomeDashboardScreen(businessId: 'b1', agentId: 'a1'),
+      location: '/ag-001',
+      overrides: [agentDashboardProvider.overrideWith(() => _SeededAgentDashboardNotifier(seed))],
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FloatingActionButton), findsNothing);
   });
 }

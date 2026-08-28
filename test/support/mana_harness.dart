@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mana_line/design/components/mana_app_bar.dart';
+import 'package:mana_line/shared/widgets/workspace_actions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -164,6 +166,15 @@ Future<ProviderContainer> pumpManaScreen(
   /// settles, and pumpAndSettle would time out rather than report a layout
   /// fault.
   int settleFrames = 3,
+
+  /// The route this screen is pumped at.
+  ///
+  /// It matters: the header's standard actions (notifications, add expense,
+  /// search) are installed by route prefix, so a screen pumped at '/' renders
+  /// a bar the app never draws. Owner and Agent screens should pass their own
+  /// screen ID -- that is the routing contract, and it is what decides what
+  /// the header offers.
+  String location = '/',
 }) async {
   seedSecureStorage(storage);
 
@@ -187,9 +198,17 @@ Future<ProviderContainer> pumpManaScreen(
   );
   addTearDown(container.dispose);
 
+  // The same installation main() performs, so a layout test measures the
+  // header the app actually draws rather than a shorter one.
+  manaInstallWorkspaceActions();
+  addTearDown(() => ManaAppBar.trailingActionsBuilder = null);
+
   final router = GoRouter(
-    initialLocation: '/',
-    routes: [GoRoute(path: '/', builder: (_, __) => screen)],
+    initialLocation: location,
+    routes: [
+      GoRoute(path: '/', builder: (_, __) => screen),
+      if (location != '/') GoRoute(path: location, builder: (_, __) => screen),
+    ],
     // Screens navigate away on unmet preconditions (LR-009 -> /lr-001). Those
     // destinations are not under test, but an unmatched route would throw and
     // masquerade as a layout failure.

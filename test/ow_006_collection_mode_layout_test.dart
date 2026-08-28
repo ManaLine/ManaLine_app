@@ -92,6 +92,7 @@ void main() {
       await pumpManaScreen(
         tester,
         const CollectionModeScreen(businessId: 'b1'),
+        location: '/ow-006',
         textScale: scale,
         overrides: [collectionModeProvider.overrideWith(() => _SeededCollectionModeNotifier(seed))],
       );
@@ -102,6 +103,7 @@ void main() {
       await pumpManaScreen(
         tester,
         const CollectionModeScreen(businessId: 'b1'),
+        location: '/ow-006',
         textScale: scale,
         language: ManaLanguage.telugu,
         translations: _ow006TeluguTranslations,
@@ -152,6 +154,7 @@ void main() {
       await pumpManaScreen(
         tester,
         const CollectionModeScreen(businessId: 'b1'),
+        location: '/ow-006',
         textScale: scale,
         language: ManaLanguage.telugu,
         translations: _ow006TeluguTranslations,
@@ -174,7 +177,10 @@ void main() {
       ],
     );
 
-    await tester.tap(find.byIcon(Icons.search));
+    // person_search, not search. The round's own name filter and the header's
+    // Universal Search are two different questions, so they no longer share a
+    // glyph -- they were about to sit side by side in the same bar.
+    await tester.tap(find.byIcon(Icons.person_search));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'Puttur');
@@ -199,7 +205,10 @@ void main() {
       ],
     );
 
-    await tester.tap(find.byIcon(Icons.search));
+    // person_search, not search. The round's own name filter and the header's
+    // Universal Search are two different questions, so they no longer share a
+    // glyph -- they were about to sit side by side in the same bar.
+    await tester.tap(find.byIcon(Icons.person_search));
     await tester.pump();
     await tester.enterText(find.byType(TextField), 'nobody-by-this-name');
     await tester.pump();
@@ -218,6 +227,7 @@ void main() {
       await pumpManaScreen(
         tester,
         const CollectionModeScreen(businessId: 'b1'),
+        location: '/ow-006',
         textScale: scale,
         language: ManaLanguage.telugu,
         translations: _ow006TeluguTranslations,

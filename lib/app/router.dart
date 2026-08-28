@@ -278,6 +278,14 @@ final manaRouter = GoRouter(
         prefilledLoanId: s.uri.queryParameters['loan'],
       ),
     ),
+    // Universal Search has a route because every Owner screen's header opens
+    // it. It was reachable only from OW-001, pushed as a MaterialPageRoute --
+    // which would put it above the router's pages on every screen that now
+    // offers it, the same shape that broke the Agent's back button.
+    GoRoute(
+      path: '/ow-search',
+      builder: (c, s) => UniversalSearchScreen(businessId: _resolveBusinessId(s)),
+    ),
     GoRoute(
       path: '/ow-007',
       builder: (c, s) => LoanDetailsScreen(loanId: (s.extra as String?) ?? ''),

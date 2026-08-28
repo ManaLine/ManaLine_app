@@ -167,18 +167,13 @@ class _OwnerHomeDashboardScreenState
     // dashboard's own notification list with two pending counters.
 
     return ManaAppShell(
-      // Recording an expense, from where the person is standing.
+      // No + Expense floating button.
       //
-      // The sheet already existed and already did the right thing for both
-      // roles -- it was reachable only from Day Closure and Settlement, both
-      // end-of-day screens, for something that happens mid-round when petrol
-      // is paid for.
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showQuickExpense(context, ref, businessId: widget.businessId),
-        icon: const Icon(Icons.add),
-        label: ManaText.raw(ref.t('expense'),
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-      ),
+      // It sat over the bottom-right of the dashboard -- the one screen an
+      // Agent is NOT on when they buy petrol between two villages. The same
+      // action is in the header of every Owner and Agent screen now, so it is
+      // available where the money is actually spent, and the dashboard gets
+      // its corner back.
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: async.valueOrNull?.businessName,
       subtitle: '${manaWeekday()}, ${manaDisplayDate()}',
@@ -206,6 +201,18 @@ class _OwnerHomeDashboardScreenState
         // which reads both directions live via app.my_inbox_actions and works
         // the same in every workspace.
         const ManaNotificationBell(),
+        // The same + that every other Owner screen's header carries. This
+        // screen builds its own actions because its header is the coloured
+        // ManaHeaderBlock rather than a ManaAppBar, so the route-based
+        // installation does not reach it -- but the person using it must not
+        // be able to tell.
+        ManaHeaderAction(
+          icon: Icons.add,
+          bold: true,
+          label: ref.t('add_expense'),
+          onPressed: () =>
+              showQuickExpense(context, ref, businessId: widget.businessId),
+        ),
         ManaHeaderAction(
           icon: Icons.search,
           label: 'Universal Search',

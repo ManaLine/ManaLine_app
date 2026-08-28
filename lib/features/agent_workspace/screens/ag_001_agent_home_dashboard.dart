@@ -5,8 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../shared/auto_refresh.dart';
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/translation_service.dart';
-import '../../../shared/widgets/quick_expense.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_collapsible_section.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -23,7 +23,6 @@ import 'ag_005_draft_transactions.dart';
 import 'ag_006_owner_settlement.dart';
 import 'ag_007_loan_distribution.dart';
 import 'ag_008_notifications.dart';
-import 'ag_009_profile.dart';
 
 final _time = DateFormat('h:mm a');
 final _date = DateFormat('d MMM yyyy');
@@ -100,15 +99,7 @@ class _AgentHomeDashboardScreenState
       // roles -- it was reachable only from Day Closure and Settlement, both
       // end-of-day screens, for something that happens mid-round when petrol
       // is paid for.
-      floatingActionButton: FloatingActionButton.extended(
-        // agentId, so this comes off the float in their hand rather
-        // than off the business.
-        onPressed: () => showQuickExpense(context, ref,
-            businessId: widget.businessId, agentId: widget.agentId),
-        icon: const Icon(Icons.add),
-        label: ManaText.raw(ref.t('expense'),
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-      ),
+
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: businessNameFor(ref, widget.businessId),
       actions: [
@@ -116,18 +107,18 @@ class _AgentHomeDashboardScreenState
         // Now the shared inbox, which also carries the invitations that used
         // to be scattered across six other screens.
         const ManaNotificationBell(),
+        // Search, not Profile. Profile is a drawer row already -- it is in
+        // manaGlobalDrawerSections below, shared with the other three
+        // workspaces -- and having it here as well spent one of four header
+        // slots on the least frequent thing an Agent does.
+        //
+        // It opens AG-004's roster, which is the only search an Agent has:
+        // owner_search_person is Owner-only server-side, so there is no
+        // cross-business lookup to offer them.
         ManaHeaderAction(
-          icon: Icons.person_outline,
-          label: ref.t('profile'),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => Ag009ProfileScreen(
-                personId: ref.read(authFlowProvider).personId ?? '',
-                agentId: widget.agentId,
-                businessId: widget.businessId,
-              ),
-            ),
-          ),
+          icon: Icons.search,
+          label: ref.t('search'),
+          onPressed: () => context.push('/ag-004', extra: widget.businessId),
         ),
       ],
       sections: [
@@ -571,19 +562,29 @@ class _RunningDashboard extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            _SectionCard(
-              title: ref.t('business_status'),
-              rows: [
-                (ref.t('business_date'), _date.format(d.businessDate)),
-                (ref.t('assigned_route'), d.assignedRoute),
-                (ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
-                (ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
-                (ref.t('todays_target'), manaRupees(d.todaysTarget)),
-              ],
-            ),
+            // Cash in hand, first and unshuttable.
+            //
+            // It is the figure an Agent checks before every loan they issue
+            // and the one the day is settled against, and it was not on this
+            // screen at all -- it lived on AG-007, two taps away, reading the
+            // wrong column. Not in the header: the header is chrome, and this
+            // is the day's most important number.
+            _BfBlock(bf: state.bfAssignment),
+            const SizedBox(height: ManaSpacing.md),
+            // Three, not eleven. The rest are in the drawer, which is where
+            // a list of everywhere-you-could-go belongs; these are the three
+            // things an Agent starts from this screen.
+            _QuickActions(
+                visible: d.visibleQuickActions,
+                businessId: businessId,
+                agentId: agentId),
             const SizedBox(height: ManaSpacing.md),
             _SectionCard(
               title: ref.t('today_summary'),
+              // The one section open on arrival: it is the day.
+              initiallyExpanded: true,
+              summary:
+                  '${ref.t('todays_collections_total')} ${manaRupees(d.todaysCollectionsTotal)}',
               rows: [
                 (ref.t('customers_assigned'), '${d.customersAssigned}'),
                 (ref.t('customers_visited'), '${d.customersVisited}'),
@@ -605,11 +606,21 @@ class _RunningDashboard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
-            _QuickActions(
-                visible: d.visibleQuickActions,
-                businessId: businessId,
-                agentId: agentId),
+            _SectionCard(
+              title: ref.t('business_status'),
+              summary: '${ref.t('todays_target')} ${manaRupees(d.todaysTarget)}',
+              rows: [
+                (ref.t('business_date'), _date.format(d.businessDate)),
+                (ref.t('assigned_route'), d.assignedRoute),
+                (ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
+                (ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
+                (ref.t('todays_target'), manaRupees(d.todaysTarget)),
+              ],
+            ),
             const SizedBox(height: ManaSpacing.md),
+            // Not in the Owner's list of sections, and kept anyway: it is only
+            // drawn when something actually needs attention, and a warning
+            // surface is not a section to tidy away.
             if (state.hasPendingUnsavedTransactions ||
                 d.pendingCustomerRequests +
                         d.pendingExtensionRequests +
@@ -638,6 +649,7 @@ class _RunningDashboard extends ConsumerWidget {
             const SizedBox(height: ManaSpacing.md),
             _SectionCard(
               title: ref.t('workspace_information'),
+              summary: d.businessName,
               rows: [
                 (ref.t('business_name'), d.businessName),
                 (ref.t('owner'), d.ownerName),
@@ -653,25 +665,40 @@ class _RunningDashboard extends ConsumerWidget {
   }
 }
 
+/// A named block of label/value rows, inside a section that can be shut.
+///
+/// The card and the title moved out to ManaCollapsibleSection: five of these
+/// open at once is four screens of scrolling before the last one is reached,
+/// and most of them are read once a day.
 class _SectionCard extends StatelessWidget {
   final String title;
   final List<(String, String)> rows;
   final Color? accent;
-  const _SectionCard({required this.title, required this.rows, this.accent});
+
+  /// The one line worth reading with the section shut.
+  final String? summary;
+
+  /// Open on arrival. Only Today's Summary is.
+  final bool initiallyExpanded;
+
+  const _SectionCard({
+    required this.title,
+    required this.rows,
+    this.accent,
+    this.summary,
+    this.initiallyExpanded = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Column(
+    return ManaCollapsibleSection(
+      title: title,
+      summary: summary,
+      accent: accent,
+      initiallyExpanded: initiallyExpanded,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(title,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: accent ?? ManaColors.textPrimary)),
-            const SizedBox(height: ManaSpacing.sm),
             // Neither side was flexible — a long real value (business name,
             // assigned route, owner name) overflowed the Row outright, not
             // just at a scaled-up text size, and a first fix that only made
@@ -702,9 +729,7 @@ class _SectionCard extends StatelessWidget {
                     ],
                   ),
                 )),
-          ],
-        ),
-      ),
+          ]),
     );
   }
 }
@@ -720,15 +745,12 @@ class _CompensationSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Column(
+    return ManaCollapsibleSection(
+      title: ref.t('my_compensation'),
+      summary: '${ref.t('pending_salary')} ${manaRupees(d.pendingSalary)}',
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('my_compensation'),
-                style: ManaType.strong),
-            const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(ref.t('read_only_set_by_owner'),
                 style:
                     ManaType.note),
@@ -778,6 +800,50 @@ class _CompensationSection extends ConsumerWidget {
                     ),
                   )),
             ],
+          ]),
+    );
+  }
+}
+
+/// Cash in hand, as the first thing on the Agent's day.
+///
+/// Not a row in a section that can be shut, and not in the header: this is the
+/// figure checked before every loan issued and settled against at the end of
+/// the day. It was not on this screen at all -- it lived on AG-007, two taps
+/// away, and it read `opening_bf` there, which is what the Agent set out with
+/// rather than what they are holding.
+class _BfBlock extends ConsumerWidget {
+  final AgentBfAssignment? bf;
+  const _BfBlock({required this.bf});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Card(
+      color: ManaColors.brandFaint,
+      child: Padding(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        child: Row(
+          children: [
+            Icon(Icons.account_balance_wallet_outlined,
+                color: ManaColors.brandDeep),
+            const SizedBox(width: ManaSpacing.md),
+            // Expanded label beside a flexible amount: the label is
+            // translated, so its width is data, and this is the shape that
+            // has overflowed here four times.
+            Expanded(
+              child: ManaText.raw(ref.t('cash_in_hand_bf'),
+                  style: ManaType.strong),
+            ),
+            const SizedBox(width: ManaSpacing.sm),
+            Flexible(
+              child: ManaText.raw(
+                bf == null ? '—' : manaRupees(bf!.currentBf),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
         ),
       ),
@@ -800,14 +866,23 @@ class _QuickActions extends ConsumerWidget {
   // never be swapped for translated text, or this reintroduces the exact
   // vocabulary-mismatch bug that file's own comment documents fixing.
   // `$3` is the translation key for what's actually shown on screen.
+  /// Three, and these three.
+  ///
+  /// It offered seven, and four of them went where something else already
+  /// goes: Collection Mode and Customer List are two of the four tabs in the
+  /// footer, Notifications is the bell in the header, and Universal Search was
+  /// the header's magnifier -- pointed at AG-004, which is the Customers tab.
+  /// A grid of shortcuts to the navigation is not a set of quick actions; it
+  /// is the navigation, drawn twice.
+  ///
+  /// What is left is what an Agent STARTS here and cannot reach in one tap
+  /// anywhere else: issue a loan, resume something interrupted, hand the day
+  /// over. The rest live in the drawer, which is the place for a list of
+  /// everywhere you could go.
   static const _all = [
-    ('Collection Mode', Icons.payments_outlined, 'collection_mode'),
-    ('Customer List', Icons.people_outline, 'customer_list'),
     ('Loan Distribution', Icons.request_page_outlined, 'loan_distribution'),
     ('Draft Transactions', Icons.drafts_outlined, 'draft_transactions'),
     ('Settlement', Icons.receipt_long_outlined, 'settlement'),
-    ('Notifications', Icons.notifications_outlined, 'notifications'),
-    ('Universal Search', Icons.search, 'universal_search'),
   ];
 
   @override
@@ -823,13 +898,16 @@ class _QuickActions extends ConsumerWidget {
             ManaText.raw(ref.t('quick_actions'),
                 style: ManaType.strong),
             const SizedBox(height: ManaSpacing.sm),
-            GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: ManaSpacing.sm,
-              crossAxisSpacing: ManaSpacing.sm,
-              childAspectRatio: 0.95,
+            // Rows, not a three-across grid of squares.
+            //
+            // The grid gave each tile a third of the width and a fixed aspect
+            // ratio, which was survivable while the labels were "Search" and
+            // "Alerts" and is not now: "Draft Transactions" in Telugu wraps to
+            // three lines inside a tile 95% as tall as it is wide, and
+            // overflowed it by 39px at 1.0x. With three actions there is no
+            // reason to ration width -- a full-width row fits any translation
+            // at any text scale and reads faster besides.
+            Column(
               children: items
                   .map((a) => _QuickActionTile(
                         label: ref.t(a.$3),
@@ -933,24 +1011,31 @@ class _QuickActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: ManaColors.inkFaint,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.all(ManaSpacing.sm),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: ManaColors.ink),
-            const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw(label,
-                textAlign: TextAlign.center,
-                style: ManaType.small),
-          ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: ManaSpacing.sm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(ManaRadius.md),
+        child: Container(
+          decoration: BoxDecoration(
+            color: ManaColors.inkFaint,
+            borderRadius: BorderRadius.circular(ManaRadius.md),
+          ),
+          padding: const EdgeInsets.all(ManaSpacing.md),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: kManaMinTapTarget),
+            child: Row(
+              children: [
+                Icon(icon, color: ManaColors.ink),
+                const SizedBox(width: ManaSpacing.md),
+                // Expanded, and allowed to wrap. The label is translated, so
+                // its width is data -- and it is the only thing on the row
+                // that can grow.
+                Expanded(child: ManaText.raw(label)),
+                Icon(Icons.chevron_right, color: ManaColors.textSecondary),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -963,15 +1048,14 @@ class _LiveActivity extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        child: Column(
+    return ManaCollapsibleSection(
+      title: ref.t('live_activity'),
+      summary: entries.isEmpty
+          ? ref.t('nothing_yet_today')
+          : ref.t('entries_count').replaceAll('{count}', '${entries.length}'),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('live_activity'),
-                style: ManaType.strong),
-            const SizedBox(height: ManaSpacing.sm),
             if (entries.isEmpty)
               ManaText.raw(ref.t('nothing_yet_today'),
                   style:
@@ -991,9 +1075,7 @@ class _LiveActivity extends ConsumerWidget {
                       ],
                     ),
                   )),
-          ],
-        ),
-      ),
+          ]),
     );
   }
 }

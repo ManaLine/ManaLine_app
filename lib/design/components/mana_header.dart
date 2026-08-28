@@ -67,6 +67,16 @@ class ManaHeaderBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return IconTheme(
+      // The block is dark, so everything inside it draws light. Stated once
+      // here rather than by each action hardcoding a colour -- the same
+      // actions now also sit in a light ManaAppBar.
+      data: IconThemeData(color: ManaColors.textOnDark),
+      child: _block(context),
+    );
+  }
+
+  Widget _block(BuildContext context) {
     return Container(
       width: double.infinity,
       color: ManaColors.brandDeep,
@@ -151,12 +161,18 @@ class ManaHeaderAction extends StatelessWidget {
   /// Optional count badge — notifications, pending items.
   final int? badgeCount;
 
+  /// Draws the glyph heavier. For the one action in a bar that CREATES
+  /// something, so it separates at a glance from the ones that only look
+  /// things up.
+  final bool bold;
+
   const ManaHeaderAction({
     super.key,
     required this.icon,
     required this.label,
     required this.onPressed,
     this.badgeCount,
+    this.bold = false,
   });
 
   @override
@@ -188,7 +204,21 @@ class ManaHeaderAction extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Icon(icon, color: ManaColors.textOnDark, size: 24),
+                // Inherited, not hardcoded white.
+                //
+                // This drew textOnDark unconditionally, which is right inside
+                // the coloured ManaHeaderBlock and invisible in a ManaAppBar,
+                // whose background is surface. Now that these actions appear
+                // in both, the colour comes from the surrounding IconTheme --
+                // which AppBar sets from its foregroundColor, and which
+                // ManaHeaderBlock sets to textOnDark below.
+                Icon(
+                  icon,
+                  color: IconTheme.of(context).color ?? ManaColors.textOnDark,
+                  size: 24,
+                  weight: bold ? 700 : null,
+                  grade: bold ? 200 : null,
+                ),
                 if (showBadge)
                   Positioned(
                     top: 6,

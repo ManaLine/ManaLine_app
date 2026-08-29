@@ -77,11 +77,12 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  /// withSummary only for the business ledger -- see the class note.
-  Future<void> _load() => _notifier.load(
-        withSummary: widget.membershipId == null,
-        membershipId: widget.membershipId,
-      );
+  /// withSummary only for the business ledger -- see the class note. Whose
+  /// feed it is now comes from the provider's own key, not an argument.
+  Future<void> _load() => _notifier.load(withSummary: _scope.membershipId == null);
+
+  LedgerScope get _scope =>
+      (businessId: widget.businessId, membershipId: widget.membershipId);
 
   @override
   void dispose() {
@@ -95,15 +96,15 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
     if (!_scroll.hasClients) return;
     final remaining = _scroll.position.maxScrollExtent - _scroll.position.pixels;
     if (remaining < 400) {
-      ref.read(ledgerHistoryProvider(widget.businessId).notifier).loadMore();
+      ref.read(ledgerHistoryProvider(_scope).notifier).loadMore();
     }
   }
 
   LedgerHistoryNotifier get _notifier =>
-      ref.read(ledgerHistoryProvider(widget.businessId).notifier);
+      ref.read(ledgerHistoryProvider(_scope).notifier);
 
   Future<void> _openFilters() async {
-    final current = ref.read(ledgerHistoryProvider(widget.businessId)).filter;
+    final current = ref.read(ledgerHistoryProvider(_scope)).filter;
     final next = await showLedgerFilterSheet(context, ref, current);
     if (next != null) await _notifier.applyFilter(next);
   }
@@ -149,7 +150,7 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(ledgerHistoryProvider(widget.businessId));
+    final state = ref.watch(ledgerHistoryProvider(_scope));
 
     return Scaffold(
       bottomNavigationBar: widget.bottomNavigationBar,

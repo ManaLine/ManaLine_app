@@ -17,10 +17,10 @@ class _SeededLedgerNotifier extends LedgerHistoryNotifier {
   final LedgerHistoryState _seed;
 
   @override
-  LedgerHistoryState build(String businessId) => _seed;
+  LedgerHistoryState build(LedgerScope scope) => _seed;
 
   @override
-  Future<void> load({bool withSummary = true, String? membershipId}) async {}
+  Future<void> load({bool withSummary = true}) async {}
 
   @override
   Future<void> loadMore() async {}

@@ -19,6 +19,7 @@ import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../design/components/mana_info_hint.dart';
+import '../../../shared/widgets/reference_field.dart';
 
 /// LR-004 — long single-scroll form, not a wizard. Register button
 /// disabled until mandatory fields + both acknowledgement checkboxes
@@ -127,7 +128,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   final _manualMandal = TextEditingController();
   final _manualDistrict = TextEditingController();
   final _manualState = TextEditingController();
-  String _manualAreaType = 'Village';
   bool _savingManualVillage = false;
   bool _acceptTerms = false;
   bool _acceptPrivacy = false;
@@ -340,32 +340,37 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   /// about this PIN, so the person is not asked to re-type facts the app is
   /// holding.
   ///
-  /// ONLY when the PIN's suggestions agree. 8.1% of PIN codes list two
+  /// ONLY when the PIN can mean one thing. 8.1% of PIN codes list two
   /// districts after the post-2022 splits, and this screen's whole village
   /// flow is built on "suggest, never decide" — picking one of two districts
   /// on the person's behalf writes a wrong address that nobody reviews.
-  /// Never overwrites something already typed.
+  ///
+  /// Where it cannot decide it now offers: [_referenceOptions] hands the
+  /// remaining candidates to a picker rather than leaving an empty box. Filled
+  /// widest first, because a state narrows the districts and a district
+  /// narrows the mandals; a value the narrowing has invalidated is dropped,
+  /// since a district left over from another state is worse than a blank.
   void _prefillFromPin() {
-    final lgd = _lgdByPin[_pinCode.text.trim()];
-    if (lgd == null || lgd.isEmpty) return;
-
-    String? agreed(String key) {
-      final values = {
-        for (final r in lgd)
-          if ((r[key] as String? ?? '').trim().isNotEmpty) (r[key] as String).trim(),
-      };
-      return values.length == 1 ? values.first : null;
-    }
-
-    for (final (controller, key) in [
-      (_manualMandal, 'mandal'),
-      (_manualDistrict, 'district'),
-      (_manualState, 'state'),
+    for (final (key, controller) in [
+      ('state', _manualState),
+      ('district', _manualDistrict),
+      ('mandal', _manualMandal),
     ]) {
-      final value = agreed(key);
-      if (value != null && controller.text.trim().isEmpty) controller.text = value;
+      final options = _referenceOptions(key);
+      if (options.isEmpty) continue;
+      if (!options.contains(controller.text.trim())) controller.text = '';
+      if (options.length == 1) controller.text = options.first;
     }
   }
+
+  /// What the directory offers for one field at this PIN, narrowed by what is
+  /// already chosen above it.
+  List<String> _referenceOptions(String key) => manaReferenceOptions(
+        _lgdByPin[_pinCode.text.trim()] ?? const [],
+        key,
+        state: _manualState.text.trim(),
+        district: _manualDistrict.text.trim(),
+      );
 
   Future<void> _searchVillages(String query) async {
     final pin = _pinCode.text.trim();
@@ -504,7 +509,11 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
       final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
         'p_pin_code': _pinCode.text.trim(),
         'p_village_town_name': _manualVillageName.text.trim(),
-        'p_area_type': _manualAreaType,
+        // Always a village. The dropdown that used to ask offered Village or
+        // Town, changed nothing anywhere in the app, and the directory picks
+        // hardcoded 'Village' regardless -- so the only effect of asking was
+        // two answers for the same places.
+        'p_area_type': 'Village',
         'p_mandal': _manualMandal.text.trim(),
         'p_district': _manualDistrict.text.trim(),
         'p_state': _manualState.text.trim(),
@@ -793,38 +802,28 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: ManaSpacing.sm),
-                      DropdownButtonFormField<String>(
-                        // isExpanded: a DropdownButton sizes to its widest item and
-                        // overflows rather than shrinking -- measured at 1.0x on OW-002.
-                        isExpanded: true,
-                        initialValue: _manualAreaType,
-                        decoration: const InputDecoration(labelText: 'Area Type *'),
-                        items: const [
-                          DropdownMenuItem(value: 'Village', child: Text('Village')),
-                          DropdownMenuItem(value: 'Town', child: Text('Town')),
-                        ],
-                        onChanged: (v) => setState(() => _manualAreaType = v ?? 'Village'),
-                      ),
-                      const SizedBox(height: ManaSpacing.sm),
-                      TextField(
-                        controller: _manualMandal,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(labelText: 'Mandal *'),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: ManaSpacing.sm),
-                      TextField(
-                        controller: _manualDistrict,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(labelText: 'District *'),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: ManaSpacing.sm),
-                      TextField(
+                      // Widest first, so choosing one narrows the next. The
+                      // Area Type dropdown that used to sit here is gone --
+                      // see the note on p_area_type.
+                      ManaReferenceField(
+                        label: 'State *',
                         controller: _manualState,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(labelText: 'State *'),
-                        onChanged: (_) => setState(() {}),
+                        options: _referenceOptions('state'),
+                        onChanged: () => setState(_prefillFromPin),
+                      ),
+                      const SizedBox(height: ManaSpacing.sm),
+                      ManaReferenceField(
+                        label: 'District *',
+                        controller: _manualDistrict,
+                        options: _referenceOptions('district'),
+                        onChanged: () => setState(_prefillFromPin),
+                      ),
+                      const SizedBox(height: ManaSpacing.sm),
+                      ManaReferenceField(
+                        label: 'Mandal *',
+                        controller: _manualMandal,
+                        options: _referenceOptions('mandal'),
+                        onChanged: () => setState(() {}),
                       ),
                       const SizedBox(height: ManaSpacing.sm),
                       ManaText.raw(

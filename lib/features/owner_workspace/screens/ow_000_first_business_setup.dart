@@ -458,7 +458,6 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
   final _manualMandal = TextEditingController();
   final _manualDistrict = TextEditingController();
   final _manualState = TextEditingController();
-  String _manualAreaType = 'Village';
   bool _savingManualVillage = false;
 
   Future<void> _searchVillages(String query) async {
@@ -519,7 +518,10 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
           .rpc('add_location_if_missing', params: {
         'p_pin_code': _pinCode.text.trim(),
         'p_village_town_name': _manualVillageName.text.trim(),
-        'p_area_type': _manualAreaType,
+        // Always a village. The dropdown that used to ask offered Village or
+        // Town, changed nothing anywhere in the app, and every directory pick
+        // hardcoded 'Village' regardless.
+        'p_area_type': 'Village',
         'p_mandal': _manualMandal.text.trim(),
         'p_district': _manualDistrict.text.trim(),
         'p_state': _manualState.text.trim(),
@@ -676,21 +678,6 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
                     decoration:
                         InputDecoration(labelText: ref.t('village_town_name_field')),
                     onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: ManaSpacing.sm),
-                  DropdownButtonFormField<String>(
-                    // isExpanded: a DropdownButton sizes to its widest item and
-                    // overflows rather than shrinking -- measured at 1.0x on OW-002.
-                    isExpanded: true,
-                    initialValue: _manualAreaType,
-                    decoration: InputDecoration(labelText: ref.t('area_type_field')),
-                    items: [
-                      const DropdownMenuItem(
-                          value: 'Village', child: Text('Village')),
-                      DropdownMenuItem(value: 'Town', child: ManaText.raw(ref.t('town'))),
-                    ],
-                    onChanged: (v) =>
-                        setState(() => _manualAreaType = v ?? 'Village'),
                   ),
                   const SizedBox(height: ManaSpacing.sm),
                   TextField(

@@ -38,12 +38,19 @@ class ManaFix {
   final double? accuracyM;
   final String? detail;
 
+  /// This position came from the phone's last known fix rather than a reading
+  /// taken now. Good enough to record and to fill in a PIN code; deliberately
+  /// NOT good enough to judge an address by, because its accuracy describes
+  /// where the phone was, not where it is.
+  final bool fromCache;
+
   const ManaFix({
     required this.status,
     this.latitude,
     this.longitude,
     this.accuracyM,
     this.detail,
+    this.fromCache = false,
   });
 
   bool get hasPosition => status == ManaFixStatus.ok && latitude != null;
@@ -55,11 +62,14 @@ class ManaFix {
   static const indeterminateAboveM = 100.0;
 
   bool get isTooRoughToJudge =>
-      accuracyM != null && accuracyM! > indeterminateAboveM;
+      fromCache || (accuracyM != null && accuracyM! > indeterminateAboveM);
 
   /// What to tell the person. Deliberately not "Error" — most of these are
   /// ordinary conditions in a village, not faults.
   String get message => switch (status) {
+        ManaFixStatus.ok when fromCache =>
+          "Used this phone's last known location, so the address was not "
+              'checked against it.',
         ManaFixStatus.ok => isTooRoughToJudge
             ? 'Location is only accurate to about ${accuracyM!.round()}m, so it '
                 'could not be checked against the address.'
@@ -77,13 +87,56 @@ class ManaFix {
 }
 
 class ManaLocation {
+  /// A position this phone recorded moments ago is as good as one taken now,
+  /// and it arrives instantly. Beyond this it is a different place.
+  static const _instantIfNewerThan = Duration(minutes: 2);
+
+  /// Once the fresh attempt has failed, an older fix still beats nothing: a
+  /// doorstep ten minutes into the same round is the same village.
+  static const _fallbackIfNewerThan = Duration(minutes: 10);
+
+  /// The phone's last recorded position, if it is newer than [maxAge].
+  ///
+  /// Never throws and never waits — this reads what the platform already has,
+  /// which is how Maps and the browser answer instantly on the same handset
+  /// where this app was standing there waiting for a satellite.
+  static Future<Position?> _lastKnown(Duration maxAge) async {
+    try {
+      final pos = await Geolocator.getLastKnownPosition();
+      final at = pos?.timestamp;
+      if (pos == null || at == null) return null;
+      return DateTime.now().toUtc().difference(at.toUtc()) <= maxAge ? pos : null;
+    } on Exception {
+      return null;
+    }
+  }
+
+  static ManaFix _cached(Position pos) => ManaFix(
+        status: ManaFixStatus.ok,
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        accuracyM: pos.accuracy,
+        fromCache: true,
+      );
+
   /// Asks for a fix. Never throws.
   ///
-  /// [timeout] is deliberately short. An agent is standing in front of a
-  /// customer; waiting thirty seconds for a satellite is worse than recording
-  /// the visit without a pin.
+  /// THE ORDER MATTERS, and it is why this failed on a phone where Google Maps
+  /// was working at the same moment:
+  ///
+  ///  1. A position recorded in the last two minutes is returned immediately.
+  ///     Nothing can be faster, and it is what every other app on the handset
+  ///     does. Marked [ManaFix.fromCache].
+  ///  2. Otherwise a fresh reading, on a budget long enough to actually get
+  ///     one. The old eight seconds asked the radio for a cold fix and gave up
+  ///     before it could answer, so "Could not get a location in time" was the
+  ///     ordinary outcome rather than the exceptional one.
+  ///  3. If that fails, a fix from the last ten minutes rather than nothing.
+  ///
+  /// A cached position is recorded and fills fields, but never judges an
+  /// address — see [ManaFix.fromCache].
   static Future<ManaFix> currentFix({
-    Duration timeout = const Duration(seconds: 8),
+    Duration timeout = const Duration(seconds: 20),
   }) async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
@@ -98,6 +151,9 @@ class ManaLocation {
           permission == LocationPermission.deniedForever) {
         return const ManaFix(status: ManaFixStatus.denied);
       }
+
+      final recent = await _lastKnown(_instantIfNewerThan);
+      if (recent != null) return _cached(recent);
 
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: LocationSettings(
@@ -120,6 +176,8 @@ class ManaLocation {
       // Includes TimeoutException from timeLimit. Separated so the message can
       // say "try again outside" rather than something that sounds like a bug.
       final isTimeout = e.toString().toLowerCase().contains('time');
+      final stale = await _lastKnown(_fallbackIfNewerThan);
+      if (stale != null) return _cached(stale);
       return ManaFix(
         status: isTimeout ? ManaFixStatus.timedOut : ManaFixStatus.failed,
         detail: e.toString(),
@@ -141,7 +199,7 @@ class ManaLocation {
   /// is exactly why every field it fills stays editable: this button saves
   /// typing, it does not decide the address.
   static Future<ManaPlace> currentPlace({
-    Duration timeout = const Duration(seconds: 8),
+    Duration timeout = const Duration(seconds: 20),
   }) async {
     final fix = await currentFix(timeout: timeout);
     if (!fix.hasPosition) return ManaPlace(fix: fix);

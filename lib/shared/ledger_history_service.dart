@@ -423,14 +423,26 @@ class LedgerHistoryService {
   }
 
   /// `.schema('app')` is required — a bare `.rpc()` targets `public` and 404s.
+  ///
+  /// [membershipId] scopes the feed to one person's own work -- the
+  /// collections they took, the loans they handed out, the expenses they
+  /// recorded, the BF they were granted. Omit it for the business ledger,
+  /// which only the Owner may read.
+  ///
+  /// It used to be omitted always, because ledger_history had no such
+  /// parameter: every feed was the whole business, and only the opening and
+  /// closing lines were scoped. An Agent asking for their own history was
+  /// shown the Owner's investor deposits above their own float.
   Future<List<LedgerEvent>> page({
     required String businessId,
+    String? membershipId,
     DateTime? before,
     int limit = 50,
     LedgerFilter filter = const LedgerFilter(),
   }) async {
     final rows = await _db.schema('app').rpc('ledger_history', params: {
       'p_business_id': businessId,
+      'p_membership_id': membershipId,
       'p_before': before?.toIso8601String(),
       'p_limit': limit,
       // Null, not an empty list: the SQL treats NULL as "no constraint", and

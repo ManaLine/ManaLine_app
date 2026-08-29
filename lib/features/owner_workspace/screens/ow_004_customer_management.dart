@@ -25,6 +25,7 @@ import '../../../shared/customer_row.dart';
 import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart';
+import '../../../shared/widgets/reference_field.dart';
 import '../../../design/components/mana_info_hint.dart';
 import '../../../design/components/mana_call_button.dart';
 
@@ -426,7 +427,14 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
   final _manualMandal = TextEditingController();
   final _manualDistrict = TextEditingController();
   final _manualState = TextEditingController();
-  String _manualAreaType = 'Village';
+
+  /// What the PIN code directory says exists at each PIN, cached per PIN.
+  ///
+  /// A PIN averages about 45 villages, so this is one query and then instant
+  /// typing. It also feeds the mandal/district/state pickers below: those
+  /// facts are already in the reference, and asking somebody at a doorstep to
+  /// retype them is asking for a wrong address nobody reviews.
+  final Map<String, List<Map<String, dynamic>>> _lgdByPin = {};
   bool _savingManualVillage = false;
 
   Future<void> _search() async {
@@ -533,9 +541,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       // beside the reference's own "Panagallu (Rural), Chittoor, Andhra
       // Pradesh": not a typo, a dead end.
       final needle = query.trim().toLowerCase();
-      final suggestions = await ref
-          .read(locationApiServiceProvider)
-          .suggestFromReference(pin);
+      final suggestions = await _referenceFor(pin);
 
       final seen = <String>{
         for (final e in existing)
@@ -543,7 +549,13 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       };
       final offered = <Map<String, dynamic>>[...existing];
       for (final sug in suggestions) {
-        final name = (sug['village_town_name'] ?? '').toString();
+        // 'village', not 'village_town_name'. app.suggest_villages returns
+        // TABLE(village, mandal, district, state); this read the name it has
+        // in `locations` instead, so every suggestion came back empty and was
+        // skipped. The directory was queried on every keystroke and its answer
+        // thrown away -- which is why a real village never appeared and the
+        // only way forward on screen was Add New Village.
+        final name = (sug['village'] ?? '').toString();
         if (name.isEmpty) continue;
         if (!name.toLowerCase().contains(needle)) continue;
         // The reference carries the same village under both the old and new
@@ -579,6 +591,63 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
         _villageSearchAttempted = true;
       });
     }
+  }
+
+  /// The directory's rows for a PIN, fetched once.
+  Future<List<Map<String, dynamic>>> _referenceFor(String pin) async {
+    final cached = _lgdByPin[pin];
+    if (cached != null) return cached;
+    final rows =
+        await ref.read(locationApiServiceProvider).suggestFromReference(pin);
+    _lgdByPin[pin] = rows;
+    return rows;
+  }
+
+  /// The values the directory offers for one field at the manual form's PIN,
+  /// narrowed by whatever is already chosen above it.
+  ///
+  /// Mandal is ambiguous for 9,931 of the 17,183 PINs in the reference and
+  /// district for 3,451 of them, so "fill it in when the PIN agrees" leaves
+  /// the commonest field blank more often than not. Offering the PIN's actual
+  /// candidates answers both cases with one control: one option is filled in,
+  /// several are a short list, none is a plain text field.
+  List<String> _referenceOptions(String key) => manaReferenceOptions(
+        _lgdByPin[_manualPinCode.text.trim()] ?? const [],
+        key,
+        state: _manualState.text.trim(),
+        district: _manualDistrict.text.trim(),
+      );
+
+  /// Fill what the PIN can only mean, widest first: a state narrows the
+  /// districts, a district narrows the mandals. Never overwrites a value that
+  /// is still valid, and drops one that is not -- a district left over from
+  /// another state is worse than an empty box.
+  void _applyReferenceDefaults() {
+    for (final (key, controller) in [
+      ('state', _manualState),
+      ('district', _manualDistrict),
+      ('mandal', _manualMandal),
+    ]) {
+      final options = _referenceOptions(key);
+      if (options.isEmpty) continue;
+      if (!options.contains(controller.text.trim())) controller.text = '';
+      if (options.length == 1) controller.text = options.first;
+    }
+  }
+
+  /// Loads the directory for the manual form's PIN, then fills what it can.
+  Future<void> _loadManualReference() async {
+    final pin = _manualPinCode.text.trim();
+    if (pin.length != 6) return;
+    try {
+      await _referenceFor(pin);
+    } catch (_) {
+      // No directory is not an error: the three fields fall back to plain
+      // text and the person types the address as they always could.
+      _lgdByPin[pin] = const [];
+    }
+    if (!mounted) return;
+    setState(_applyReferenceDefaults);
   }
 
   /// Picking one of the offered villages.
@@ -626,7 +695,11 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
         'p_pin_code': _manualPinCode.text.trim(),
         'p_village_town_name': _manualVillageName.text.trim(),
-        'p_area_type': _manualAreaType,
+        // Always a village. The dropdown that used to ask offered Village or
+        // Town, changed nothing anywhere in the app, and _chooseVillage
+        // hardcoded 'Village' for every directory pick anyway -- so the only
+        // effect of asking was two answers for the same places.
+        'p_area_type': 'Village',
         'p_mandal': _manualMandal.text.trim(),
         'p_district': _manualDistrict.text.trim(),
         'p_state': _manualState.text.trim(),
@@ -947,11 +1020,15 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
             padding: const EdgeInsets.only(top: ManaSpacing.xs),
             child: TextButton(
               style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-              onPressed: () => setState(() {
-                _manualVillageEntry = true;
-                _manualVillageName.text = _villageSearch.text.trim();
-                _manualPinCode.text = _pinCode.text.trim();
-              }),
+              onPressed: () {
+                setState(() {
+                  _manualVillageEntry = true;
+                  _manualVillageName.text = _villageSearch.text.trim();
+                  _manualPinCode.text = _pinCode.text.trim();
+                  _applyReferenceDefaults();
+                });
+                _loadManualReference();
+              },
               child: ManaText.raw(ref.t('village_not_found_add_it').replaceAll('{query}', _villageSearch.text.trim())),
             ),
           ),
@@ -980,40 +1057,33 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                   decoration: InputDecoration(labelText: '${ref.t("pin_code")} *'),
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (_) {
+                    setState(() {});
+                    _loadManualReference();
+                  },
                 ),
-                DropdownButtonFormField<String>(
-                  // isExpanded: a DropdownButton sizes to its widest item and
-                  // overflows rather than shrinking -- measured at 1.0x on OW-002.
-                  isExpanded: true,
-                  initialValue: _manualAreaType,
-                  decoration: InputDecoration(labelText: ref.t('area_type_field')),
-                  items: [
-                    DropdownMenuItem(value: 'Village', child: ManaText.raw(ref.t('village'))),
-                    DropdownMenuItem(value: 'Town', child: ManaText.raw(ref.t('town'))),
-                  ],
-                  onChanged: (v) => setState(() => _manualAreaType = v ?? 'Village'),
-                ),
-                const SizedBox(height: ManaSpacing.sm),
-                TextField(
-                  controller: _manualMandal,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(labelText: ref.t('mandal_field')),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: ManaSpacing.sm),
-                TextField(
-                  controller: _manualDistrict,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(labelText: ref.t('district_field')),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: ManaSpacing.sm),
-                TextField(
+                // Widest first, so choosing one narrows the next. The Area
+                // Type dropdown that used to sit here is gone -- see the note
+                // on p_area_type.
+                ManaReferenceField(
+                  label: ref.t('state_field'),
                   controller: _manualState,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(labelText: ref.t('state_field')),
-                  onChanged: (_) => setState(() {}),
+                  options: _referenceOptions('state'),
+                  onChanged: () => setState(_applyReferenceDefaults),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                ManaReferenceField(
+                  label: ref.t('district_field'),
+                  controller: _manualDistrict,
+                  options: _referenceOptions('district'),
+                  onChanged: () => setState(_applyReferenceDefaults),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                ManaReferenceField(
+                  label: ref.t('mandal_field'),
+                  controller: _manualMandal,
+                  options: _referenceOptions('mandal'),
+                  onChanged: () => setState(() {}),
                 ),
                 const SizedBox(height: ManaSpacing.sm),
                 Row(

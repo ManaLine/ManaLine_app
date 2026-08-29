@@ -360,7 +360,6 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
   final _manualMandal = TextEditingController();
   final _manualDistrict = TextEditingController();
   final _manualState = TextEditingController();
-  String _manualAreaType = 'Village';
   bool _savingManualVillage = false;
 
   Future<void> _searchVillages(String query) async {
@@ -418,7 +417,10 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
       ref,
       pinCode: _pinCode.text.trim(),
       villageTownName: _manualVillageName.text.trim(),
-      areaType: _manualAreaType,
+      // Always a village. The dropdown that used to ask offered Village or
+      // Town, changed nothing anywhere in the app, and every directory pick
+      // hardcoded 'Village' regardless.
+      areaType: 'Village',
       mandal: _manualMandal.text.trim(),
       district: _manualDistrict.text.trim(),
       state: _manualState.text.trim(),
@@ -503,22 +505,6 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
                     textCapitalization: TextCapitalization.words,
                     decoration: InputDecoration(labelText: ref.t('village_town_name_field'), isDense: true),
                     onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    // isExpanded: a DropdownButton sizes to its widest item's natural
-                    // width and overflows rather than shrinking. A dialog is narrower
-                    // than a screen, so this is the tightest place one can sit -- three
-                    // were measured overflowing at 1.0x, in English, by 127px, 233px and
-                    // 180px. See ow_011_day_closure.dart's adjustment dialog.
-                    isExpanded: true,
-                    initialValue: _manualAreaType,
-                    decoration: InputDecoration(labelText: ref.t('area_type_field'), isDense: true),
-                    items: [
-                      DropdownMenuItem(value: 'Village', child: ManaText.raw(ref.t('village'))),
-                      DropdownMenuItem(value: 'Town', child: ManaText.raw(ref.t('town'))),
-                    ],
-                    onChanged: (v) => setState(() => _manualAreaType = v ?? 'Village'),
                   ),
                   const SizedBox(height: 6),
                   TextField(

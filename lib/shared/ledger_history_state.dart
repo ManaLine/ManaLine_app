@@ -2,8 +2,12 @@
 ///
 /// One notifier for both because the paging, filtering and refresh behaviour
 /// is identical — only what the server returns differs, and that is decided by
-/// RLS inside `app.ledger_history`, not here. See the SECURITY INVOKER note in
-/// migration 20260812130348.
+/// the membership passed to `app.ledger_history`.
+///
+/// It used to say RLS decided it, citing a SECURITY INVOKER note. The function
+/// is SECURITY DEFINER and took no membership at all, so nothing was deciding
+/// anything: every feed was the whole business. Both halves are fixed in
+/// migration 20260829102054.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,14 +32,9 @@ class LedgerHistoryState {
   /// Fetched, not summed — see [LedgerDay.openingBf].
   final Map<String, LedgerDayBalance> balances;
 
-  /// Set for an Agent's own feed, so the balances are their float rather than
-  /// the business ledger. Null for the Owner.
-  final String? membershipId;
-
   const LedgerHistoryState({
     this.events = const [],
     this.balances = const {},
-    this.membershipId,
     this.summary,
     this.filter = const LedgerFilter(),
     this.loading = true,
@@ -51,7 +50,6 @@ class LedgerHistoryState {
   LedgerHistoryState copyWith({
     List<LedgerEvent>? events,
     Map<String, LedgerDayBalance>? balances,
-    String? membershipId,
     LedgerMonthSummary? summary,
     LedgerFilter? filter,
     bool? loading,
@@ -63,7 +61,6 @@ class LedgerHistoryState {
       LedgerHistoryState(
         events: events ?? this.events,
         balances: balances ?? this.balances,
-        membershipId: membershipId ?? this.membershipId,
         summary: summary ?? this.summary,
         filter: filter ?? this.filter,
         loading: loading ?? this.loading,
@@ -73,17 +70,31 @@ class LedgerHistoryState {
       );
 }
 
-/// Keyed by businessId so switching business does not show the previous
-/// business's money for a frame.
-class LedgerHistoryNotifier extends FamilyNotifier<LedgerHistoryState, String> {
+/// Which ledger this is: a business, and optionally the one membership inside
+/// it whose work the feed is limited to.
+///
+/// BOTH halves are the key. Keyed on businessId alone, the Owner's business
+/// ledger and an Agent's ledger were one state object: opening an agent's
+/// transactions from OW-002 left the agent's rows sitting in the provider, and
+/// a History screen already built lower in the stack never re-ran initState to
+/// correct itself. The Owner went on reading the agent's feed as their own.
+typedef LedgerScope = ({String businessId, String? membershipId});
+
+/// Keyed by business AND membership so neither the previous business's money
+/// nor another person's work is on screen for a frame.
+class LedgerHistoryNotifier
+    extends FamilyNotifier<LedgerHistoryState, LedgerScope> {
   static const pageSize = 50;
 
   @override
-  LedgerHistoryState build(String businessId) {
+  LedgerHistoryState build(LedgerScope scope) {
     // Deliberately does not auto-load: screens call load() from initState so
     // tests can seed this provider instead of reaching the network.
     return const LedgerHistoryState();
   }
+
+  /// Whose feed this is. Null means the business ledger, Owner only.
+  String? get _membershipId => arg.membershipId;
 
   LedgerHistoryService get _svc => ref.read(ledgerHistoryServiceProvider);
 
@@ -93,17 +104,17 @@ class LedgerHistoryNotifier extends FamilyNotifier<LedgerHistoryState, String> {
   /// day_ledger, which is the whole business, and an agent must never be
   /// shown a business-wide figure derived from data their feed does not
   /// contain.
-  Future<void> load({bool withSummary = true, String? membershipId}) async {
-    state = state.copyWith(
-        loading: true, clearError: true, membershipId: membershipId);
+  Future<void> load({bool withSummary = true}) async {
+    state = state.copyWith(loading: true, clearError: true);
     try {
       final events = await _svc.page(
-        businessId: arg,
+        businessId: arg.businessId,
+        membershipId: _membershipId,
         limit: pageSize,
         filter: state.filter,
       );
       final summary = withSummary
-          ? await _svc.monthSummary(businessId: arg)
+          ? await _svc.monthSummary(businessId: arg.businessId)
           : null;
       state = state.copyWith(
         events: events,
@@ -128,10 +139,10 @@ class LedgerHistoryNotifier extends FamilyNotifier<LedgerHistoryState, String> {
     final dates = events.map((e) => e.businessDate).toList()..sort();
     try {
       return await _svc.dayBalances(
-        businessId: arg,
+        businessId: arg.businessId,
         from: DateTime.parse(dates.first),
         to: DateTime.parse(dates.last),
-        membershipId: state.membershipId,
+        membershipId: _membershipId,
       );
     } catch (_) {
       return const {};
@@ -145,7 +156,8 @@ class LedgerHistoryNotifier extends FamilyNotifier<LedgerHistoryState, String> {
     state = state.copyWith(loadingMore: true);
     try {
       final next = await _svc.page(
-        businessId: arg,
+        businessId: arg.businessId,
+        membershipId: _membershipId,
         before: state.events.last.occurredAt,
         limit: pageSize,
         filter: state.filter,
@@ -167,13 +179,19 @@ class LedgerHistoryNotifier extends FamilyNotifier<LedgerHistoryState, String> {
 
   /// Replaces the filter and reloads from the top. Never filters in memory —
   /// see LedgerFilter's own note.
-  Future<void> applyFilter(LedgerFilter filter, {bool withSummary = true}) async {
+  ///
+  /// The month summary follows the scope rather than a caller's argument: it
+  /// comes from day_ledger, which is the whole business. Filtering an Agent's
+  /// history used to fetch it anyway, because the default was true and the
+  /// screen did not override it -- so a business-wide band appeared over one
+  /// person's rows the moment they touched the filter sheet.
+  Future<void> applyFilter(LedgerFilter filter) async {
     state = state.copyWith(filter: filter, events: const [], reachedEnd: false);
-    await load(withSummary: withSummary);
+    await load(withSummary: _membershipId == null);
   }
 }
 
-final ledgerHistoryProvider =
-    NotifierProvider.family<LedgerHistoryNotifier, LedgerHistoryState, String>(
+final ledgerHistoryProvider = NotifierProvider.family<LedgerHistoryNotifier,
+    LedgerHistoryState, LedgerScope>(
   LedgerHistoryNotifier.new,
 );

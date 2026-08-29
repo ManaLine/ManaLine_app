@@ -19,27 +19,40 @@ Real screens across all workspaces, wired to a live Supabase project.
 
 | | |
 |---|---|
-| Screens | 57 |
-| State / API files | 38 |
-| Migrations applied | 79 |
-| Edge Functions | 10 (auth: login, OTP, PIN, password reset) |
-| Tests | 164 passing |
+| Screens | 66 |
+| State / API files | 43 |
+| Migrations applied | 329 |
+| Edge Functions | 12 (auth: login, OTP, PIN, password reset) |
+| Public tables | 82, all with RLS |
+| Tests | 2,083 passing |
 | `flutter analyze` | 0 issues |
 
 Workspaces: `login_registration`, `owner_workspace`, `agent_workspace`,
 `customer_workspace`, `investor_workspace`, `admin`, `support_admin`.
 
+**A real book is on it.** One business carries a migrated paper ledger —
+57 loans, 353 collections — worked from a handset: loans issued,
+collections taken door to door, expenses recorded, an account period
+submitted for settlement and approved. The end-to-end path that used to be
+the biggest gap is the path most of the recent bugs were found on.
+
 ### Not yet true
 
-- **No loan has ever been created on a real device.** The lending flow is
-  built but unproven end to end. Until a loan exists, Collection Mode,
-  penalties, Line Score and settlement are all unreachable — this is the
-  single biggest gap.
+- **No interest accrual engine.** Payments subtract from one
+  `remaining_balance`; nothing accrues on its own between them.
 - **Offline sync is not wired.** The `mana_line_offline_sync` path
-  dependency is still commented out in `pubspec.yaml`.
-- **Fonts are runtime-fetched.** `allowRuntimeFetching = true` in
-  `main.dart`. For an app whose whole point is poor connectivity, first
-  paint should not depend on a font CDN — bundle the files before shipping.
+  dependency is still commented out in `pubspec.yaml`. For an app whose
+  whole point is poor connectivity this is the largest remaining gap.
+- **Platform-admin deletes are unproven.** `app.admin_delete_person`,
+  `admin_delete_loan`, `admin_delete_collection` and
+  `admin_delete_business` exist and are gated to Platform Admin, but have
+  never been run to completion here — so test rows created against prod
+  stay there.
+- **A settlement shortfall has nowhere to land.** Physical cash is no
+  longer declared at submit, so the amount handed over is always what the
+  app says the Agent holds. A genuine shortfall now surfaces later as a BF
+  mismatch rather than as a settlement difference. Deliberate, and worth
+  revisiting once there is more than one agent on a book.
 
 ---
 
@@ -55,7 +68,10 @@ catches this case, but build it properly:
 flutter build apk --debug --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 ```
 
-Credentials live in `run.ps1.txt` (git-ignored). Never commit them.
+Credentials live in `run.ps1.txt`, which is **tracked, not git-ignored**: it
+holds only `SUPABASE_URL` and the anon key, both of which ship inside every
+APK anyway. Nothing else may go in it — a service-role key or JWT secret
+there would be a real leak. Those belong in `.env`, which is ignored.
 
 ---
 
@@ -79,7 +95,9 @@ UTC one. Deriving it from UTC would file money against the wrong day.
 **ROI is ₹ per ₹100 per month**, not an annual percentage. Daily interest
 is `principal × (roi/100) / 30`, on a 30-day month. Rounding is CEILING to
 whole rupees — every money column is `numeric(_,0)`, so paise cannot be
-stored.
+stored. Yearly compounding uses **actual calendar days** (365, or 366 in a
+leap year), not a hardcoded 360: monthly rate ÷ 30 for the daily figure,
+actual days for the yearly one.
 
 **One `remaining_balance` per loan.** No payment waterfall; payments
 subtract. There is no interest accrual engine yet.
@@ -128,6 +146,41 @@ guards inside `record_expense`, `create_loan_with_bf_check`,
 from going negative. See
 `supabase/migrations/20260805035332_bf_derived_from_live_rows.sql`.
 
+**A settlement asks; approving it moves the money.** Submit records what
+the Agent is holding and notifies the Owner, and the period goes to
+`Submitted` so nothing else is collected into an account already handed
+over. Nothing moves until the Owner approves, and the amount taken is
+capped at what the Agent holds *at that moment* — anything collected
+between submitting and approving belongs to the next account. Before this,
+submit zeroed the Agent's float and credited the Owner while writing the
+row as "Pending Owner Review": the Owner was approving something that had
+already happened.
+
+**Interest and processing fee are earnings, not cash the Agent holds.**
+`app.settlement_preview` returns them, and the settlement total excludes
+them. Both are withheld at disbursement (`amount_given = repayment −
+interest − fee`), so they never pass through the Agent's hands, and the
+interest a customer repays is already inside the collection figure.
+Listing them as income would count it twice, and the total would stop
+matching the money in the tin.
+
+**A breakdown must reach its own total.** The settlement screen lists what
+the figure is made of — BF, BF received, collections by mode, transfers in
+as money in; loans issued, expenses, transfers out as money out — and
+those lines reconcile to the rupee against the live float. The first
+version was ₹70 short because it missed BF the Owner had granted
+mid-round. Seventy rupees is exactly the size of gap that teaches somebody
+to stop reading the breakdown.
+
+**A ledger belongs to whoever worked it.** `app.ledger_history` takes a
+membership: collections by who took them, loans by who issued them,
+expenses by who recorded them, BF by who received it. Investor deposits,
+cheti movements, migrated book lines and settlement adjustments are the
+business's, not an agent's, and are absent from a membership feed rather
+than shown unattributed. The function is `SECURITY DEFINER`, so the
+permission check is written into it — the business feed is the Owner's, a
+membership feed is that person's own or the Owner looking at their agent.
+
 ---
 
 ## Working on this repo
@@ -138,9 +191,33 @@ through the MCP tool, write the local file using the *exact* stamped
 version, or a later `db push` re-runs it. Diff `pg_proc` before trusting
 that an RPC exists.
 
+**Migration filenames must be `<14-digit-timestamp>_name.sql`.** Anything
+else is silently ignored by `supabase db push`. Create them with
+`supabase migration new <name>`; the full story is in
+`supabase/MIGRATIONS.md`.
+
 **plpgsql bodies are not type-checked at CREATE time.** A broken function
 applies cleanly and fails on first call. Always invoke it — inside a
-transaction you roll back — before believing it works.
+transaction you roll back — before believing it works. Most recently:
+`ledger_history` was rewritten from `LANGUAGE sql` to plpgsql, applied
+without complaint, and failed on its first call because `RETURN QUERY`
+will not coerce a `varchar` column into a declared `text` one the way a
+plain SQL body did.
+
+**Changing an RPC's parameter list is DROP then CREATE, never
+`CREATE OR REPLACE`.** A changed, reordered or newly-defaulted parameter
+creates a *second* function, and PostgREST then answers HTTP 300
+(PGRST203) because it cannot choose between them. This has now happened
+five times — `ledger_history` (twice), `request_bf_update`,
+`import_migrated_loans`, `record_collection`. After any signature change,
+count the overloads:
+
+```sql
+select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'app' and p.proname = '<name>';
+```
+
+It must be 1.
 
 **PostgREST returns 200 for an UPDATE matching zero rows.** A silent no-op
 is indistinguishable from success. Only a re-read, or checking the
@@ -150,18 +227,51 @@ returned row count, proves a write landed.
 `.rpc()` targets `public` and 404s. Tables are in `public`.
 
 **PostgREST embeds must name the FK** when two exist between the same
-tables (`customers`→`business_members`, `agent_access_days`→
-`business_members`, `business_members`→`persons`), or PGRST201 kills the
-whole query.
+tables, or PGRST201 (HTTP 300) kills the whole query — and the screen just
+says it could not load. There are **eleven** such pairs, not the three
+once listed here. `test/ambiguous_embed_guard_test.dart` holds the list,
+scans every `.select()` in `lib/`, and regenerates from `pg_constraint`.
+`!inner` is a join modifier, not a foreign-key name: `persons!inner(...)`
+under `business_members` is still ambiguous.
 
 **Never swallow an error into a plausible value.** `catch (_) => 0` on a
 money screen produces a confident wrong number, which is worse than an
 exception.
 
-**All 67 public tables have RLS.** New tables match the existing pattern:
+**All 82 public tables have RLS.** New tables match the existing pattern:
 `app.is_owner(business_id)` for owner-scoped, plus
 `app.is_active_agent(...)` and `app.agent_permission(...)` where agents
 need reach.
+
+---
+
+## Addresses and GPS
+
+**The PIN code directory is the source of village names.** `lgd_villages`
+holds 768,529 rows; `locations` holds only the places some business
+actually operates in. Searching `locations` alone is why typing a real
+village returned nothing and everyone was pushed into Add New Village.
+`app.suggest_villages(pin)` returns `TABLE(village, mandal, district,
+state)` — note the column is `village`, not `village_town_name`; reading
+the wrong name silently discards every suggestion.
+
+**Mandal, district and state are offered, not guessed.** Mandal is
+ambiguous for 9,931 of the 17,183 PINs in the reference and district for
+3,451, so "fill it in when the PIN agrees" leaves the commonest field
+blank most of the time. `ManaReferenceField` narrows downwards — a state
+narrows the districts, a district narrows the mandals — filling in a
+single candidate, listing several, and falling back to a plain text field
+for a PIN the directory does not know.
+
+**GPS never blocks anything.** A denied permission, a switched-off
+service or no sky view must not stop a loan being issued or a customer
+registered, so `ManaLocation` returns a status rather than throwing.
+Order matters: a position the phone recorded in the last two minutes is
+returned immediately — that is what Maps does and why it answers while
+this app used to time out — then a fresh reading on a 20-second budget,
+then a fix from the last ten minutes rather than nothing. A cached
+position is recorded and fills fields but never verifies an address: its
+accuracy describes where the phone was, not where it is.
 
 ---
 
@@ -186,7 +296,15 @@ measures narrower text than production.
 Overflow is invisible to `flutter analyze` and to looking at one phone at
 one font size. It has shipped four times (LR-007, LR-003, LR-013, and
 OW-019 — caught pre-merge, overflowing 213px at 1.0x). The recurring cause
-is always the same: **a bare unflexible child beside a flexible one.**
+is always the same: **a bare unflexible child beside a flexible one.** The
+harness checks it through `expectNoLayoutFault` at text scales
+`[1.0, 1.3, 1.6, 2.0]` on a 360×640 surface.
+
+**Pump the screen at the route it actually renders at.** `pumpManaScreen`
+takes a `location`, and some widgets — the workspace header's trailing
+actions among them — decide what to draw from the current route. A test
+that pumps at `/` lays out a header with fewer slots than the real one and
+proves nothing about the crowded case.
 
 When testing a screen that loads in `initState`, seed the provider rather
 than letting it reach the network — otherwise the test lays out an empty
@@ -217,8 +335,9 @@ lib/
   shared/         mana_time.dart, translation_service.dart, local_auth_store.dart,
                   network_error_handler.dart, settings_screen.dart
 supabase/
-  migrations/     79 applied
-  functions/      10 Edge Functions (auth)
+  migrations/     329 applied
+  functions/      12 Edge Functions (auth), shared helpers in _shared/
+  tests/          schema integrity, RLS access matrix, tenant isolation
 test/
   support/        mana_harness.dart, translation fixtures
 ```

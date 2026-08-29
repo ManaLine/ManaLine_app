@@ -73,98 +73,48 @@ class AgentSettlementApiService {
 
 
   // Best-effort SETTLEMENT SUMMARY preview — see class doc SPEC GAP note.
+  /// One server call. The screen shows the figures the submit will record,
+  /// because they are the same figures -- see app.settlement_preview.
+  ///
+  /// What was here: an opening_bf read, a collections query, a splits query,
+  /// a loans query, an expenses query and a cash-transfers query, assembled
+  /// on the phone into a number the file itself called an estimate. It
+  /// returned Rs 0 against a float of Rs 5,08,930, because it scoped
+  /// everything to the period's PLANNED dates -- four days that ended a week
+  /// before the money arrived.
+  ///
+  /// periodStart/periodEnd/cycleType are still accepted so the screen's call
+  /// site is unchanged, and deliberately unused: the server resolves the
+  /// agent's own Running period, which is the one whose dates are true.
   Future<SettlementPreview> fetchSettlementPreview({
     required String businessId,
     required String agentId,
-    required String cycleType, // 'Daily' | 'Weekly' | 'Monthly'
+    required String cycleType,
     required DateTime periodStart,
     required DateTime periodEnd,
   }) async {
-    final membershipId = await _resolveMembershipId(agentId);
-    final startStr = periodStart.toIso8601String().split('T').first;
-    final endStr = periodEnd.toIso8601String().split('T').first;
-
-    final bfRow = await _db
-        .from('agent_bf_assignments')
-        .select('opening_bf')
-        .eq('membership_id', membershipId)
-        .order('created_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    final openingBalance = (bfRow?['opening_bf'] as num?)?.toInt() ?? 0;
-
-    final collectionRows = await _db
-        .from('collections')
-        .select('collection_id, business_date')
-        .eq('collected_by_membership_id', membershipId)
-        .gte('business_date', startStr)
-        .lte('business_date', endStr)
-        // Settling against deleted collections would ask the agent to hand
-        // over cash that was never counted as received.
-        .isFilter('deleted_at', null);
-    final collectionIds = (collectionRows as List).map((c) => c['collection_id'] as String).toList();
-
-    int cash = 0, upi = 0, bank = 0, cheque = 0;
-    if (collectionIds.isNotEmpty) {
-      final splitRows = await _db.from('collection_payment_splits').select('payment_mode, amount').inFilter('collection_id', collectionIds);
-      for (final s in (splitRows as List)) {
-        final amt = (s['amount'] as num).toInt();
-        switch (s['payment_mode']) {
-          case 'Cash':
-            cash += amt;
-          case 'UPI':
-            upi += amt;
-          case 'Bank Transfer':
-            bank += amt;
-          case 'Cheque':
-            cheque += amt;
-        }
-      }
-    }
-
-    final loanRows = await _db
-        .from('loans')
-        .select('amount_given')
-        .eq('collection_agent_membership_id', membershipId)
-        .gte('issue_business_date', startStr)
-        .lte('issue_business_date', endStr)
-        // Deleted loans never left the till, so they cannot be part of what
-        // this agent has to settle for.
-        .isFilter('deleted_at', null);
-    final loanDistribution = (loanRows as List).fold<int>(0, (sum, l) => sum + (l['amount_given'] as num).toInt());
-
-    final expenseRows = await _db
-        .from('expenses')
-        .select('amount')
-        .eq('recorded_by_membership_id', membershipId)
-        .gte('business_date', startStr)
-        .lte('business_date', endStr);
-    final expenses = (expenseRows as List).fold<int>(0, (sum, e) => sum + (e['amount'] as num).toInt());
-
-    // No expected-closing figure is derived here any more.
-    //
-    // It used to be a self-admitted "plausible reconstruction" of BR-237.
-    // submit_agent_settlement now computes the real one from the period's
-    // own records, so a second, unverified formula on the phone could only
-    // ever do one of two things: agree with the server, in which case it
-    // was redundant, or disagree, in which case it told the agent their
-    // cash balanced when the server was about to record a short.
-    //
-    // The component figures below stay: each is a direct SUM of real rows,
-    // not a reconstruction, and the agent needs them to count against.
-    // What they no longer get is a total the app made up.
+    final result = await _db
+        .schema('app')
+        .rpc('settlement_preview', params: {'p_agent_id': agentId});
+    final m = result as Map<String, dynamic>;
+    int n(String k) => (m[k] as num?)?.toInt() ?? 0;
 
     return SettlementPreview(
-      openingBalance: openingBalance,
-      cashCollected: cash,
-      upiCollected: upi,
-      bankCollected: bank,
-      chequeCollected: cheque,
-      loanDistribution: loanDistribution,
-      expenses: expenses,
+      openingBalance: n('opening_bf'),
+      bfReceived: n('bf_received'),
+      cashCollected: n('cash_collected'),
+      upiCollected: n('upi_collected'),
+      bankCollected: n('bank_collected'),
+      chequeCollected: n('cheque_collected'),
+      transfersIn: n('transfers_in'),
+      loanDistribution: n('loans_issued'),
+      expenses: n('expenses'),
+      transfersOut: n('transfers_out'),
+      interestEarned: n('interest_earned'),
+      processingFees: n('processing_fees'),
+      expectedClosingBalance: n('total_held'),
     );
   }
-
   // HISTORY — NO LONGER BLOCKED. submit_agent_settlement exists and is
   // called below; kept because it records why this had to be one atomic
   // server-side step, which is still the reason it is written this way.
@@ -326,19 +276,43 @@ final agentSettlementApiServiceProvider = Provider<AgentSettlementApiService>((r
 
 /// Pre-submission SETTLEMENT SUMMARY figures — see SPEC GAP note above on
 /// how these get sourced.
+/// Every line of the settlement, from the server that will record it.
+///
+/// This used to be assembled on the phone and was explicitly documented as
+/// "a best-effort estimate, not a guaranteed match" for what the submit would
+/// write. That is a reasonable thing to say about a queue length and not
+/// about the amount of money somebody is handing over -- and the estimate read
+/// Rs 0 on a float of Rs 5,08,930, because it summed the period's PLANNED
+/// dates and an opening_bf that has not moved since the float was granted.
 class SettlementPreview {
-  final int openingBalance; // sourced from agent_bf_assignments.opening_bf — reuse AgentBfAssignment, don't redefine
+  /// What the agent started the assignment with. Usually zero.
+  final int openingBalance;
+
+  /// Float the Owner has handed over since. A separate event from the
+  /// opening balance, and the line that was missing when the breakdown came
+  /// up Rs 70 short of the float.
+  final int bfReceived;
+
   final int cashCollected;
-  final int upiCollected; // system-sourced, display only
-  final int bankCollected; // system-sourced, display only
-  final int chequeCollected; // system-sourced amount; Cheque Count (UI-only tally) sits alongside, not backing this
+  final int upiCollected;
+  final int bankCollected;
+  final int chequeCollected;
+  final int transfersIn;
   final int loanDistribution;
   final int expenses;
+  final int transfersOut;
 
-  /// Null before submission, and only ever the SERVER's figure afterwards.
-  /// Nothing in the app computes this — see the note in
-  /// fetchSettlementPreview on why the local reconstruction was removed.
+  /// What the agent is holding: the live float, not a re-derivation of it.
+  /// The lines above add up to exactly this.
   final int? expectedClosingBalance;
+
+  /// Earned, not moved. Interest and fee are withheld at disbursement, so
+  /// they never pass through the agent's hands as cash, and the interest a
+  /// customer repays is already inside [cashCollected]. Shown apart from the
+  /// running total for that reason -- adding them would double count and the
+  /// total would stop matching the money in the tin.
+  final int interestEarned;
+  final int processingFees;
 
   SettlementPreview({
     required this.openingBalance,
@@ -348,6 +322,11 @@ class SettlementPreview {
     required this.chequeCollected,
     required this.loanDistribution,
     required this.expenses,
+    this.bfReceived = 0,
+    this.transfersIn = 0,
+    this.transfersOut = 0,
+    this.interestEarned = 0,
+    this.processingFees = 0,
     this.expectedClosingBalance,
   });
 }

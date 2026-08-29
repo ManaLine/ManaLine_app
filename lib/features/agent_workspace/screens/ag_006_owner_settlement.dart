@@ -231,16 +231,29 @@ class _ReturnedView extends ConsumerWidget {
   }
 }
 
-/// What the Agent is handing over.
+/// How the figure being handed over was arrived at, and then the figure.
 ///
-/// Derived from what they hold, not from what they type. The Owner asked for
-/// one number and the fewest taps that can carry it: this, and Submit.
-class _AmountHeldCard extends ConsumerWidget {
-  final int amount;
-  const _AmountHeldCard({required this.amount});
+/// Money in is green, money out is red, and the lines add up to the total
+/// exactly -- which is the whole reason to show them. A breakdown that does
+/// not reach its own total teaches somebody to stop reading it. When this was
+/// first written the lines came to Rs 5,08,860 against a float of Rs
+/// 5,08,930: BF the Owner had granted mid-round was missing, and seventy
+/// rupees is precisely the size of gap that gets shrugged at.
+///
+/// Interest and processing fee sit BELOW the total, apart from the sum.
+/// They are earned rather than moved: both are withheld at disbursement, so
+/// they never pass through the Agent's hands as cash, and the interest a
+/// customer repays is already inside the collection figure. Adding them
+/// would count them twice and the total would stop matching the tin.
+class _HandOverBreakdown extends ConsumerWidget {
+  final SettlementPreview preview;
+  const _HandOverBreakdown({required this.preview});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final total = preview.expectedClosingBalance ?? 0;
+    final earnings = preview.interestEarned + preview.processingFees;
+
     return Card(
       color: ManaColors.brandFaint,
       child: Padding(
@@ -248,13 +261,74 @@ class _AmountHeldCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ManaText.raw(ref.t('total_amount'), style: ManaType.strong),
-            const SizedBox(height: ManaSpacing.xs),
-            ManaAmount(amount, size: ManaAmountSize.hero),
+            // In.
+            _line(ref, 'opening_bf', preview.openingBalance, positive: true),
+            _line(ref, 'bf_received', preview.bfReceived, positive: true),
+            _line(ref, 'cash', preview.cashCollected, positive: true),
+            _line(ref, 'upi', preview.upiCollected, positive: true),
+            _line(ref, 'bank', preview.bankCollected, positive: true),
+            _line(ref, 'cheque', preview.chequeCollected, positive: true),
+            _line(ref, 'transfers_in', preview.transfersIn, positive: true),
+            // Out.
+            _line(ref, 'loans_issued', preview.loanDistribution, positive: false),
+            _line(ref, 'expenses', preview.expenses, positive: false),
+            _line(ref, 'transfers_out', preview.transfersOut, positive: false),
+
+            const Divider(height: ManaSpacing.xl),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: ManaText.raw(ref.t('total_amount'), style: ManaType.strong),
+                ),
+                const SizedBox(width: ManaSpacing.sm),
+                Flexible(child: ManaAmount(total, size: ManaAmountSize.hero)),
+              ],
+            ),
             const SizedBox(height: ManaSpacing.sm),
             ManaText.raw(ref.t('total_amount_note'), style: ManaType.note),
+
+            if (earnings > 0) ...[
+              const SizedBox(height: ManaSpacing.md),
+              ManaText.raw(
+                ref
+                    .t('earned_not_held_note')
+                    .replaceAll('{interest}', manaRupees(preview.interestEarned))
+                    .replaceAll('{fees}', manaRupees(preview.processingFees)),
+                style: ManaType.note,
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// A zero line is dropped: ten rows of nothing is not a breakdown, it is a
+  /// form. Label and figure both flexible, and the figures right-aligned so
+  /// they read as a column.
+  Widget _line(WidgetRef ref, String key, int amount, {required bool positive}) {
+    if (amount == 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: ManaText.raw(ref.t(key), maxLines: 2, style: ManaType.note)),
+          const SizedBox(width: ManaSpacing.sm),
+          Flexible(
+            child: ManaText.raw(
+              '${positive ? '+' : '−'}${manaRupees(amount)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: positive ? ManaColors.statusGood : ManaColors.statusBad,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -398,7 +472,7 @@ class _DraftEntryViewState extends ConsumerState<_DraftEntryView> {
         // number the app already knows -- and the Submit button stayed
         // disabled until the arithmetic agreed, which is why "Submit
         // settlement" so often did nothing at all.
-        _AmountHeldCard(amount: state.preview!.expectedClosingBalance ?? 0),
+        _HandOverBreakdown(preview: state.preview!),
         const SizedBox(height: ManaSpacing.lg),
         SizedBox(
           width: double.infinity,

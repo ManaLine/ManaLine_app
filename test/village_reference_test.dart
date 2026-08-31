@@ -145,4 +145,39 @@ void main() {
       expect(place.filledAnything, isTrue);
     });
   });
+
+  group('a captured place', () {
+    test('keeps the colony out of the village field', () {
+      // Standing in Aphb Colony, the geocoder returns locality "Srikalahasti"
+      // and subLocality "Aphb Colony". subLocality used to WIN, so the village
+      // box filled with a name that is in no PIN's directory -- unmatchable,
+      // unsaveable, and the only offer left on screen was Add New Village for
+      // a place that already exists a level up.
+      const place = ManaPlace(
+        fix: ManaFix(
+            status: ManaFixStatus.ok,
+            latitude: 13.75,
+            longitude: 79.7,
+            accuracyM: 20),
+        pinCode: '517640',
+        village: 'Srikalahasti',
+        locality: 'Aphb Colony',
+      );
+
+      expect(place.village, 'Srikalahasti',
+          reason: 'the village is the level lgd_villages records');
+      expect(place.locality, 'Aphb Colony',
+          reason: 'the colony is a house-address detail, kept but never the '
+              'village');
+      expect(place.filledAnything, isTrue);
+    });
+
+    test("a colony name is not one of the PIN's villages", () {
+      // The reason the split matters: matched against the directory, the
+      // colony finds nothing, so auto-selecting on it could only ever be
+      // wrong.
+      final villages = manaReferenceOptions(_pin517620, 'village');
+      expect(villages.contains('Aphb Colony'), isFalse);
+    });
+  });
 }

@@ -381,7 +381,11 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
       });
       return;
     }
-    if (query.trim().length < 2) {
+    // One character narrows nothing; nothing typed is not the same thing. A
+    // PIN on its own already names a short list of villages, and showing it is
+    // the answer to "which village am I in". Demanding two characters first is
+    // what left the box empty after a location capture filled the PIN.
+    if (query.trim().length == 1) {
       setState(() {
         _villageResults = [];
         _villageSearchAttempted = false;
@@ -401,6 +405,8 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
           .select('location_id, village_town_name, mandal, district, state')
           .eq('status', 'Active')
           .eq('pin_code', pin)
+          // An empty needle is '%%', which matches every village the business
+          // already works at this PIN -- deliberate, that is the untyped case.
           .ilike('village_town_name', '%${query.trim()}%')
           .limit(10);
 
@@ -692,15 +698,18 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                   setState(() {
                     _gps = place.fix;
                     if (place.pinCode != null) _pinCode.text = place.pinCode!;
-                    if (place.village != null) {
-                      _villageSearch.text = place.village!;
-                      // A typed village id no longer matches the new name.
-                      _villageId = null;
-                      _selectedVillageLabel = null;
-                    }
+                    // The geocoder's name is not typed into the village box.
+                    // At a doorstep it usually returns the colony, which is
+                    // not in the directory under any PIN, so the box filled
+                    // with a term that could never match. The PIN is the
+                    // reliable half: it is kept, the box is cleared, and the
+                    // PIN's own villages are offered to pick from.
+                    _villageSearch.clear();
+                    _villageId = null;
+                    _selectedVillageLabel = null;
                   });
                   if (_pinCode.text.trim().length == 6) {
-                    _searchVillages(_villageSearch.text);
+                    _searchVillages('');
                   }
                 },
               ),

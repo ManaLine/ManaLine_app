@@ -18,6 +18,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/location_api_service.dart';
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/widgets/use_my_location_button.dart';
+import '../../../shared/mana_location.dart';
 import '../../../shared/soft_delete_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../shared/document_viewer.dart';
@@ -536,7 +537,13 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       });
       return;
     }
-    if (query.trim().length < 2) {
+    // A single character is too little to narrow anything, but NOTHING typed
+    // is not: a PIN on its own already names a short list of villages, and
+    // showing it is the whole answer to "which village am I in". This used to
+    // demand two characters before it would show anything, so capturing a
+    // location filled the PIN and then displayed an empty box.
+    final needle = query.trim();
+    if (needle.length == 1) {
       setState(() {
         _villageResults = [];
         _villageSearchAttempted = false;
@@ -544,14 +551,17 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       return;
     }
     try {
-      // Villages already in use by somebody.
-      final rows = await Supabase.instance.client
+      // Villages already in use by somebody. With nothing typed this is every
+      // village the business already works at this PIN.
+      var known = Supabase.instance.client
           .from('locations')
           .select('location_id, village_town_name, mandal, district, state, pin_code')
           .eq('status', 'Active')
-          .eq('pin_code', pin)
-          .ilike('village_town_name', '%${query.trim()}%')
-          .limit(10);
+          .eq('pin_code', pin);
+      if (needle.isNotEmpty) {
+        known = known.ilike('village_town_name', '%$needle%');
+      }
+      final rows = await known.limit(10);
       final existing = (rows as List).cast<Map<String, dynamic>>();
 
       // …and what the LGD reference says exists at this PIN, whether or not
@@ -564,7 +574,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       // Village. That is how "Panagal, Tirupati, Andhrapradesh" came to sit
       // beside the reference's own "Panagallu (Rural), Chittoor, Andhra
       // Pradesh": not a typo, a dead end.
-      final needle = query.trim().toLowerCase();
+      final lowered = needle.toLowerCase();
       final suggestions = await _referenceFor(pin);
 
       final seen = <String>{
@@ -573,6 +583,9 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       };
       final offered = <Map<String, dynamic>>[...existing];
       for (final sug in suggestions) {
+        // A PIN tops out at 358 villages in the reference. Long enough to
+        // scroll past, so the untyped list is capped and typing narrows it.
+        if (offered.length >= 25) break;
         // 'village', not 'village_town_name'. app.suggest_villages returns
         // TABLE(village, mandal, district, state); this read the name it has
         // in `locations` instead, so every suggestion came back empty and was
@@ -581,7 +594,9 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
         // only way forward on screen was Add New Village.
         final name = (sug['village'] ?? '').toString();
         if (name.isEmpty) continue;
-        if (!name.toLowerCase().contains(needle)) continue;
+        // An empty needle matches everything, which is the point: a PIN on
+        // its own is a short list worth showing.
+        if (!name.toLowerCase().contains(lowered)) continue;
         // The reference carries the same village under both the old and new
         // district names, so a PIN answers twice for every village in it.
         if (!seen.add(name.toLowerCase())) continue;
@@ -616,6 +631,30 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       });
     }
   }
+
+  /// What a captured location actually means for the village field.
+  ///
+  /// Always offers the PIN's villages. If the geocoder's town name is one of
+  /// them it is selected outright — that is the case worth saving a tap on —
+  /// and if it is not, the list stands and nothing wrong has been typed
+  /// anywhere.
+  Future<void> _resolveVillageFromPlace(ManaPlace place) async {
+    await _searchVillages('');
+    final guess = place.village?.trim().toLowerCase();
+    if (guess == null || guess.isEmpty || !mounted) return;
+
+    final match = _villageResults.where(
+        (v) => (v['village_town_name'] ?? '').toString().toLowerCase() == guess);
+    if (match.isEmpty) return;
+
+    final v = match.first;
+    await _chooseVillage(v, _villageLabel(v));
+  }
+
+  /// The one label format for an offered village, so the search list and an
+  /// auto-selection cannot describe the same place differently.
+  String _villageLabel(Map<String, dynamic> v) =>
+      '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
 
   /// The directory's rows for a PIN, fetched once.
   Future<List<Map<String, dynamic>>> _referenceFor(String pin) async {
@@ -989,13 +1028,21 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
           onCaptured: (place) {
             setState(() {
               if (place.pinCode != null) _pinCode.text = place.pinCode!;
-              if (place.village != null) {
-                _villageSearch.text = place.village!;
-                _villageId = null;
-                _selectedVillageLabel = null;
-              }
+              // The geocoder's name is NOT typed into the village box. It used
+              // to be, and what it usually returns at a doorstep is the colony
+              // -- "Aphb Colony" -- which is not in the directory under any
+              // PIN, so the box filled itself with a term that could never
+              // match and the only offer left was Add New Village.
+              //
+              // The PIN is the reliable half. It is filled, the box is
+              // cleared, and the PIN's own list of villages is offered to pick
+              // from; _resolveVillageFromPlace then selects one outright if
+              // the geocoder's name turns out to be one of them.
+              _villageSearch.clear();
+              _villageId = null;
+              _selectedVillageLabel = null;
             });
-            if (_pinCode.text.trim().length == 6) _searchVillages(_villageSearch.text);
+            if (_pinCode.text.trim().length == 6) _resolveVillageFromPlace(place);
           },
         ),
         TextField(
@@ -1039,7 +1086,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
               itemCount: _villageResults.length,
               itemBuilder: (_, i) {
                 final v = _villageResults[i];
-                final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
+                final label = _villageLabel(v);
                 final inUse = v['location_id'] != null;
                 return ListTile(
                   dense: true,

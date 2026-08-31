@@ -209,15 +209,24 @@ class ManaLocation {
       if (marks.isEmpty) return ManaPlace(fix: fix);
       final m = marks.first;
       final pin = (m.postalCode ?? '').replaceAll(RegExp(r'\D'), '');
-      // locality is the town/village; subLocality is often the hamlet and is
-      // the better label when present.
-      final village = (m.subLocality?.trim().isNotEmpty ?? false)
-          ? m.subLocality!.trim()
-          : (m.locality?.trim() ?? '');
+
+      // locality is the town or village. subLocality is the colony or hamlet
+      // inside it, and it used to WIN when present -- so standing in Aphb
+      // Colony wrote "Aphb Colony" into the village field, a name that is not
+      // in lgd_villages under any PIN and therefore could never be matched or
+      // saved. The person was left staring at "not found -- add it" for a
+      // village that already exists a level up.
+      //
+      // The two are kept apart now. [village] is the thing the directory might
+      // actually know; [locality] is the colony, which is a house-address
+      // detail and never a village.
+      final village = (m.locality ?? '').trim();
+      final locality = (m.subLocality ?? '').trim();
       return ManaPlace(
         fix: fix,
         pinCode: pin.length == 6 ? pin : null,
         village: village.isEmpty ? null : village,
+        locality: locality.isEmpty ? null : locality,
       );
     } on Exception {
       // Geocoding is a convenience. Keep the fix, drop the labels.
@@ -229,9 +238,24 @@ class ManaLocation {
 class ManaPlace {
   final ManaFix fix;
   final String? pinCode;
+
+  /// The town or village the geocoder read back — the level `lgd_villages`
+  /// records. A SUGGESTION: it is matched against the PIN's directory before
+  /// anything is filled in, because a geocoder name that is not in the
+  /// directory cannot be saved and must not be typed into the village box.
   final String? village;
 
-  const ManaPlace({required this.fix, this.pinCode, this.village});
+  /// The colony or hamlet inside that village. Part of a house address, never
+  /// a village — writing it into the village field is what produced "Aphb
+  /// Colony" against a PIN whose directory has no such place.
+  final String? locality;
+
+  const ManaPlace({
+    required this.fix,
+    this.pinCode,
+    this.village,
+    this.locality,
+  });
 
   bool get hasPosition => fix.hasPosition;
 

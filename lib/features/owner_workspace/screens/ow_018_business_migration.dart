@@ -735,12 +735,14 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           onCaptured: (place) {
             setState(() {
               if (place.pinCode != null) _pinCode.text = place.pinCode!;
-              if (place.village != null) {
-                _villageSearch.text = place.village!;
-                _villageId = null;
-              }
+              // Not the geocoder's name. At a doorstep it usually returns the
+              // colony, which no PIN's directory holds, so the box filled
+              // itself with a term that could never match. The PIN is kept and
+              // the box cleared; the PIN's villages are offered instead.
+              _villageSearch.clear();
+              _villageId = null;
             });
-            if (_pinCode.text.trim().length == 6) _searchVillages(_villageSearch.text);
+            if (_pinCode.text.trim().length == 6) _searchVillages('');
           },
         ),
         TextField(

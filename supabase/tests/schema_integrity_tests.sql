@@ -476,6 +476,70 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- TRIGGERS THAT REACH INTO app MUST BE SECURITY DEFINER
+-- =============================================================================
+-- Registration returned 500 to everybody for an unknown stretch because
+-- app.stamp_migrated_person was SECURITY INVOKER while its body called
+-- app.migration_import_active(). Edge Functions write as service_role, which
+-- has no USAGE on schema app -- anon and authenticated do -- so the INSERT
+-- into persons died with 42501 and the failure was invisible from any
+-- in-app path.
+--
+-- The general rule the incident produced: a trigger on a public table that
+-- calls anything in `app` runs as whoever did the write, and one of those
+-- writers cannot see the schema. Either the function is DEFINER or it must
+-- not reach into app at all.
+--
+-- Matching on the body, not the header: every one of these is named
+-- `app.something`, so a naive search for 'app.' matches all of them.
+DO $$
+DECLARE
+    v_bad TEXT;
+    v_count INT;
+BEGIN
+    SELECT count(*), string_agg(p.proname, ', ' ORDER BY p.proname)
+      INTO v_count, v_bad
+    FROM pg_trigger t
+    JOIN pg_class c      ON c.oid = t.tgrelid
+    JOIN pg_namespace cn ON cn.oid = c.relnamespace
+    JOIN pg_proc p       ON p.oid = t.tgfoid
+    JOIN pg_namespace n  ON n.oid = p.pronamespace
+    WHERE NOT t.tgisinternal
+      AND cn.nspname = 'public'
+      AND n.nspname  = 'app'
+      AND NOT p.prosecdef
+      -- The body, with the CREATE header stripped off.
+      AND position('app.' in substring(pg_get_functiondef(p.oid) from position('$function$' in pg_get_functiondef(p.oid)))) > 0;
+
+    PERFORM pg_temp.si_log(
+        'SECURITY', 'BR-178',
+        CASE WHEN v_count = 0
+             THEN 'every trigger function calling into app is SECURITY DEFINER'
+             ELSE 'SECURITY INVOKER trigger functions call into app: ' || v_bad
+                  || ' — service_role writes through them will fail 42501'
+        END,
+        v_count = 0);
+END $$;
+
+-- And the reason it matters, stated as its own fact so a well-meaning GRANT
+-- does not quietly become the fix.
+DO $$
+DECLARE
+    v_has BOOLEAN;
+BEGIN
+    v_has := has_schema_privilege('service_role', 'app', 'USAGE');
+    PERFORM pg_temp.si_log(
+        'SECURITY', 'BR-178',
+        CASE WHEN v_has
+             THEN 'service_role has USAGE on schema app — every app function is '
+                  || 'now reachable with the service key; the trigger fix was '
+                  || 'meant to make this unnecessary'
+             ELSE 'service_role still has no USAGE on schema app'
+        END,
+        NOT v_has);
+END $$;
+
+-- =============================================================================
 -- SUMMARY
 -- =============================================================================
 DO $$

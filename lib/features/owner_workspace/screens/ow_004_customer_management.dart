@@ -782,24 +782,41 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // A plain scrolling sheet, NOT a DraggableScrollableSheet.
+    //
+    // It was draggable with initialChildSize 0.7 and no minChildSize, so the
+    // default 0.25 applied: dragging down shrank the panel to a quarter of the
+    // screen and left it there, form cut off mid-field, instead of dismissing.
+    // On the handset that reads as a blocker sliding up and down over the
+    // screen. showModalBottomSheet already handles drag-to-dismiss for the
+    // whole sheet, which is the gesture people were reaching for.
+    //
+    // Capped at 90% of the height that is left once the keyboard has taken
+    // its share, so a long form scrolls inside the sheet rather than growing
+    // under the keyboard.
+    final maxHeight = (MediaQuery.of(context).size.height -
+            MediaQuery.of(context).viewInsets.bottom) *
+        0.9;
     return Padding(
       padding: MediaQuery.of(context).viewInsets,
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => Padding(
-          padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: ListView(
-            controller: scrollController,
-            children: [
-              ManaText.raw(ref.t(widget.existingOnly ? 'existing_customers' : 'add_customer'),
-                  style: ManaType.sheetTitle),
-              const SizedBox(height: ManaSpacing.lg),
-              if (_stage == _AddCustomerStage.search) ..._searchStage(),
-              if (_stage == _AddCustomerStage.found) ..._foundStage(),
-              if (_stage == _AddCustomerStage.createNew) ..._createNewStage(),
-            ],
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(ManaSpacing.lg),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                ManaText.raw(
+                    ref.t(widget.existingOnly ? 'existing_customers' : 'add_customer'),
+                    style: ManaType.sheetTitle),
+                const SizedBox(height: ManaSpacing.lg),
+                if (_stage == _AddCustomerStage.search) ..._searchStage(),
+                if (_stage == _AddCustomerStage.found) ..._foundStage(),
+                if (_stage == _AddCustomerStage.createNew) ..._createNewStage(),
+              ],
+            ),
           ),
         ),
       ),

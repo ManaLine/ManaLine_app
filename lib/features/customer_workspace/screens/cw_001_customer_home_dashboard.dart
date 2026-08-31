@@ -103,7 +103,7 @@ class _CustomerHomeDashboardScreenState
         // other three workspaces so the order and labels cannot drift.
         ...manaGlobalDrawerSections(
           onProfile: () => context.push('/cw-006'),
-          onSwitchWorkspace: () => context.go('/lr-012'),
+          onSwitchWorkspace: () => context.go('/lr-012?pick=1'),
           onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),
           onSettings: () =>
               context.push('/cw-settings', extra: widget.businessId),

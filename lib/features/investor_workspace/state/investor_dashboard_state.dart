@@ -38,7 +38,7 @@ class InvestorDashboardApiService {
     final wave1 = await Future.wait<dynamic>([
       _db
           .from('business_members')
-          .select('membership_id, membership_status, verification_status, businesses(business_name), persons!business_members_person_id_fkey(full_name)')
+          .select('membership_id, membership_status, verification_status, businesses(business_name, logo_url), persons!business_members_person_id_fkey(full_name)')
           .eq('person_id', personId)
           .eq('business_id', businessId)
           .eq('role', 'Investor')
@@ -118,6 +118,7 @@ class InvestorDashboardApiService {
     return InvestorDashboardData(
       hasActiveMembership: true,
       businessName: titleCaseName(business?['business_name'] as String? ?? ''),
+      logoUrl: business?['logo_url'] as String?,
       investorName: person?['full_name'] as String? ?? '',
       investorVerified: membership['verification_status'] == 'Verified',
       totalInvestmentBalance: totalBalance,
@@ -153,6 +154,11 @@ final investorDashboardApiServiceProvider = Provider<InvestorDashboardApiService
 class InvestorDashboardData {
   final bool hasActiveMembership; // S3 No Memberships gate
   final String businessName;
+
+  /// The business's own mark, shown in the header. Only the Owner's dashboard
+  /// ever fetched this, so an Investor saw a blank square where their
+  /// business's logo should be.
+  final String? logoUrl;
   final String investorName;
   final bool investorVerified;
   final int totalInvestmentBalance;
@@ -166,6 +172,7 @@ class InvestorDashboardData {
   InvestorDashboardData({
     required this.hasActiveMembership,
     this.businessName = '',
+    this.logoUrl,
     this.investorName = '',
     this.investorVerified = false,
     this.totalInvestmentBalance = 0,

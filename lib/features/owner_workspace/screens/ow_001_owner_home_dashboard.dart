@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +13,7 @@ import '../../../design/components/mana_info_popup.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_header.dart';
 import '../../../design/components/mana_app_shell.dart';
+import '../../../design/components/mana_business_logo.dart';
 import '../../../shared/notification_bell.dart';
 import '../../../shared/person_identity.dart';
 import '../../../design/components/mana_amount.dart';
@@ -188,22 +188,7 @@ class _OwnerHomeDashboardScreenState
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: async.valueOrNull?.businessName,
       subtitle: '${manaWeekday()}, ${manaDisplayDate()}',
-      leading: Container(
-        color: ManaColors.brandFaint,
-        child: data?.logoUrl == null
-            ? Icon(Icons.storefront, color: ManaColors.brandDeep)
-            // PERF: cached — this header rebuilds on every dashboard visit
-            // and the logo does not change between them.
-            : CachedNetworkImage(
-                imageUrl: data!.logoUrl!,
-                fit: BoxFit.cover,
-                // A signed storage URL can expire or 404. Falling back to the
-                // placeholder is right; a broken-image glyph in the header of
-                // every screen is not.
-                errorWidget: (_, __, ___) =>
-                    Icon(Icons.storefront, color: ManaColors.brandDeep),
-              ),
-      ),
+      leading: ManaBusinessLogo(logoUrl: data?.logoUrl),
       onLeadingTap: () => context.push('/ow-012', extra: widget.businessId),
       actions: [
         // Was a bottom sheet carrying this dashboard's own notifications plus
@@ -245,7 +230,7 @@ class _OwnerHomeDashboardScreenState
         ..._ownerDrawerSections(context, widget.businessId),
         ...manaGlobalDrawerSections(
           onProfile: () => context.push('/ow-016'),
-          onSwitchWorkspace: () => context.go('/lr-012'),
+          onSwitchWorkspace: () => context.go('/lr-012?pick=1'),
           onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),
           onSettings: () =>
               context.push('/ow-settings', extra: widget.businessId),

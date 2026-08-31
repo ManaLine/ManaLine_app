@@ -31,7 +31,17 @@ class _BusinessGroup {
 /// memberships, already in hand from the login response — no separate
 /// "list my businesses" call, per spec's DATA SOURCE section.
 class BusinessSelectorScreen extends ConsumerStatefulWidget {
-  const BusinessSelectorScreen({super.key});
+  /// The person asked to see this list, from Switch Workspace.
+  ///
+  /// The locked rule is that LR-012 never appears for a single-business user,
+  /// and on login that is right -- nobody wants a picker with one card on it
+  /// between them and their work. Reached deliberately it is wrong: Switch
+  /// Workspace took a single-business person straight back to the business
+  /// they were already in, so the control did nothing, and there was nowhere
+  /// to start a second business from.
+  final bool alwaysPick;
+
+  const BusinessSelectorScreen({super.key, this.alwaysPick = false});
 
   @override
   ConsumerState<BusinessSelectorScreen> createState() => _BusinessSelectorScreenState();
@@ -133,6 +143,8 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
   }
 
   void _applyRoutingRule() {
+    // Asked for, so shown -- see [BusinessSelectorScreen.alwaysPick].
+    if (widget.alwaysPick) return;
     final groups = _activeBusinessGroups();
     if (groups.length == 1) {
       // "Automatically Open Business" — LR-012 must never appear for a
@@ -154,7 +166,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
     final groups = _activeBusinessGroups();
 
     if (groups.isEmpty) return _noBusinessLinked(context);
-    if (groups.length == 1) {
+    if (groups.length == 1 && !widget.alwaysPick) {
       // Transient frame before the postFrameCallback above fires — avoid
       // flashing the card list for a single-business user.
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -178,6 +190,20 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
                   itemCount: groups.length,
                   separatorBuilder: (_, __) => const SizedBox(height: ManaSpacing.md),
                   itemBuilder: (context, i) => _businessCard(groups[i]),
+                ),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              // Starting a business belongs on the screen that lists the ones
+              // you already have. It used to live only in the zero-business
+              // empty state, so anybody who had joined one as an Agent,
+              // Investor or Customer could never start their own -- the offer
+              // vanished the moment they had any membership at all.
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/ow-000', extra: true),
+                  icon: const Icon(Icons.add_business_outlined, size: 18),
+                  label: ManaText.raw(ref.t('create_new_business')),
                 ),
               ),
               const SizedBox(height: ManaSpacing.md),

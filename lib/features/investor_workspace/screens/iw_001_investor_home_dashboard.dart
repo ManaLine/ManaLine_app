@@ -9,6 +9,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_app_shell.dart';
+import '../../../design/components/mana_business_logo.dart';
 import '../../../shared/notification_bell.dart';
 import '../../../shared/person_identity.dart';
 import '../../login_registration/state/auth_flow_state.dart';
@@ -51,6 +52,9 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
     return ManaAppShell(
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: businessNameFor(ref, widget.businessId),
+      // The same business, the same header, and until now no logo --
+      // only the Owner's dashboard ever fetched or passed one.
+      leading: ManaBusinessLogo(logoUrl: ref.watch(investorDashboardProvider).valueOrNull?.logoUrl),
       // Investors had no notifications entry either, which mattered more
       // here: an investor's join request is the one flow that starts with
       // them and waits on an Owner.
@@ -82,6 +86,14 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
               labelKey: 'find_a_business',
               onTap: () => context.push('/iw-002'),
             ),
+            // The Agent drawer has carried this for a while and the Investor
+            // one never did, so an Investor had no route to OW-000 anywhere in
+            // the app -- nowhere to become an Owner. Additional, because they
+            // already have an account and a membership.
+            ManaDrawerAction(
+              labelKey: 'create_new_business',
+              onTap: () => context.push('/ow-000', extra: true),
+            ),
           ],
         ),
         // Settings / Switch / Logout used to be icons in the header's second
@@ -89,7 +101,7 @@ class _InvestorHomeDashboardScreenState extends ConsumerState<InvestorHomeDashbo
         // other three workspaces so the order and labels cannot drift.
         ...manaGlobalDrawerSections(
           onProfile: () => context.push('/iw-005'),
-          onSwitchWorkspace: () => context.go('/lr-012'),
+          onSwitchWorkspace: () => context.go('/lr-012?pick=1'),
           onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),
           onSettings: () =>
               context.push('/iw-settings', extra: widget.businessId),

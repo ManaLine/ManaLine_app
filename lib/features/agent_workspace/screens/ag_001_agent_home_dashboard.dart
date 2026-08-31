@@ -14,6 +14,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_header.dart';
 import '../../../design/components/mana_app_shell.dart';
+import '../../../design/components/mana_business_logo.dart';
 import '../../../shared/notification_bell.dart';
 import '../../../shared/person_identity.dart';
 import '../../../shared/network_error_handler.dart';
@@ -113,6 +114,9 @@ class _AgentHomeDashboardScreenState
 
       userName: ref.watch(personDisplayNameProvider).valueOrNull ?? '',
       businessName: businessNameFor(ref, widget.businessId),
+      // The same business, the same header, and until now no logo --
+      // only the Owner's dashboard ever fetched or passed one.
+      leading: ManaBusinessLogo(logoUrl: ref.watch(agentDashboardProvider).dashboard?.logoUrl),
       actions: [
         // Was AG-008, the app's only notifications screen and agent-only.
         // Now the shared inbox, which also carries the invitations that used
@@ -213,7 +217,7 @@ class _AgentHomeDashboardScreenState
         // other three workspaces so the order and labels cannot drift.
         ...manaGlobalDrawerSections(
           onProfile: () => context.push('/ag-009'),
-          onSwitchWorkspace: () => context.go('/lr-012'),
+          onSwitchWorkspace: () => context.go('/lr-012?pick=1'),
           onSwitchRole: () => context.go('/lr-013', extra: widget.businessId),
           onSettings: () =>
               context.push('/ag-settings', extra: widget.businessId),

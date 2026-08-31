@@ -289,7 +289,7 @@ class AgentApiService {
     // WAVE 1 — nothing here depends on anything else in this method.
     final wave1 = await Future.wait<dynamic>([
       _resolveMembershipId(agentId),
-      _db.from('businesses').select('business_name, owner_person_id').eq('business_id', businessId).single(),
+      _db.from('businesses').select('business_name, owner_person_id, logo_url').eq('business_id', businessId).single(),
       _db
           .from('account_settlements')
           .select('settlement_id')
@@ -471,6 +471,7 @@ class AgentApiService {
       visibleQuickActions: visibleActions,
       liveActivity: const [], // deferred, same reasoning as owner_api_service.dart
       businessName: titleCaseName(business['business_name'] as String),
+      logoUrl: business['logo_url'] as String?,
       ownerName: owner['full_name'] as String,
       membershipStatus: membershipRow['membership_status'] as String,
       // Notifications/Universal Search are always in visibleActions now
@@ -621,6 +622,11 @@ class AgentDashboardData {
 
   // Workspace Information
   final String businessName;
+
+  /// The business's own mark, shown in the header. Only the Owner's dashboard
+  /// ever fetched this, so an Agent saw a blank square where their business's
+  /// logo should be -- the same business, the same header, no logo.
+  final String? logoUrl;
   final String ownerName;
   final String membershipStatus;
   final String permissionProfile;
@@ -666,6 +672,7 @@ class AgentDashboardData {
     required this.visibleQuickActions,
     required this.liveActivity,
     required this.businessName,
+    this.logoUrl,
     required this.ownerName,
     required this.membershipStatus,
     required this.permissionProfile,

@@ -216,7 +216,15 @@ final manaRouter = GoRouter(
     GoRoute(path: '/lr-009', builder: (c, s) => const DailyLoginScreen()),
     GoRoute(path: '/lr-010', builder: (c, s) => const ForgotPasswordScreen()),
     GoRoute(path: '/lr-011', builder: (c, s) => const ForgotPinScreen()),
-    GoRoute(path: '/lr-012', builder: (c, s) => const BusinessSelectorScreen()),
+    // `?pick=1` means the person asked for this list, from Switch Workspace.
+    // Without it LR-012 auto-opens a single-business user's only business,
+    // which is right on login and wrong when they deliberately came here to
+    // look at their options.
+    GoRoute(
+      path: '/lr-012',
+      builder: (c, s) => BusinessSelectorScreen(
+          alwaysPick: s.uri.queryParameters['pick'] == '1'),
+    ),
     GoRoute(path: '/lr-013', builder: (c, s) => const RoleSelectorScreen()),
 
     // --- Owner Workspace -----------------------------------------------

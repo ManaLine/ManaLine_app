@@ -89,7 +89,20 @@ class _SearchAndResults extends ConsumerWidget {
                   : ManaText.raw(ref.t('search')),
             ),
           ),
-          const SizedBox(height: ManaSpacing.lg),
+          // Looking for somebody else's business is one of two things a person
+          // might be doing here; the other is discovering they want their own.
+          // Create had no entry point in either workspace, so this was a
+          // dead end for anybody who was never going to find what they were
+          // searching for.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => context.push('/ow-000', extra: true),
+              icon: const Icon(Icons.add_business_outlined, size: 18),
+              label: ManaText.raw(ref.t('create_new_business')),
+            ),
+          ),
+          const SizedBox(height: ManaSpacing.md),
           Expanded(
             child: state.phase == DiscoveryPhase.search
                 ? Center(

@@ -1132,6 +1132,10 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
     }
   }
 
+  /// Every flag in the group is on. Drives the group's own switch.
+  bool _groupIsFullyOn(Map<String, String> group) =>
+      group.keys.every((k) => _permissions[k] ?? false);
+
   Future<void> _save() async {
     await NetworkErrorHandler.run(context, () async {
       return ref
@@ -1151,9 +1155,37 @@ class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
         ),
         const SizedBox(height: ManaSpacing.md),
         for (final group in _groups.entries) ...[
+          // The group header carries its own switch. Twenty-two toggles set one
+          // at a time is the difference between granting an agent their day's
+          // work in one tap and in six, and the groups are already the unit an
+          // Owner thinks in ("can they do daily work at all").
+          //
+          // Deliberately not tri-state: a half-on group shows OFF, so the
+          // switch always means "turn this whole set on" or "turn it all off"
+          // and never leaves the Owner guessing what a third position did.
           ManaText.raw(ref.t(_groupKeys[group.key]!),
               style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: ManaColors.textSecondary)),
+          // Its own row, in the same shape as the rows it controls, rather
+          // than a switch packed into the header beside the title. Packed, it
+          // overflowed at 1.6x and 2.0x in both languages -- a bare Switch and
+          // a bare label sitting next to a flexible title, which is this
+          // codebase's recurring overflow shape.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: ManaText.raw(ref.t('select_all'),
+                style: TextStyle(
+                    fontWeight: FontWeight.w600, color: ManaColors.brand)),
+            value: _groupIsFullyOn(group.value),
+            onChanged: (v) => setState(() {
+              for (final key in group.value.keys) {
+                _permissions[key] = v;
+              }
+            }),
+          ),
           ...group.value.entries.map((e) => SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: ManaText.raw(ref.t(e.value)),

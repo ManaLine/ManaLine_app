@@ -363,7 +363,18 @@ class ManaAddCustomerSheet extends ConsumerStatefulWidget {
   /// Opened from the "Existing Customers" header action — a miss stays on
   /// the search stage instead of falling through to Create New.
   final bool existingOnly;
-  const ManaAddCustomerSheet({super.key, required this.businessId, this.existingOnly = false});
+
+  /// What was already typed wherever the sheet was opened from, so a search
+  /// that found nobody is not retyped to create that person. Used by OW-001's
+  /// global search, which otherwise dead-ends on "No Identity Found".
+  final String? initialQuery;
+
+  const ManaAddCustomerSheet({
+    super.key,
+    required this.businessId,
+    this.existingOnly = false,
+    this.initialQuery,
+  });
 
   @override
   ConsumerState<ManaAddCustomerSheet> createState() => _AddCustomerSheetState();
@@ -397,6 +408,19 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
     _manualState.dispose();
     super.dispose();
   }
+  @override
+  void initState() {
+    super.initState();
+    // Carried from wherever the sheet was opened, so the person who has
+    // already typed a name into a search that found nobody does not type it
+    // again to create them.
+    final q = widget.initialQuery?.trim() ?? '';
+    if (q.isNotEmpty) {
+      _query.text = q;
+      _fullName.text = q;
+    }
+  }
+
   _AddCustomerStage _stage = _AddCustomerStage.search;
   final _query = TextEditingController();
   CustomerSummary? _foundIdentity;

@@ -23,7 +23,8 @@ import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
 import '../state/investor_state.dart' show investorApiServiceProvider, InvestorSummary;
-import 'ow_004_customer_management.dart' show CustomerProfileScreen;
+import 'ow_004_customer_management.dart'
+    show CustomerProfileScreen, ManaAddCustomerSheet;
 import 'ow_003_investor_management.dart' show InvestorProfileScreen;
 import 'ow_002_workforce_management.dart' show AgentProfileScreen;
 import '../../../shared/widgets/workspace_nav.dart';
@@ -769,17 +770,44 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
             : _found.isEmpty
                 ? Padding(
                     padding: const EdgeInsets.all(ManaSpacing.xxl),
-                    child: Center(
-                      child: ManaText.raw(
-                        // Before a search has run this is an instruction, not
-                        // a result. Saying "no match" to someone who has not
-                        // yet typed anything reads as a broken search.
-                        _searched && !_searching
-                            ? ref.t('no_identity_found')
-                            : ref.t('search_by_phone_mlid_aadhaar_name'),
-                        textAlign: TextAlign.center,
-                        style: ManaType.secondary,
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ManaText.raw(
+                          // Before a search has run this is an instruction, not
+                          // a result. Saying "no match" to someone who has not
+                          // yet typed anything reads as a broken search.
+                          _searched && !_searching
+                              ? ref.t('no_identity_found')
+                              : ref.t('search_by_phone_mlid_aadhaar_name'),
+                          textAlign: TextAlign.center,
+                          style: ManaType.secondary,
+                        ),
+                        // "Not here" is the answer to the question, not the end
+                        // of the errand. Somebody searching for a person who
+                        // turns out not to exist is nearly always about to add
+                        // them, and this screen used to stop dead instead.
+                        //
+                        // The same sheet OW-004 uses, carrying the query across
+                        // so the name is not typed twice.
+                        if (_searched && !_searching) ...[
+                          const SizedBox(height: ManaSpacing.lg),
+                          FilledButton.tonalIcon(
+                            onPressed: () => showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (_) => ManaAddCustomerSheet(
+                                businessId: widget.businessId,
+                                initialQuery: _query.text.trim(),
+                              ),
+                            ).then((_) {
+                              if (mounted) _search();
+                            }),
+                            icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+                            label: ManaText.raw(ref.t('add_customer')),
+                          ),
+                        ],
+                      ],
                     ),
                   )
                 : ListView.builder(

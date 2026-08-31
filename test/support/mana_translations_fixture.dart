@@ -2464,6 +2464,7 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'ignore': {'English': 'Ignore', 'Telugu': 'పట్టించుకోవద్దు'},
   'switch_camera': {'English': 'Switch Camera', 'Telugu': 'కెమెరా మార్చండి'},
   'until_submitted': {'English': 'until submitted', 'Telugu': 'సమర్పించే వరకు'},
+  'check_again': {'English': 'Check Again', 'Telugu': 'మళ్లీ చూడండి'},
   'area_still_has_loans_question': {'English': 'Loans Are Still Being Collected Here', 'Telugu': 'ఇక్కడ ఇంకా వసూళ్లు జరుగుతున్నాయి'},
   'area_still_has_loans_note': {'English': '{count} live loans sit in {area}. Removing it now leaves them with no round to be collected on.', 'Telugu': '{area}లో {count} సజీవ రుణాలు ఉన్నాయి. ఇప్పుడు తీసివేస్తే వాటిని వసూలు చేయడానికి రౌండ్ ఉండదు.'},
   'area_removed_note': {'English': '{area} was removed.', 'Telugu': '{area} తీసివేయబడింది.'},

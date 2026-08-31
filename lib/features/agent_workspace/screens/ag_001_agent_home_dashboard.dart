@@ -238,8 +238,8 @@ class _AgentHomeDashboardScreenState
               state: state,
               agentId: widget.agentId,
               businessId: widget.businessId),
-          AgentSessionStage.bfUpdateRequested =>
-            const _BfUpdateRequestedBlock(),
+          AgentSessionStage.bfUpdateRequested => _BfUpdateRequestedBlock(
+              agentId: widget.agentId, businessId: widget.businessId),
           AgentSessionStage.areaSelection => _AreaSelection(
               state: state,
               agentId: widget.agentId,
@@ -378,10 +378,45 @@ class _BfNotGrantedBlock extends ConsumerWidget {
   }
 }
 
-class _BfUpdateRequestedBlock extends ConsumerWidget {
-  const _BfUpdateRequestedBlock();
+/// Where a disputing agent waits — and, until now, stayed.
+///
+/// This was a const panel with no action on it at all: an icon and two lines
+/// of text. The only thing that clears the dispute agent-side is
+/// confirm_bf_assignment, reached from the BF gate, and this screen replaces
+/// that gate. So the agent was parked behind a button the state itself hid,
+/// and the Owner granting BF did not touch the flag either. One agent on this
+/// book sat here with the money already in their float.
+///
+/// The Owner's grant ends the dispute now (see app.grant_agent_bf), so all
+/// this screen has to do is let the agent ask again without killing the app.
+class _BfUpdateRequestedBlock extends ConsumerStatefulWidget {
+  final String agentId;
+  final String businessId;
+  const _BfUpdateRequestedBlock({required this.agentId, required this.businessId});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BfUpdateRequestedBlock> createState() =>
+      _BfUpdateRequestedBlockState();
+}
+
+class _BfUpdateRequestedBlockState
+    extends ConsumerState<_BfUpdateRequestedBlock> {
+  bool _checking = false;
+
+  Future<void> _check() async {
+    setState(() => _checking = true);
+    await ref.read(agentDashboardProvider.notifier).enter(
+          agentId: widget.agentId,
+          businessId: widget.businessId,
+        );
+    // enter() moves the stage off this one when the Owner has answered, which
+    // disposes this State -- hence the mounted check rather than a plain
+    // setState.
+    if (mounted) setState(() => _checking = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.xl),
@@ -397,6 +432,17 @@ class _BfUpdateRequestedBlock extends ConsumerWidget {
               ref.t('bf_dispute_sent'),
               textAlign: TextAlign.center,
               style: ManaType.note,
+            ),
+            const SizedBox(height: ManaSpacing.lg),
+            FilledButton.tonalIcon(
+              onPressed: _checking ? null : _check,
+              icon: _checking
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh, size: 18),
+              label: ManaText.raw(ref.t('check_again')),
             ),
           ],
         ),

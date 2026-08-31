@@ -146,6 +146,37 @@ void main() {
     expect(customerTile.onTap, isNull);
   });
 
+  testWidgets('Business Transfer is the Owner\'s row, not everybody\'s',
+      (tester) async {
+    // It was shown in all four workspaces, on the reasoning that somebody
+    // with no business still needs somewhere to accept one offered to them.
+    // True, and it put the heaviest action in the app permanently in front of
+    // every Agent, Customer and Investor to cover a case that is rare and
+    // announces itself. An incoming offer brings the row with it; with no
+    // offer there is nothing for a non-Owner to do there.
+    await pumpManaScreen(
+      tester,
+      const SettingsScreen(homeRoute: '/ow-001'),
+      surfaceSize: tallSurface,
+      storage: rememberedDeviceStorage(),
+    );
+    // Two matches: the section header and the row itself.
+    expect(find.text('Business Transfer'), findsWidgets,
+        reason: 'an Owner has a business to hand over');
+
+    // No offer is pending in the harness — the lookup fails without a server
+    // and is swallowed, which is the same state as "nothing waiting".
+    await pumpManaScreen(
+      tester,
+      const SettingsScreen(homeRoute: '/ag-001'),
+      surfaceSize: tallSurface,
+      storage: rememberedDeviceStorage(),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Business Transfer'), findsNothing,
+        reason: 'an Agent with no offer waiting has no business to transfer');
+  });
+
   for (final scale in kManaTextScales) {
     testWidgets('Settings survives text scale ${scale}x', (tester) async {
       await pumpManaScreen(

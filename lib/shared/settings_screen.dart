@@ -15,6 +15,7 @@ import 'mana_biometric.dart';
 import 'network_error_handler.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
 import '../features/login_registration/state/auth_api_service.dart';
+import '../features/owner_workspace/state/business_transfer_state.dart';
 
 /// Shared Settings screen, used by all four workspaces (Owner/Agent/
 /// Investor/Customer) — one implementation instead of four near-identical
@@ -82,6 +83,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _ => _lastUsedProfileRoute,
       };
 
+  /// Whether this workspace is the Owner's, derived the same way the profile
+  /// route is rather than from a second source of truth.
+  bool get _isOwner => widget.homeRoute == '/ow-001';
+
+  /// True once a transfer has actually been offered to this person. Null while
+  /// the check is in flight, which renders as "not yet" — a row that appears a
+  /// moment late is better than one that flashes and disappears.
+  bool _hasIncomingTransfer = false;
+
+  bool get _showsBusinessTransfer => _isOwner || _hasIncomingTransfer;
+
+  /// Asked once, on open. A failure leaves the row hidden for a non-Owner:
+  /// the Owner's own path does not depend on this call, and an offer that
+  /// exists will still be there next time.
+  Future<void> _checkIncomingTransfer() async {
+    if (_isOwner) return;
+    try {
+      final transfers =
+          await ref.read(businessTransferApiServiceProvider).list();
+      final incoming = transfers.any(
+          (t) => t.direction == 'incoming' && t.status == 'Pending');
+      if (mounted && incoming) setState(() => _hasIncomingTransfer = true);
+    } catch (_) {
+      // Settings must open whether or not this answers.
+    }
+  }
+
   /// Resolved from the entity ids ManaSession caches when LR-013 last
   /// resolved a membership. Checked most-specific first: an Owner has no
   /// agent/customer/investor row, so a remembered businessId with none of
@@ -129,6 +157,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     LocalAuthStore.readPinLength().then((v) {
       if (mounted) setState(() => _pinEnabled = v != null);
     });
+    _checkIncomingTransfer();
   }
 
   /// Enables PIN login on this device using the PIN the person ALREADY has.
@@ -519,18 +548,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               titleColor: ManaColors.statusBad,
               onTap: () => context.push('/account-closure'),
             ),
-            const SizedBox(height: ManaSpacing.lg),
-            const _SectionHeader('business transfer'),
-            // Available in every workspace, not just the Owner's: someone with
-            // no business of their own still needs somewhere to see and accept
-            // an offer made to them.
-            _SettingsTile(
-              icon: Icons.swap_horizontal_circle_outlined,
-              title: 'Business Transfer',
-              subtitle: 'Hand a business over, or accept one offered to you.',
-              onTap: () =>
-                  context.push('/business-transfer', extra: widget.businessId),
-            ),
+            // Shown to an Owner, and to anyone who actually has an offer
+            // waiting. It used to be shown to everybody, on the reasoning that
+            // someone with no business of their own still needs somewhere to
+            // accept one — true, but it put the heaviest action in the app in
+            // front of every Agent, Customer and Investor permanently, to
+            // cover a case that is rare and self-announcing. An incoming offer
+            // brings the row with it.
+            if (_showsBusinessTransfer) ...[
+              const SizedBox(height: ManaSpacing.lg),
+              const _SectionHeader('business transfer'),
+              _SettingsTile(
+                icon: Icons.swap_horizontal_circle_outlined,
+                title: 'Business Transfer',
+                subtitle: _isOwner
+                    ? 'Hand a business over, or accept one offered to you.'
+                    : 'A business has been offered to you.',
+                onTap: () =>
+                    context.push('/business-transfer', extra: widget.businessId),
+              ),
+            ],
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('share app'),
             // One system share sheet rather than five per-app buttons.

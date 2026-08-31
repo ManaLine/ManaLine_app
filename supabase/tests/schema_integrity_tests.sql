@@ -540,6 +540,54 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- NOBODY BEING COLLECTED FROM IS OUTSIDE AN ACTIVE AREA
+-- =============================================================================
+-- The chain the whole app is built on runs customer -> village -> operating
+-- area -> agent -> business. A customer whose village belongs to no ACTIVE
+-- area is in no round: no agent's list reaches them.
+--
+-- That is only a problem when money is involved. Thirty-one dormant customers
+-- sat outside an area on this book with nothing owed, which costs nothing --
+-- but one had a live loan, stranded when the area covering their village was
+-- removed and its villages were freed. This asserts the case that matters
+-- rather than the count, which would fail forever on the harmless ones.
+DO $$
+DECLARE
+    v_count INT;
+    v_names TEXT;
+BEGIN
+    SELECT count(*), string_agg(DISTINCT p.full_name, ', ')
+      INTO v_count, v_names
+    FROM customers c
+    JOIN business_members bm  ON bm.membership_id = c.membership_id
+    JOIN persons p            ON p.person_id = c.person_id
+    JOIN person_addresses pa  ON pa.person_id = p.person_id AND pa.is_current
+    WHERE EXISTS (
+            SELECT 1 FROM loans l
+             WHERE l.customer_id = c.customer_id
+               AND l.deleted_at IS NULL
+               AND l.loan_status IN ('Active', 'Grace Period', 'Penalty'))
+      AND NOT EXISTS (
+            SELECT 1
+              FROM operating_area_locations oal
+              JOIN operating_areas oa
+                ON oa.operating_area_id = oal.operating_area_id
+             WHERE oal.location_id = pa.village_id
+               AND oal.removed_at IS NULL
+               AND oa.business_id = bm.business_id
+               AND oa.status = 'Active');
+
+    PERFORM pg_temp.si_log(
+        'DATA', 'BR-013',
+        CASE WHEN v_count = 0
+             THEN 'every customer with a live loan sits in an active operating area'
+             ELSE v_count || ' customer(s) owe money but belong to no active '
+                  || 'area, so no agent round reaches them: ' || v_names
+        END,
+        v_count = 0);
+END $$;
+
+-- =============================================================================
 -- SUMMARY
 -- =============================================================================
 DO $$

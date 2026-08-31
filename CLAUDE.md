@@ -112,6 +112,66 @@ Full pass over existing code — bugs, security issues, dead code (unused functi
 **Goal:**
 Fast, responsive, close-to-bug-free app. Minimal, clean code. No bloat. No unused code. No unpatched security gaps. Correctness and simplicity over cleverness.
 
+## Bug-fix batch mode (real-device testing sessions)
+
+Triggered when handed a batch of 15-20 device-testing issues. Overrides
+the standard "full pass + TDD every change" workflow for speed — the
+Hard line below never relaxes regardless of batch mode.
+
+**Phase 1 — triage + roadmap, no fixing.** Classify each item BLOCKS
+TESTING / DEGRADES TESTING / COSMETIC, one-line reason each. Then build
+a tranche-based roadmap (which items ship in which order/batch, and
+why) from a complete read of the bug list — not a partial skim. If
+anything needed to classify or plan a fix isn't resolvable from the
+migration files, business rules docs, or the rest of the repo, ask me
+directly rather than assuming. Present the triage table + roadmap.
+Stop, wait for my approval before touching any code.
+
+**Phase 2 — fix BLOCKS TESTING items first**, sequentially, in the
+approved tranche order. `flutter analyze` after each. Commit after each.
+
+**Phase 3 — remaining items**, grouped by workspace/feature directory
+(owner/agent/customer/investor/backend-RPC), in the approved tranche
+order. One file-touch-list per group, no cross-boundary edits without
+flagging first.
+
+**Phase 4 — stop before shipping.** Once all fixes in the approved
+roadmap are done and `flutter analyze` is clean on every touched file,
+stop. Do not push, build the APK, or install. Present a summary (fixed
+/ flagged / deferred, table format) and wait for my explicit approval
+before running `flutter build apk` or `adb install`.
+
+**Token discipline for this mode:**
+- Read only the file(s) the specific bug needs — no directory scans "to
+  be safe," no re-reading files already in context this session.
+- No restating bug text or file contents back before acting.
+- No progress narration mid-fix ("Now checking...", "Let me look at...").
+- `flutter analyze` after each individual fix; one full `flutter build
+  apk` at the end of the whole batch, not after each fix.
+- End-of-batch summary is a table (bug → status → one-line note), not
+  prose recap.
+- Skip TDD's full red-green-refactor ceremony for straightforward fixes —
+  add/adjust the one test that would have caught the bug, not a new
+  suite — unless the bug exposes a real gap Superpowers should plan
+  around.
+- Run Code Review once over the full batch diff before the final build,
+  not per micro-fix.
+- Security Guidance still fires on every change as normal (it's
+  hook-driven, not a cost decision).
+
+**Hard line — never skipped for token savings:**
+- Never invent schema/columns/RPCs; never work around a gap silently.
+- Never touch RLS policies or a money-path file without flagging it
+  explicitly, however briefly.
+- Migration filename convention and the DROP-then-CREATE RPC rule apply
+  in full, every time.
+- Never report a fix as done if `flutter analyze` still shows errors in
+  that file.
+- Money conventions section applies in full — no relaxation.
+
+**Final step (only after my approval in Phase 4):** run `flutter
+analyze` + full `flutter build apk`, install via adb, report completion.
+
 ## Session start checklist
 
 1. Read CLAUDE.md

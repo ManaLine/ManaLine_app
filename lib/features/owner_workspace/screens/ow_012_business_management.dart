@@ -722,11 +722,60 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await NetworkErrorHandler.run(context, () async {
+    await _remove(area, force: false);
+  }
+
+  /// Does the removal, and asks a second time if the server says people are
+  /// still being collected from there.
+  ///
+  /// The second question is deliberately a different question, with a count in
+  /// it. "Are you sure?" twice teaches people to tap through both; "22 loans
+  /// are still being collected in Uranduru" is information they did not have
+  /// when they answered the first one.
+  Future<void> _remove(OperatingAreaSummary area, {required bool force}) async {
+    final result = await NetworkErrorHandler.run(context, () async {
       return ref
           .read(businessDetailProvider(widget.businessId).notifier)
-          .removeOperatingArea(operatingAreaId: area.operatingAreaId);
+          .removeOperatingArea(
+              operatingAreaId: area.operatingAreaId, force: force);
     });
+    if (result == null || !mounted) return;
+
+    if (result['status'] == 'blocked') {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: ManaText.raw(ref.t('area_still_has_loans_question')),
+          content: ManaText.raw(ref
+              .t('area_still_has_loans_note')
+              .replaceAll('{count}', '${result['live_loans']}')
+              .replaceAll('{area}', area.name)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: ManaText.raw(ref.t('back')),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: ManaColors.statusBad),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: ManaText.raw(ref.t('remove')),
+            ),
+          ],
+        ),
+      );
+      if (proceed == true && mounted) await _remove(area, force: true);
+      return;
+    }
+
+    // Deleted outright, or kept as Inactive because account periods reference
+    // it. Saying which is the difference between "it is gone" and "it is out
+    // of the way", and the Owner will look for it later either way.
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: ManaText.raw(result['status'] == 'deleted'
+          ? ref.t('area_removed_note').replaceAll('{area}', area.name)
+          : ref.t('area_kept_for_history_note').replaceAll('{area}', area.name)),
+    ));
   }
 
   Future<void> _rename(OperatingAreaSummary area) async {

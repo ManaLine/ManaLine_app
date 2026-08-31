@@ -253,10 +253,24 @@ class BusinessManagementApiService {
   /// one of those villages to another round failed with "already covered
   /// by one of your operating areas" — naming an area the Owner had
   /// already removed. Server-side so the three writes cannot half-apply.
-  Future<void> deactivateOperatingArea({required String operatingAreaId}) async {
-    await _db.schema('app').rpc('deactivate_operating_area', params: {
+  /// Removes an area, and says what removing it actually did.
+  ///
+  /// Three outcomes, decided server-side by app.remove_operating_area:
+  /// 'blocked' when loans are still live there and [force] was not set,
+  /// 'deleted' when the area had no history at all, 'deactivated' when it has
+  /// account periods that must outlive it.
+  ///
+  /// Returns the raw map rather than a bool: the caller has to be able to tell
+  /// "we stopped and are asking you" from "it is gone", and a bool cannot.
+  Future<Map<String, dynamic>> removeOperatingArea({
+    required String operatingAreaId,
+    bool force = false,
+  }) async {
+    final result = await _db.schema('app').rpc('remove_operating_area', params: {
       'p_operating_area_id': operatingAreaId,
+      'p_force': force,
     });
+    return (result as Map).cast<String, dynamic>();
   }
 
   Future<void> renameOperatingArea({
@@ -305,7 +319,17 @@ class BusinessManagementApiService {
     final rows = await _db
         .from('operating_areas')
         .select('operating_area_id, name, status, account_cycle_duration, account_cycle_unit, submission_time')
-        .eq('business_id', businessId);
+        .eq('business_id', businessId)
+        // Removed areas are not offered anywhere. They used to be listed
+        // exactly like live ones, so villages and agents could be attached to
+        // an area the Owner had already removed -- five of nine areas on this
+        // book were sitting in that state.
+        //
+        // An Inactive area survives only because account periods reference it
+        // (see app.remove_operating_area); it is history, not a place anybody
+        // is still working, and the settlement screens read those periods
+        // directly rather than through this list.
+        .eq('status', 'Active');
     final areas = (rows as List)
         .map((r) => OperatingAreaSummary(
               operatingAreaId: r['operating_area_id'] as String,
@@ -1376,20 +1400,33 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
     }
   }
 
-  /// Removes an area (status → Inactive). Refetches rather than patching
-  /// locally, because deactivating can change what the Agent-side reads
-  /// see and the area keeps its assignment row.
-  Future<bool> removeOperatingArea({required String operatingAreaId}) async {
+  /// Removes an area and reports back what happened.
+  ///
+  /// Refetches rather than patching locally: a removal can delete the row
+  /// outright, or leave it Inactive with its account periods, and the list has
+  /// to show whichever actually occurred.
+  ///
+  /// A 'blocked' result changes nothing — it is the server asking whether the
+  /// Owner really means it, with the number of live loans to say why.
+  Future<Map<String, dynamic>?> removeOperatingArea({
+    required String operatingAreaId,
+    bool force = false,
+  }) async {
     state = state.copyWith(submitting: true, clearError: true);
     try {
       final api = ref.read(businessManagementApiServiceProvider);
-      await api.deactivateOperatingArea(operatingAreaId: operatingAreaId);
+      final result = await api.removeOperatingArea(
+          operatingAreaId: operatingAreaId, force: force);
+      if (result['status'] == 'blocked') {
+        state = state.copyWith(submitting: false);
+        return result;
+      }
       final areas = await api.fetchOperatingAreas(businessId: arg);
       state = state.copyWith(operatingAreas: areas, submitting: false);
-      return true;
+      return result;
     } catch (e) {
       state = state.copyWith(submitting: false, error: e.toString());
-      return false;
+      return null;
     }
   }
 

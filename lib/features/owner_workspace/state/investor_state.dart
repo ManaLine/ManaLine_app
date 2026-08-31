@@ -202,6 +202,21 @@ class InvestorApiService {
     });
   }
 
+  /// Adds an existing person as an Investor, with no investment yet.
+  ///
+  /// The other path demands an amount and refuses without one, which is the
+  /// right shape when the Owner has the figures and the wrong one at a
+  /// doorstep. Idempotent server-side, so a double tap adds one investor.
+  Future<void> attachInvestor({
+    required String businessId,
+    required String personId,
+  }) async {
+    await _db.schema('app').rpc('attach_investor', params: {
+      'p_business_id': businessId,
+      'p_person_id': int.parse(personId),
+    });
+  }
+
   Future<void> updateInvestorStatus({required String investorId, required String status}) async {
     final inv = await _db.from('investors').select('membership_id').eq('investor_id', investorId).single();
     await _db.from('business_members').update({'membership_status': status}).eq('membership_id', inv['membership_id']);
@@ -795,6 +810,23 @@ class InvestorWorkforceNotifier extends Notifier<InvestorWorkforceState> {
             effectiveDate: effectiveDate,
             profitSharePercent: profitSharePercent,
           );
+      await load(businessId);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  /// Puts the person on the roster now; the money is recorded from their
+  /// profile afterwards.
+  Future<bool> attachInvestor({
+    required String businessId,
+    required String personId,
+  }) async {
+    try {
+      await ref.read(investorApiServiceProvider)
+          .attachInvestor(businessId: businessId, personId: personId);
       await load(businessId);
       return true;
     } catch (e) {

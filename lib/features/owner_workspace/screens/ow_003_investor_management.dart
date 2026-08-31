@@ -297,15 +297,37 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
   String _interestType = 'Simple';
   DateTime _investedOn = manaNowIst();
 
+  /// Adds the person. The money is optional here.
+  ///
+  /// This used to refuse -- "Enter the amount they invested and the ROI
+  /// first" -- and send the Owner back up the sheet before the person was on
+  /// the roster at all. Wrong order for a doorstep: you establish who somebody
+  /// is, then you talk about figures. With an amount filled in it still does
+  /// both at once, because an Owner who has the numbers should not have to
+  /// come back for them.
   Future<void> _add(PersonSearchResult person) async {
     final amount = int.tryParse(_amount.text.trim());
     final roi = double.tryParse(_roi.text.trim());
-    if (amount == null || amount <= 0 || roi == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: ManaText.raw('Enter the amount they invested and the ROI first.'),
-        ),
-      );
+    final withMoney = amount != null && amount > 0 && roi != null;
+
+    if (!withMoney) {
+      setState(() => _addingPersonId = person.personId);
+      final ok = await NetworkErrorHandler.run(context, () async {
+        return ref.read(investorWorkforceProvider.notifier).attachInvestor(
+              businessId: widget.businessId,
+              personId: person.personId,
+            );
+      });
+      if (!mounted) return;
+      setState(() => _addingPersonId = null);
+      if (ok == true && mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: ManaText.raw(ref
+              .t('investor_added_record_investment_note')
+              .replaceAll('{name}', person.fullName)),
+        ));
+      }
       return;
     }
 
@@ -414,11 +436,16 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                 ],
               ),
             const SizedBox(height: ManaSpacing.md),
-            // Asked before the person is chosen, because it is what makes them
-            // an investor at all — there is no attach-only step any more.
+            // Optional now, and the copy says so. It read "Their First
+            // Investment" with two required fields, and Add refused without
+            // them -- so the Owner was stopped before the person was on the
+            // roster at all. Filled in, Add still does both at once.
             const Divider(height: ManaSpacing.xl),
-            const ManaText.raw('Their First Investment',
+            const ManaText.raw('Their First Investment — Optional',
                 style: ManaType.heavy),
+            const SizedBox(height: ManaSpacing.xs),
+            ManaText.raw(ref.t('first_investment_optional_note'),
+                style: ManaType.note),
             const SizedBox(height: ManaSpacing.sm),
             Row(
               children: [
@@ -426,7 +453,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                   child: TextField(
                     controller: _amount,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Amount *', prefixText: '₹ '),
+                    decoration: const InputDecoration(labelText: 'Amount', prefixText: '₹ '),
                   ),
                 ),
                 const SizedBox(width: ManaSpacing.sm),
@@ -435,7 +462,7 @@ class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorS
                     controller: _roi,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
-                      labelText: 'ROI *',
+                      labelText: 'ROI',
                       suffixIcon: ManaInfoHint('Rupees per ₹100 per month, not per year.'),
                     ),
                   ),

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
+import 'package:image/image.dart' as img;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
@@ -154,7 +155,7 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       final file = await _controller!.takePicture();
       final bytes = await file.readAsBytes();
       if (!mounted) return;
-      Navigator.of(context).pop(bytes);
+      Navigator.of(context).pop(cropToFaceCircle(bytes));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -201,6 +202,20 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
                     alignment: Alignment.center,
                     children: [
                       Positioned.fill(child: CameraPreview(_controller!)),
+                      // The circle is not decoration: it is exactly what gets
+                      // kept. Everything dimmed is discarded at capture, so
+                      // what is framed is what is stored -- see
+                      // cropToFaceCircle. Without it the preview promised a
+                      // whole room and the file delivered one.
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(
+                            painter: _FaceCircleMask(
+                              ready: _faceDetected || kIsWeb,
+                            ),
+                          ),
+                        ),
+                      ),
                       Positioned(
                         bottom: 32,
                         child: Column(
@@ -241,4 +256,81 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       ),
     );
   }
+}
+
+/// The captured frame, reduced to the circle the person was framed in.
+///
+/// The preview showed the whole camera frame, so what was stored was the
+/// whole room: the doorstep, whoever else was standing there, the inside of
+/// somebody's house. A face photo for identity should be a face, and every
+/// pixel beyond it is somebody's else's business collected by accident.
+///
+/// Square crop about the centre first — the frame is portrait and the face is
+/// centred, which is the same assumption the face-presence gate already
+/// makes — then everything outside the inscribed circle is cleared. Returned
+/// as PNG because the corners have to actually be transparent; a JPEG would
+/// paint them black and quietly keep the same rectangle.
+///
+/// Falls back to the original bytes if they cannot be decoded. A photo that
+/// is not cropped is worth more than no photo at a doorstep.
+Uint8List cropToFaceCircle(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return bytes;
+
+  final side = decoded.width < decoded.height ? decoded.width : decoded.height;
+  final square = img.copyCrop(
+    decoded,
+    x: (decoded.width - side) ~/ 2,
+    y: (decoded.height - side) ~/ 2,
+    width: side,
+    height: side,
+  );
+
+  final r = side / 2;
+  for (var y = 0; y < square.height; y++) {
+    for (var x = 0; x < square.width; x++) {
+      final dx = x - r + 0.5;
+      final dy = y - r + 0.5;
+      if (dx * dx + dy * dy > r * r) {
+        square.setPixelRgba(x, y, 0, 0, 0, 0);
+      }
+    }
+  }
+  return Uint8List.fromList(img.encodePng(square));
+}
+
+/// Dims everything the capture will throw away, and rings what it keeps.
+///
+/// The ring turns green on the same condition the Capture button enables on,
+/// so "am I allowed to press it yet" is answered where the person is already
+/// looking rather than in a line of text below.
+class _FaceCircleMask extends CustomPainter {
+  final bool ready;
+  const _FaceCircleMask({required this.ready});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Matches cropToFaceCircle: the largest circle inside the centred square.
+    final side = size.shortestSide;
+    final centre = Offset(size.width / 2, size.height / 2);
+    final radius = side / 2;
+
+    final outside = Path()
+      ..addRect(Offset.zero & size)
+      ..addOval(Rect.fromCircle(center: centre, radius: radius))
+      ..fillType = PathFillType.evenOdd;
+
+    canvas.drawPath(outside, Paint()..color = Colors.black.withValues(alpha: 0.6));
+    canvas.drawCircle(
+      centre,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..color = ready ? Colors.greenAccent : Colors.white70,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FaceCircleMask oldDelegate) => oldDelegate.ready != ready;
 }

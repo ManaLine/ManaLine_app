@@ -90,19 +90,17 @@ class _FirstBusinessSetupScreenState
       case BusinessSetupStep.createBusiness:
         return _Step1CreateBusiness(
             onNext: () => _goTo(BusinessSetupStep.operatingAreas));
+      // No account-cycle step. It asked for a duration and a submission time
+      // per area, and neither exists any more: an account runs from the last
+      // submission to the next one. Six steps, then five.
       case BusinessSetupStep.operatingAreas:
         return _Step2OperatingAreas(
           onBack: () => _goTo(BusinessSetupStep.createBusiness),
-          onNext: () => _goTo(BusinessSetupStep.accountCycle),
-        );
-      case BusinessSetupStep.accountCycle:
-        return _Step3AccountCycle(
-          onBack: () => _goTo(BusinessSetupStep.operatingAreas),
           onNext: () => _goTo(BusinessSetupStep.existingMembers),
         );
       case BusinessSetupStep.existingMembers:
         return _Step4ExistingMembers(
-          onBack: () => _goTo(BusinessSetupStep.accountCycle),
+          onBack: () => _goTo(BusinessSetupStep.operatingAreas),
           onNext: () => _goTo(BusinessSetupStep.agreements),
           onSkip: () => _goTo(BusinessSetupStep.agreements),
         );
@@ -775,161 +773,6 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
 }
 
 // --- Step 3 — Configure Account Cycle per Area ------------------------------
-
-class _Step3AccountCycle extends ConsumerStatefulWidget {
-  final VoidCallback onBack;
-  final VoidCallback onNext;
-  const _Step3AccountCycle({required this.onBack, required this.onNext});
-
-  @override
-  ConsumerState<_Step3AccountCycle> createState() => _Step3AccountCycleState();
-}
-
-class _Step3AccountCycleState extends ConsumerState<_Step3AccountCycle> {
-  Future<void> _configure(OperatingAreaDraft area) async {
-    final duration = await showDialog<int>(
-      context: context,
-      builder: (_) => const _DurationPickerDialog(),
-    );
-    if (duration == null) return;
-    if (!mounted) return;
-    await NetworkErrorHandler.run(context, () async {
-      return ref.read(businessSetupProvider.notifier).configureAccountCycle(
-            areaLocalId: area.localId,
-            durationDays: duration,
-            submissionTime: '18:00',
-          );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(businessSetupProvider);
-    return _StepScaffold(
-      title: 'configure account cycle',
-      subtitle:
-          'Set Duration and Submission Time for each Operating Area — one '
-          'configuration per area.',
-      nextEnabled: state.step3Complete,
-      submitting: state.submitting,
-      onBack: widget.onBack,
-      onNext: widget.onNext,
-      child: Column(
-        children: state.operatingAreas
-            .map((a) => Card(
-                  child: ListTile(
-                    leading: Icon(
-                      a.cycleConfigured
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: a.cycleConfigured
-                          ? ManaColors.statusGood
-                          : ManaColors.textSecondary,
-                    ),
-                    title: ManaText.raw(a.villageName),
-                    subtitle: ManaText.raw(
-                      a.cycleConfigured
-                          ? '${a.accountCycleDurationDays} days · submit by ${a.accountCycleSubmissionTime}'
-                          : 'Not configured',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextButton(
-                          onPressed: () => _configure(a),
-                          child: ManaText(
-                              a.cycleConfigured ? 'edit' : 'configure'),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          tooltip: ref.t('remove_area_tooltip'),
-                          onPressed: () => ref
-                              .read(businessSetupProvider.notifier)
-                              .removeOperatingArea(a.localId),
-                        ),
-                      ],
-                    ),
-                  ),
-                ))
-            .toList(),
-      ),
-    );
-  }
-}
-
-class _DurationPickerDialog extends ConsumerStatefulWidget {
-  const _DurationPickerDialog();
-  @override
-  ConsumerState<_DurationPickerDialog> createState() => _DurationPickerDialogState();
-}
-
-class _DurationPickerDialogState extends ConsumerState<_DurationPickerDialog> {
-  int _days = 30;
-  late final _controller = TextEditingController(text: '30');
-
-  void _setDays(int value) {
-    final clamped = value.clamp(1, 365);
-    setState(() {
-      _days = clamped;
-      _controller.text = '$clamped';
-      _controller.selection =
-          TextSelection.collapsed(offset: _controller.text.length);
-    });
-  }
-
-  // Disposed with the State that owns them. Each controller holds a
-  // listener list and a ChangeNotifier; a State that never disposes them
-  // leaks one set per visit.
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: ManaText.raw(ref.t('account_cycle_duration')),
-      content: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-              onPressed: () => _setDays(_days - 1),
-              icon: const Icon(Icons.remove)),
-          SizedBox(
-            width: 110,
-            child: TextField(
-              controller: _controller,
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              style: ManaType.strong,
-              decoration:
-                  const InputDecoration(isDense: true, suffixText: 'days'),
-              onChanged: (v) {
-                final parsed = int.tryParse(v);
-                if (parsed != null) _days = parsed.clamp(1, 365);
-              },
-            ),
-          ),
-          IconButton(
-              onPressed: () => _setDays(_days + 1),
-              icon: const Icon(Icons.add)),
-        ],
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: ManaText.raw(ref.t('cancel'))),
-        ElevatedButton(
-            onPressed: () => Navigator.pop(context, _days),
-            child: ManaText.raw(ref.t('save'))),
-      ],
-    );
-  }
-}
-
-// --- Step 4 — Add Existing Members (optional) -------------------------------
-
 class _Step4ExistingMembers extends ConsumerWidget {
   final VoidCallback onBack;
   final VoidCallback onNext;

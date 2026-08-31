@@ -361,10 +361,17 @@ void main() {
   // Reached through a PopupMenuButton on an area row, which is two taps the
   // test has to make honestly -- and it asserts the dialog is on screen,
   // because a menu tap that lands on nothing is silent.
+  //
+  // It used to open Configure Cycle, which no longer exists: an account runs
+  // from the last submission to the next one, so there is nothing to
+  // configure. The test kept passing on the menu's new first item, which is
+  // exactly the shape of a test that proves something other than its own name
+  // -- so it is named for what it actually exercises now, the first dialog the
+  // area menu opens.
   for (final scale in kManaTextScales) {
     for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
       final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
-      testWidgets('OW-012 configure cycle dialog survives ${scale}x$tag', (tester) async {
+      testWidgets('OW-012 area menu dialog survives ${scale}x$tag', (tester) async {
         await pumpManaScreen(
           tester,
           const BusinessManagementScreen(),
@@ -401,8 +408,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(AlertDialog), findsOneWidget,
-            reason: 'configure cycle dialog did not open');
-        expectNoLayoutFault(tester, 'OW-012 configure cycle at ${scale}x$tag');
+            reason: 'the first area-menu dialog did not open');
+        expectNoLayoutFault(tester, 'OW-012 area menu dialog at ${scale}x$tag');
       });
     }
   }

@@ -839,22 +839,6 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     }
   }
 
-  Future<void> _configureCycle(OperatingAreaSummary area) async {
-    final result = await showDialog<_CycleConfigInput>(
-      context: context,
-      builder: (_) => _CycleConfigDialog(initial: area),
-    );
-    if (result == null || !mounted) return;
-    await NetworkErrorHandler.run(context, () async {
-      return ref.read(businessDetailProvider(widget.businessId).notifier).configureAccountCycle(
-            operatingAreaId: area.operatingAreaId,
-            durationDays: result.duration,
-            cycleUnit: result.unit,
-            submissionTime: result.submissionTime,
-          );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final areas = ref.watch(businessDetailProvider(widget.businessId)).operatingAreas;
@@ -935,25 +919,19 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                           ],
                         ],
                       ),
-                      subtitle: ManaText.raw(a.cycleConfigured
-                          ? ref
-                              .t('cycle_configured_note')
-                              .replaceAll('{duration}', '${a.accountCycleDuration}')
-                              .replaceAll('{unit}', '${a.accountCycleUnit}')
-                              .replaceAll('{time}', '${a.submissionTime}')
-                          : ref.t('account_cycle_not_configured')),
+                      // The cycle configuration is gone: an account runs from
+                      // the last submission to the next one, so there is no
+                      // duration, unit or submission time to report. What is
+                      // worth saying about an area is where it is.
+                      subtitle: ManaText.raw(a.villagesLabel, style: ManaType.note),
                       trailing: PopupMenuButton<String>(
                         tooltip: ref.t('area_options'),
                         onSelected: (v) => switch (v) {
-                          'cycle' => _configureCycle(a),
                           'rename' => _rename(a),
                           'village' => _addVillage(a),
                           _ => _removeArea(a),
                         },
                         itemBuilder: (_) => [
-                          PopupMenuItem(
-                              value: 'cycle',
-                              child: ManaText.raw(ref.t(a.cycleConfigured ? 'edit_cycle' : 'configure_cycle'))),
                           PopupMenuItem(value: 'rename', child: ManaText.raw(ref.t('rename_area'))),
                           PopupMenuItem(value: 'village', child: ManaText.raw(ref.t('add_village'))),
                           const PopupMenuDivider(),
@@ -1204,101 +1182,6 @@ class _AssignAgentSheet extends ConsumerWidget {
           const SizedBox(height: ManaSpacing.md),
         ],
       ),
-    );
-  }
-}
-
-class _CycleConfigInput {
-  final int duration;
-  final String unit;
-  final String submissionTime;
-  _CycleConfigInput({required this.duration, required this.unit, required this.submissionTime});
-}
-
-class _CycleConfigDialog extends ConsumerStatefulWidget {
-  final OperatingAreaSummary initial;
-  const _CycleConfigDialog({required this.initial});
-
-  @override
-  ConsumerState<_CycleConfigDialog> createState() => _CycleConfigDialogState();
-}
-
-class _CycleConfigDialogState extends ConsumerState<_CycleConfigDialog> {
-  late final _duration = TextEditingController(text: '${widget.initial.accountCycleDuration ?? 3}');
-  String _unit = 'Days';
-  final _submissionTime = TextEditingController(text: '21:00');
-
-  @override
-  void initState() {
-    super.initState();
-    _unit = widget.initial.accountCycleUnit ?? 'Days';
-    if (widget.initial.submissionTime != null) _submissionTime.text = widget.initial.submissionTime!;
-  }
-
-  // Disposed with the State that owns them.
-  //
-  // These outlived every visit: a TextEditingController holds a listener list
-  // and a ChangeNotifier, and a State that never disposes them leaks one set
-  // each time the screen is opened. Attached per class rather than in bulk --
-  // disposing a controller that belongs to a different State would be a
-  // use-after-dispose, which is worse than the leak.
-  @override
-  void dispose() {
-    _submissionTime.dispose();
-    _duration.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      // Scrolls if it does not fit -- see ow_011_day_closure.dart.
-      scrollable: true,
-      title: ManaText.raw(ref.t('configure_cycle')),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _duration,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: ref.t('account_cycle_duration_field')),
-          ),
-          const SizedBox(height: ManaSpacing.md),
-          DropdownButtonFormField<String>(
-            // isExpanded: a DropdownButton sizes to its widest item's natural
-            // width and overflows rather than shrinking. A dialog is narrower
-            // than a screen, so this is the tightest place one can sit -- three
-            // were measured overflowing at 1.0x, in English, by 127px, 233px and
-            // 180px. See ow_011_day_closure.dart's adjustment dialog.
-            isExpanded: true,
-            initialValue: _unit,
-            decoration: InputDecoration(labelText: ref.t('account_cycle_unit_field')),
-            items: [
-              DropdownMenuItem(value: 'Days', child: ManaText.raw(ref.t('days'))),
-              DropdownMenuItem(value: 'Weeks', child: ManaText.raw(ref.t('weeks'))),
-              DropdownMenuItem(value: 'Months', child: ManaText.raw(ref.t('months'))),
-            ],
-            onChanged: (v) => setState(() => _unit = v ?? _unit),
-          ),
-          const SizedBox(height: ManaSpacing.md),
-          TextField(
-            controller: _submissionTime,
-            decoration: InputDecoration(labelText: ref.t('submission_time_field')),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: ManaText.raw(ref.t('cancel'))),
-        FilledButton(
-          onPressed: () {
-            final duration = int.tryParse(_duration.text.trim()) ?? 3;
-            Navigator.of(context).pop(
-              _CycleConfigInput(duration: duration, unit: _unit, submissionTime: _submissionTime.text.trim()),
-            );
-          },
-          child: ManaText.raw(ref.t('save')),
-        ),
-      ],
     );
   }
 }
@@ -1743,9 +1626,14 @@ class _AccountPeriodsTab extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             ManaText.raw('${p.operatingAreaLabel} · ${p.agentName}'),
+                            // An open account has no end to show. It used to
+                            // print a predicted one, which read as a deadline
+                            // and was the forecast-as-boundary mistake in
+                            // visible form -- the Owner saw a date the agent
+                            // routinely worked past.
                             ManaText.raw(
                               '${p.businessStartDate.toIso8601String().split("T").first} → '
-                              '${p.plannedBusinessEndDate.toIso8601String().split("T").first}',
+                              '${p.plannedBusinessEndDate?.toIso8601String().split("T").first ?? ref.t("until_submitted")}',
                               style: ManaType.note,
                             ),
                           ],

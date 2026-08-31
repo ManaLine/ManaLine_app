@@ -158,17 +158,6 @@ class OwnerApiService {
   // signature needs a `unit` param added, which is a real interface change
   // outside this session's "don't touch screens" boundary to discover on
   // its own — needs confirmation from whoever owns the OW-000 screen file.
-  Future<void> setAccountCycleConfig({
-    required String operatingAreaId,
-    required int durationDays,
-    required String submissionTime, // HH:mm, business-local
-  }) async {
-    await _db.from('operating_areas').update({
-      'account_cycle_duration': durationDays,
-      'account_cycle_unit': 'Days',
-      'submission_time': '$submissionTime:00',
-    }).eq('operating_area_id', operatingAreaId);
-  }
 
   // --- OW-000 Step 5 (optional) — Create Business Agreement ---------------
   Future<void> createAgreement({

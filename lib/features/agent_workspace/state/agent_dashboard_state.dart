@@ -192,8 +192,12 @@ class AgentApiService {
         operatingAreaId: r['operating_area_id'] as String,
         areaName: (area['name'] as String?) ?? '',
         businessStartDate: DateTime.parse(r['business_start_date'] as String),
-        plannedBusinessEndDate:
-            DateTime.parse(r['planned_business_end_date'] as String),
+        // Nullable since periods stopped having a planned end -- an account
+        // runs until it is submitted. Non-null only on periods created before
+        // that, where it records what the old cycle configuration predicted.
+        plannedBusinessEndDate: r['planned_business_end_date'] == null
+            ? null
+            : DateTime.parse(r['planned_business_end_date'] as String),
         status: r['status'] as String,
       );
     }).toList();
@@ -566,14 +570,16 @@ class AgentAccountPeriodSummary {
   final String operatingAreaId;
   final String areaName;
   final DateTime businessStartDate;
-  final DateTime plannedBusinessEndDate;
+  /// What the old cycle configuration predicted, on periods old enough to
+  /// have one. Null on every period opened since; never a boundary.
+  final DateTime? plannedBusinessEndDate;
   final String status; // Running | Submitted | Locked
 
   AgentAccountPeriodSummary({
     required this.operatingAreaId,
     required this.areaName,
     required this.businessStartDate,
-    required this.plannedBusinessEndDate,
+    this.plannedBusinessEndDate,
     required this.status,
   });
 }

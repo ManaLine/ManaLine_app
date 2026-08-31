@@ -173,13 +173,13 @@ class BusinessManagementApiService {
   /// Creates a NAMED area and attaches its first village. An area with no
   /// villages is not a thing an Owner can act on, so both writes happen
   /// here rather than leaving an empty area behind if the second fails.
+  /// Creates an area. No cycle: an account runs from the last submission to
+  /// the next, so account_cycle_duration/unit and submission_time are left to
+  /// their column defaults and read by nothing.
   Future<OperatingAreaSummary> addOperatingArea({
     required String businessId,
     required String name,
     required String locationId,
-    int? accountCycleDuration,
-    String? accountCycleUnit,
-    String? submissionTime,
   }) async {
     final row = await _db
         .from('operating_areas')
@@ -187,9 +187,6 @@ class BusinessManagementApiService {
           'business_id': businessId,
           'name': name,
           'status': 'Active',
-          'account_cycle_duration': accountCycleDuration ?? 3,
-          'account_cycle_unit': accountCycleUnit ?? 'Days',
-          'submission_time': submissionTime != null ? '$submissionTime:00' : '21:00:00',
         })
         .select('operating_area_id, name, status, account_cycle_duration, account_cycle_unit, submission_time')
         .single();
@@ -739,7 +736,11 @@ class BusinessManagementApiService {
         operatingAreaLabel: area?['name'] as String? ?? '',
         agentName: person?['full_name'] as String? ?? 'Unassigned',
         businessStartDate: DateTime.parse(r['business_start_date'] as String),
-        plannedBusinessEndDate: DateTime.parse(r['planned_business_end_date'] as String),
+        // Nullable since periods stopped having a planned end -- an account
+        // runs until it is submitted.
+        plannedBusinessEndDate: r['planned_business_end_date'] == null
+            ? null
+            : DateTime.parse(r['planned_business_end_date'] as String),
         status: r['status'] as String,
       );
     }).toList();
@@ -751,21 +752,17 @@ class BusinessManagementApiService {
     required String agentMembershipId,
     required String businessStartDate,
   }) async {
-    final area = await _db.from('operating_areas').select('account_cycle_duration, account_cycle_unit').eq('operating_area_id', operatingAreaId).single();
-    final start = DateTime.parse(businessStartDate);
-    final duration = area['account_cycle_duration'] as int;
-    final unit = area['account_cycle_unit'] as String;
-    final end = switch (unit) {
-      'Weeks' => start.add(Duration(days: duration * 7)),
-      'Months' => DateTime(start.year, start.month + duration, start.day),
-      _ => start.add(Duration(days: duration)),
-    };
+    // No end date. An account runs from here until the agent submits it, at
+    // which point submit_agent_settlement opens the next one -- this used to
+    // read the area's cycle duration and unit and compute a date the agent
+    // routinely worked past, which is the forecast-as-boundary mistake every
+    // window bug came from.
     await _db.from('account_periods').insert({
       'business_id': businessId,
       'operating_area_id': operatingAreaId,
       'agent_membership_id': agentMembershipId,
-      'business_start_date': start.toIso8601String(),
-      'planned_business_end_date': end.toIso8601String(),
+      'business_start_date': DateTime.parse(businessStartDate).toIso8601String(),
+      'planned_business_end_date': null,
       'status': 'Running',
     });
   }
@@ -780,18 +777,6 @@ class BusinessManagementApiService {
     }).eq('account_period_id', accountPeriodId);
   }
 
-  Future<void> configureAccountCycle({
-    required String operatingAreaId,
-    required int durationDays,
-    required String cycleUnit,
-    required String submissionTime,
-  }) async {
-    await _db.from('operating_areas').update({
-      'account_cycle_duration': durationDays,
-      'account_cycle_unit': cycleUnit,
-      'submission_time': '$submissionTime:00',
-    }).eq('operating_area_id', operatingAreaId);
-  }
 }
 
 final businessManagementApiServiceProvider = Provider<BusinessManagementApiService>((ref) {
@@ -1040,7 +1025,9 @@ class AccountPeriodSummary {
   final String operatingAreaLabel;
   final String agentName;
   final DateTime businessStartDate;
-  final DateTime plannedBusinessEndDate;
+  /// What the old cycle configuration predicted, on periods old enough to
+  /// have one. Null on every period opened since; never a boundary.
+  final DateTime? plannedBusinessEndDate;
   final String status; // 'Running' | 'Overdue' | 'Submitted' | 'Approved' | 'Locked'
   AccountPeriodSummary({
     required this.accountPeriodId,
@@ -1048,7 +1035,7 @@ class AccountPeriodSummary {
     required this.operatingAreaLabel,
     required this.agentName,
     required this.businessStartDate,
-    required this.plannedBusinessEndDate,
+    this.plannedBusinessEndDate,
     required this.status,
   });
 }
@@ -1454,35 +1441,6 @@ class BusinessDetailNotifier extends FamilyNotifier<BusinessDetailState, String>
     }).toList();
   }
 
-  Future<bool> configureAccountCycle({
-    required String operatingAreaId,
-    required int durationDays,
-    required String cycleUnit,
-    required String submissionTime,
-  }) async {
-    state = state.copyWith(submitting: true, clearError: true);
-    try {
-      final api = ref.read(businessManagementApiServiceProvider);
-      await api.configureAccountCycle(
-        operatingAreaId: operatingAreaId,
-        durationDays: durationDays,
-        cycleUnit: cycleUnit,
-        submissionTime: submissionTime,
-      );
-      final updated = state.operatingAreas.map((a) {
-        if (a.operatingAreaId != operatingAreaId) return a;
-        a.accountCycleDuration = durationDays;
-        a.accountCycleUnit = cycleUnit;
-        a.submissionTime = submissionTime;
-        return a;
-      }).toList();
-      state = state.copyWith(operatingAreas: updated, submitting: false);
-      return true;
-    } catch (e) {
-      state = state.copyWith(submitting: false, error: e.toString());
-      return false;
-    }
-  }
 
   /// Assigns an Agent to an Operating Area (or reassigns it — supersedes
   /// any existing assignment). Refetches operatingAreas AND accountPeriods

@@ -14,14 +14,15 @@ final ownerApiServiceProvider = Provider<OwnerApiService>((ref) {
 // OW-000 — First Business Setup Wizard
 // ============================================================================
 
-enum BusinessSetupStep { createBusiness, operatingAreas, accountCycle, existingMembers, agreements, assignAreas }
+/// The setup wizard's steps, in order. accountCycle is gone: it asked for a
+/// duration and a submission time per operating area, and an account now runs
+/// from the last submission to the next one, so there is nothing to configure.
+enum BusinessSetupStep { createBusiness, operatingAreas, existingMembers, agreements, assignAreas }
 
 class OperatingAreaDraft {
   final String localId; // client-side id until server confirms
   final String pinCode;
   final String villageName;
-  int? accountCycleDurationDays;
-  String? accountCycleSubmissionTime;
   String? assignedAgentId;
   String? assignedAgentName;
 
@@ -29,13 +30,10 @@ class OperatingAreaDraft {
     required this.localId,
     required this.pinCode,
     required this.villageName,
-    this.accountCycleDurationDays,
-    this.accountCycleSubmissionTime,
     this.assignedAgentId,
     this.assignedAgentName,
   });
 
-  bool get cycleConfigured => accountCycleDurationDays != null && accountCycleSubmissionTime != null;
 
   /// An area is resolved once an agent is on it. There is no Owner-run
   /// alternative — an Owner who works the round holds an Agent membership
@@ -104,14 +102,6 @@ class BusinessSetupState {
   // Step 2 mandatory: at least 1 Operating Area (CONFIRMED — locked decision).
   bool get step2Complete => operatingAreas.isNotEmpty;
 
-  // Step 3 gate — RELAXED per explicit product decision (same reasoning
-  // as step6Complete below): unlocks once AT LEAST ONE area has its cycle
-  // configured, not every area. Was previously "every area" — left as-is
-  // here would have made the step6Complete relaxation pointless, since
-  // the wizard couldn't have reached Step 6 with partial areas at all.
-  bool get step3Complete =>
-      operatingAreas.isNotEmpty && operatingAreas.any((a) => a.cycleConfigured);
-
   // Step 6 gate — RELAXED per explicit product decision: unlocks once AT
   // LEAST ONE area is assigned to an agent, not
   // requiring every area. Areas left unresolved here remain reachable
@@ -127,8 +117,12 @@ class BusinessSetupState {
   bool get step6Complete =>
       operatingAreas.isNotEmpty && operatingAreas.any((a) => a.resolved);
 
-  // "Start Business" enablement — Steps 1-3 + 6 mandatory; 4-5 optional.
-  bool get canStartBusiness => step1Complete && step2Complete && step3Complete && step6Complete;
+  // "Start Business" enablement — the business, its areas, and at least one
+  // area assigned to somebody. The account-cycle gate is gone with the step:
+  // there is no cycle to configure, so requiring one configured would have
+  // blocked every new business on a question the app no longer asks.
+  bool get canStartBusiness =>
+      step1Complete && step2Complete && step6Complete;
 
   BusinessSetupState copyWith({
     BusinessSetupStep? currentStep,
@@ -181,6 +175,8 @@ class BusinessSetupNotifier extends Notifier<BusinessSetupState> {
   }
 
   void goToStep(BusinessSetupStep step) => state = state.copyWith(currentStep: step, clearError: true);
+
+  void markExistingMembersStepVisited() => state = state.copyWith(existingMembersStepVisited: true);
 
   Future<bool> submitStep1({
     required String businessName,
@@ -258,35 +254,6 @@ class BusinessSetupNotifier extends Notifier<BusinessSetupState> {
       operatingAreas: state.operatingAreas.where((a) => a.localId != localId).toList(),
     );
   }
-
-  Future<bool> configureAccountCycle({
-    required String areaLocalId,
-    required int durationDays,
-    required String submissionTime,
-  }) async {
-    state = state.copyWith(submitting: true, clearError: true);
-    try {
-      final api = ref.read(ownerApiServiceProvider);
-      await api.setAccountCycleConfig(
-        operatingAreaId: areaLocalId,
-        durationDays: durationDays,
-        submissionTime: submissionTime,
-      );
-      final updated = state.operatingAreas.map((a) {
-        if (a.localId != areaLocalId) return a;
-        a.accountCycleDurationDays = durationDays;
-        a.accountCycleSubmissionTime = submissionTime;
-        return a;
-      }).toList();
-      state = state.copyWith(operatingAreas: updated, submitting: false);
-      return true;
-    } catch (e) {
-      state = state.copyWith(submitting: false, error: e.toString());
-      return false;
-    }
-  }
-
-  void markExistingMembersStepVisited() => state = state.copyWith(existingMembersStepVisited: true);
 
   Future<bool> createAgreement({required String agreementType, required String documentUrl}) async {
     if (state.businessId == null) return false;

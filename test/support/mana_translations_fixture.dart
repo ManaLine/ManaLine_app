@@ -2462,6 +2462,7 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'n_of_m_selected': {'English': '{count} of {total} selected', 'Telugu': '{total}లో {count} ఎంచుకోబడ్డాయి'},
   'select_all': {'English': 'Select All', 'Telugu': 'అన్నీ ఎంచుకోండి'},
   'ignore': {'English': 'Ignore', 'Telugu': 'పట్టించుకోవద్దు'},
+  'switch_camera': {'English': 'Switch Camera', 'Telugu': 'కెమెరా మార్చండి'},
   'remove_customer_question': {'English': 'Remove This Customer?', 'Telugu': 'ఈ ఖాతాదారుని తొలగించాలా?'},
   'remove_customer_note': {'English': '{name} will no longer appear in this business. Their past loans, collections and receipts are kept.', 'Telugu': '{name} ఇకపై ఈ వ్యాపారంలో కనిపించరు. వారి గత రుణాలు, వసూళ్లు మరియు రసీదులు అలాగే ఉంచబడతాయి.'},
   'ignore_notice_note': {'English': 'Puts it away. Nothing is deleted.', 'Telugu': 'దీన్ని పక్కన పెడుతుంది. ఏదీ తొలగించబడదు.'},

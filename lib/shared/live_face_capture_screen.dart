@@ -59,6 +59,13 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   bool _faceDetected = false; // always treated as true on Web — see class doc
   bool _busyCapturing = false;
   bool _detecting = false; // reentrancy guard for the image-stream callback
+
+  /// Every lens this device has, and which one is live. Kept so the flip
+  /// button can exist at all — this screen used to resolve the front camera
+  /// once at startup and had no way back to any other.
+  List<CameraDescription> _cameras = const [];
+  int _cameraIndex = 0;
+  bool _switching = false;
   String? _error;
 
   @override
@@ -69,43 +76,95 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
 
   Future<void> _init() async {
     try {
-      final cameras = await availableCameras();
-      final front = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.front,
-        orElse: () => cameras.first,
-      );
-      final controller = CameraController(
-        front,
-        ResolutionPreset.medium,
-        enableAudio: false,
-        imageFormatGroup: kIsWeb
-            ? null
-            : (Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888),
-      );
-      await controller.initialize();
-      if (!mounted) return;
-
-      if (!kIsWeb) {
-        _faceDetector = FaceDetector(
-          options: FaceDetectorOptions(performanceMode: FaceDetectorMode.fast),
-        );
-        await controller.startImageStream(_onCameraImage);
-      } else {
-        // No ML Kit on Web — capture button is always enabled, gate skipped.
-        _faceDetected = true;
+      _cameras = await availableCameras();
+      if (_cameras.isEmpty) {
+        throw CameraException('no_cameras', 'This device reports no cameras.');
       }
+      // Front by default: this is a selfie for identity, and it is what the
+      // person will want nine times in ten. The rear lens is one tap away —
+      // see _flip — because the tenth time is an Agent holding the handset up
+      // to somebody standing in front of them, and before this there was no
+      // way to do that at all.
+      final frontIndex =
+          _cameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+      _cameraIndex = frontIndex >= 0 ? frontIndex : 0;
 
+      await _openCamera(_cameras[_cameraIndex]);
       if (!mounted) return;
-      setState(() {
-        _controller = controller;
-        _initializing = false;
-      });
+      setState(() => _initializing = false);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _initializing = false;
         _error = 'Could not open camera. Check camera permission is granted. ($e)';
       });
+    }
+  }
+
+  /// Opens one lens and starts the face-presence stream on it.
+  ///
+  /// Shared by first start and by [_flip] so the two cannot drift — a flip
+  /// that forgot to restart the stream would leave the Capture button
+  /// permanently disabled, which is indistinguishable from a broken camera.
+  Future<void> _openCamera(CameraDescription camera) async {
+    final controller = CameraController(
+      camera,
+      ResolutionPreset.medium,
+      enableAudio: false,
+      imageFormatGroup: kIsWeb
+          ? null
+          : (Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888),
+    );
+    await controller.initialize();
+    if (!mounted) {
+      await controller.dispose();
+      return;
+    }
+
+    if (!kIsWeb) {
+      _faceDetector ??= FaceDetector(
+        options: FaceDetectorOptions(performanceMode: FaceDetectorMode.fast),
+      );
+      await controller.startImageStream(_onCameraImage);
+    } else {
+      // No ML Kit on Web — capture button is always enabled, gate skipped.
+      _faceDetected = true;
+    }
+
+    if (!mounted) {
+      await controller.dispose();
+      return;
+    }
+    setState(() => _controller = controller);
+  }
+
+  /// Switches lens. Only offered when the device actually has a second one.
+  Future<void> _flip() async {
+    if (_cameras.length < 2 || _switching || _busyCapturing) return;
+    setState(() {
+      _switching = true;
+      // The new lens has not seen a face yet, and carrying the old lens's
+      // answer over would leave Capture enabled while pointing at nothing.
+      _faceDetected = kIsWeb;
+    });
+
+    final old = _controller;
+    // Cleared first so the preview does not paint from a controller that is
+    // about to be disposed.
+    setState(() => _controller = null);
+    try {
+      if (old != null) {
+        if (!kIsWeb && old.value.isStreamingImages) {
+          await old.stopImageStream();
+        }
+        await old.dispose();
+      }
+      _cameraIndex = (_cameraIndex + 1) % _cameras.length;
+      await _openCamera(_cameras[_cameraIndex]);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Could not switch camera. ($e)');
+    } finally {
+      if (mounted) setState(() => _switching = false);
     }
   }
 
@@ -189,7 +248,10 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: _initializing
+        // _controller is null for a beat mid-flip, so the spinner covers that
+        // too rather than the preview force-unwrapping a controller that is
+        // being replaced.
+        child: _initializing || (_error == null && _controller == null)
             ? const Center(child: CircularProgressIndicator())
             : _error != null
                 ? Center(
@@ -216,6 +278,21 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
                           ),
                         ),
                       ),
+                      // Only when there is somewhere to flip TO. A button that
+                      // does nothing on a single-camera handset is worse than
+                      // no button.
+                      if (_cameras.length > 1)
+                        Positioned(
+                          top: 16,
+                          right: 16,
+                          child: IconButton.filledTonal(
+                            onPressed: _switching || _busyCapturing ? null : _flip,
+                            icon: Icon(_switching
+                                ? Icons.hourglass_empty
+                                : Icons.cameraswitch_outlined),
+                            tooltip: ref.t('switch_camera'),
+                          ),
+                        ),
                       Positioned(
                         bottom: 32,
                         child: Column(

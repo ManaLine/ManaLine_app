@@ -209,6 +209,14 @@ class _RequestToJoinSheetState extends ConsumerState<_RequestToJoinSheet> {
               decoration: InputDecoration(labelText: ref.t('remarks_optional_field')),
               maxLines: 2,
             ),
+            // A refused request used to say nothing at all. submitRequest
+            // returns false on every failure and parks the reason in
+            // state.error, which nothing rendered -- so the button spun,
+            // stopped, and the sheet sat there looking broken.
+            if (ref.watch(customerDiscoveryProvider).error != null) ...[
+              const SizedBox(height: ManaSpacing.md),
+              ManaText.raw(ref.watch(customerDiscoveryProvider).error!, style: ManaType.bad),
+            ],
             const SizedBox(height: ManaSpacing.lg),
             SizedBox(
               width: double.infinity,

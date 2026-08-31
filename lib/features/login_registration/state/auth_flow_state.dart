@@ -128,8 +128,26 @@ class Membership {
 }
 
 class AuthFlowNotifier extends Notifier<AuthFlowState> {
+  /// Starts from whatever the session already knows.
+  ///
+  /// state.personId was written by exactly two things — setLoginResult and
+  /// setRegistrationResult — both of which happen while somebody is logging in
+  /// or registering. On a cold start neither runs: main.dart hydrates
+  /// ManaSession from secure storage and the app comes up signed in, while
+  /// this state's personId stays null.
+  ///
+  /// Nine screens read it. An Investor who reopened the app and pressed Send
+  /// Request hit `StateError('No logged-in person_id available')` inside
+  /// submitRequest, which was caught, stored in state.error, and never shown —
+  /// the button spun, stopped, and the sheet sat there. Same shape waiting in
+  /// the customer discovery, loan request and withdrawal request paths.
+  ///
+  /// ManaSession is the durable copy and is hydrated before runApp, so it is
+  /// the one to start from. The two are written together by setLoginResult
+  /// and now agree on cold start too.
   @override
-  AuthFlowState build() => const AuthFlowState();
+  AuthFlowState build() =>
+      AuthFlowState(personId: ManaSession.instance.currentPersonId);
 
   void setLanguage(ManaLanguage lang) => state = state.copyWith(language: lang);
 

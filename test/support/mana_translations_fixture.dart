@@ -2461,6 +2461,8 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'n_selected': {'English': '{count} Selected', 'Telugu': '{count} ఎంచుకోబడ్డాయి'},
   'n_of_m_selected': {'English': '{count} of {total} selected', 'Telugu': '{total}లో {count} ఎంచుకోబడ్డాయి'},
   'select_all': {'English': 'Select All', 'Telugu': 'అన్నీ ఎంచుకోండి'},
+  'ignore': {'English': 'Ignore', 'Telugu': 'పట్టించుకోవద్దు'},
+  'ignore_notice_note': {'English': 'Puts it away. Nothing is deleted.', 'Telugu': 'దీన్ని పక్కన పెడుతుంది. ఏదీ తొలగించబడదు.'},
   'clear_selection': {'English': 'Clear', 'Telugu': 'క్లియర్ చేయండి'},
   'days_left_note': {'English': '{days} days left', 'Telugu': '{days} రోజులు మిగిలి ఉన్నాయి'},
   'nothing_has_been_deleted': {'English': 'Nothing has been deleted.', 'Telugu': 'ఏదీ తొలగించబడలేదు.'},

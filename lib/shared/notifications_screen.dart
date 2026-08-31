@@ -297,9 +297,71 @@ class _NoticeTile extends ConsumerWidget {
           )),
       subtitle: ManaText.raw(_when.format(notice.createdAt),
           style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
-      onTap: notice.isRead
-          ? null
-          : () => ref.read(inboxProvider.notifier).markRead(notice.id),
+      // A read notice used to have no tap at all, so the only gesture on the
+      // screen stopped working the moment it had been used once. Tapping now
+      // always opens the notice, which is also the only way to read one whose
+      // message runs past three lines.
+      onTap: () => _open(context, ref),
+      onLongPress: () => _menu(context, ref),
     );
+  }
+
+  /// The full message, and the two things that can be done with it.
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    if (!notice.isRead) ref.read(inboxProvider.notifier).markRead(notice.id);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: ManaText.raw(_when.format(notice.createdAt), style: ManaType.note),
+        content: SingleChildScrollView(
+          child: ManaText.raw(notice.message),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              ref.read(inboxProvider.notifier).dismiss(notice.id);
+            },
+            child: ManaText.raw(ref.t('ignore')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: ManaText.raw(ref.t('close')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Long press, which is where people were already reaching and finding
+  /// nothing.
+  Future<void> _menu(BuildContext context, WidgetRef ref) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: ManaText.raw(ref.t('view')),
+              onTap: () => Navigator.of(sheetContext).pop('view'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.notifications_off_outlined),
+              title: ManaText.raw(ref.t('ignore')),
+              subtitle: ManaText.raw(ref.t('ignore_notice_note'),
+                  style: ManaType.note),
+              onTap: () => Navigator.of(sheetContext).pop('ignore'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == 'ignore') {
+      await ref.read(inboxProvider.notifier).dismiss(notice.id);
+    } else if (choice == 'view' && context.mounted) {
+      await _open(context, ref);
+    }
   }
 }

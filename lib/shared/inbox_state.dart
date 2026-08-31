@@ -136,6 +136,24 @@ class InboxNotifier extends Notifier<InboxState> {
     }
   }
 
+  /// Puts a notice away. Removed from the list immediately -- the person has
+  /// just said they are done with it, and leaving it there while the write
+  /// lands reads as the tap not working.
+  Future<void> dismiss(String id) async {
+    final previous = state.notices;
+    state = state.copyWith(
+      notices: [for (final n in previous) if (n.id != id) n],
+    );
+    try {
+      await _svc.dismiss(id);
+    } catch (e) {
+      // Put it back rather than pretending: a notice that vanished from the
+      // screen but not from the server comes back on the next load anyway,
+      // and silently is the worst way for it to return.
+      state = state.copyWith(notices: previous, error: e.toString());
+    }
+  }
+
   Future<void> markAllRead() async {
     try {
       await _svc.markAllRead();

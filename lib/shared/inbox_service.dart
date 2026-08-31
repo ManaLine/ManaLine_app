@@ -22,6 +22,8 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'mana_time.dart';
+
 /// Which decision an actionable item is asking for.
 ///
 /// The two are shown in separate sections because the verbs mean opposite
@@ -133,6 +135,9 @@ class InboxService {
     final rows = await _db
         .from('notifications')
         .select('notification_id, notification_type, message, is_read, created_at')
+        // Dismissed notices are put away, not deleted: they stay readable in
+        // the table and stop occupying the bell.
+        .isFilter('dismissed_at', null)
         .order('created_at', ascending: false)
         .limit(limit);
     return (rows as List).cast<Map<String, dynamic>>().map(InboxNotice.fromRow).toList();
@@ -142,6 +147,16 @@ class InboxService {
     await _db
         .from('notifications')
         .update({'is_read': true})
+        .eq('notification_id', notificationId);
+  }
+
+  /// Puts one notice away. Read is not the same as dealt with -- a notice can
+  /// be read and still waiting, or dismissed without being opened -- so this
+  /// is its own column rather than another way of setting is_read.
+  Future<void> dismiss(String notificationId) async {
+    await _db
+        .from('notifications')
+        .update({'dismissed_at': manaTimestamp(), 'is_read': true})
         .eq('notification_id', notificationId);
   }
 

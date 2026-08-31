@@ -16,6 +16,21 @@ class CustomerApiService {
   final Ref ref;
   CustomerApiService({required this.ref});
 
+  /// Removes a customer from this business.
+  ///
+  /// The rule -- not while they still owe money -- lives in
+  /// app.remove_customer_membership, not here. RLS would let the Owner write
+  /// membership_status directly, and that is exactly why it must not be done
+  /// from a screen: the guard would then hold only for whichever screen
+  /// remembered it.
+  ///
+  /// Not a delete. The membership goes to Removed and every loan, collection
+  /// and receipt stays where it is.
+  Future<void> removeCustomer(String membershipId) async {
+    await _db.schema('app').rpc('remove_customer_membership',
+        params: {'p_membership_id': membershipId});
+  }
+
   SupabaseClient get _db => Supabase.instance.client;
 
   /// Village/outstanding/todaysDue/lineRepaymentIndex are derived values —
@@ -67,6 +82,7 @@ class CustomerApiService {
 
       return CustomerSummary(
         customerId: m['customer_id'] as String,
+        membershipId: m['membership_id'] as String?,
         fullName: titleCaseName(person['full_name'] as String? ?? ''),
         fatherHusbandName: titleCaseName(person['father_husband_name'] as String? ?? ''),
         village: village,
@@ -468,6 +484,11 @@ List<CustomerSummary> manaLoanCandidates(List<Map<String, dynamic>> rows) {
 
 class CustomerSummary {
   final String customerId;
+
+  /// The business_members row. Removing a customer is a membership change,
+  /// not a change to the person, so the remove path needs this rather than
+  /// customerId.
+  final String? membershipId;
   final String? personId; // populated for pre-membership identity search results (OW-004 Add Customer); customerId is empty in that case since no customers row exists yet
   final String fullName;
   final String fatherHusbandName;
@@ -487,6 +508,7 @@ class CustomerSummary {
 
   CustomerSummary({
     required this.customerId,
+    this.membershipId,
     this.personId,
     required this.fullName,
     required this.fatherHusbandName,

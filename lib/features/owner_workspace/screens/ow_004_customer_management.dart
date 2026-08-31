@@ -73,6 +73,43 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
 
   void _reload() => ref.read(customerListProvider.notifier).load(widget.businessId);
 
+  /// Asks, then removes. Returns whether the row should actually go.
+  ///
+  /// The server is still the authority — it re-checks the loans and refuses —
+  /// so a failure here puts the row back rather than leaving the list saying
+  /// something the database does not.
+  Future<bool> _confirmRemove(CustomerSummary c) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: ManaText.raw(ref.t('remove_customer_question')),
+        content: ManaText.raw(
+            ref.t('remove_customer_note').replaceAll('{name}', c.fullName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: ManaText.raw(ref.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: ManaText.raw(ref.t('remove'),
+                style: TextStyle(color: ManaColors.statusBad)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return false;
+
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref
+          .read(customerApiServiceProvider)
+          .removeCustomer(c.membershipId!);
+      return true;
+    });
+    if (ok == true) _reload();
+    return ok == true;
+  }
+
   /// The three ways to add a customer, in one sheet behind one FAB.
   ///
   /// These were three separate AppBar icon buttons — a person-add glyph, a
@@ -196,6 +233,23 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                         status: c.membershipStatus,
                       ),
                   ],
+                  // Swipe left to remove — but only somebody who owes nothing.
+                  // The row of a customer with a live loan does not move at
+                  // all, rather than sliding open and then refusing: a gesture
+                  // that starts and gets taken back reads as the app being
+                  // broken, not as a rule being enforced.
+                  //
+                  // The rule itself is server-side in
+                  // app.remove_customer_membership. This predicate only
+                  // decides whether to offer the gesture.
+                  removeLabel: ref.t('remove'),
+                  canRemove: (entry) {
+                    final c = state.filtered
+                        .firstWhere((x) => x.customerId == entry.id);
+                    return c.activeLoanCount == 0 && c.membershipId != null;
+                  },
+                  onRemove: (entry) => _confirmRemove(
+                      state.filtered.firstWhere((x) => x.customerId == entry.id)),
                   filterLabels: [ref.t('all'), ref.t('active'), ref.t('suspended')],
                   statusValues: const ['Active', 'Suspended'],
                   statusValue: state.customerStatusFilter,

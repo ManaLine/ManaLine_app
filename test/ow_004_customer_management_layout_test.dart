@@ -46,6 +46,7 @@ void main() {
   final customers = [
     CustomerSummary(
       customerId: 'c1',
+      membershipId: 'm1',
       fullName: 'Nagabhushanam Venkata Subba Reddy',
       fatherHusbandName: 'Venkata Subba Reddy',
       village: 'Srikalahasti — Uranduru Colony',
@@ -61,6 +62,7 @@ void main() {
     ),
     CustomerSummary(
       customerId: 'c2',
+      membershipId: 'm2',
       fullName: 'Chalasani Ramana',
       fatherHusbandName: 'Chalasani Rao',
       village: 'Puttur',
@@ -184,5 +186,28 @@ void main() {
       findsNothing,
       reason: 'a search box took a third of the header',
     );
+  });
+
+  testWidgets('only a customer who owes nothing can be swiped away',
+      (tester) async {
+    // c1 has one active loan, c2 has none. The row of somebody who still owes
+    // money must not move at all -- a row that slides open and is then refused
+    // reads as the app being broken rather than as a rule being enforced.
+    //
+    // The rule itself is server-side in app.remove_customer_membership, which
+    // re-checks and refuses; this is only about whether the gesture is offered.
+    await pumpManaScreen(
+      tester,
+      const CustomerManagementScreen(businessId: 'b1'),
+      overrides: [customerListProvider.overrideWith(() => _SeededCustomerListNotifier(seed))],
+    );
+
+    final dismissibles = tester.widgetList<Dismissible>(find.byType(Dismissible));
+    expect(dismissibles, hasLength(1),
+        reason: 'exactly one of the two customers is removable');
+    expect((dismissibles.first.key as ValueKey).value, 'c2',
+        reason: 'the one with no active loans');
+    expect(dismissibles.first.direction, DismissDirection.endToStart,
+        reason: 'swipe LEFT, so it cannot be triggered by a back gesture');
   });
 }

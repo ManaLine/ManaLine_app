@@ -148,6 +148,21 @@ class ManaMemberRoster extends StatefulWidget {
   /// not.
   final Widget Function(MemberEntry entry, VoidCallback onTap)? rowBuilder;
 
+  /// Swipe a row left to remove that member. Null disables the gesture
+  /// entirely, which is the default — two of the three rosters have no such
+  /// action, and a swipe that does nothing is worse than no swipe.
+  ///
+  /// Returning false from [canRemove] leaves the row un-swipable, so a member
+  /// who must not be removed cannot be dragged half-open and then refused.
+  /// Whoever supplies these owns the rule: this component deliberately does
+  /// not know what makes a customer removable.
+  final Future<bool> Function(MemberEntry entry)? onRemove;
+  final bool Function(MemberEntry entry)? canRemove;
+
+  /// Shown behind the row as it is dragged. Says what the swipe will do,
+  /// because a red panel on its own does not.
+  final String? removeLabel;
+
   /// CONTROLLED MODE. When these are supplied the roster stops filtering
   /// [members] itself and simply renders what it is given, reporting changes
   /// upward instead.
@@ -193,6 +208,9 @@ class ManaMemberRoster extends StatefulWidget {
     this.footnote,
     this.header,
     this.rowBuilder,
+    this.onRemove,
+    this.canRemove,
+    this.removeLabel,
     this.onSearchChanged,
     this.showControls = true,
     this.onStatusChanged,
@@ -398,8 +416,27 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
                           itemBuilder: (_, i) {
                             final entry = visible[i];
                             void open() => widget.onOpen?.call(entry);
-                            return widget.rowBuilder?.call(entry, open) ??
+                            final row = widget.rowBuilder?.call(entry, open) ??
                                 _MemberRow(entry: entry, onTap: open);
+
+                            final removable = widget.onRemove != null &&
+                                (widget.canRemove?.call(entry) ?? true);
+                            if (!removable) return row;
+
+                            return Dismissible(
+                              key: ValueKey(entry.id),
+                              direction: DismissDirection.endToStart,
+                              // The caller confirms and reports back. Returning
+                              // false leaves the row exactly where it was --
+                              // a row that slid away and then came back is how
+                              // somebody concludes the app deleted something
+                              // and lied about it.
+                              confirmDismiss: (_) =>
+                                  widget.onRemove!.call(entry),
+                              background: _RemoveBackground(
+                                  label: widget.removeLabel ?? ''),
+                              child: row,
+                            );
                           },
                         ),
             ),
@@ -521,4 +558,35 @@ Future<void> showMemberActions(
       ),
     ),
   );
+}
+
+/// What sits behind a row being swiped away.
+class _RemoveBackground extends StatelessWidget {
+  final String label;
+  const _RemoveBackground({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: ManaColors.statusBad,
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.lg),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.delete_outline, color: Colors.white, size: 20),
+          const SizedBox(width: ManaSpacing.sm),
+          // Flexible: at 2.0x a translated label beside a fixed icon is the
+          // shape that overflows.
+          Flexible(
+            child: ManaText.raw(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
 }

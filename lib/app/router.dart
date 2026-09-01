@@ -111,6 +111,16 @@ String _resolveBusinessId(GoRouterState s) {
 /// Screen-ID prefixes that cannot render without a business.
 const _needsBusiness = ['/ow-', '/ag-'];
 
+/// Owner routes that must stay reachable WITHOUT a business.
+///
+/// /ow-000 is the screen that creates your first one. Gating it behind having
+/// a business is circular, and it looped for real: a person with none tapped
+/// Create New Business, the redirect below saw a /ow- path with no business,
+/// sent them to /lr-012, which is the "No Business Linked" screen whose only
+/// button is Create New Business. Round and round -- reported as the screen
+/// reloading forever.
+const _noBusinessNeeded = ['/ow-000'];
+
 /// Where an unusable route goes instead of opening.
 ///
 /// Nineteen routes fell back to a fabricated id -- 'stub-business-id',
@@ -142,6 +152,7 @@ String? manaSessionRedirectFor(String path, {String? carriedBusinessId}) {
   }
   if (ManaSession.instance.currentPersonId == null) return '/lr-001';
   if (_needsBusiness.any(path.startsWith) &&
+      !_noBusinessNeeded.any(path.startsWith) &&
       (carriedBusinessId ?? '').isEmpty &&
       (ManaSession.instance.lastBusinessId ?? '').isEmpty) {
     return '/lr-012';

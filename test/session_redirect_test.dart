@@ -37,6 +37,19 @@ void main() {
       ManaSession.instance.rememberBusinessId('b1');
       expect(manaSessionRedirectFor('/ow-006'), isNull);
     });
+
+    test('creating your first business does not require having one', () async {
+      // /ow-000 starts with /ow-, so the rule above caught it: a person with
+      // no business tapped Create New Business, was redirected to /lr-012 --
+      // the "No Business Linked" screen whose only button is Create New
+      // Business -- and went round forever. Reported as the screen reloading.
+      await ManaSession.instance.setSession(accessToken: 't', personId: '2');
+      expect(manaSessionRedirectFor('/ow-000'), isNull,
+          reason: 'the screen that creates a business cannot need one');
+      // Still gated on having a person: it writes rows as somebody.
+      await ManaSession.instance.clear();
+      expect(manaSessionRedirectFor('/ow-000'), '/lr-001');
+    });
   });
 
   group('choosing a business is what makes the workspace reachable', () {

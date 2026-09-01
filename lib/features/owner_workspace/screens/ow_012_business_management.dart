@@ -363,9 +363,10 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
                 logoBytes,
                 fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
               );
-          final url =
-              await Supabase.instance.client.storage.from('business-logos').createSignedUrl(path, 60 * 60 * 24 * 365);
-          await Supabase.instance.client.from('businesses').update({'logo_url': url}).eq('business_id', businessId);
+          // The path, not a year-long signed URL -- see ManaStoredFile.
+          await Supabase.instance.client
+              .from('businesses')
+              .update({'logo_url': path}).eq('business_id', businessId);
         } catch (e) {
           // Non-fatal — the business itself was created successfully;
           // the logo can be added later, never block on this.

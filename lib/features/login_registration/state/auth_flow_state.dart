@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../shared/stored_file.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../shared/widgets/language_selector.dart';
@@ -514,6 +516,9 @@ class ManaSession {
   }
 
   Future<void> clear() async {
+    // A memoised link to somebody's face or identity document must not
+    // outlive their session -- see ManaStoredFile.
+    ManaStoredFile.clearCache();
     _accessToken = null;
     _personId = null;
     _lastBusinessId = null;

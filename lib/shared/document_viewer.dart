@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'widgets/confirm_delete_dialog.dart';
 import 'soft_delete_service.dart';
+import 'stored_file.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
@@ -126,7 +127,9 @@ class _DocumentsListViewState extends ConsumerState<DocumentsListView> {
                 onTap: doc == null
                     ? null
                     : () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => _DocumentViewerScreen(title: label, url: doc.fileUrl)),
+                          MaterialPageRoute(
+                              builder: (_) => _DocumentViewerScreen(
+                                  title: label, storedPath: doc.fileUrl)),
                         ),
               ),
             );
@@ -139,8 +142,12 @@ class _DocumentsListViewState extends ConsumerState<DocumentsListView> {
 
 class _DocumentViewerScreen extends StatelessWidget {
   final String title;
-  final String url;
-  const _DocumentViewerScreen({required this.title, required this.url});
+  /// What `customer_documents.file_url` holds: an object path, or a legacy
+  /// full signed URL. The link is minted when the document is opened and dies
+  /// in minutes -- these are identity documents, and a year-long link to one
+  /// sitting in a column was the whole problem.
+  final String storedPath;
+  const _DocumentViewerScreen({required this.title, required this.storedPath});
 
   @override
   Widget build(BuildContext context) {
@@ -148,23 +155,48 @@ class _DocumentViewerScreen extends StatelessWidget {
       appBar: ManaAppBar(title: title),
       backgroundColor: Colors.black,
       body: Center(
-        // PERF: cached — re-opening the same document (e.g. after backing out
-        // of this viewer) previously re-downloaded it every time.
-        child: InteractiveViewer(
-          child: CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.contain,
-            progressIndicatorBuilder: (context, child, progress) =>
-                const Center(child: CircularProgressIndicator(color: Colors.white)),
-            errorWidget: (context, error, stackTrace) => Padding(
-              padding: const EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw(
-                "Couldn't preview this file — it may not be an image. URL:\n$url",
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white),
+        child: FutureBuilder<String?>(
+          future: ManaStoredFile.signedUrl(
+              bucket: 'customer-documents', stored: storedPath),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const CircularProgressIndicator(color: Colors.white);
+            }
+            final url = snapshot.data;
+            if (url == null) {
+              return const Padding(
+                padding: EdgeInsets.all(ManaSpacing.lg),
+                child: ManaText.raw(
+                  "Couldn't open this document.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white),
+                ),
+              );
+            }
+            // PERF: cached — re-opening the same document (e.g. after backing
+            // out of this viewer) previously re-downloaded it every time.
+            return InteractiveViewer(
+              child: CachedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.contain,
+                progressIndicatorBuilder: (context, child, progress) =>
+                    const Center(
+                        child: CircularProgressIndicator(color: Colors.white)),
+                // Deliberately does NOT print the URL any more. It is a signed
+                // link to somebody's identity document, and putting it on
+                // screen makes every screenshot of a failed preview a working
+                // credential.
+                errorWidget: (context, error, stackTrace) => const Padding(
+                  padding: EdgeInsets.all(ManaSpacing.lg),
+                  child: ManaText.raw(
+                    "Couldn't preview this file — it may not be an image.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

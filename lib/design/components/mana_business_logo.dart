@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../shared/stored_file.dart';
 import '../tokens/colors.dart';
 
 /// The business's mark, as it appears in every workspace header.
@@ -17,24 +18,59 @@ import '../tokens/colors.dart';
 ///    change between them.
 ///  * **A missing logo is a storefront glyph, not an empty box.** Most
 ///    businesses have not uploaded one.
-///  * **A broken URL is also the glyph.** These are signed storage URLs and
-///    they can expire or 404 — a broken-image icon in the header of every
-///    screen is much worse than a placeholder.
-class ManaBusinessLogo extends StatelessWidget {
-  /// Signed storage URL, or null when the business has no logo.
+///  * **A broken or unsigned URL is also the glyph.** The column holds an
+///    object path; the link is minted on demand and expires in minutes, so it
+///    can be absent, in flight, or 404. A broken-image icon in the header of
+///    every screen is much worse than a placeholder.
+class ManaBusinessLogo extends StatefulWidget {
+  /// What `businesses.logo_url` holds: an object path, or — on rows written
+  /// before that changed — a full signed URL. ManaStoredFile reads both.
   final String? logoUrl;
 
   const ManaBusinessLogo({super.key, required this.logoUrl});
 
   @override
+  State<ManaBusinessLogo> createState() => _ManaBusinessLogoState();
+}
+
+/// Stateful, not a FutureBuilder on a future built in build().
+///
+/// The link has to be minted asynchronously now, and this widget sits in a
+/// header that rebuilds constantly. A `future:` created inline is a NEW future
+/// every rebuild, which restarts the builder and flashes the placeholder on
+/// every frame of a scroll. Resolved once here, and again only when the row
+/// itself changes.
+class _ManaBusinessLogoState extends State<ManaBusinessLogo> {
+  String? _url;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(ManaBusinessLogo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.logoUrl != widget.logoUrl) _resolve();
+  }
+
+  Future<void> _resolve() async {
+    final url = await ManaStoredFile.signedUrl(
+        bucket: 'business-logos', stored: widget.logoUrl);
+    if (mounted) setState(() => _url = url);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final placeholder = Icon(Icons.storefront, color: ManaColors.brandDeep);
+    final url = _url;
     return Container(
       color: ManaColors.brandFaint,
-      child: logoUrl == null
+      child: url == null
           ? placeholder
           : CachedNetworkImage(
-              imageUrl: logoUrl!,
+              imageUrl: url,
               fit: BoxFit.cover,
               errorWidget: (_, __, ___) => placeholder,
             ),

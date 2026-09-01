@@ -9,6 +9,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/add_village_if_missing.dart';
+import '../../../shared/stored_file.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_identity_header.dart';
@@ -357,10 +358,31 @@ class _IdentityCard extends ConsumerWidget {
                     context: context,
                     builder: (d) => AlertDialog(
                       title: ManaText.raw(ref.t('view_live_photo')),
-                      content: Image.network(
-                        liveUrl,
-                        errorBuilder: (_, __, ___) =>
-                            ManaText.raw(ref.t('photo_unavailable')),
+                      // The column holds an object path now, so the link is
+                      // minted here and dies in minutes. Opened once, on
+                      // demand, which is exactly the shape a face photo
+                      // taken as fraud evidence should have.
+                      content: FutureBuilder<String?>(
+                        future: ManaStoredFile.signedUrl(
+                            bucket: 'live-photos', stored: liveUrl),
+                        builder: (_, snapshot) {
+                          if (snapshot.connectionState !=
+                              ConnectionState.done) {
+                            return const SizedBox(
+                              height: 64,
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          final url = snapshot.data;
+                          if (url == null) {
+                            return ManaText.raw(ref.t('photo_unavailable'));
+                          }
+                          return Image.network(
+                            url,
+                            errorBuilder: (_, __, ___) =>
+                                ManaText.raw(ref.t('photo_unavailable')),
+                          );
+                        },
                       ),
                       actions: [
                         TextButton(

@@ -326,12 +326,11 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
                 fileOptions:
                     const FileOptions(contentType: 'image/jpeg', upsert: true),
               );
-          final url = await Supabase.instance.client.storage
-              .from('business-logos')
-              .createSignedUrl(path, 60 * 60 * 24 * 365);
+          // The path, not a year-long signed URL. ManaBusinessLogo signs a
+          // short-lived one when it draws -- see ManaStoredFile.
           await Supabase.instance.client
               .from('businesses')
-              .update({'logo_url': url}).eq('business_id', businessId);
+              .update({'logo_url': path}).eq('business_id', businessId);
         } catch (e) {
           // Non-fatal — never block the wizard over a logo upload hiccup.
         }

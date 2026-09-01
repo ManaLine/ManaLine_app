@@ -148,10 +148,11 @@ class _ProfileCompletionScreenState extends ConsumerState<ProfileCompletionScree
             bytes,
             fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
           );
-          final url = await storage.createSignedUrl(path, 60 * 60 * 24 * 365);
+          // The path, not a year-long signed URL. These are identity
+          // documents -- see ManaStoredFile.
           await ref
               .read(globalWorkflowApiServiceProvider)
-              .submitDocument(personId: widget.personId, documentType: type, fileUrl: url);
+              .submitDocument(personId: widget.personId, documentType: type, fileUrl: path);
           return true;
         });
         if (ok == true) _reload();

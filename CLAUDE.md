@@ -189,13 +189,37 @@ reason written down — never loosen it to get green. `availed_amount` came
 off the money list because it is a declared figure rather than a derived
 balance, and that reasoning is in the file.
 
-**Still uncovered, and known:** `supabase/tests/*.sql` is run by hand and
-nothing executes it automatically, so its assertions only bite when
-somebody remembers. Enum literals written directly into migration SQL are
-still caught only by invoking the function — the snapshot checks the Dart
-side of that contract, not the SQL side. Judgement regressions — correct
-code that reads as broken — have no guard at all and are found on the
-handset.
+### Running the SQL guards
+
+`supabase/tests/*.sql` had never been executed — five files, and the newest
+assertions in them had not run once. They are wired now:
+
+```bash
+pwsh tool/run_sql_tests.ps1
+```
+
+It runs every file through `psql`, counts the `WARNING … FAIL` lines each
+one raises on a failed assertion, and exits non-zero if there are any. It
+needs `MANA_DB_URL`, which is **not** in this repo and must not be —
+`run.ps1.txt` carries the anon key because that ships inside every APK
+anyway, and a database password does not. **Point it at a branch, not
+production:** every file rolls back today, but that is a property of the
+files as written, not a promise about the next edit.
+
+`test/sql_tests_wired_test.dart` runs under `flutter test` and keeps this
+honest two ways. It checks every SQL file can actually announce a failure
+(`RAISE WARNING 'FAIL …'`) and cleans up after itself (`ROLLBACK`) — a new
+file that passes silently fails here. And when `MANA_DB_URL` is set it
+shells out to the runner and asserts it exits zero; when it is not, it
+**prints a skip** rather than passing quietly, because a green tick meaning
+"did not look" is the exact problem being fixed.
+
+**Still uncovered, and known:** enum literals written directly into
+migration SQL are caught only by invoking the function — the snapshot
+checks the Dart side of that contract, not the SQL side. The SQL guards run
+only when somebody supplies a database URL, so they are one command rather
+than automatic. Judgement regressions — correct code that reads as broken —
+have no guard at all and are found on the handset.
 
 ## Bug-fix batch mode (real-device testing sessions)
 
@@ -222,7 +246,9 @@ flagging first.
 
 **Phase 4 — stop before shipping.** Once all fixes in the approved
 roadmap are done and `flutter analyze` is clean on every touched file,
-stop. Do not push, build the APK, or install. Present a summary (fixed
+stop. If the batch touched SQL — a migration, an RPC, a view, RLS — run
+`pwsh tool/run_sql_tests.ps1` first and report the result; that is the only
+thing that executes the schema and data assertions. Do not push, build the APK, or install. Present a summary (fixed
 / flagged / deferred, table format) and wait for my explicit approval
 before running `flutter build apk` or `adb install`.
 

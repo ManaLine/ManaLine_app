@@ -167,8 +167,20 @@ happen. These fail instead, under `flutter test`:
 | `stored_column_display_guard_test.dart` | Drawing a stored file without resolving the path — the 13 blank avatars |
 | `money_write_guard_test.dart` | A money amount written straight from the client — the unguarded payout |
 | `collection_window_test.dart` | The one-entry window drifting from week/month — the 15-day collection block |
+| `schema_snapshot_test.dart` | Calling an RPC that is not there; a second overload (PGRST203); a Dart list drifting from a DB enum |
+| `consumer_census_test.dart` | A shared contract quietly gaining or losing a consumer — the recognition failure itself |
 | `ambiguous_embed_guard_test.dart` | PGRST201 on an unqualified FK embed |
 | `expectNoLayoutFault` in the harness | Overflow, at four text scales in two languages |
+
+`test/support/schema_snapshot.dart` is generated, not written — the query to
+regenerate it is in its header, and it needs regenerating after any schema
+change. A stale snapshot is not silently wrong: it fails the moment the app
+calls something it has never heard of.
+
+**The census is answered by looking, not by editing the number.** A count
+that went up means a new file took the dependency: open it, check it honours
+the contract, and only then record the new figure. That check is the whole
+purpose of the test.
 
 **Prefer adding a guard over adding a rule.** When a regression is found,
 the question is not only "what fixes it" but "what would have failed".
@@ -179,8 +191,11 @@ balance, and that reasoning is in the file.
 
 **Still uncovered, and known:** `supabase/tests/*.sql` is run by hand and
 nothing executes it automatically, so its assertions only bite when
-somebody remembers. Judgement regressions — correct code that reads as
-broken — have no guard at all and are found on the handset.
+somebody remembers. Enum literals written directly into migration SQL are
+still caught only by invoking the function — the snapshot checks the Dart
+side of that contract, not the SQL side. Judgement regressions — correct
+code that reads as broken — have no guard at all and are found on the
+handset.
 
 ## Bug-fix batch mode (real-device testing sessions)
 

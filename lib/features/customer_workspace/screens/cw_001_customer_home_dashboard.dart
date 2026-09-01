@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -204,10 +205,14 @@ class _Header extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
-        ManaVerificationRing(
-          isVerified: verified,
-          photo: photo != null ? NetworkImage(photo!) : null,
-          size: 48,
+        ManaStoredImage(
+          bucket: 'profile-photos',
+          stored: photo,
+          builder: (context, image) => ManaVerificationRing(
+            isVerified: verified,
+            photo: image,
+            size: 48,
+          ),
         ),
         const SizedBox(width: ManaSpacing.md),
         Expanded(

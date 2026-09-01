@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -196,12 +197,16 @@ class _BusinessSummaryCard extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: ManaColors.inkFaint,
-                    backgroundImage: business.logoUrl != null ? NetworkImage(business.logoUrl!) : null,
-                    child: business.logoUrl == null
-                        ? Icon(Icons.storefront, color: ManaColors.textSecondary)
-                        : null,
+                  ManaStoredImage(
+                    bucket: 'business-logos',
+                    stored: business.logoUrl,
+                    builder: (context, image) => CircleAvatar(
+                      backgroundColor: ManaColors.inkFaint,
+                      backgroundImage: image,
+                      child: image == null
+                          ? Icon(Icons.storefront, color: ManaColors.textSecondary)
+                          : null,
+                    ),
                   ),
                   const SizedBox(width: ManaSpacing.md),
                   Expanded(

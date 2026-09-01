@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -298,16 +300,20 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
           label: 'Profile',
           child: InkWell(
             customBorder: const CircleBorder(),
-            // Settings is where Profile lives. It is reached from here with
-            // no workspace chosen, so Settings resolves the Profile row from
-            // the last role this device used — see SettingsScreen's own
-            // _profileRoute note.
-            onTap: () => context.push('/settings'),
-            child: CircleAvatar(
-              backgroundColor: ManaColors.surfaceSunken,
-              backgroundImage:
-                  _profilePhotoUrl != null ? NetworkImage(_profilePhotoUrl!) : null,
-              child: _profilePhotoUrl == null ? const Icon(Icons.person, size: 18) : null,
+            // The Semantics label above says Profile, and this used to push
+            // Settings -- which the kebab menu already offers, two taps away.
+            // It goes to the profile of whichever role this device last used;
+            // Settings only when there is no prior role to resolve, which is a
+            // genuinely first-ever login with no profile to show yet.
+            onTap: () => context.push(manaLastUsedProfileRoute() ?? '/settings'),
+            child: ManaStoredImage(
+              bucket: 'profile-photos',
+              stored: _profilePhotoUrl,
+              builder: (context, image) => CircleAvatar(
+                backgroundColor: ManaColors.surfaceSunken,
+                backgroundImage: image,
+                child: image == null ? const Icon(Icons.person, size: 18) : null,
+              ),
             ),
           ),
         ),
@@ -624,10 +630,16 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
                     final b = _suggestions[i];
                     return ListTile(
                       dense: true,
-                      leading: CircleAvatar(
-                        radius: 16,
-                        backgroundImage: b['logo_url'] != null ? NetworkImage(b['logo_url'] as String) : null,
-                        child: b['logo_url'] == null ? const Icon(Icons.storefront_outlined, size: 16) : null,
+                      leading: ManaStoredImage(
+                        bucket: 'business-logos',
+                        stored: b['logo_url'] as String?,
+                        builder: (context, image) => CircleAvatar(
+                          radius: 16,
+                          backgroundImage: image,
+                          child: image == null
+                              ? const Icon(Icons.storefront_outlined, size: 16)
+                              : null,
+                        ),
                       ),
                       title: ManaText.raw(b['business_name'] as String? ?? '', style: const TextStyle(fontSize: 14)),
                       subtitle: ManaText.raw(b['mlbi'] as String? ?? '', style: ManaType.small),
@@ -665,11 +677,15 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          backgroundImage: _foundBusiness!['logo_url'] != null
-                              ? NetworkImage(_foundBusiness!['logo_url'] as String)
-                              : null,
-                          child: _foundBusiness!['logo_url'] == null ? const Icon(Icons.storefront_outlined) : null,
+                        ManaStoredImage(
+                          bucket: 'business-logos',
+                          stored: _foundBusiness!['logo_url'] as String?,
+                          builder: (context, image) => CircleAvatar(
+                            backgroundImage: image,
+                            child: image == null
+                                ? const Icon(Icons.storefront_outlined)
+                                : null,
+                          ),
                         ),
                         const SizedBox(width: ManaSpacing.sm),
                         Expanded(

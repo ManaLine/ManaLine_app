@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'mana_stored_image.dart';
 
 import '../tokens/colors.dart';
 import '../tokens/spacing.dart';
@@ -114,10 +115,15 @@ class ManaIdentityHeader extends StatelessWidget {
   }
 
   Widget _photo() {
-    final ring = ManaVerificationRing(
-      isVerified: isVerified,
-      photo: photoUrl != null ? NetworkImage(photoUrl!) : null,
-      size: 56,
+    // photoUrl holds a storage PATH now, not a URL -- see ManaStoredFile.
+    final ring = ManaStoredImage(
+      bucket: 'profile-photos',
+      stored: photoUrl,
+      builder: (context, image) => ManaVerificationRing(
+        isVerified: isVerified,
+        photo: image,
+        size: 56,
+      ),
     );
 
     // No InkWell, no badge, no Semantics button when it is not editable --

@@ -111,17 +111,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   /// Resolved from the entity ids ManaSession caches when LR-013 last
-  /// resolved a membership. Checked most-specific first: an Owner has no
-  /// agent/customer/investor row, so a remembered businessId with none of
-  /// those set is the Owner case.
-  String? get _lastUsedProfileRoute {
-    final session = ManaSession.instance;
-    if (session.lastAgentId != null) return '/ag-009';
-    if (session.lastCustomerId != null) return '/cw-006';
-    if (session.lastInvestorId != null) return '/iw-005';
-    if (session.lastBusinessId != null) return '/ow-016';
-    return null;
-  }
+  /// resolved a membership. Shared with LR-012's header avatar, which needs
+  /// the same answer for the same reason.
+  String? get _lastUsedProfileRoute => manaLastUsedProfileRoute();
   /// Opens the system share sheet. No app store link yet — MANA LINE is not
   /// published — so the message says what the app is rather than pointing at a
   /// download that would 404. Add the store URL here when there is one.

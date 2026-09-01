@@ -129,6 +129,26 @@ class Membership {
   });
 }
 
+/// The profile screen of whichever role this device last resolved.
+///
+/// Checked most-specific first: an Owner has no agent, customer or investor
+/// row, so a remembered businessId with none of those set is the Owner case.
+/// Null on a genuinely first-ever login, where there is no prior role and no
+/// profile to show yet.
+///
+/// Shared because two screens need the same answer for the same reason --
+/// SettingsScreen's Profile row, and LR-012's header avatar, which sits above
+/// role selection and so has no workspace to derive one from. A second copy
+/// would be a second thing to keep in step.
+String? manaLastUsedProfileRoute() {
+  final session = ManaSession.instance;
+  if (session.lastAgentId != null) return '/ag-009';
+  if (session.lastCustomerId != null) return '/cw-006';
+  if (session.lastInvestorId != null) return '/iw-005';
+  if (session.lastBusinessId != null) return '/ow-016';
+  return null;
+}
+
 class AuthFlowNotifier extends Notifier<AuthFlowState> {
   /// Starts from whatever the session already knows.
   ///

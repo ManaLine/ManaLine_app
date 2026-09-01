@@ -17,6 +17,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'mana_stored_image.dart';
 
 import '../tokens/colors.dart';
 import '../tokens/spacing.dart';
@@ -466,13 +467,16 @@ class _MemberRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: ManaColors.surfaceSunken,
-        backgroundImage:
-            entry.photoUrl == null ? null : NetworkImage(entry.photoUrl!),
-        child: entry.photoUrl == null
-            ? Icon(Icons.person, color: ManaColors.textSecondary)
-            : null,
+      leading: ManaStoredImage(
+        bucket: 'profile-photos',
+        stored: entry.photoUrl,
+        builder: (context, image) => CircleAvatar(
+          backgroundColor: ManaColors.surfaceSunken,
+          backgroundImage: image,
+          child: image == null
+              ? Icon(Icons.person, color: ManaColors.textSecondary)
+              : null,
+        ),
       ),
       title: ManaText.raw(entry.name,
           maxLines: 1,

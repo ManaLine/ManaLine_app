@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
@@ -137,10 +138,16 @@ class _BusinessResultCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: ManaColors.inkFaint,
-          backgroundImage: business.logoUrl != null ? NetworkImage(business.logoUrl!) : null,
-          child: business.logoUrl == null ? Icon(Icons.storefront, color: ManaColors.textSecondary) : null,
+        leading: ManaStoredImage(
+          bucket: 'business-logos',
+          stored: business.logoUrl,
+          builder: (context, image) => CircleAvatar(
+            backgroundColor: ManaColors.inkFaint,
+            backgroundImage: image,
+            child: image == null
+                ? Icon(Icons.storefront, color: ManaColors.textSecondary)
+                : null,
+          ),
         ),
         title: ManaText.raw(business.businessName, style: ManaType.emphasis),
         subtitle: ManaText.raw(

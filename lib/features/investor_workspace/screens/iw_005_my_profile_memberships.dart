@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -166,10 +167,14 @@ class _SummaryCard extends ConsumerWidget {
           children: [
             Row(
               children: [
-                ManaVerificationRing(
-                  isVerified: isVerified,
-                  photo: profile.profilePhotoUrl != null ? NetworkImage(profile.profilePhotoUrl!) : null,
-                  size: 56,
+                ManaStoredImage(
+                  bucket: 'profile-photos',
+                  stored: profile.profilePhotoUrl,
+                  builder: (context, image) => ManaVerificationRing(
+                    isVerified: isVerified,
+                    photo: image,
+                    size: 56,
+                  ),
                 ),
                 const SizedBox(width: ManaSpacing.md),
                 Expanded(

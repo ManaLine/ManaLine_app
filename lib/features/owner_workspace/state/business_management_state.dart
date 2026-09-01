@@ -475,7 +475,9 @@ class BusinessManagementApiService {
         .map((r) => MemberSummary(
               membershipId: r['membership_id'] as String,
               personId: (r['person_id'] as int).toString(),
-              fullName: titleCaseName((r['persons'] as Map<String, dynamic>)['full_name'] as String),
+              // Same shape, same reason as fetchMembershipRequests below.
+              fullName: titleCaseName(
+                  (r['persons'] as Map<String, dynamic>?)?['full_name'] as String? ?? ''),
               role: r['role'] as String,
               membershipStatus: r['membership_status'] as String,
             ))
@@ -532,7 +534,16 @@ class BusinessManagementApiService {
         .map((r) => MembershipRequestSummary(
               requestId: r['request_id'] as String,
               personId: (r['person_id'] as int).toString(),
-              fullName: titleCaseName((r['persons'] as Map<String, dynamic>)['full_name'] as String),
+              // Nullable on purpose. This embed is not !inner, so RLS hiding
+              // the row returns null rather than dropping the request -- and
+              // casting it non-null took the entire Business Detail screen
+              // down over one pending request from somebody the Owner could
+              // not yet see. The grant in
+              // an_owner_can_read_the_name_of_someone_asking_to_join fixes the
+              // visibility; this makes a missing name cost a name, not a
+              // screen.
+              fullName: titleCaseName(
+                  (r['persons'] as Map<String, dynamic>?)?['full_name'] as String? ?? ''),
               requestedRole: r['requested_role'] as String,
               proposedInvestmentAmount: (r['proposed_investment_amount'] as num?)?.toInt(),
               remarks: r['remarks'] as String?,

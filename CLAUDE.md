@@ -112,6 +112,76 @@ Full pass over existing code — bugs, security issues, dead code (unused functi
 **Goal:**
 Fast, responsive, close-to-bug-free app. Minimal, clean code. No bloat. No unused code. No unpatched security gaps. Correctness and simplicity over cleverness.
 
+## Not breaking the thing next to the thing you fixed
+
+Every fix in this project that later came back as a new bug followed the
+same shape: a change correct in itself, verified in isolation, reported as
+done — while a second consumer of the same function, column or widget went
+on using it the old way. **"Migration applied" and "flutter analyze clean"
+have both repeatedly meant nothing.** Neither one executes a plpgsql body;
+neither one loads a screen.
+
+**Before changing anything shared, list its consumers.** A function, view,
+column, widget or RPC. Grep `lib/` for the name; for SQL, count callers in
+`pg_proc` and `pg_views`. If the list is longer than one, every entry gets
+checked or gets said out loud. The two worst regressions here were a
+shared window used by two things and a photo column read by sixteen — in
+both cases three sites were updated and the rest silently broke.
+
+**A change is not done until it has been run.** Not applied — run. For a
+plpgsql function that means invoking it inside a rolled-back transaction
+and reading the result, because bodies are not type-checked at CREATE time
+and an invented enum literal applies perfectly and throws on first call.
+Three times in one week: `'General'`, `'Self Request'`, `'Full Payment'`.
+Read `enum_range` before writing the literal, not after.
+
+**On a money path, read the number back afterwards** — the stored row, not
+the return value. A withdrawal that validated against a computed principal
+and subtracted from a stale stored one would have destroyed ₹91,250 of an
+investor's money. It was caught only by selecting `principal_amount` after
+the call and noticing it was wrong.
+
+**Widening a filter changes everything downstream of it.** Making account
+periods open-ended was right, and it silently stretched a one-entry-per-
+window rule from four days to fifteen, blocking every weekly collection.
+Filtering Inactive areas out of a list was right, and it left an Owner
+with no way to understand an empty screen. Ask what reads this, and what
+that thing takes it to mean.
+
+**When a fix makes a previously unreachable path reachable, walk it.**
+Fixing Request-to-Join delivered real people into an approval that had
+never run and a screen that crashed on a null embed. A door locked for
+months has nothing tested behind it.
+
+**Report what was verified, and how, separately from what was changed.**
+"Fixed" with no probe behind it is a guess. If something could not be
+verified, say so rather than implying it was.
+
+### The guards, and why they exist
+
+Prose is weakest exactly when sessions get long, which is when regressions
+happen. These fail instead, under `flutter test`:
+
+| Guard | Stops |
+|---|---|
+| `stored_column_display_guard_test.dart` | Drawing a stored file without resolving the path — the 13 blank avatars |
+| `money_write_guard_test.dart` | A money amount written straight from the client — the unguarded payout |
+| `collection_window_test.dart` | The one-entry window drifting from week/month — the 15-day collection block |
+| `ambiguous_embed_guard_test.dart` | PGRST201 on an unqualified FK embed |
+| `expectNoLayoutFault` in the harness | Overflow, at four text scales in two languages |
+
+**Prefer adding a guard over adding a rule.** When a regression is found,
+the question is not only "what fixes it" but "what would have failed".
+When a guard reports a violation, fix the code or sharpen the rule with a
+reason written down — never loosen it to get green. `availed_amount` came
+off the money list because it is a declared figure rather than a derived
+balance, and that reasoning is in the file.
+
+**Still uncovered, and known:** `supabase/tests/*.sql` is run by hand and
+nothing executes it automatically, so its assertions only bite when
+somebody remembers. Judgement regressions — correct code that reads as
+broken — have no guard at all and are found on the handset.
+
 ## Bug-fix batch mode (real-device testing sessions)
 
 Triggered when handed a batch of 15-20 device-testing issues. Overrides

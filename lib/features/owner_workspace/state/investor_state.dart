@@ -528,45 +528,28 @@ class InvestorApiService {
   /// the single combined running balance, per 0006's own comment) and
   /// auto-closes the investment if it reaches 0 (app-layer, same as that
   /// comment specifies — no DB trigger does this).
-  Future<void> approveWithdrawalRequest({
+  /// Pays out a withdrawal. One call, one transaction, split worked out
+  /// server-side.
+  ///
+  /// It replaces approveWithdrawalRequest, which was three unguarded writes
+  /// from the client: insert a withdrawal with whatever split had been typed
+  /// into a dialog, subtract the principal portion, mark the request paid.
+  /// Nothing checked that the interest being paid existed, nothing checked the
+  /// request had not already been paid, and a failure between the statements
+  /// paid somebody without reducing their principal.
+  Future<void> payOutWithdrawalRequest({
     required String requestId,
     required String investmentId,
-    required String withdrawalType,
     required int amount, // whole rupees (M8)
-    required int principalPortion,
-    required int interestPortion,
   }) async {
-    final personId = ref.read(authFlowProvider).personId;
-    if (personId == null) throw StateError('No logged-in person_id available.');
-    final today = manaBusinessDate();
-
-    final withdrawal = await _db
-        .from('investment_withdrawals')
-        .insert({
-          'investment_id': investmentId,
-          'withdrawal_type': withdrawalType,
-          'amount': amount,
-          'principal_portion': principalPortion,
-          'interest_portion': interestPortion,
-          'business_date': today,
-          'approved_by_person_id': int.parse(personId),
-        })
-        .select('withdrawal_id')
-        .single();
-
-    final investment = await _db.from('investments').select('principal_amount').eq('investment_id', investmentId).single();
-    final remaining = (investment['principal_amount'] as num).toDouble() - principalPortion;
-    await _db.from('investments').update({
-      'principal_amount': remaining < 0 ? 0 : remaining,
-      if (remaining <= 0) 'status': 'Closed',
-    }).eq('investment_id', investmentId);
-
-    await _db.from('investment_withdrawal_requests').update({
-      'status': 'Approved-Paid',
-      'resulting_withdrawal_id': withdrawal['withdrawal_id'],
-      'resolved_at': manaTimestamp(),
-    }).eq('request_id', requestId);
+    await _db.schema('app').rpc('withdraw_from_investment', params: {
+      'p_investment_id': investmentId,
+      'p_amount': amount,
+      'p_business_date': manaBusinessDate(),
+      'p_request_id': requestId,
+    });
   }
+
 }
 
 class ProfitShareDeclaration {

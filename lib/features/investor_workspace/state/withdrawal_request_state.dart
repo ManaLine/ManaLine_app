@@ -44,22 +44,28 @@ class WithdrawalRequestApiService {
   // Reused read from IW-003's own investment detail data — this screen
   // only needs the Available Balance + Principal slice of that payload.
   Future<InvestmentSummary> fetchInvestment({required String investmentId}) async {
-    final row = await _db
-        .from('investments')
-        .select('investment_id, principal_amount, original_principal_amount')
-        .eq('investment_id', investmentId)
-        .single();
+    // From the snapshot, not from investments.principal_amount.
+    //
+    // That column is PRINCIPAL, and the comment here used to claim it was the
+    // combined principal-and-interest balance. It is neither combined nor
+    // necessarily current: this year's interest has not been compounded into
+    // it yet, and a completed year may not have been written back at all --
+    // one live investment showed 5,00,000 stored against 5,91,250 earned.
+    // Capping a withdrawal against it was therefore wrong in both directions.
+    final rows = await _db.schema('app').rpc(
+        'investment_interest_snapshot',
+        params: {'p_investment_id': investmentId});
+    final snap = ((rows as List).first) as Map<String, dynamic>;
+
+    final principal = (snap['principal'] as num).toInt();
+    final accrued = (snap['accrued_interest'] as num?)?.toInt() ?? 0;
 
     return InvestmentSummary(
-      investmentId: row['investment_id'] as String,
-      // principal_amount is the current combined Principal+Interest
-      // balance (schema comment, Merged Addendum item 2) — this IS
-      // "Available Balance" for withdrawal purposes.
-      availableBalance: (row['principal_amount'] as num).toInt(),
-      // original_principal_amount is the frozen Agreement Snapshot value
-      // (BR-034) — used here for the separate "Principal" figure IW-004
-      // displays alongside Available Balance.
-      principalAmount: (row['original_principal_amount'] as num).toInt(),
+      investmentId: investmentId,
+      // What can actually be taken today: unpaid interest, then principal.
+      availableBalance: principal + accrued,
+      principalAmount: principal,
+      accruedInterest: accrued,
     );
   }
 
@@ -109,10 +115,21 @@ enum WithdrawalType {
 
 class InvestmentSummary {
   final String investmentId;
-  final int availableBalance; // Principal + Unpaid Interest
+  /// Principal + unpaid interest — everything that could be paid out today.
+  final int availableBalance;
+
+  /// Unpaid interest on its own. A withdrawal comes out of this first and
+  /// only then out of principal, so the screen can say which is which before
+  /// anybody presses anything.
+  final int accruedInterest;
   final int principalAmount;
 
-  InvestmentSummary({required this.investmentId, required this.availableBalance, required this.principalAmount});
+  InvestmentSummary({
+    required this.investmentId,
+    required this.availableBalance,
+    required this.principalAmount,
+    this.accruedInterest = 0,
+  });
 }
 
 class WithdrawalRequestRecord {

@@ -33,6 +33,10 @@ class InboxState {
   List<InboxAction> get settlements =>
       actions.where((a) => a.kind == InboxActionKind.settlement).toList();
 
+  /// Money an Investor has asked to take out.
+  List<InboxAction> get withdrawals =>
+      actions.where((a) => a.kind == InboxActionKind.withdrawal).toList();
+
   /// What the bell badges. Actionable items only — an unread informational
   /// notice is not something the person has to do, and badging both would
   /// train people to ignore the badge.
@@ -100,6 +104,15 @@ class InboxNotifier extends Notifier<InboxState> {
                 'Returning a settlement needs a reason — open Account Review.');
           }
           await _svc.approveSettlement(settlementId: action.itemId);
+        case InboxActionKind.withdrawal:
+          // Paying moves cash out of the business, so there is no "no" here
+          // either: rejecting one needs a reason the Investor can read, which
+          // lives on the Withdrawal Requests screen.
+          if (!yes) {
+            throw StateError(
+                'Rejecting a withdrawal needs a reason — open Withdrawal Requests.');
+          }
+          await _svc.payOutWithdrawal(requestId: action.itemId);
       }
       // Reload rather than removing locally: approving a membership request
       // can create a membership, which may itself change what is pending.

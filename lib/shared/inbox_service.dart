@@ -41,7 +41,11 @@ enum InboxActionKind {
   /// Approving moves their float into your balance and closes the period,
   /// so the Agent can start the next round; until then the money is still
   /// in their name.
-  settlement('settlement');
+  settlement('settlement'),
+
+  /// An Investor has asked to take money out. Paying it moves cash, so this
+  /// is the Owner's decision and it belongs on the same bell as the rest.
+  withdrawal('withdrawal');
 
   const InboxActionKind(this.wire);
   final String wire;
@@ -214,6 +218,19 @@ class InboxService {
   /// Returning a settlement is NOT offered here: it needs a reason the Agent
   /// can act on, and a reason box does not belong in a notification list.
   /// Account Review is where that happens.
+  /// Pays a withdrawal request. The split -- unpaid interest first, then
+  /// principal -- is the server's, along with every check that it is
+  /// affordable and not already paid.
+  Future<bool> payOutWithdrawal({required String requestId}) async {
+    // Keyed on the request, because an inbox row is a request id -- the
+    // amount and the investment both come from it. One payout path, shared
+    // with the Withdrawal Requests screen.
+    await _db.schema('app').rpc('pay_out_withdrawal_request', params: {
+      'p_request_id': requestId,
+    });
+    return true;
+  }
+
   Future<bool> approveSettlement({required String settlementId}) async {
     await _db.schema('app').rpc('approve_agent_settlement', params: {
       'p_settlement_id': settlementId,

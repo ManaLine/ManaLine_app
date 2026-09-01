@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -67,64 +66,48 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
     if (ok == true) _reload();
   }
 
+  /// Pay out a request. The Owner confirms the amount; the split is the
+  /// server's business.
+  ///
+  /// This dialog used to ask the Owner to TYPE the principal portion and the
+  /// interest portion, defaulting the whole amount to principal and interest
+  /// to zero. Nothing checked either figure against what the investment
+  /// actually held, so an interest payout larger than the interest ever earned
+  /// would have been recorded as fact -- and paying principal while interest
+  /// stood unpaid silently turns one into the other.
+  ///
+  /// app.withdraw_from_investment takes unpaid interest first, then principal,
+  /// refuses anything beyond what is there, settles any pending compounding so
+  /// the arithmetic can be checked afterwards, and does it in one transaction
+  /// rather than three unguarded writes.
   Future<void> _approve(WithdrawalRequestSummary r) async {
-    final principalController = TextEditingController(text: r.requestedAmount.toStringAsFixed(0));
-    final interestController = TextEditingController(text: '0');
-    final result = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setState) => AlertDialog(
-          // Scrolls if it does not fit -- see ow_011_day_closure.dart.
-          scrollable: true,
-          title: ManaText.raw(ref.t('pay_out_withdrawal')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ManaText.raw(ref
-                  .t('requested_amount_type_note')
-                  .replaceAll('{amount}', manaRupees(r.requestedAmount))
-                  .replaceAll('{type}', r.withdrawalType),
-                  style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),
-              const SizedBox(height: ManaSpacing.md),
-              TextField(
-                controller: principalController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: ref.t('principal_portion_field')),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: ManaSpacing.sm),
-              TextField(
-                controller: interestController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: ref.t('interest_portion_field')),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: ManaSpacing.sm),
-              ManaText.raw(
-                ref.t('total_note').replaceAll('{amount}', manaRupees((double.tryParse(principalController.text) ?? 0) + (double.tryParse(interestController.text) ?? 0))),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ],
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        title: ManaText.raw(ref.t('pay_out_withdrawal')),
+        content: ManaText.raw(ref
+            .t('pay_out_confirm_note')
+            .replaceAll('{amount}', manaRupees(r.requestedAmount))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: ManaText.raw(ref.t('cancel')),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: ManaText.raw(ref.t('cancel'))),
-            FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: ManaText.raw(ref.t('pay_out'))),
-          ],
-        ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: ManaText.raw(ref.t('pay_out')),
+          ),
+        ],
       ),
     );
-    if (result != true || !mounted) return;
-    final principal = int.tryParse(principalController.text.trim());
-    final interest = int.tryParse(interestController.text.trim());
-    if (principal == null || interest == null) return;
+    if (confirmed != true || !mounted) return;
+
     final ok = await NetworkErrorHandler.run(context, () async {
-      await ref.read(investorApiServiceProvider).approveWithdrawalRequest(
+      await ref.read(investorApiServiceProvider).payOutWithdrawalRequest(
             requestId: r.requestId,
             investmentId: r.investmentId,
-            withdrawalType: r.withdrawalType,
-            amount: principal + interest, // whole rupees (M8)
-            principalPortion: principal,
-            interestPortion: interest,
+            amount: r.requestedAmount.round(),
           );
       return true;
     });

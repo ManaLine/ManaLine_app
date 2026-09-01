@@ -115,6 +115,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           )));
     }
 
+    if (state.withdrawals.isNotEmpty) {
+      // Beside the settlements rather than buried under Earlier: an Investor
+      // waiting on money is waiting on the Owner, and the bell said "nothing
+      // is waiting on you" while two of these sat unanswered.
+      rows.add(_SectionHeader(
+        label: ref.t('withdrawals_waiting'),
+        count: state.withdrawals.length,
+      ));
+      rows.addAll(state.withdrawals.map((a) => _ActionCard(
+            action: a,
+            busy: state.busyItemId == a.itemId,
+            yesLabel: ref.t('pay_out'),
+            // No "no" here either: rejecting needs a reason the Investor can
+            // read, which lives on Withdrawal Requests.
+            noLabel: null,
+          )));
+    }
+
     if (state.invitations.isNotEmpty) {
       rows.add(_SectionHeader(
         label: ref.t('invitations_to_you'),
@@ -203,6 +221,7 @@ class _ActionCard extends ConsumerWidget {
     final who = switch (action.kind) {
       InboxActionKind.approval => action.personName ?? '',
       InboxActionKind.settlement => action.personName ?? '',
+      InboxActionKind.withdrawal => action.personName ?? '',
       InboxActionKind.invitation => action.businessName,
     };
     final detail = switch (action.kind) {
@@ -214,6 +233,10 @@ class _ActionCard extends ConsumerWidget {
       // moves out of the Agent's hands and into the Owner's.
       InboxActionKind.settlement => ref
           .t('handed_over_amount_note')
+          .replaceAll('{amount}', manaRupees((action.amount ?? 0).toInt())),
+      // The figure again: this is what leaves the business if it is paid.
+      InboxActionKind.withdrawal => ref
+          .t('wants_to_withdraw_note')
           .replaceAll('{amount}', manaRupees((action.amount ?? 0).toInt())),
       InboxActionKind.invitation =>
         ref.t('invited_you_as_note').replaceAll('{role}', action.role),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../design/components/mana_amount.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -99,7 +101,6 @@ class _WithdrawalForm extends ConsumerStatefulWidget {
 }
 
 class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
-  WithdrawalType? _withdrawalType;
   final _amountController = TextEditingController();
   final _remarksController = TextEditingController();
   String? _amountError;
@@ -114,9 +115,26 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
   int? get _requestedAmount =>
       int.tryParse(_amountController.text.trim());
 
+  /// Unpaid interest first, then principal — the same order the payout uses,
+  /// so what the investor is shown here is what actually happens.
+  int get _fromInterest =>
+      (_requestedAmount ?? 0).clamp(0, widget.investment.accruedInterest);
+  int get _fromPrincipal => (_requestedAmount ?? 0) - _fromInterest;
+
+  /// Derived, never asked for. It used to be three chips the investor picked
+  /// from, and picking "Interest Only" for an amount far beyond the interest
+  /// earned was accepted without complaint.
+  WithdrawalType get _derivedType {
+    if (_fromPrincipal == 0) return WithdrawalType.interestOnly;
+    if (_fromInterest > 0) return WithdrawalType.principalPlusInterest;
+    if (_fromPrincipal >= widget.investment.principalAmount) {
+      return WithdrawalType.principalFull;
+    }
+    return WithdrawalType.principalPartial;
+  }
+
   bool get _canSubmit {
     if (widget.disabled) return false;
-    if (_withdrawalType == null) return false;
     final amount = _requestedAmount;
     if (amount == null || amount <= 0) return false;
     if (amount > widget.investment.availableBalance) return false;
@@ -139,9 +157,9 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
   }
 
   Future<void> _submit() async {
-    final type = _withdrawalType;
+    final type = _derivedType;
     final amount = _requestedAmount;
-    if (type == null || amount == null) return;
+    if (amount == null) return;
 
     final record = await NetworkErrorHandler.run(context, () async {
       final r = await ref.read(withdrawalRequestProvider.notifier).submit(
@@ -229,29 +247,6 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
           ),
         ),
         const SizedBox(height: ManaSpacing.lg),
-        ManaText.raw(ref.t('withdrawal_type'),
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: ManaSpacing.sm),
-        // Checkmark-ListTile selection pattern (Radio/RadioListTile
-        // deprecated in this SDK version — per shared convention).
-        ...WithdrawalType.values.map((type) {
-          final selected = _withdrawalType == type;
-          return Card(
-            margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
-            child: ListTile(
-              enabled: !widget.disabled,
-              leading: Icon(
-                selected ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: selected ? ManaColors.brand : ManaColors.textSecondary,
-              ),
-              title: ManaText(type.label),
-              onTap: widget.disabled
-                  ? null
-                  : () => setState(() => _withdrawalType = type),
-            ),
-          );
-        }),
-        const SizedBox(height: ManaSpacing.lg),
         ManaText.raw(ref.t('requested_amount'),
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),
@@ -266,6 +261,19 @@ class _WithdrawalFormState extends ConsumerState<_WithdrawalForm> {
           ),
           onChanged: (_) => _validateAmount(),
         ),
+        // What this amount actually does, before anybody presses anything.
+        // The type used to be a choice, and choosing "Interest Only" for far
+        // more than the interest earned was accepted in silence.
+        if ((_requestedAmount ?? 0) > 0 && _amountError == null) ...[
+          const SizedBox(height: ManaSpacing.sm),
+          ManaText.raw(
+            ref
+                .t('withdrawal_split_note')
+                .replaceAll('{interest}', manaRupees(_fromInterest))
+                .replaceAll('{principal}', manaRupees(_fromPrincipal)),
+            style: ManaType.note,
+          ),
+        ],
         const SizedBox(height: ManaSpacing.lg),
         ManaText.raw(ref.t('remarks'), style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: ManaSpacing.sm),

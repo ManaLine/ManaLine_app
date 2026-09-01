@@ -588,6 +588,46 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- EVERY VILLAGE'S STATE IS ONE THE DIRECTORY KNOWS
+-- =============================================================================
+-- A village row recorded its state as "Andhrapradesh" where the directory --
+-- and every other row -- says "Andhra Pradesh".
+--
+-- That is not a spelling nit. manaReferenceOptions narrows the district and
+-- mandal pickers by matching the chosen state EXACTLY against lgd_villages,
+-- so a state the directory does not carry narrows to nothing: the person
+-- editing that address gets an empty district list and falls back to free
+-- text, which is how the row was created in the first place. One typed value
+-- reproduces itself.
+--
+-- Matched on the state alone rather than the whole village row on purpose.
+-- A village that is genuinely absent from the directory is allowed -- rural
+-- India has plenty, and Add New Village exists for them. A STATE that is
+-- absent is a typo every time.
+DO $$
+DECLARE
+    v_count INT;
+    v_bad TEXT;
+BEGIN
+    SELECT count(*), string_agg(DISTINCT l.state, ', ')
+      INTO v_count, v_bad
+      FROM locations l
+     WHERE l.state IS NOT NULL
+       AND btrim(l.state) <> ''
+       AND NOT EXISTS (SELECT 1 FROM lgd_villages v WHERE v.state = l.state);
+
+    PERFORM pg_temp.si_log(
+        'DATA', 'BR-013',
+        CASE WHEN v_count = 0
+             THEN 'every village records a state the PIN directory knows'
+             ELSE v_count || ' village row(s) record a state the directory '
+                  || 'does not carry, so their district and mandal pickers '
+                  || 'can never narrow: ' || v_bad
+        END,
+        v_count = 0);
+END $$;
+
+-- =============================================================================
 -- SUMMARY
 -- =============================================================================
 DO $$

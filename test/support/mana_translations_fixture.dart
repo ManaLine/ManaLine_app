@@ -2465,6 +2465,7 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'switch_camera': {'English': 'Switch Camera', 'Telugu': 'కెమెరా మార్చండి'},
   'until_submitted': {'English': 'until submitted', 'Telugu': 'సమర్పించే వరకు'},
   'check_again': {'English': 'Check Again', 'Telugu': 'మళ్లీ చూడండి'},
+  'only_removed_areas_note': {'English': 'None being worked. {count} removed area(s) are kept for their past accounts. Add one above to start collecting again.', 'Telugu': 'ఏదీ పని చేయబడటం లేదు. {count} తీసివేసిన ప్రాంతాలు వాటి గత ఖాతాల కోసం ఉంచబడ్డాయి. మళ్లీ వసూలు ప్రారంభించడానికి పైన ఒకటి జోడించండి.'},
   'withdrawal_split_note': {'English': '{interest} from unpaid interest, {principal} from principal.', 'Telugu': 'చెల్లించని వడ్డీ నుండి {interest}, అసలు నుండి {principal}.'},
   'pay_out_confirm_note': {'English': 'Pay {amount}? It comes out of unpaid interest first, then principal.', 'Telugu': '{amount} చెల్లించాలా? ఇది ముందుగా చెల్లించని వడ్డీ నుండి, ఆ తర్వాత అసలు నుండి తీసుకోబడుతుంది.'},
   'withdrawals_waiting': {'English': 'Withdrawals Waiting On You', 'Telugu': 'మీ కోసం వేచి ఉన్న ఉపసంహరణలు'},

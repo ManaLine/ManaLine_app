@@ -847,8 +847,17 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
 
   @override
   Widget build(BuildContext context) {
-    final areas = ref.watch(businessDetailProvider(widget.businessId)).operatingAreas;
+    final detail = ref.watch(businessDetailProvider(widget.businessId));
+    final areas = detail.operatingAreas;
     final search = ref.watch(operatingAreaSearchProvider);
+
+    // areas holds ACTIVE areas only; the summary counts every row. When those
+    // disagree, this business has areas that were removed and kept for their
+    // account periods -- and an Owner staring at an empty list needs telling,
+    // because their agents are meanwhile reading "No areas enabled for you
+    // yet" and neither screen was explaining the other.
+    final removedCount =
+        (detail.detail?.summary.operatingAreaCount ?? areas.length) - areas.length;
 
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -906,7 +915,14 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
         ManaText.raw(ref.t('current_operating_areas'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         if (areas.isEmpty)
-          ManaText.raw(ref.t('no_operating_areas_yet'), style: ManaType.secondary)
+          ManaText.raw(
+            removedCount > 0
+                ? ref
+                    .t('only_removed_areas_note')
+                    .replaceAll('{count}', '$removedCount')
+                : ref.t('no_operating_areas_yet'),
+            style: ManaType.secondary,
+          )
         else
           ...areas.map((a) => Card(
                 child: Column(

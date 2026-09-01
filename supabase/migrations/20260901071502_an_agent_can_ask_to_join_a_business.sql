@@ -1,0 +1,16 @@
+-- "Request to Join a Business" offers three roles and the database accepted
+-- two. Choosing Agent failed with
+--
+--   invalid input value for enum membership_request_role_enum: "Agent"
+--
+-- membership_request_role_enum held only Customer and Investor. But
+-- app.request_join_business validates `p_role IN ('Agent','Investor',
+-- 'Customer')` and THEN casts to that enum -- so the function was written
+-- expecting Agent, the screen offers Agent, my_inbox_actions renders
+-- requested_role without caring which it is, and only the type disagreed.
+--
+-- Adding the value rather than removing the chip, because everything else in
+-- the path already assumes it. An agent finding the business themselves and
+-- asking is the reverse-direction flow this screen exists for; the Owner
+-- still approves, exactly as for the other two.
+ALTER TYPE membership_request_role_enum ADD VALUE IF NOT EXISTS 'Agent';

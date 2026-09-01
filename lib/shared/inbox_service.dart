@@ -166,15 +166,28 @@ class InboxService {
     await _db.from('notifications').update({'is_read': true}).neq('is_read', true);
   }
 
+  /// Approving a request has to MAKE somebody a member.
+  ///
+  /// This used to be a bare update setting status to 'Approved'. There is no
+  /// trigger on membership_requests, so that created no business_members row
+  /// and no agents/customers/investors row: the Owner pressed Approve, the
+  /// request left the queue, and the person was a member of nothing. Neither
+  /// screen said so.
+  ///
+  /// app.decide_membership_request does the whole thing in one transaction,
+  /// and on a rejection sets the 24-hour cooldown that
+  /// app.request_join_business already reads -- it was checking a column
+  /// nothing ever wrote, so the cooldown was decorative.
   Future<bool> decideRequest({
     required String requestId,
     required bool approve,
     String? rejectionReason,
   }) async {
-    await _db.from('membership_requests').update({
-      'status': approve ? 'Approved' : 'Rejected',
-      'rejection_reason': rejectionReason,
-    }).eq('request_id', requestId);
+    await _db.schema('app').rpc('decide_membership_request', params: {
+      'p_request_id': requestId,
+      'p_approve': approve,
+      'p_rejection_reason': rejectionReason,
+    });
     return true;
   }
 

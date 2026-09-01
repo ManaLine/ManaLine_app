@@ -1,5 +1,6 @@
 -- =============================================================================
 -- MANA LINE — rls_access_matrix_tests.sql
+-- @target: scratch
 -- CORE DELIVERABLE of this QA chat. For every table in 03_Database_Schema.md,
 -- one positive test per role that SHOULD have access, and one negative test
 -- per role that SHOULD NOT — independently derived from the ground-truth

@@ -2,31 +2,36 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// The SQL tests run, and can report a failure when they have one.
+/// The SQL tests run, can report a failure, and cannot be aimed at a live book
+/// by accident.
 ///
-/// THE PROBLEM THIS EXISTS FOR: `supabase/tests/` has held five files for
-/// months and nothing ever executed them. The assertions added most recently —
-/// no customer with a live loan outside an active operating area, no village
-/// recording a state the PIN directory does not carry, no SECURITY INVOKER
-/// trigger reaching into the app schema — had never run once. A guard nobody
-/// runs is worse than no guard, because it reads as cover.
+/// THE PROBLEM THIS EXISTS FOR: `supabase/tests/` held five files for months and
+/// nothing ever executed them. The assertions added most recently — no customer
+/// with a live loan outside an active operating area, no village recording a
+/// state the PIN directory does not carry, no SECURITY INVOKER trigger reaching
+/// into the app schema — had never run once. A guard nobody runs is worse than
+/// no guard, because it reads as cover.
 ///
-/// Two halves, and only one of them can work offline:
+/// TWO KINDS OF FILE, and the difference is not cosmetic:
 ///
-///   * the CONVENTION check always runs. Every file must be able to announce a
-///     failure in the way the runner detects, and must clean up after itself.
-///     A new test file that silently passes, or one that forgets its ROLLBACK
-///     and leaves fixtures in a live database, fails here;
-///   * the EXECUTION check runs when `MANA_DB_URL` is set, shelling out to
-///     tool/run_sql_tests.ps1 and asserting it exits zero. Without the
-///     variable it skips loudly rather than passing quietly, because a green
-///     tick that means "did not look" is the thing being fixed.
+///   * `@target: scratch` files fabricate persons, businesses and loans. They
+///     must never be pointed at a real database.
+///   * `@target: production` files only read. They are the ones worth running
+///     against a live book, and the only ones that can be — a stranded customer
+///     or a mistyped state cannot be reproduced with fixtures, so against an
+///     empty branch they pass trivially and prove nothing.
 ///
-/// The database password is deliberately not in this repo. run.ps1.txt carries
-/// the anon key because that ships inside every APK anyway; a password does
-/// not, so the execution half is opt-in by whoever holds one — and a branch
-/// database for preference, since these files write fixtures before rolling
-/// them back.
+/// The runner enforces the split at runtime: scratch files are refused unless
+/// the target holds no businesses or loans, and production files run with
+/// `default_transaction_read_only=on` so a write raises 25006.
+///
+/// WHY RUNTIME AND NOT A GREP. Deciding which files were safe, I counted INSERT
+/// statements and concluded `migration_weekly_ledger_tests.sql` wrote nothing.
+/// Its writes are inside `app.import_weekly_account` — invisible to any reading
+/// of the file's own statements, and it was replaying twelve fabricated weeks
+/// over whichever business happened to be oldest. Static inspection cannot
+/// answer this question, so the checks below verify the DECLARATIONS and the
+/// runner verifies the BEHAVIOUR.
 void main() {
   final testDir = Directory('supabase/tests');
   final runner = File('tool/run_sql_tests.ps1');
@@ -56,6 +61,26 @@ void main() {
     for (final file in files) {
       final name = file.uri.pathSegments.last;
       final source = file.readAsStringSync();
+      final marker =
+          RegExp(r'^\s*--\s*@target:\s*(\S+)', multiLine: true).firstMatch(source);
+      final target = marker?.group(1)?.toLowerCase();
+      // Comments explain the patterns these files must NOT use, and quoting one
+      // is not committing it. Checks that look for a construct match code only.
+      final code = source.replaceAll(RegExp(r'--[^\n]*'), '');
+
+      test('$name declares what it may be run against', () {
+        // The runner defaults an undeclared file to scratch, which is the safe
+        // direction — but silently inheriting a safety property is how the
+        // weekly-ledger file came to be pointed at a real book. Say it.
+        expect(
+          target,
+          anyOf('scratch', 'production'),
+          reason: '$name has no `-- @target: scratch` or `-- @target: '
+              'production` line near the top. scratch = builds fixtures, never '
+              'run against a live database. production = reads only, safe '
+              'anywhere and only meaningful on real data.',
+        );
+      });
 
       test('$name can announce a failure', () {
         // The runner detects a failed assertion by looking for a WARNING line
@@ -70,16 +95,67 @@ void main() {
         );
       });
 
-      test('$name leaves nothing behind', () {
-        // These build fixtures. Against a live database a missing ROLLBACK is
-        // not a failed test, it is a data incident.
-        expect(
-          RegExp(r'^\s*ROLLBACK\s*;', multiLine: true).hasMatch(source),
-          isTrue,
-          reason: '$name has no ROLLBACK. Every file in here builds fixtures '
-              'and must undo them.',
-        );
-      });
+      if (target != 'production') {
+        test('$name leaves nothing behind', () {
+          // These build fixtures. Against a live database a missing ROLLBACK is
+          // not a failed test, it is a data incident.
+          expect(
+            RegExp(r'^\s*ROLLBACK\s*;', multiLine: true).hasMatch(source),
+            isTrue,
+            reason: '$name has no ROLLBACK. Every scratch file builds fixtures '
+                'and must undo them.',
+          );
+        });
+
+        test('$name builds its own fixtures rather than adopting a real row',
+            () {
+          // The specific bug: `SELECT ... FROM businesses ORDER BY created_at
+          // LIMIT 1` reads as "any business will do" and means "the oldest real
+          // book on this database". Three blocks did it, and the transaction
+          // was the only thing between them and a rewritten ledger.
+          expect(
+            RegExp(r'FROM\s+businesses\s+ORDER\s+BY', caseSensitive: false)
+                .hasMatch(code),
+            isFalse,
+            reason: '$name picks an existing business by ordering the table. '
+                'Create a fixture business instead — see wk_fixture in '
+                'migration_weekly_ledger_tests.sql.',
+          );
+        });
+      }
+
+      if (target == 'production') {
+        test('$name contains no DDL', () {
+          // default_transaction_read_only forbids CREATE outright — temp tables
+          // and pg_temp functions included, which is NOT what I assumed and had
+          // to be found by running it. So a production file cannot open with
+          // the temp-results harness the scratch files use; it raises its own
+          // NOTICE and WARNING inline. Catching that here gives a reason
+          // instead of a bare 25006 at the far end of a psql run.
+          expect(
+            RegExp(r'\b(CREATE|DROP|ALTER)\s+(TEMP|TEMPORARY|TABLE|FUNCTION|VIEW|INDEX)',
+                    caseSensitive: false)
+                .hasMatch(code),
+            isFalse,
+            reason: '$name is @target: production, so it runs read-only and '
+                'any CREATE/DROP/ALTER raises 25006 — temp tables and pg_temp '
+                'functions included. Raise NOTICE/WARNING inline instead.',
+          );
+        });
+
+        test('$name does not opt out of the read-only session', () {
+          // The runner sets default_transaction_read_only=on. A file can undo
+          // that in one line, and then nothing is protecting a live book.
+          expect(
+            RegExp(r'READ\s+WRITE|default_transaction_read_only\s*(=|TO)\s*off',
+                    caseSensitive: false)
+                .hasMatch(code),
+            isFalse,
+            reason: '$name turns the read-only session off. That session is the '
+                'only thing making a production-targeted file safe.',
+          );
+        });
+      }
     }
   });
 
@@ -89,9 +165,11 @@ void main() {
       // Not a silent skip: printing is what stops this reading as coverage.
       // ignore: avoid_print
       print('SKIPPED — MANA_DB_URL is not set, so the SQL assertions were not '
-          'executed. Set it to a branch database and re-run to check them:\n'
+          'executed. Set it and re-run to check them:\n'
           r'  $env:MANA_DB_URL = "postgresql://postgres:<password>@<host>:5432/postgres"'
-          '\n  flutter test test/sql_tests_wired_test.dart');
+          '\n  flutter test test/sql_tests_wired_test.dart\n'
+          'Against the live project only the @target: production files run; '
+          'the fixture-building ones need a scratch database.');
       return;
     }
 

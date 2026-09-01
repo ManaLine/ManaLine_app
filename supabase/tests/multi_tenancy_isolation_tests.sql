@@ -1,5 +1,6 @@
 -- =============================================================================
 -- MANA LINE — multi_tenancy_isolation_tests.sql
+-- @target: scratch
 -- HIGHEST PRIORITY test file per the briefing. Targets BR-202/BR-203
 -- cross-business leakage specifically — the single most likely place for a
 -- policy that "looks correct in isolation" to actually leak across tenants,

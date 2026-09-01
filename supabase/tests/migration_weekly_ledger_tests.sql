@@ -1,5 +1,6 @@
 -- =============================================================================
 -- MANA LINE — migration_weekly_ledger_tests.sql
+-- @target: scratch
 -- The regression that stops the pre-existing-business migration drifting.
 --
 -- Replays the Owner's real 2026 book — 12 weeks, 2-1-26 to 20-3-26, taken from
@@ -40,6 +41,69 @@ BEGIN
 END;
 $$;
 
+-- -----------------------------------------------------------------------------
+-- The business these tests run against is one they CREATE. It is never one that
+-- happened to be here already.
+--
+-- WHAT THIS REPLACES, in three separate blocks:
+--     SELECT business_id, owner_person_id FROM businesses ORDER BY created_at LIMIT 1
+--
+-- On an empty branch that finds nothing and the whole file skipped silently.
+-- Against a live database it finds THE OLDEST REAL BOOK -- and replays twelve
+-- fabricated weeks over it through app.import_weekly_account, recomputes its
+-- day ledger, and moves its migrated_through_date. All inside the transaction,
+-- so the ROLLBACK undoes it; none of which is a reason to have written it. A
+-- dropped connection between the import and the ROLLBACK leaves a real Owner's
+-- ledger rewritten with somebody else's numbers.
+--
+-- The writes are invisible to a reader of this file -- they happen inside the
+-- RPC, and I asserted in a previous session that this file "writes nothing at
+-- all" precisely because I had counted INSERT statements. A fixture business
+-- costs three rows and removes the question instead of answering it.
+--
+-- Every enum literal below was read out of enum_range before being written, not
+-- after: 'General', 'Self Request' and 'Full Payment' were all invented, all
+-- applied cleanly, and all threw on first call.
+-- -----------------------------------------------------------------------------
+CREATE TEMP TABLE wk_fixture (
+    business_id uuid,
+    person_id   bigint
+) ON COMMIT DROP;
+
+DO $fixture$
+DECLARE
+  v_person bigint;
+  v_biz    uuid;
+BEGIN
+  INSERT INTO persons (mlid, mlid_type, gender_digit, full_name, father_husband_name,
+                       registration_source, customer_type)
+  VALUES ('MLPI1WKLEDGER01', 'MLPI', '1', 'WK Ledger Owner', 'WK Father', 'System', 'New')
+  RETURNING person_id INTO v_person;
+
+  -- migration_locked defaults false, which is what app.migration_assert_open
+  -- requires; business_status 'Active' so nothing downstream treats it as a
+  -- half-created shell.
+  INSERT INTO businesses (mlbi, owner_person_id, business_name,
+                          registered_finance_name, business_status)
+  VALUES ('MLBI-WK-LEDGER', v_person, 'WK Ledger Business', 'WK Ledger Reg', 'Active')
+  RETURNING business_id INTO v_biz;
+
+  -- app.is_owner passes on owner_person_id alone, but the membership is what
+  -- the rest of the schema expects an Owner to have.
+  INSERT INTO business_members (person_id, business_id, role, membership_status,
+                                onboarding_method, verification_status)
+  VALUES (v_person, v_biz, 'Owner', 'Active', 'Direct Registration', 'Verified');
+
+  INSERT INTO wk_fixture (business_id, person_id) VALUES (v_biz, v_person);
+END;
+$fixture$;
+
+DO $$
+BEGIN
+  PERFORM pg_temp.wk_log('a fixture business exists, and no real book was touched',
+                         (SELECT count(*) FROM wk_fixture) = 1);
+END $$;
+
 DO $test$
 DECLARE
   v_biz    uuid;
@@ -63,12 +127,7 @@ DECLARE
    {"account_date":"2026-03-20","opening_bf":52740,"collection":228940,"interest":15200,"fee":1400,"investor_out":210000,"investor_out_interest":0,"loans_gross_out":85200,"closing_bf":100,"expenses":[{"label":"Petrol","amount":580},{"label":"Sadaru","amount":400},{"label":"bike repair","amount":2000}]}
   ]'::json;
 BEGIN
-  SELECT business_id, owner_person_id INTO v_biz, v_person
-    FROM businesses ORDER BY created_at LIMIT 1;
-  IF v_biz IS NULL THEN
-    RAISE WARNING 'SKIP  no business in this database to test against';
-    RETURN;
-  END IF;
+  SELECT business_id, person_id INTO v_biz, v_person FROM wk_fixture;
   PERFORM set_config('request.jwt.claims', json_build_object('person_id', v_person)::text, true);
 
   v_result := app.import_weekly_account(v_biz, v_weeks);
@@ -114,8 +173,7 @@ $test$;
 DO $test$
 DECLARE v_biz uuid; v_person bigint; v_ok boolean := false;
 BEGIN
-  SELECT business_id, owner_person_id INTO v_biz, v_person FROM businesses ORDER BY created_at LIMIT 1;
-  IF v_biz IS NULL THEN RETURN; END IF;
+  SELECT business_id, person_id INTO v_biz, v_person FROM wk_fixture;
   PERFORM set_config('request.jwt.claims', json_build_object('person_id', v_person)::text, true);
   BEGIN
     PERFORM app.import_weekly_account(v_biz,
@@ -131,8 +189,7 @@ $test$;
 DO $test$
 DECLARE v_biz uuid; v_person bigint; v_ok boolean := false;
 BEGIN
-  SELECT business_id, owner_person_id INTO v_biz, v_person FROM businesses ORDER BY created_at LIMIT 1;
-  IF v_biz IS NULL THEN RETURN; END IF;
+  SELECT business_id, person_id INTO v_biz, v_person FROM wk_fixture;
   PERFORM set_config('request.jwt.claims', json_build_object('person_id', v_person)::text, true);
   BEGIN
     PERFORM app.import_weekly_account(v_biz, '[
@@ -142,26 +199,6 @@ BEGIN
     v_ok := true;
   END;
   PERFORM pg_temp.wk_log('a broken opening/closing chain is refused', v_ok);
-END;
-$test$;
-
--- Interest over a period: whole calendar months, then leftover days at one
--- thirtieth of the monthly rate. Every figure below was read off the Owner's
--- own calculator (JMK Easy Apps) or their profit-share sheet.
-DO $test$
-BEGIN
-  PERFORM pg_temp.wk_log('11 days inside one month = 413',
-    app.mana_interest(75000, 1.5, DATE '2026-03-20', DATE '2026-03-31') = 413);
-  PERFORM pg_temp.wk_log('2 months 3 days = 2,363, not 2,400 (days/30 is wrong)',
-    app.mana_interest(75000, 1.5, DATE '2026-03-20', DATE '2026-05-23') = 2363);
-  PERFORM pg_temp.wk_log('4 months 5 days = 15,625',
-    app.mana_interest(250000, 1.5, DATE '2026-03-20', DATE '2026-07-25') = 15625);
-  PERFORM pg_temp.wk_log('1 month 3 days = 825',
-    app.mana_interest(50000, 1.5, DATE '2026-03-20', DATE '2026-04-23') = 825);
-  PERFORM pg_temp.wk_log('declared and paid the same day accrues nothing',
-    app.mana_interest(50000, 1.5, DATE '2026-03-20', DATE '2026-03-20') = 0);
-  PERFORM pg_temp.wk_log('a return date before the given date accrues nothing',
-    app.mana_interest(50000, 1.5, DATE '2026-03-20', DATE '2026-03-01') = 0);
 END;
 $test$;
 
@@ -178,41 +215,3 @@ END;
 $$;
 
 ROLLBACK;
-
--- ---------------------------------------------------------------------------
--- A migrated loan's schedule is what is LEFT, not the whole term.
---
--- Regression for the Rs 0 that Garikipati Kamala Reddy's round showed while
--- she owed Rs 12,000. Her Rs 24,000 loan was half repaid before the cut-off,
--- so the import materialised six Rs 2,000 rows -- the balance, not the term.
--- Deriving "already paid" from (repayment - remaining) counted those six
--- payments a second time and cancelled the whole amount due.
---
--- The failure direction is what makes it dangerous: the app asked for LESS
--- than was owed. Nobody reports being under-charged.
--- ---------------------------------------------------------------------------
-DO $$
-DECLARE
-  v_understated INT;
-BEGIN
-  SELECT count(*) INTO v_understated
-    FROM app.v_collection_due v
-    JOIN loans l ON l.loan_id = v.loan_id
-   WHERE l.deleted_at IS NULL
-     AND v.remaining_balance > 0
-     AND v.total_due = 0
-     -- Every scheduled instalment already fell due, and the schedule totals
-     -- exactly what is still owed: there is nothing left to wait for, so a
-     -- due of zero can only be the double count.
-     AND NOT EXISTS (SELECT 1 FROM loan_schedule s
-                      WHERE s.loan_id = l.loan_id AND s.due_date > CURRENT_DATE)
-     AND (SELECT COALESCE(sum(s.installment_amount), 0) FROM loan_schedule s
-           WHERE s.loan_id = l.loan_id) = l.remaining_balance;
-
-  IF v_understated > 0 THEN
-    RAISE EXCEPTION
-      '% loan(s) owe money, have no future instalments, and still show nothing due',
-      v_understated;
-  END IF;
-  RAISE NOTICE 'ok: no loan understates what is due to zero';
-END $$;

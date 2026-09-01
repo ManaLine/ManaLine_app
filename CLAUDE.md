@@ -191,34 +191,75 @@ balance, and that reasoning is in the file.
 
 ### Running the SQL guards
 
-`supabase/tests/*.sql` had never been executed — five files, and the newest
-assertions in them had not run once. They are wired now:
+`supabase/tests/*.sql` had never been executed. They are wired now:
 
 ```bash
 pwsh tool/run_sql_tests.ps1
 ```
 
-It runs every file through `psql`, counts the `WARNING … FAIL` lines each
-one raises on a failed assertion, and exits non-zero if there are any. It
-needs `MANA_DB_URL`, which is **not** in this repo and must not be —
+It needs `MANA_DB_URL`, which is **not** in this repo and must not be —
 `run.ps1.txt` carries the anon key because that ships inside every APK
-anyway, and a database password does not. **Point it at a branch, not
-production:** every file rolls back today, but that is a property of the
-files as written, not a promise about the next edit.
+anyway, and a database password does not.
+
+**Every file declares what it may be run against**, in a `-- @target:` line
+near the top, and the runner obeys it:
+
+| `@target` | Means | Runner behaviour |
+|---|---|---|
+| `production` | Reads only | Runs anywhere, with `default_transaction_read_only=on` |
+| `scratch` | Fabricates persons, businesses, loans | Refused unless the target holds no businesses or loans |
+
+A file with no marker is treated as `scratch`, because that is the direction
+in which being wrong survives. `live_invariants_tests.sql` is the only
+`production` file; the other five build fixtures.
+
+**The split exists because the two kinds prove opposite things.** A stranded
+customer, a mistyped village state, a loan asking for nothing while money is
+owed — none can be reproduced with fixtures, because the thing under test
+*is* the production data. Against an empty branch they pass trivially. The
+fixture files are the reverse: meaningful anywhere, catastrophic on a real
+book.
+
+**The read-only session is the guard, and it is deliberately a runtime one.**
+Deciding which files were safe, I counted `INSERT` statements and concluded
+`migration_weekly_ledger_tests.sql` wrote nothing. Its writes are inside
+`app.import_weekly_account` — invisible to any reading of the file's own
+statements — and it was replaying twelve fabricated weeks over
+`businesses ORDER BY created_at LIMIT 1`, i.e. **whichever real book was
+oldest**, with the `ROLLBACK` as the only thing in the way. Static
+inspection cannot answer this question. A read-only transaction answers it
+at runtime.
+
+Two consequences worth knowing before writing a new file:
+
+- a `production` file can contain **no DDL at all** — `default_transaction_read_only`
+  refuses `CREATE TEMP TABLE` and `CREATE FUNCTION` alike, so the temp-results
+  harness the scratch files open with is unavailable. Raise `NOTICE`/`WARNING`
+  inline and carry counters in a custom GUC via `set_config`. (I assumed temp
+  tables were exempt. They are not; running it said so.)
+- a scratch file must **build its own fixtures**, never adopt an existing row.
+  `test/sql_tests_wired_test.dart` fails any scratch file matching
+  `FROM businesses ORDER BY`.
+
+There is no override for the production project ref. `-AllowNonEmpty` lets
+scratch files run against a branch somebody has seeded deliberately; it does
+not lift that refusal. Nothing having run at all exits 3 — "did not look"
+must never read as green.
 
 `test/sql_tests_wired_test.dart` runs under `flutter test` and keeps this
-honest two ways. It checks every SQL file can actually announce a failure
-(`RAISE WARNING 'FAIL …'`) and cleans up after itself (`ROLLBACK`) — a new
-file that passes silently fails here. And when `MANA_DB_URL` is set it
-shells out to the runner and asserts it exits zero; when it is not, it
-**prints a skip** rather than passing quietly, because a green tick meaning
-"did not look" is the exact problem being fixed.
+honest: every file must declare a `@target`, must be able to announce a
+failure (`RAISE WARNING 'FAIL …'`), scratch files must `ROLLBACK` and must
+not adopt an existing business, production files must contain no DDL and
+must not turn the read-only session off. And when `MANA_DB_URL` is set it
+shells out to the runner and asserts a zero exit; when it is not, it
+**prints a skip** rather than passing quietly.
 
 **Still uncovered, and known:** enum literals written directly into
 migration SQL are caught only by invoking the function — the snapshot
-checks the Dart side of that contract, not the SQL side. The SQL guards run
-only when somebody supplies a database URL, so they are one command rather
-than automatic. Judgement regressions — correct code that reads as broken —
+checks the Dart side of that contract, not the SQL side. The five scratch
+files have still never executed, because that needs a database with no
+books in it and branching is a Pro-plan feature; the `production` file has
+run, and passes. Judgement regressions — correct code that reads as broken —
 have no guard at all and are found on the handset.
 
 ## Bug-fix batch mode (real-device testing sessions)

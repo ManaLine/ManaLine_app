@@ -1,5 +1,6 @@
 -- =============================================================================
 -- MANA LINE — batch_bcd_schema_tests.sql
+-- @target: scratch
 -- Independent adversarial QA for the Batch B / C / D migrations
 -- (20260803070000 .. 20260803120000). Same convention as
 -- schema_integrity_tests.sql: plain SQL DO blocks, RAISE NOTICE on PASS /

@@ -20,6 +20,7 @@ import '../state/owner_api_service.dart' show AgentSummary;
 import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/widgets/village_picker_field.dart';
 import '../../../shared/location_api_service.dart';
+import '../../../shared/widgets/add_village_sheet.dart';
 
 /// OW-000 — First Business Setup. 6-step wizard shell over fields that
 /// already exist in OW-012/OW-014 (this screen introduces no new fields,
@@ -468,10 +469,6 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
   void dispose() {
     _pinCode.dispose();
     _villageSearch.dispose();
-    _manualVillageName.dispose();
-    _manualMandal.dispose();
-    _manualDistrict.dispose();
-    _manualState.dispose();
     super.dispose();
   }
   final _pinCode = TextEditingController();
@@ -480,12 +477,6 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
   String? _selectedVillage; // display label
   List<Map<String, dynamic>> _villageResults = [];
   bool _villageSearchAttempted = false;
-  bool _manualVillageEntry = false;
-  final _manualVillageName = TextEditingController();
-  final _manualMandal = TextEditingController();
-  final _manualDistrict = TextEditingController();
-  final _manualState = TextEditingController();
-  bool _savingManualVillage = false;
 
   /// Three letters, not two, and a full PIN — the same rule the operating-area
   /// pickers use. A PIN on its own would answer with every village it carries,
@@ -619,53 +610,33 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
     });
   }
 
-  Future<void> _saveManualVillage() async {
-    if (_manualVillageName.text.trim().isEmpty ||
-        _manualMandal.text.trim().isEmpty ||
-        _manualDistrict.text.trim().isEmpty ||
-        _manualState.text.trim().isEmpty ||
-        _pinCode.text.trim().length != 6) {
-      return;
-    }
-    setState(() => _savingManualVillage = true);
-    final result = await NetworkErrorHandler.run(context, () async {
-      final rows = await Supabase.instance.client
-          .schema('app')
-          .rpc('add_location_if_missing', params: {
-        'p_pin_code': _pinCode.text.trim(),
-        'p_village_town_name': _manualVillageName.text.trim(),
-        // Always a village. The dropdown that used to ask offered Village or
-        // Town, changed nothing anywhere in the app, and every directory pick
-        // hardcoded 'Village' regardless.
-        'p_area_type': 'Village',
-        'p_mandal': _manualMandal.text.trim(),
-        'p_district': _manualDistrict.text.trim(),
-        'p_state': _manualState.text.trim(),
-      });
-      return (rows as List).first as Map<String, dynamic>;
-    });
-    if (!mounted) return;
-    setState(() => _savingManualVillage = false);
-    if (result == null) return;
-
-    final label =
-        '${_manualVillageName.text.trim()} — ${_manualMandal.text.trim()}, ${_manualDistrict.text.trim()}, ${_manualState.text.trim()}';
+  /// Opens the shared Add New Village sheet.
+  ///
+  /// Was an inline form asking for village, mandal, district and state as free
+  /// text -- one of SEVEN copies of the same four boxes, and the reason a
+  /// village once recorded its state as "Andhrapradesh" and then narrowed every
+  /// picker to nothing.
+  ///
+  /// The sheet derives mandal and district from the PIN and asks whether a
+  /// near-matching village was meant before creating a second row for one
+  /// place.
+  Future<void> _openAddVillage() async {
+    final picked = await manaShowAddVillageSheet(
+      context,
+      ref,
+      pinCode: _pinCode.text.trim(),
+      initialName: _villageSearch.text.trim(),
+    );
+    if (picked == null || !mounted) return;
+    final label = [picked.name, picked.mandal, picked.district, picked.state]
+        .where((v) => v.trim().isNotEmpty)
+        .join(' — ');
     setState(() {
-      _selectedVillageId = result['location_id'] as String;
+      _selectedVillageId = picked.locationId;
       _selectedVillage = label;
-      _villageSearch.text = _manualVillageName.text.trim();
+      _villageSearch.text = picked.name;
       _villageResults = [];
-      _manualVillageEntry = false;
     });
-    if (mounted) {
-      final wasExisting = result['was_existing'] as bool? ?? false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(wasExisting
-                ? 'That village already existed — selected it.'
-                : 'Village added and selected.')),
-      );
-    }
   }
 
   Future<void> _addArea() async {
@@ -725,8 +696,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
               setState(() {
                 _selectedVillageId = null;
                 _selectedVillage = null;
-                _manualVillageEntry = false;
-              });
+                        });
               _searchVillages(v);
             },
           ),
@@ -756,93 +726,15 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
             ),
           if (_villageSearchAttempted &&
               _villageResults.isEmpty &&
-              _selectedVillageId == null &&
-              !_manualVillageEntry)
+              _selectedVillageId == null)
             Padding(
               padding: const EdgeInsets.only(top: ManaSpacing.xs),
               child: TextButton(
                 style: TextButton.styleFrom(
                     padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-                onPressed: () => setState(() {
-                  _manualVillageEntry = true;
-                  _manualVillageName.text = _villageSearch.text.trim();
-                }),
+                onPressed: _openAddVillage,
                 child:
                     Text('"${_villageSearch.text.trim()}" not found — add it'),
-              ),
-            ),
-          if (_manualVillageEntry)
-            Container(
-              margin: const EdgeInsets.only(top: ManaSpacing.sm),
-              padding: const EdgeInsets.all(ManaSpacing.md),
-              decoration: BoxDecoration(
-                border: Border.all(color: ManaColors.surfaceSunken),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ManaText.raw(ref.t('add_new_village'),
-                      style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: ManaSpacing.sm),
-                  TextField(
-                    controller: _manualVillageName,
-                    textCapitalization: TextCapitalization.words,
-                    decoration:
-                        InputDecoration(labelText: ref.t('village_town_name_field')),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: ManaSpacing.sm),
-                  TextField(
-                    controller: _manualMandal,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(labelText: ref.t('mandal_field')),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: ManaSpacing.sm),
-                  TextField(
-                    controller: _manualDistrict,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(labelText: ref.t('district_field')),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: ManaSpacing.sm),
-                  TextField(
-                    controller: _manualState,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(labelText: ref.t('state_field')),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: ManaSpacing.sm),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: _savingManualVillage
-                            ? null
-                            : () => setState(() => _manualVillageEntry = false),
-                        child: ManaText.raw(ref.t('cancel')),
-                      ),
-                      const SizedBox(width: ManaSpacing.sm),
-                      ElevatedButton(
-                        onPressed: (_savingManualVillage ||
-                                _manualVillageName.text.trim().isEmpty ||
-                                _manualMandal.text.trim().isEmpty ||
-                                _manualDistrict.text.trim().isEmpty ||
-                                _manualState.text.trim().isEmpty ||
-                                _pinCode.text.trim().length != 6)
-                            ? null
-                            : _saveManualVillage,
-                        child: _savingManualVillage
-                            ? const SizedBox(
-                                height: 16,
-                                width: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2))
-                            : ManaText.raw(ref.t('save_and_select')),
-                      ),
-                    ],
-                  ),
-                ],
               ),
             ),
           if (_selectedVillage != null) ...[

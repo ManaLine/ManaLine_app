@@ -50,10 +50,25 @@ const _census = <String, int>{
   'ManaVillagePickerField': 3,
   'manaComposeAddress': 3,
 
+  // Adding a village the LGD directory has never recorded. One sheet, seven
+  // callers — it replaced seven inline forms that each asked for village,
+  // mandal, district and state as free text. An eighth caller is a screen that
+  // should be opening this rather than growing another.
+  'manaShowAddVillageSheet': 8,
+
   // The PIN directory pickers. State narrows district narrows mandal, and a
   // screen that half-adopts it silently offers free text again.
+  //
+  // NOT INSTANTIATED ANY MORE. Both real consumers — LR-004 and OW-004 — moved
+  // their manual village forms into manaShowAddVillageSheet, which does the
+  // same narrowing from app.pin_administrative_options. The three files here
+  // are the widget itself and two COMMENTS naming what the sheet replaced, so
+  // this count no longer measures use. manaReferenceOptions is down to 1 — its
+  // own file — because only ManaReferenceField ever called it. Left in place rather than deleted
+  // unasked: it is a working shared widget and the decision to retire it is
+  // the Owner's, the same call that kept registerNewAgent.
   'ManaReferenceField': 3,
-  'manaReferenceOptions': 3,
+  'manaReferenceOptions': 1,
 
   // Two ledgers, one provider family. Keyed on business alone, the Owner's
   // feed and an Agent's were one object and whichever loaded last won.

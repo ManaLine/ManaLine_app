@@ -19,7 +19,7 @@ import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../design/components/mana_info_hint.dart';
-import '../../../shared/widgets/reference_field.dart';
+import '../../../shared/widgets/add_village_sheet.dart';
 
 /// LR-004 — long single-scroll form, not a wizard. Register button
 /// disabled until mandatory fields + both acknowledgement checkboxes
@@ -53,10 +53,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     _aadhaar.dispose();
     _confirmAadhaar.dispose();
     _villageSearch.dispose();
-    _manualVillageName.dispose();
-    _manualMandal.dispose();
-    _manualDistrict.dispose();
-    _manualState.dispose();
     super.dispose();
   }
   final _formKey = GlobalKey<FormState>();
@@ -123,12 +119,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   List<Map<String, dynamic>> _villageResults = [];
   final _villageSearch = TextEditingController();
   bool _villageSearchAttempted = false; // true once a real search has run and returned (even if empty)
-  bool _manualVillageEntry = false;
-  final _manualVillageName = TextEditingController();
-  final _manualMandal = TextEditingController();
-  final _manualDistrict = TextEditingController();
-  final _manualState = TextEditingController();
-  bool _savingManualVillage = false;
   bool _acceptTerms = false;
   bool _acceptPrivacy = false;
   bool _submitting = false;
@@ -367,42 +357,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   /// out at 358, so this is one query and then instant typing.
   final Map<String, List<Map<String, dynamic>>> _lgdByPin = {};
 
-  /// Fill mandal, district and state from what the reference already knows
-  /// about this PIN, so the person is not asked to re-type facts the app is
-  /// holding.
-  ///
-  /// ONLY when the PIN can mean one thing. 8.1% of PIN codes list two
-  /// districts after the post-2022 splits, and this screen's whole village
-  /// flow is built on "suggest, never decide" — picking one of two districts
-  /// on the person's behalf writes a wrong address that nobody reviews.
-  ///
-  /// Where it cannot decide it now offers: [_referenceOptions] hands the
-  /// remaining candidates to a picker rather than leaving an empty box. Filled
-  /// widest first, because a state narrows the districts and a district
-  /// narrows the mandals; a value the narrowing has invalidated is dropped,
-  /// since a district left over from another state is worse than a blank.
-  void _prefillFromPin() {
-    for (final (key, controller) in [
-      ('state', _manualState),
-      ('district', _manualDistrict),
-      ('mandal', _manualMandal),
-    ]) {
-      final options = _referenceOptions(key);
-      if (options.isEmpty) continue;
-      if (!options.contains(controller.text.trim())) controller.text = '';
-      if (options.length == 1) controller.text = options.first;
-    }
-  }
-
-  /// What the directory offers for one field at this PIN, narrowed by what is
-  /// already chosen above it.
-  List<String> _referenceOptions(String key) => manaReferenceOptions(
-        _lgdByPin[_pinCode.text.trim()] ?? const [],
-        key,
-        state: _manualState.text.trim(),
-        district: _manualDistrict.text.trim(),
-      );
-
   Future<void> _searchVillages(String query) async {
     final pin = _pinCode.text.trim();
     if (pin.length != 6) {
@@ -509,7 +463,9 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
       return;
     }
 
-    setState(() => _savingManualVillage = true);
+    // No busy flag: the only widget that read one was the manual village form,
+    // which is the shared sheet now. A field written and never read is not a
+    // spinner, it is a lie waiting for a reader.
     final result = await NetworkErrorHandler.run(context, () async {
       final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
         'p_pin_code': _pinCode.text.trim(),
@@ -518,11 +474,12 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
         'p_mandal': v['mandal'],
         'p_district': v['district'],
         'p_state': v['state'],
+        // Chosen from the reference, not typed — provenance follows the act.
+        'p_source': 'Directory',
       });
       return (rows as List).first as Map<String, dynamic>;
     });
     if (!mounted) return;
-    setState(() => _savingManualVillage = false);
     if (result == null) return; // network/RPC failure — SnackBar already shown
 
     setState(() {
@@ -533,53 +490,35 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     });
   }
 
-  Future<void> _saveManualVillage() async {
-    if (_manualVillageName.text.trim().isEmpty ||
-        _manualMandal.text.trim().isEmpty ||
-        _manualDistrict.text.trim().isEmpty ||
-        _manualState.text.trim().isEmpty ||
-        _pinCode.text.trim().length != 6) {
-      return; // button is gated on this too; defensive
-    }
-    setState(() => _savingManualVillage = true);
-    final result = await NetworkErrorHandler.run(context, () async {
-      final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
-        'p_pin_code': _pinCode.text.trim(),
-        'p_village_town_name': _manualVillageName.text.trim(),
-        // Always a village. The dropdown that used to ask offered Village or
-        // Town, changed nothing anywhere in the app, and the directory picks
-        // hardcoded 'Village' regardless -- so the only effect of asking was
-        // two answers for the same places.
-        'p_area_type': 'Village',
-        'p_mandal': _manualMandal.text.trim(),
-        'p_district': _manualDistrict.text.trim(),
-        'p_state': _manualState.text.trim(),
-      });
-      return (rows as List).first as Map<String, dynamic>;
-    });
-    if (!mounted) return;
-    setState(() => _savingManualVillage = false);
-    if (result == null) return; // network/RPC failure — SnackBar already shown
-
-    final label =
-        '${_manualVillageName.text.trim()} — ${_manualMandal.text.trim()}, ${_manualDistrict.text.trim()}, ${_manualState.text.trim()}';
+  /// Opens the shared Add New Village sheet.
+  ///
+  /// Like OW-004, this copy had already grown PIN-derived pickers of its own
+  /// (_prefillFromPin, _referenceOptions, ManaReferenceField) rather than four
+  /// free-text boxes. What it could not do is ask whether a near-matching
+  /// village was meant before creating a second row for one place --
+  /// `ichapuram` and `Ichchapuram` are one town and score 0.83.
+  ///
+  /// So this loses nothing and gains the duplicate check, and the local
+  /// implementation goes with it. Registration is the one screen in this app
+  /// nobody can afford to break, which is why it was adopted LAST, after the
+  /// sheet had been through six other screens.
+  Future<void> _openAddVillage() async {
+    final picked = await manaShowAddVillageSheet(
+      context,
+      ref,
+      pinCode: _pinCode.text.trim(),
+      initialName: _villageSearch.text.trim(),
+    );
+    if (picked == null || !mounted) return;
+    final label = [picked.name, picked.mandal, picked.district, picked.state]
+        .where((v) => v.trim().isNotEmpty)
+        .join(' — ');
     setState(() {
-      _villageId = result['location_id'] as String;
+      _villageId = picked.locationId;
       _selectedVillageLabel = label;
-      _villageSearch.text = _manualVillageName.text.trim();
+      _villageSearch.text = picked.name;
       _villageResults = [];
-      _manualVillageEntry = false;
     });
-    if (mounted) {
-      final wasExisting = result['was_existing'] as bool? ?? false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(wasExisting
-              ? 'That village already existed — selected it.'
-              : 'Village added and selected.'),
-        ),
-      );
-    }
   }
 
   @override
@@ -769,8 +708,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                   setState(() {
                     _villageId = null;
                     _selectedVillageLabel = null;
-                    _manualVillageEntry = false;
-                  });
+                                });
                   _searchVillages(v);
                 },
               ),
@@ -801,7 +739,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                     },
                   ),
                 ),
-              if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null && !_manualVillageEntry)
+              if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null)
                 Padding(
                   padding: const EdgeInsets.only(top: ManaSpacing.xs),
                   child: Row(
@@ -811,88 +749,9 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                       Expanded(
                         child: TextButton(
                           style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-                          onPressed: () => setState(() {
-                            _manualVillageEntry = true;
-                            _manualVillageName.text = _villageSearch.text.trim();
-                            _prefillFromPin();
-                          }),
+                          onPressed: _openAddVillage,
                           child: Text('"${_villageSearch.text.trim()}" not found — add it'),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              if (_manualVillageEntry)
-                Container(
-                  margin: const EdgeInsets.only(top: ManaSpacing.sm),
-                  padding: const EdgeInsets.all(ManaSpacing.md),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: ManaColors.surfaceSunken),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ManaText.raw(ref.t('add_new_village'), style: Theme.of(context).textTheme.titleSmall),
-                      const SizedBox(height: ManaSpacing.sm),
-                      TextField(
-                        controller: _manualVillageName,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(labelText: 'Village/Town Name *'),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: ManaSpacing.sm),
-                      // Widest first, so choosing one narrows the next. The
-                      // Area Type dropdown that used to sit here is gone --
-                      // see the note on p_area_type.
-                      ManaReferenceField(
-                        label: 'State *',
-                        controller: _manualState,
-                        options: _referenceOptions('state'),
-                        onChanged: () => setState(_prefillFromPin),
-                      ),
-                      const SizedBox(height: ManaSpacing.sm),
-                      ManaReferenceField(
-                        label: 'District *',
-                        controller: _manualDistrict,
-                        options: _referenceOptions('district'),
-                        onChanged: () => setState(_prefillFromPin),
-                      ),
-                      const SizedBox(height: ManaSpacing.sm),
-                      ManaReferenceField(
-                        label: 'Mandal *',
-                        controller: _manualMandal,
-                        options: _referenceOptions('mandal'),
-                        onChanged: () => setState(() {}),
-                      ),
-                      const SizedBox(height: ManaSpacing.sm),
-                      ManaText.raw(
-                        'PIN Code above (${_pinCode.text.trim().isEmpty ? "not yet entered" : _pinCode.text.trim()}) will be used for this village.',
-                        style: ManaType.note,
-                      ),
-                      const SizedBox(height: ManaSpacing.sm),
-                      Row(
-                        children: [
-                          TextButton(
-                            onPressed: _savingManualVillage ? null : () => setState(() => _manualVillageEntry = false),
-                            child: ManaText.raw(ref.t('cancel')),
-                          ),
-                          const SizedBox(width: ManaSpacing.sm),
-                          ElevatedButton(
-                            onPressed: (_savingManualVillage ||
-                                    _manualVillageName.text.trim().isEmpty ||
-                                    _manualMandal.text.trim().isEmpty ||
-                                    _manualDistrict.text.trim().isEmpty ||
-                                    _manualState.text.trim().isEmpty ||
-                                    _pinCode.text.trim().length != 6)
-                                ? null
-                                : _saveManualVillage,
-                            child: _savingManualVillage
-                                ? const SizedBox(
-                                    height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                : ManaText.raw(ref.t('save_and_select')),
-                          ),
-                        ],
                       ),
                     ],
                   ),

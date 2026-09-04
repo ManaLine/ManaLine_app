@@ -72,9 +72,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// so has no home route to derive from. It used to return null, which hid
   /// the Profile row entirely — and LR-012's profile photo now points here,
   /// so that would have been a tap that led nowhere. It falls back to the
-  /// last role this device actually used instead. Still null on a genuinely
-  /// first-ever login, where there is no prior role and no profile to show
-  /// yet; the row renders disabled rather than vanishing.
+  /// last role this device actually used instead.
+  ///
+  /// It is never null now. The old comment here said "no profile to show yet"
+  /// for somebody with no prior role, which was wrong: a person who registered
+  /// and joined nothing still has a name, an MLID, a photo and an address, and
+  /// /profile shows them. Nullable is kept on the getter only because the
+  /// switch above can still be handed a route nobody expected.
   String? get _profileRoute => switch (widget.homeRoute) {
         '/ow-001' => '/ow-016',
         '/ag-001' => '/ag-009',
@@ -113,7 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Resolved from the entity ids ManaSession caches when LR-013 last
   /// resolved a membership. Shared with LR-012's header avatar, which needs
   /// the same answer for the same reason.
-  String? get _lastUsedProfileRoute => manaLastUsedProfileRoute();
+  String get _lastUsedProfileRoute => manaLastUsedProfileRoute();
   /// Opens the system share sheet. No app store link yet — MANA LINE is not
   /// published — so the message says what the app is rather than pointing at a
   /// download that would 404. Add the store URL here when there is one.

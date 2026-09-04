@@ -618,6 +618,27 @@ final manaRouter = GoRouter(
       builder: (c, s) => cw006.MyProfileMembershipsScreen(personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? ''),
     ),
 
+    // A person's own profile, with no workspace behind it.
+    //
+    // NOT a screen ID, deliberately — the same class as /settings and
+    // /customer-new. The four profile screens are named after workspaces
+    // (/ag-009, /cw-006, /iw-005, /ow-016), and somebody who has registered but
+    // joined nothing has none of them. manaLastUsedProfileRoute returned null
+    // for exactly that person, so tapping their own photo opened Settings.
+    //
+    // They do have a profile: a name, an MLID, a photo, an address. What they
+    // lack is a membership, and CW-006 never needed one — it takes a personId
+    // and reads persons/person_addresses/locations. Reused rather than
+    // duplicated, with back pointing at the business selector instead of a
+    // Customer dashboard they cannot open.
+    GoRoute(
+      path: '/profile',
+      builder: (c, s) => cw006.MyProfileMembershipsScreen(
+        personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? '',
+        homeRoute: '/lr-012',
+      ),
+    ),
+
     // --- Investor Workspace ----------------------------------------------
     GoRoute(
       path: '/iw-001',

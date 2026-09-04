@@ -24,7 +24,23 @@ import '../../../shared/location_api_service.dart';
 /// to that business) rather than a generic dashboard.
 class MyProfileMembershipsScreen extends ConsumerStatefulWidget {
   final String personId;
-  const MyProfileMembershipsScreen({super.key, required this.personId});
+
+  /// Where back goes when there is nothing to pop.
+  ///
+  /// Defaults to the Customer dashboard, which is right when this is reached
+  /// from CW-001. It is a parameter because the screen is NOT actually
+  /// customer-scoped despite its ID: it takes a personId and reads `persons`,
+  /// `person_addresses` and `locations` — no `customers` row anywhere. That is
+  /// what lets `/profile` reuse it for somebody who belongs to no business
+  /// yet, where sending them "home" to a Customer dashboard they have no
+  /// membership for would be wrong.
+  final String homeRoute;
+
+  const MyProfileMembershipsScreen({
+    super.key,
+    required this.personId,
+    this.homeRoute = '/cw-001',
+  });
 
   @override
   ConsumerState<MyProfileMembershipsScreen> createState() => _MyProfileMembershipsScreenState();
@@ -44,7 +60,9 @@ class _MyProfileMembershipsScreenState extends ConsumerState<MyProfileMembership
     final state = ref.watch(customerProfileProvider);
 
     return Scaffold(
-      appBar: ManaAppBar(title: ref.t('my_profile_memberships_title'), homeRoute: '/cw-001'),
+      appBar: ManaAppBar(
+          title: ref.t('my_profile_memberships_title'),
+          homeRoute: widget.homeRoute),
       body: SafeArea(
         child: state.loading && state.profile == null
             ? const Center(child: CircularProgressIndicator())

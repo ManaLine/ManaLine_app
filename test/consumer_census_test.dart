@@ -62,7 +62,15 @@ const _census = <String, int>{
   'ManaAddCustomerSheet': 2,
 
   // Where "my profile" resolves to when no workspace has been chosen.
-  'manaLastUsedProfileRoute': 3,
+  //
+  // Went 3 -> 4 when /profile was added. The fourth is router.dart, and it is a
+  // COMMENT, not a call — the one explaining why /profile exists. Counted
+  // anyway, deliberately: a comment describing a contract is a place that
+  // misleads somebody if the contract moves, which is the whole reason this
+  // census counts mentions rather than call sites. Opened and checked: it
+  // describes the resolver accurately, including that it no longer returns
+  // null.
+  'manaLastUsedProfileRoute': 4,
 
   // IST, everywhere. A new file that reaches for DateTime.now() instead of
   // these is the timestamp bug class, and it will show up here as these

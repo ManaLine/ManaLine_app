@@ -302,10 +302,15 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
             customBorder: const CircleBorder(),
             // The Semantics label above says Profile, and this used to push
             // Settings -- which the kebab menu already offers, two taps away.
-            // It goes to the profile of whichever role this device last used;
-            // Settings only when there is no prior role to resolve, which is a
-            // genuinely first-ever login with no profile to show yet.
-            onTap: () => context.push(manaLastUsedProfileRoute() ?? '/settings'),
+            // It goes to the profile of whichever role this device last used,
+            // and to /profile when there is no role to resolve.
+            //
+            // That last case is why the `?? '/settings'` is gone. Somebody who
+            // registered and has joined no business had every remembered id
+            // null, so the resolver answered null and this pushed Settings --
+            // tapping your own photo opened general settings, which is what
+            // 8897948012 hit. The resolver is total now.
+            onTap: () => context.push(manaLastUsedProfileRoute()),
             child: ManaStoredImage(
               bucket: 'profile-photos',
               stored: _profilePhotoUrl,

@@ -140,13 +140,19 @@ class Membership {
 /// SettingsScreen's Profile row, and LR-012's header avatar, which sits above
 /// role selection and so has no workspace to derive one from. A second copy
 /// would be a second thing to keep in step.
-String? manaLastUsedProfileRoute() {
+String manaLastUsedProfileRoute() {
   final session = ManaSession.instance;
   if (session.lastAgentId != null) return '/ag-009';
   if (session.lastCustomerId != null) return '/cw-006';
   if (session.lastInvestorId != null) return '/iw-005';
   if (session.lastBusinessId != null) return '/ow-016';
-  return null;
+  // Somebody who has registered and joined nothing. This used to return null
+  // and both callers fell back to '/settings', so tapping your own photo
+  // opened general settings — the comment at LR-012's avatar called that "a
+  // genuinely first-ever login with no profile to show yet", which is not what
+  // it is. A person with no membership still has a name, an MLID, a photo and
+  // an address; what they have no workspace-scoped screen for.
+  return '/profile';
 }
 
 class AuthFlowNotifier extends Notifier<AuthFlowState> {

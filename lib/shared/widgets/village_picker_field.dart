@@ -54,6 +54,18 @@ class _ManaVillagePickerFieldState
   ManaVillage? _picked;
   bool _searching = false;
 
+  /// What the PIN says its mandal/district/state can be. The Add New Village
+  /// panel offers these instead of asking somebody to type them, which is how
+  /// a village came to record its state as "Andhrapradesh".
+  List<ManaPinOption> _pinOptions = const [];
+  ManaPinOption? _chosenOption;
+
+  /// Villages at this PIN close enough to the typed name to be worth asking
+  /// about, so two spellings of one place do not become two locations.
+  List<ManaSimilarVillage> _similar = const [];
+  bool _adding = false;
+  String? _addError;
+
   @override
   void dispose() {
     _pin.dispose();
@@ -86,14 +98,69 @@ class _ManaVillagePickerFieldState
       return;
     }
     setState(() => _searching = true);
-    final found = await ref
-        .read(locationApiServiceProvider)
-        .searchByPin(pinCode: pin, query: needle, limit: 15);
+    final api = ref.read(locationApiServiceProvider);
+    final found = await api.searchByPin(pinCode: pin, query: needle, limit: 15);
     if (!mounted) return;
     setState(() {
       _results = found;
       _searching = false;
     });
+
+    // Only when the search came back empty is there anything to add — and only
+    // then is it worth asking what else this PIN could mean, or what the name
+    // nearly matches.
+    if (found.isNotEmpty) {
+      setState(() => _similar = const []);
+      return;
+    }
+    final options = await api.pinOptions(pin);
+    final similar = await api.similarVillages(pinCode: pin, name: needle);
+    if (!mounted) return;
+    setState(() {
+      _pinOptions = options;
+      // One answer is not a choice. Auto-select it rather than making somebody
+      // confirm the only thing it could be.
+      _chosenOption = options.length == 1 ? options.first : _chosenOption;
+      _similar = similar;
+    });
+  }
+
+  Future<void> _addTypedVillage() async {
+    final option = _chosenOption;
+    if (option == null) return;
+    setState(() {
+      _adding = true;
+      _addError = null;
+    });
+    try {
+      final created = await ref.read(locationApiServiceProvider).addIfMissing(
+            pinCode: _pin.text.trim(),
+            villageTownName: _query.text.trim(),
+            areaType: 'Village',
+            mandal: option.mandal,
+            district: option.district,
+            state: option.state,
+            // Typed, not chosen from the reference. Recorded so a village
+            // added by mistake can be found again later.
+            source: 'Owner Entered',
+          );
+      if (!mounted) return;
+      setState(() {
+        _adding = false;
+        _picked = created;
+        _results = [created];
+        _similar = const [];
+      });
+      widget.onPicked(created);
+    } catch (e) {
+      if (!mounted) return;
+      // Said out loud. A silent failure here leaves somebody believing their
+      // village was added when it was not.
+      setState(() {
+        _adding = false;
+        _addError = '$e';
+      });
+    }
   }
 
   @override
@@ -130,11 +197,7 @@ class _ManaVillagePickerFieldState
             child: Center(child: CircularProgressIndicator()),
           ),
         if (!_searching && !_needsName && _results.isEmpty && _pin.text.trim().length == 6)
-          Padding(
-            padding: const EdgeInsets.only(top: ManaSpacing.xs),
-            child: ManaText.raw(ref.t('no_villages_found_for_pin'),
-                style: ManaType.note),
-          ),
+          ..._addPanel(),
         ..._results.map((v) {
           // Compared on NAME: a reference row has an empty id until somebody
           // resolves it, so comparing ids would tick every suggestion at once.
@@ -158,6 +221,106 @@ class _ManaVillagePickerFieldState
         }),
       ],
     );
+  }
+
+  /// What to offer when the search found nothing.
+  ///
+  /// Villages the LGD directory has never heard of are legitimate and
+  /// permanent — hamlets, new settlements, local names that never entered
+  /// government records. Dommarametta is one. So "no match" must not be a dead
+  /// end; it has to be the start of adding one.
+  ///
+  /// But adding one used to be four free-text boxes, and that is how a village
+  /// came to record its state as "Andhrapradesh" and then narrow every picker
+  /// to nothing. So this asks for the NAME only — already typed — and offers
+  /// the rest.
+  List<Widget> _addPanel() {
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: ManaSpacing.xs),
+        child: ManaText.raw(ref.t('no_villages_found_for_pin'),
+            style: ManaType.note),
+      ),
+
+      // Asked BEFORE offering to create, because the cheapest fix for a
+      // duplicate is not making it. ichapuram and Ichchapuram are one town.
+      if (_similar.isNotEmpty) ...[
+        const SizedBox(height: ManaSpacing.sm),
+        ManaText.raw(ref.t('did_you_mean_note'), style: ManaType.strong),
+        ..._similar.map((m) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              leading: Icon(Icons.help_outline, color: ManaColors.brand),
+              title: ManaText.raw(m.village.name),
+              subtitle: ManaText.raw(
+                  m.village.placeLabel.isEmpty ? '' : m.village.placeLabel,
+                  style: ManaType.note),
+              onTap: () {
+                setState(() {
+                  _picked = m.village;
+                  _query.text = m.village.name;
+                  _results = [m.village];
+                  _similar = const [];
+                });
+                widget.onPicked(m.village);
+              },
+            )),
+      ],
+
+      const SizedBox(height: ManaSpacing.sm),
+      ManaText.raw(
+        ref.t('add_village_named_note').replaceAll('{name}', _query.text.trim()),
+        style: ManaType.strong,
+      ),
+
+      if (_pinOptions.isEmpty)
+        // A pincode the directory does not carry at all. Nothing to offer, and
+        // saying so beats a dropdown with one empty row in it.
+        Padding(
+          padding: const EdgeInsets.only(top: ManaSpacing.xs),
+          child: ManaText.raw(ref.t('pin_not_in_directory_note'),
+              style: ManaType.note),
+        )
+      else ...[
+        const SizedBox(height: ManaSpacing.xs),
+        DropdownButtonFormField<ManaPinOption>(
+          initialValue: _chosenOption,
+          isExpanded: true,
+          decoration:
+              InputDecoration(labelText: ref.t('mandal_district_field')),
+          items: [
+            for (final o in _pinOptions)
+              DropdownMenuItem(
+                value: o,
+                child: ManaText.raw(o.label,
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: (v) => setState(() => _chosenOption = v),
+        ),
+      ],
+
+      if (_addError != null)
+        Padding(
+          padding: const EdgeInsets.only(top: ManaSpacing.xs),
+          child: ManaText.raw(_addError!, style: ManaType.bad),
+        ),
+
+      const SizedBox(height: ManaSpacing.sm),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: FilledButton.tonalIcon(
+          onPressed:
+              (_adding || _chosenOption == null) ? null : _addTypedVillage,
+          icon: _adding
+              ? const SizedBox(
+                  width: 16, height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.add_location_alt_outlined, size: 18),
+          label: ManaText.raw(ref.t('add_this_village')),
+        ),
+      ),
+    ];
   }
 }
 

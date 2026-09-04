@@ -51,6 +51,40 @@ class ManaVillage {
       .join(' · ');
 }
 
+/// One mandal / district / state a PIN can mean, and how many villages it
+/// carries there — the count is what orders the choices.
+class ManaPinOption {
+  final String mandal;
+  final String district;
+  final String state;
+  final int villages;
+
+  const ManaPinOption({
+    required this.mandal,
+    required this.district,
+    required this.state,
+    required this.villages,
+  });
+
+  String get label => [mandal, district].where((s) => s.isNotEmpty).join(' · ');
+}
+
+/// A village close enough to what somebody typed to be worth asking about.
+class ManaSimilarVillage {
+  final ManaVillage village;
+
+  /// True when this is a `locations` row some business already works in, so
+  /// picking it reuses a real id rather than creating a second place.
+  final bool inUse;
+  final double score;
+
+  const ManaSimilarVillage({
+    required this.village,
+    required this.inUse,
+    required this.score,
+  });
+}
+
 class LocationApiService {
   final SupabaseClient _db;
   const LocationApiService(this._db);
@@ -163,6 +197,8 @@ class LocationApiService {
       mandal: village.mandal,
       district: village.district,
       state: village.state,
+      // This path only ever materialises a village the reference already knew.
+      source: 'Directory',
     );
     return created.locationId;
   }
@@ -181,6 +217,12 @@ class LocationApiService {
   /// An RPC rather than an insert from Dart: it writes and reads across a
   /// uniqueness check, which is precisely the multi-step write the project's
   /// rules reserve for Postgres.
+  ///
+  /// [source] records WHERE the village came from — 'Directory' when a
+  /// reference suggestion is being materialised, 'Owner Entered' when somebody
+  /// typed a village the directory has never heard of. Defaulted, so the six
+  /// existing callers are unchanged and get the answer that shows up for review
+  /// rather than the one that hides.
   Future<ManaVillage> addIfMissing({
     required String pinCode,
     required String villageTownName,
@@ -188,6 +230,7 @@ class LocationApiService {
     required String mandal,
     required String district,
     required String state,
+    String source = 'Owner Entered',
   }) async {
     final rows = await _db.schema('app').rpc('add_location_if_missing', params: {
       'p_pin_code': pinCode.trim(),
@@ -196,9 +239,73 @@ class LocationApiService {
       'p_mandal': mandal.trim(),
       'p_district': district.trim(),
       'p_state': state.trim(),
+      'p_source': source,
     });
     return ManaVillage.fromRow(
         (rows as List).first as Map<String, dynamic>);
+  }
+
+  /// The mandal / district / state combinations a PIN can mean.
+  ///
+  /// The Add New Village form used to ask for all three as free text, which is
+  /// how a village came to record its state as "Andhrapradesh" and then narrow
+  /// every picker to nothing. The PIN already answers it: 99.8% of pincodes
+  /// resolve to one state, 97.8% to at most two districts, 85% to at most three
+  /// mandals. Ordered most-villages-first, so the likelier answer leads.
+  ///
+  /// Empty for a PIN the directory does not carry at all — a genuinely new
+  /// postal area, where there is nothing to offer and free text is the only
+  /// honest option.
+  Future<List<ManaPinOption>> pinOptions(String pinCode) async {
+    if (pinCode.trim().length != 6) return const [];
+    final rows = await _db
+        .schema('app')
+        .rpc('pin_administrative_options', params: {'p_pincode': pinCode.trim()});
+    return [
+      for (final r in (rows as List? ?? const []).cast<Map<String, dynamic>>())
+        ManaPinOption(
+          mandal: (r['mandal'] as String?) ?? '',
+          district: (r['district'] as String?) ?? '',
+          state: (r['state'] as String?) ?? '',
+          villages: (r['villages'] as num?)?.toInt() ?? 0,
+        ),
+    ];
+  }
+
+  /// Villages at this PIN whose names are CLOSE to what somebody has typed.
+  ///
+  /// Before creating a village, ask whether they meant one that already exists.
+  /// add_location_if_missing dedupes on an exact name, so two spellings of one
+  /// place become two locations and the customers split between them.
+  ///
+  /// Trigram similarity at 0.4, a threshold measured rather than picked --
+  /// ichapuram/Ichchapuram scores 0.83 and is the same town (confirmed by the
+  /// Owner: the railway station carries the second spelling), while
+  /// Dommarametta/Dommara Pochampally scores 0.27 and is not.
+  Future<List<ManaSimilarVillage>> similarVillages({
+    required String pinCode,
+    required String name,
+  }) async {
+    if (pinCode.trim().length != 6 || name.trim().length < minVillageLetters) {
+      return const [];
+    }
+    final rows = await _db.schema('app').rpc('suggest_similar_villages',
+        params: {'p_pincode': pinCode.trim(), 'p_name': name.trim()});
+    return [
+      for (final r in (rows as List? ?? const []).cast<Map<String, dynamic>>())
+        ManaSimilarVillage(
+          village: ManaVillage(
+            locationId: (r['location_id'] as String?) ?? '',
+            name: (r['village'] as String?) ?? '',
+            pinCode: pinCode.trim(),
+            mandal: (r['mandal'] as String?) ?? '',
+            district: (r['district'] as String?) ?? '',
+            state: (r['state'] as String?) ?? '',
+          ),
+          inUse: (r['in_use'] as bool?) ?? false,
+          score: (r['score'] as num?)?.toDouble() ?? 0,
+        ),
+    ];
   }
 
   /// What the LGD reference knows about a PIN. Suggestions only: these have no

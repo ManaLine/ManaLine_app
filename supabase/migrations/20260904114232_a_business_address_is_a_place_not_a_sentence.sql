@@ -4,7 +4,10 @@
 --
 -- It uses the registration process now: door number, then PIN plus at least
 -- three letters of the village, picked from the LGD reference and composed
--- into "D.No 12, Dommarametta, Renigunta, Tirupati, Andhra Pradesh - 517536".
+-- into "D.No 12, Akkurthy, Srikalahasti, Tirupati, Andhra Pradesh - 517536"
+-- -- a real row, read out of lgd_villages rather than invented. An earlier
+-- draft of this comment said "Dommarametta, Renigunta", which is a village the
+-- directory does not carry under a mandal that is not this PIN's.
 --
 -- The picked village is deliberately NOT written into `locations`. A
 -- registered office is not an operating area, and creating a row for one would

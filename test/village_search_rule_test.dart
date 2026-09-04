@@ -6,7 +6,8 @@ import 'package:mana_line/shared/widgets/village_picker_field.dart';
 /// PIN plus at least three letters of the village name, sorted A to Z.
 ///
 /// WHY THE RULE EXISTS: a PIN on its own is not a shortlist. 517536 carries
-/// fifty villages and 524129 twenty-four, and answering a six-digit PIN with
+/// fifty villages (Srikalahasti and Thottambedu mandals, across the Chittoor
+/// and Tirupati district split) and 524129 twenty-four, and answering a six-digit PIN with
 /// the whole directory makes the Owner scroll for a name they already know.
 ///
 /// WHY THIS TEST EXISTS: the rule lives in three places — the operating-area
@@ -65,11 +66,15 @@ void main() {
   });
 
   group('a composed address reads like an address', () {
+    // A REAL row, read out of lgd_villages. The fixture used to say
+    // "Dommarametta, Renigunta" — a village the directory does not carry,
+    // under a mandal that is not 517536's. A plausible-looking invention in a
+    // test fixture is worse than an obviously fake one: it reads as verified.
     const v = ManaVillage(
       locationId: '',
-      name: 'Dommarametta',
+      name: 'Akkurthy',
       pinCode: '517536',
-      mandal: 'Renigunta',
+      mandal: 'Srikalahasti',
       district: 'Tirupati',
       state: 'Andhra Pradesh',
     );
@@ -77,7 +82,7 @@ void main() {
     test('door number first, PIN last', () {
       expect(
         manaComposeAddress(doorNo: 'D.No 12', village: v),
-        'D.No 12, Dommarametta, Renigunta, Tirupati, Andhra Pradesh - 517536',
+        'D.No 12, Akkurthy, Srikalahasti, Tirupati, Andhra Pradesh - 517536',
       );
     });
 
@@ -86,10 +91,10 @@ void main() {
       // with a separator.
       expect(
         manaComposeAddress(village: v),
-        'Dommarametta, Renigunta, Tirupati, Andhra Pradesh - 517536',
+        'Akkurthy, Srikalahasti, Tirupati, Andhra Pradesh - 517536',
       );
       expect(manaComposeAddress(doorNo: '   ', village: v),
-          startsWith('Dommarametta'));
+          startsWith('Akkurthy'));
     });
 
     test('a village the reference knows only by name still composes', () {

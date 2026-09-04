@@ -198,13 +198,34 @@ class InboxService {
   /// Accepting activates the membership; declining marks it Removed rather
   /// than deleting the row, so the business can see it was declined instead of
   /// the invitation silently vanishing.
+  /// Answering an invitation, as the person who was invited.
+  ///
+  /// AN RPC, because the direct UPDATE this replaced could not work and could
+  /// not report that it had not worked:
+  ///
+  ///     .from('business_members').update({...}).eq('membership_id', id)
+  ///
+  /// `business_members` has exactly one policy an invited person matches —
+  /// `business_members_self_select`, which is SELECT only. The only ALL policy
+  /// belongs to the Owner. So the invited person could SEE the invitation, which
+  /// is why it showed up in the bell, and had no permission to change it.
+  /// PostgREST answers 200 for an UPDATE matching zero rows, so this returned
+  /// true, the list reloaded, and the invitation was still there. Two agents sat
+  /// on Pending Invitation for a day with no error raised anywhere.
+  ///
+  /// app.respond_to_invitation checks ownership itself (SECURITY DEFINER
+  /// bypasses RLS), refuses an invitation already answered, and throws rather
+  /// than quietly doing nothing. It leaves verification_status alone on
+  /// purpose: an accepted Agent stays 'Pending Verification', which is what
+  /// sends LR-013 into the Role Escalation OTP.
   Future<bool> respondToInvitation({
     required String membershipId,
     required bool accept,
   }) async {
-    await _db.from('business_members').update({
-      'membership_status': accept ? 'Active' : 'Removed',
-    }).eq('membership_id', membershipId);
+    await _db.schema('app').rpc('respond_to_invitation', params: {
+      'p_membership_id': membershipId,
+      'p_accept': accept,
+    });
     return true;
   }
 

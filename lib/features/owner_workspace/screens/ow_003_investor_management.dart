@@ -56,6 +56,12 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
       // initState) throws Riverpod's "tried to modify a provider while the
       // widget tree was building" (hit this for real in the sibling
       // OW-012 tab case — see that file's fix note).
+      // Reset first, ALWAYS. This provider is not autoDispose, so without this
+      // the screen opens on whatever filter was last chosen — possibly in
+      // another business, possibly an hour ago — and an Owner who had been
+      // looking at Pending Acceptance saw "No investors match this view" for a
+      // business full of active ones.
+      ref.read(investorWorkforceProvider.notifier).resetFilters();
       if (widget.initialFilter != null) {
         ref.read(investorWorkforceProvider.notifier).setStatusFilter(widget.initialFilter);
       }
@@ -65,7 +71,10 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
           context: context,
           isScrollControlled: true,
           builder: (_) => _AddExistingInvestorSheet(businessId: widget.businessId),
-        ).then((_) => ref.read(investorWorkforceProvider.notifier).load(widget.businessId));
+        ).then((_) {
+          ref.read(investorWorkforceProvider.notifier).resetFilters();
+          return ref.read(investorWorkforceProvider.notifier).load(widget.businessId);
+        });
       }
     });
   }
@@ -137,9 +146,16 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                         isScrollControlled: true,
                         builder: (_) =>
                             _AddExistingInvestorSheet(businessId: widget.businessId),
-                      ).then((_) => ref
-                          .read(investorWorkforceProvider.notifier)
-                          .load(widget.businessId)),
+                      ).then((_) {
+                        // Clear the filter before reloading: the investor just
+                        // added is Active, and a roster still filtered to
+                        // Pending Acceptance would report that nothing matched
+                        // straight after saying they were added.
+                        ref.read(investorWorkforceProvider.notifier).resetFilters();
+                        return ref
+                            .read(investorWorkforceProvider.notifier)
+                            .load(widget.businessId);
+                      }),
                     ),
                     // An investor whose money predates this business joining
                     // MANA LINE.
@@ -148,9 +164,12 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                       icon: Icons.history_edu_outlined,
                       onTap: () => context
                           .push('/ow-014?type=investor', extra: widget.businessId)
-                          .then((_) => ref
-                              .read(investorWorkforceProvider.notifier)
-                              .load(widget.businessId)),
+                          .then((_) {
+                            ref.read(investorWorkforceProvider.notifier).resetFilters();
+                            return ref
+                                .read(investorWorkforceProvider.notifier)
+                                .load(widget.businessId);
+                          }),
                     ),
                   ],
                   rowBuilder: (entry, _) {

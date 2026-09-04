@@ -752,6 +752,17 @@ class InvestorWorkforceNotifier extends Notifier<InvestorWorkforceState> {
 
   void setSearchQuery(String q) => state = state.copyWith(searchQuery: q);
 
+  /// Back to showing everything.
+  ///
+  /// This provider is NOT autoDispose, so a filter chosen once outlives the
+  /// screen, the business and the workspace — it lives as long as the app does.
+  /// An Owner who looked at Pending Acceptance earlier came back, added an
+  /// investor, and the roster said "No investors match this view", because the
+  /// person they had just created was Active and the filter still was not.
+  /// Nothing on screen connected the two.
+  void resetFilters() =>
+      state = state.copyWith(clearStatusFilter: true, searchQuery: '');
+
   Future<bool> approveRequest(String businessId, String requestId) async {
     try {
       await ref.read(investorApiServiceProvider).approveInvestorRequest(requestId: requestId);

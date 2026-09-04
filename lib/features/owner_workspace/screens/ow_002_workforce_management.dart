@@ -53,6 +53,11 @@ class _WorkforceManagementScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // The roster opens showing everything. Without this it opens on whatever
+      // was last selected — this provider is not autoDispose, so a filter
+      // chosen in another business an hour ago is still applied, and the screen
+      // reports that nothing matches a roster that is in fact full.
+      ref.read(workforceProvider.notifier).resetFilters();
       await ref.read(workforceProvider.notifier).load(widget.businessId);
       if (!mounted) return;
 
@@ -143,7 +148,10 @@ class _WorkforceManagementScreenState
                       onTap: () => context
                           .push('/ow-014?type=agent', extra: widget.businessId)
                           .then((_) =>
-                              ref.read(workforceProvider.notifier).load(widget.businessId)),
+                              (() {
+                                ref.read(workforceProvider.notifier).resetFilters();
+                                return ref.read(workforceProvider.notifier).load(widget.businessId);
+                              })()),
                     ),
                   ],
                   rowBuilder: (entry, _) {
@@ -161,7 +169,13 @@ class _WorkforceManagementScreenState
       context: context,
       isScrollControlled: true,
       builder: (_) => _RegisterNewAgentSheet(businessId: widget.businessId),
-    ).then((_) => ref.read(workforceProvider.notifier).load(widget.businessId));
+    ).then((_) {
+      // The agent just added may not match a filter left over from an earlier
+      // visit — this provider is not autoDispose, so that filter outlives the
+      // screen. Same failure the investor roster had.
+      ref.read(workforceProvider.notifier).resetFilters();
+      return ref.read(workforceProvider.notifier).load(widget.businessId);
+    });
   }
 
   void _openAddExistingAgent(BuildContext context) {
@@ -169,7 +183,13 @@ class _WorkforceManagementScreenState
       context: context,
       isScrollControlled: true,
       builder: (_) => _AddExistingAgentSheet(businessId: widget.businessId),
-    ).then((_) => ref.read(workforceProvider.notifier).load(widget.businessId));
+    ).then((_) {
+      // The agent just added may not match a filter left over from an earlier
+      // visit — this provider is not autoDispose, so that filter outlives the
+      // screen. Same failure the investor roster had.
+      ref.read(workforceProvider.notifier).resetFilters();
+      return ref.read(workforceProvider.notifier).load(widget.businessId);
+    });
   }
 
   void _openAgentProfile(BuildContext context, AgentSummary agent) {

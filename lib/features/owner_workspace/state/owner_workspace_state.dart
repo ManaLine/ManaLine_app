@@ -463,6 +463,13 @@ class WorkforceNotifier extends Notifier<WorkforceState> {
 
   void setSearchQuery(String q) => state = state.copyWith(searchQuery: q);
 
+  /// Back to showing everything. Same reason as the investor roster's: this
+  /// provider is not autoDispose, so a status filter chosen once outlives the
+  /// screen and the business, and an agent added afterwards can land outside it
+  /// and simply not appear.
+  void resetFilters() =>
+      state = state.copyWith(clearStatusFilter: true, searchQuery: '');
+
   Future<bool> registerNewAgent({
     required String businessId,
     required String fullName,

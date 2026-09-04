@@ -995,9 +995,18 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
             child: ListTile(
               leading: const ManaVerificationRing(isVerified: true, size: 40),
               title: ManaText.raw(person.fullName),
+              // Village included, and FIRST after the name it qualifies: with
+              // "2 matches — choose one" the Owner was picking between two men
+              // called Naresh on an MLID and a father's name, and linking the
+              // wrong person to a business is not a mistake that announces
+              // itself. Omitted entirely when there is no address on file, so
+              // a missing one never renders as a real place.
               subtitle: ManaText.raw(
-                [person.mlid, if (person.fatherHusbandName.isNotEmpty) person.fatherHusbandName]
-                    .join(' · '),
+                [
+                  if (person.village.isNotEmpty) person.village,
+                  person.mlid,
+                  if (person.fatherHusbandName.isNotEmpty) person.fatherHusbandName,
+                ].join(' · '),
               ),
               trailing: person.personId == _foundIdentity?.personId
                   ? Icon(Icons.check_circle, color: ManaColors.statusGood)

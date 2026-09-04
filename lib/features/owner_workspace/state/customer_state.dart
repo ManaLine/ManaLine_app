@@ -152,7 +152,10 @@ class CustomerApiService {
           personId: row['person_id']?.toString(),
           fullName: titleCaseName(row['full_name'] as String? ?? ''),
           fatherHusbandName: titleCaseName(row['father_husband_name'] as String? ?? ''),
-          village: '',
+          // Was hardcoded empty because owner_search_person did not return it.
+          // It does now: with two people called Naresh in one result set, the
+          // village is the only line an Owner can tell them apart by.
+          village: (row['village'] as String?)?.trim() ?? '',
           phoneNumber: row['mobile_number'] as String? ?? '',
           mlid: row['mlid'] as String? ?? '',
           activeLoanCount: 0,

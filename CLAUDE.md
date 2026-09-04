@@ -170,6 +170,9 @@ happen. These fail instead, under `flutter test`:
 | `schema_snapshot_test.dart` | Calling an RPC that is not there; a second overload (PGRST203); a Dart list drifting from a DB enum |
 | `consumer_census_test.dart` | A shared contract quietly gaining or losing a consumer — the recognition failure itself |
 | `ambiguous_embed_guard_test.dart` | PGRST201 on an unqualified FK embed |
+| `sql_enum_literal_guard_test.dart` | An invented enum literal in migration SQL — 22P02 on first call |
+| `village_lookup_guard_test.dart` | A PIN village search that reads `locations` without the LGD reference |
+| `otp_navigation_guard_test.dart` | Reaching the OTP screen without an OTP having been sent |
 | `expectNoLayoutFault` in the harness | Overflow, at four text scales in two languages |
 
 `test/support/schema_snapshot.dart` is generated, not written — the query to
@@ -254,13 +257,25 @@ must not turn the read-only session off. And when `MANA_DB_URL` is set it
 shells out to the runner and asserts a zero exit; when it is not, it
 **prints a skip** rather than passing quietly.
 
-**Still uncovered, and known:** enum literals written directly into
-migration SQL are caught only by invoking the function — the snapshot
-checks the Dart side of that contract, not the SQL side. The five scratch
-files have still never executed, because that needs a database with no
-books in it and branching is a Pro-plan feature; the `production` file has
-run, and passes. Judgement regressions — correct code that reads as broken —
-have no guard at all and are found on the handset.
+**Still uncovered, and known:** the five scratch files have still never
+executed, because that needs a database with no books in it and branching is
+a Pro-plan feature; the `production` file has run, and passes. Judgement
+regressions — correct code that reads as broken — have no guard at all and
+are found on the handset.
+
+Enum literals in migration SQL came off this list on 2026-09-04, after the
+fourth instance. `'Other'` for `occupation_enum` (which is `'Other-Custom'`)
+made an Owner approving a Customer's request to join throw 22P02 on every
+call since the function was written, while the Investor branch two lines
+below it worked — so the feature read as half-alive rather than broken.
+`test/sql_enum_literal_guard_test.dart` now checks positional
+`INSERT INTO t (cols) VALUES (...)` in every migration against
+`manaEnumColumns` in the snapshot. It counts what it could not parse and
+fails if it ever stops finding literals to check, because a guard that
+quietly checks nothing reads exactly like one that passes. Literals already
+superseded by a later migration are listed by name with the migration that
+fixed them — a migration file is a record of what ran, not something to
+edit until it looks right.
 
 ## Bug-fix batch mode (real-device testing sessions)
 

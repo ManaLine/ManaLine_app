@@ -470,6 +470,17 @@ class WorkforceNotifier extends Notifier<WorkforceState> {
   void resetFilters() =>
       state = state.copyWith(clearStatusFilter: true, searchQuery: '');
 
+  /// PLANNED, NOT DEAD. Do not delete because nothing calls it.
+  ///
+  /// Its only caller was OW-002's Register New Agent sheet, removed when the
+  /// three ways to add an agent collapsed into one that goes through OW-014.
+  /// The Owner has confirmed this is kept deliberately: `app.register_new_agent`
+  /// is a real capability, and this is the only client path to it — deleting
+  /// the wrapper would leave the RPC unreachable from Dart and the next person
+  /// wanting it would write a third one.
+  ///
+  /// Anything sweeping for unused code will land here. This comment is the
+  /// answer.
   Future<bool> registerNewAgent({
     required String businessId,
     required String fullName,

@@ -29,24 +29,21 @@ const _pinFilter = "eq('pin_code'";
 /// Reaching the reference, by either route.
 const _referenceMarkers = ['suggest_villages', 'locationApiServiceProvider'];
 
-/// The four address editors that still search `locations` alone.
+/// Files allowed to search `locations` by PIN without reaching the reference.
 ///
-/// NOT an exemption on the merits — they have the same defect, and somebody
-/// editing their own address still cannot find a village nobody has used yet.
-/// They are listed rather than fixed because each degrades to `manaAddVillage
-/// IfMissing`, the manual entry path: the person types mandal, district and
-/// state by hand and still gets a real row at the end. That is friction, not a
-/// wall, and the pickers that had NO fallback were the ones that had to be
-/// fixed first.
+/// EMPTY, and that is the point. It held four address editors — CW-006,
+/// IW-005, OW-014 and OW-016 — which had the same defect as the operating-area
+/// pickers: searching a table that holds only villages some business already
+/// works in, so a person editing their own address could not reach a village
+/// nobody had used yet. They were listed rather than fixed because each fell
+/// back to typing mandal, district and state by hand: friction, not a wall, and
+/// the pickers with NO fallback came first.
 ///
-/// Removing a name from this list is the goal. Adding one needs a reason worth
-/// writing down, and "it was easier" is not one.
-const _knownManualOnly = <String>{
-  'cw_006_my_profile_memberships.dart',
-  'iw_005_my_profile_memberships.dart',
-  'ow_014_profile_completion.dart',
-  'ow_016_profile.dart',
-};
+/// All four go through LocationApiService now. The list stays as the place a
+/// future exemption would have to be argued for in writing — "it was easier" is
+/// not an argument — and the test below fails on a name that no longer needs to
+/// be here, which is how these four came off it.
+const _knownManualOnly = <String>{};
 
 void main() {
   final files = Directory('lib')

@@ -14,6 +14,7 @@ import '../../../shared/translation_service.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../state/global_workflow_state.dart';
 import '../../../design/components/mana_info_hint.dart';
+import '../../../shared/location_api_service.dart';
 
 /// OW-014 Profile Completion sub-flow — the destination for the "Complete
 /// Profile" tile on OW-014's Incomplete step, which previously fired a
@@ -385,7 +386,10 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
 
   Future<void> _searchVillages(String query) async {
     final pin = _pinCode.text.trim();
-    if (query.trim().length < 2 || pin.length != 6) {
+    // Three letters and a full PIN, the same rule every other village picker
+    // uses. LocationApiService enforces it too; this is the early return that
+    // keeps the "searched yet?" flag honest.
+    if (query.trim().length < 3 || pin.length != 6) {
       setState(() {
         _villageResults = [];
         _searchAttempted = false;
@@ -393,16 +397,28 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
       return;
     }
     try {
-      final rows = await Supabase.instance.client
-          .from('locations')
-          .select('location_id, village_town_name, mandal, district, state')
-          .eq('status', 'Active')
-          .eq('pin_code', pin)
-          .ilike('village_town_name', '%${query.trim()}%')
-          .limit(10);
+      // Through LocationApiService, which merges the villages already in use
+      // with the LGD reference. This searched `locations` ALONE, and that table
+      // holds only villages some business already operates in — so a person
+      // editing their own address could never reach a village nobody had used
+      // yet, and fell through to typing mandal, district and state by hand.
+      // A reference row carries an empty id; manaResolvePickedVillage writes
+      // the real one when they confirm.
+      final villages = await ref
+          .read(locationApiServiceProvider)
+          .searchByPin(pinCode: pin, query: query.trim(), limit: 15);
       if (!mounted) return;
       setState(() {
-        _villageResults = (rows as List).cast<Map<String, dynamic>>();
+        _villageResults = [
+          for (final v in villages)
+            {
+              'location_id': v.locationId.isEmpty ? null : v.locationId,
+              'village_town_name': v.name,
+              'mandal': v.mandal,
+              'district': v.district,
+              'state': v.state,
+            },
+        ];
         _searchAttempted = true;
       });
     } catch (_) {
@@ -605,14 +621,20 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: ManaText.raw(ref.t('cancel'))),
         ElevatedButton(
           onPressed: canSave
-              ? () => Navigator.pop(
+              ? () async {
+                  // A reference pick has no id until now.
+                  final id = await manaResolvePickedVillage(context, ref,
+                      row: _selectedVillage!, pinCode: _pinCode.text.trim());
+                  if (id == null || !context.mounted) return;
+                  Navigator.pop(
                     context,
                     _AddressResult(
                       doorNo: _doorNo.text.trim(),
                       pinCode: _pinCode.text.trim(),
-                      villageId: _selectedVillage!['location_id'] as String,
+                      villageId: id,
                     ),
-                  )
+                  );
+                }
               : null,
           child: ManaText.raw(ref.t('save')),
         ),

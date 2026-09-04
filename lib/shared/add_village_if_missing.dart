@@ -62,3 +62,36 @@ Future<String?> manaAddVillageIfMissing(
     return null;
   }
 }
+
+/// Turns a picked village row into a real `location_id`.
+///
+/// A row that came from the LGD reference has a NULL `location_id` — it is a
+/// suggestion, and the `locations` row is written only when somebody commits to
+/// it. Reading that field as a String is what the four address editors used to
+/// do, and it worked only because they never offered a reference row in the
+/// first place: they searched `locations` alone, so every result already had an
+/// id, and every village nobody had used yet was unreachable.
+///
+/// Returns null when the village could not be created, in which case
+/// [manaAddVillageIfMissing] has already told the person why.
+Future<String?> manaResolvePickedVillage(
+  BuildContext context,
+  WidgetRef ref, {
+  required Map<String, dynamic> row,
+  required String pinCode,
+}) async {
+  final existing = row['location_id'] as String?;
+  if (existing != null && existing.isNotEmpty) return existing;
+  return manaAddVillageIfMissing(
+    context,
+    ref,
+    pinCode: pinCode,
+    villageTownName: ((row['village_town_name'] as String?) ?? '').trim(),
+    // 'Village' and 'Town' are the whole of location_area_type_enum, and every
+    // directory pick in this app already hardcodes the former.
+    areaType: 'Village',
+    mandal: ((row['mandal'] as String?) ?? '').trim(),
+    district: ((row['district'] as String?) ?? '').trim(),
+    state: ((row['state'] as String?) ?? '').trim(),
+  );
+}

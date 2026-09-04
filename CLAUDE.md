@@ -171,6 +171,8 @@ happen. These fail instead, under `flutter test`:
 | `consumer_census_test.dart` | A shared contract quietly gaining or losing a consumer — the recognition failure itself |
 | `ambiguous_embed_guard_test.dart` | PGRST201 on an unqualified FK embed |
 | `sql_enum_literal_guard_test.dart` | An invented enum literal in migration SQL — 22P02 on first call |
+| `sql_function_reference_guard_test.dart` | An invented `app.` function name in migration SQL — 42883 on first call |
+| `village_search_rule_test.dart` | The PIN+3-letters rule drifting apart across its three copies |
 | `village_lookup_guard_test.dart` | A PIN village search that reads `locations` without the LGD reference |
 | `otp_navigation_guard_test.dart` | Reaching the OTP screen without an OTP having been sent |
 | `expectNoLayoutFault` in the harness | Overflow, at four text scales in two languages |
@@ -263,8 +265,22 @@ a Pro-plan feature; the `production` file has run, and passes. Judgement
 regressions — correct code that reads as broken — have no guard at all and
 are found on the handset.
 
-Enum literals in migration SQL came off this list on 2026-09-04, after the
-fourth instance. `'Other'` for `occupation_enum` (which is `'Other-Custom'`)
+Two things came off this list on 2026-09-04, both the same failure: CREATE
+says yes to almost anything inside a plpgsql body, and the first invocation
+is what says no.
+
+An invented FUNCTION NAME is the second. A migration called
+`app.person_current_village`, which had never been written; it applied
+perfectly and would have thrown 42883 the next time somebody typed a village
+name into a box. I wrote that one an hour after building the guard for enum
+literals, which is the sharpest illustration available that the rule "invoke
+it before believing it" depends entirely on remembering.
+`test/sql_function_reference_guard_test.dart` now checks every `app.<name>(`
+in every migration against the snapshot — 209 distinct names today, two of
+them genuinely retired and listed by name with the reason. Verified it trips
+on the real case by removing `person_current_village` from the snapshot.
+
+Enum literals were the first, after the fourth instance. `'Other'` for `occupation_enum` (which is `'Other-Custom'`)
 made an Owner approving a Customer's request to join throw 22P02 on every
 call since the function was written, while the Investor branch two lines
 below it worked — so the feature read as half-alive rather than broken.

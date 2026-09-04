@@ -160,14 +160,106 @@ class BusinessManagementApiService {
     return rows.first['loans_require_existing_customer'] as bool;
   }
 
+  /// Villages for a PIN: the ones already in use first, then everything the
+  /// LGD reference knows.
+  ///
+  /// THE BUG THIS FIXES: this searched `locations` alone. That table holds only
+  /// villages some business already operates in, so on a new business it is
+  /// empty and every PIN answered "No villages found" — including 517536, which
+  /// the reference carries fifty villages for, and 524129, which carries
+  /// Punabaka. With no village there is no operating area, and with no area
+  /// there are no customers, loans or collections: the whole app was gated
+  /// behind a lookup against the wrong table.
+  ///
+  /// LR-004 hit this same wall on the registration form and fixed it the same
+  /// way. Its copy stays where it is for now — it is the one screen in the app
+  /// nobody can afford to break — but the two want consolidating once
+  /// registration is green again.
+  ///
+  /// Already-in-use rows come FIRST and carry a real `location_id`; reference
+  /// rows carry null and are materialised on pick. Deduplicated on name, so a
+  /// village already in use is never also offered as a suggestion.
   Future<List<LocationOption>> searchLocations({String? pinCode, String? search}) async {
-    var query = _db.from('locations').select('location_id, pin_code, village_town_name').eq('status', 'Active');
+    var query = _db.from('locations').select('location_id, pin_code, village_town_name, mandal, district, state').eq('status', 'Active');
     if (pinCode != null && pinCode.isNotEmpty) query = query.eq('pin_code', pinCode);
     if (search != null && search.isNotEmpty) query = query.ilike('village_town_name', '%$search%');
     final rows = await query.limit(50);
-    return (rows as List)
-        .map((r) => LocationOption(locationId: r['location_id'] as String, pinCode: r['pin_code'] as String, villageTownName: r['village_town_name'] as String))
-        .toList();
+
+    final results = [
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        LocationOption(
+          locationId: r['location_id'] as String,
+          pinCode: r['pin_code'] as String,
+          villageTownName: r['village_town_name'] as String,
+          mandal: (r['mandal'] as String?) ?? '',
+          district: (r['district'] as String?) ?? '',
+          state: (r['state'] as String?) ?? '',
+        ),
+    ];
+
+    // No PIN, no reference lookup: app.suggest_villages is keyed on pincode.
+    final pin = pinCode?.trim() ?? '';
+    if (pin.length != 6) return results;
+
+    final seen = {for (final r in results) r.villageTownName.toLowerCase()};
+    final needle = (search ?? '').trim().toLowerCase();
+
+    // A failed reference lookup must not empty the list — the villages already
+    // in use are still a valid answer, and returning nothing would put us back
+    // at the bug above.
+    List<Map<String, dynamic>> reference = const [];
+    try {
+      final suggested = await _db.schema('app').rpc('suggest_villages', params: {'p_pincode': pin});
+      reference = (suggested as List? ?? const []).cast<Map<String, dynamic>>();
+    } catch (_) {
+      return results;
+    }
+
+    for (final r in reference) {
+      if (results.length >= 50) break;
+      final name = ((r['village'] as String?) ?? '').trim();
+      if (name.isEmpty) continue;
+      if (needle.isNotEmpty && !name.toLowerCase().contains(needle)) continue;
+      if (!seen.add(name.toLowerCase())) continue;
+      results.add(LocationOption(
+        locationId: null,
+        pinCode: pin,
+        villageTownName: name,
+        mandal: (r['mandal'] as String?) ?? '',
+        district: (r['district'] as String?) ?? '',
+        state: (r['state'] as String?) ?? '',
+      ));
+    }
+    return results;
+  }
+
+  /// The `location_id` for a chosen village, creating the row if this is the
+  /// first business to work there.
+  ///
+  /// A reference suggestion has no id until somebody commits to it — writing a
+  /// `locations` row for all fifty villages the moment a PIN is typed would
+  /// fill the table with places nobody operates in.
+  ///
+  /// 'Village' is a real `location_area_type_enum` label (the other is 'Town'),
+  /// read out of enum_range rather than guessed: three invented literals in one
+  /// week applied cleanly and threw on first call.
+  Future<String> resolveLocationId(LocationOption option) async {
+    final existing = option.locationId;
+    if (existing != null) return existing;
+
+    final rows = await _db.schema('app').rpc('add_location_if_missing', params: {
+      'p_pin_code': option.pinCode,
+      'p_village_town_name': option.villageTownName,
+      'p_area_type': 'Village',
+      'p_mandal': option.mandal,
+      'p_district': option.district,
+      'p_state': option.state,
+    });
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) {
+      throw StateError('add_location_if_missing returned no row for ${option.villageTownName}');
+    }
+    return list.first['location_id'] as String;
   }
 
   /// Creates a NAMED area and attaches its first village. An area with no
@@ -864,11 +956,41 @@ class BusinessDetail {
   });
 }
 
+/// A village the Owner can attach to an operating area.
+///
+/// [locationId] is NULL for a village that only the LGD reference knows about.
+/// `locations` holds just the villages some business already works in, and a
+/// brand new business has none — which is why every PIN reported "No villages
+/// found for that PIN" even for 517536, where the reference carries fifty.
+/// A suggestion becomes a real row only when somebody picks it, through
+/// [BusinessManagementApiService.resolveLocationId].
+///
+/// [mandal], [district] and [state] ride along because `add_location_if_missing`
+/// needs all three, and re-querying the reference at the moment of the write to
+/// recover facts we already had in hand is how rows get created with blank
+/// districts.
 class LocationOption {
-  final String locationId;
+  final String? locationId;
   final String pinCode;
   final String villageTownName;
-  LocationOption({required this.locationId, required this.pinCode, required this.villageTownName});
+  final String mandal;
+  final String district;
+  final String state;
+
+  LocationOption({
+    required this.locationId,
+    required this.pinCode,
+    required this.villageTownName,
+    this.mandal = '',
+    this.district = '',
+    this.state = '',
+  });
+
+  /// Identity for selection, since a suggestion has no id yet. Two rows for the
+  /// same village name at the same PIN are the same place to an Owner picking
+  /// one — the district split that gives Punabaka two reference rows is not a
+  /// choice worth surfacing here.
+  String get key => '$pinCode|${villageTownName.toLowerCase()}';
 }
 
 /// Migration position for a pre-existing business.

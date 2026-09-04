@@ -658,6 +658,24 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     });
   }
 
+  /// Commits a chosen village, creating its `locations` row when the pick came
+  /// from the LGD reference rather than from a village already in use.
+  ///
+  /// person_addresses.village_id is a FK, so this has to be a real row before
+  /// the migrated customer is written — an empty id would fail the insert at
+  /// the end of a long form.
+  Future<void> _chooseVillage(ManaVillage v) async {
+    final id = await NetworkErrorHandler.run(
+      context,
+      () => ref.read(locationApiServiceProvider).resolveId(v),
+    );
+    if (id == null || !mounted) return; // handler already said why
+    setState(() {
+      _villageId = id;
+      _villageSearch.text = v.name;
+    });
+  }
+
   /// The person half of the form. Same fields, same order and the same
   /// registration RPC as OW-004's Add Customer sheet — this is not a second
   /// way to create a person, only a second place to do it from.
@@ -768,13 +786,13 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
                 dense: true,
                 title: ManaText.raw(v.name),
                 subtitle: ManaText.raw(v.placeLabel, style: ManaType.fine),
-                trailing: _villageId == v.locationId
+                // Compared on NAME, not id: a reference suggestion has an empty
+                // id until it is picked, so comparing ids would tick every
+                // suggestion at once ('' == '').
+                trailing: _villageSearch.text == v.name && _villageId != null
                     ? Icon(Icons.check, color: ManaColors.statusGood)
                     : null,
-                onTap: () => setState(() {
-                  _villageId = v.locationId;
-                  _villageSearch.text = v.name;
-                }),
+                onTap: () => _chooseVillage(v),
               )),
         if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null)
           Padding(

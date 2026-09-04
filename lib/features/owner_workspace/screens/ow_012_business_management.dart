@@ -653,9 +653,14 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     // the Owner can rename once a second village joins.
     final name = _areaName.text.trim().isEmpty ? selected.villageTownName : _areaName.text.trim();
     final ok = await NetworkErrorHandler.run(context, () async {
+      // A village the LGD reference knows but no business works in yet has no
+      // location_id until this call writes one.
+      final locationId = await ref
+          .read(businessManagementApiServiceProvider)
+          .resolveLocationId(selected);
       return ref.read(businessDetailProvider(widget.businessId).notifier).addOperatingArea(
             name: name,
-            locationId: selected.locationId,
+            locationId: locationId,
           );
     });
     if (ok == true) {
@@ -673,9 +678,12 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     );
     if (picked == null || !mounted) return;
     await NetworkErrorHandler.run(context, () async {
+      final locationId = await ref
+          .read(businessManagementApiServiceProvider)
+          .resolveLocationId(picked);
       return ref.read(businessDetailProvider(widget.businessId).notifier).addVillageToArea(
             operatingAreaId: area.operatingAreaId,
-            locationId: picked.locationId,
+            locationId: locationId,
           );
     });
   }
@@ -889,7 +897,10 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
         if (search.searching) const Center(child: CircularProgressIndicator()),
         if (!search.searching && search.matches.isNotEmpty)
           ...search.matches.map((m) {
-            final selected = search.selected?.locationId == m.locationId;
+            // Keyed on PIN + name, not location_id: a reference suggestion has
+            // no id yet, so comparing ids would make every unselected
+            // suggestion look selected (null == null).
+            final selected = search.selected?.key == m.key;
             return ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
@@ -897,6 +908,9 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                 color: selected ? ManaColors.statusGood : ManaColors.textSecondary,
               ),
               title: ManaText.raw('${m.villageTownName} — ${m.pinCode}'),
+              subtitle: _placeNote(m).isEmpty
+                  ? null
+                  : ManaText.raw(_placeNote(m), style: ManaType.note),
               onTap: () => ref.read(operatingAreaSearchProvider.notifier).selectVillage(m),
             );
           }),
@@ -1042,6 +1056,15 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
   }
 }
 
+/// Mandal and district for a village row, for telling near-identical names
+/// apart in a list a PIN can fill with fifty entries.
+///
+/// Empty when the reference carries neither, which is what the callers check
+/// before drawing a subtitle — a blank second line under every row reads as a
+/// rendering fault.
+String _placeNote(LocationOption o) =>
+    [o.mandal, o.district].where((s) => s.trim().isNotEmpty).join(' · ');
+
 /// PIN → village picker, reused for "attach another village to this area".
 /// Shares `operatingAreaSearchProvider` with the create panel above and
 /// resets it on the way in and out, so a half-finished search in one place
@@ -1109,6 +1132,11 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.location_on_outlined, color: ManaColors.brand),
                   title: ManaText.raw('${m.villageTownName} — ${m.pinCode}'),
+                  // A PIN can carry fifty villages. Mandal and district are how
+                  // an Owner tells two similar names apart.
+                  subtitle: _placeNote(m).isEmpty
+                      ? null
+                      : ManaText.raw(_placeNote(m), style: ManaType.note),
                   onTap: () {
                     ref.read(operatingAreaSearchProvider.notifier).reset();
                     Navigator.of(context).pop(m);

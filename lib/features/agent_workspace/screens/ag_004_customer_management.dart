@@ -23,6 +23,8 @@ import '../../../shared/photo_compression.dart';
 import '../../owner_workspace/state/customer_state.dart' show CustomerProfile, CustomerRemark;
 import '../../owner_workspace/state/collection_mode_state.dart' show CollectionDueRow;
 import '../../../shared/soft_delete_service.dart';
+import '../../../shared/location_api_service.dart';
+import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/agent_customer_state.dart';
 import 'ag_007_loan_distribution.dart';
@@ -404,6 +406,31 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
               setSheetState(() => villageResults = []);
               return;
             }
+            // With a PIN, go through LocationApiService, which merges the
+            // villages already in use with the LGD reference. Searching
+            // `locations` alone — which is all this did — offers only villages
+            // some business already works in, so an Agent correcting an address
+            // could never reach a village nobody had used yet, and this sheet
+            // has no manual-entry fallback to escape into.
+            final pin = pinCodeController.text.trim();
+            if (pin.length == 6) {
+              final villages = await ref
+                  .read(locationApiServiceProvider)
+                  .searchByPin(pinCode: pin, query: query.trim(), limit: 15);
+              setSheetState(() => villageResults = [
+                    for (final v in villages)
+                      {
+                        'location_id': v.locationId.isEmpty ? null : v.locationId,
+                        'village_town_name': v.name,
+                        'mandal': v.mandal,
+                        'district': v.district,
+                        'state': v.state,
+                        'pin_code': v.pinCode,
+                      },
+                  ]);
+              return;
+            }
+
             final rows = await Supabase.instance.client
                 .from('locations')
                 .select('location_id, village_town_name, mandal, district, state')
@@ -465,12 +492,31 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                           return ListTile(
                             dense: true,
                             title: ManaText.raw(label, style: ManaType.small),
-                            onTap: () => setSheetState(() {
-                              selectedVillageId = v['location_id'] as String;
-                              selectedVillageLabel = label;
-                              villageSearchController.text = v['village_town_name'] as String;
-                              villageResults = [];
-                            }),
+                            onTap: () async {
+                              // A reference suggestion has no location_id until
+                              // it is picked. village_id is a FK, so it has to
+                              // be a real row before this address is saved.
+                              var id = v['location_id'] as String?;
+                              if (id == null) {
+                                id = await manaAddVillageIfMissing(
+                                  sheetContext,
+                                  ref,
+                                  pinCode: pinCodeController.text.trim(),
+                                  villageTownName: (v['village_town_name'] as String).trim(),
+                                  areaType: 'Village',
+                                  mandal: ((v['mandal'] as String?) ?? '').trim(),
+                                  district: ((v['district'] as String?) ?? '').trim(),
+                                  state: ((v['state'] as String?) ?? '').trim(),
+                                );
+                                if (id == null) return; // already explained
+                              }
+                              setSheetState(() {
+                                selectedVillageId = id;
+                                selectedVillageLabel = label;
+                                villageSearchController.text = v['village_town_name'] as String;
+                                villageResults = [];
+                              });
+                            },
                           );
                         },
                       ),

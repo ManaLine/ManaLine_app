@@ -481,9 +481,50 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
           .eq('pin_code', pin)
           .ilike('village_town_name', '%${query.trim()}%')
           .limit(10);
+
+      // `locations` holds only villages some business already works in, so on
+      // the very first business it is EMPTY and this search found nothing for
+      // every PIN — pushing every new Owner into typing mandal, district and
+      // state by hand for villages the LGD reference already knows. 517536
+      // carries fifty of them; 524129 carries Punabaka.
+      //
+      // Merged the same way OW-012 and LR-004 do it: rows already in use first,
+      // because those carry a real location_id, then the reference with a null
+      // id, materialised only if the Owner actually picks one.
+      final merged = [
+        for (final r in (rows as List).cast<Map<String, dynamic>>()) r,
+      ];
+      final seen = {
+        for (final r in merged)
+          ((r['village_town_name'] as String?) ?? '').toLowerCase(),
+      };
+      final needle = query.trim().toLowerCase();
+      try {
+        final suggested = await Supabase.instance.client
+            .schema('app')
+            .rpc('suggest_villages', params: {'p_pincode': pin});
+        for (final r in (suggested as List? ?? const []).cast<Map<String, dynamic>>()) {
+          if (merged.length >= 15) break;
+          final name = ((r['village'] as String?) ?? '').trim();
+          if (name.isEmpty) continue;
+          if (needle.isNotEmpty && !name.toLowerCase().contains(needle)) continue;
+          if (!seen.add(name.toLowerCase())) continue;
+          merged.add({
+            'location_id': null,
+            'village_town_name': name,
+            'mandal': r['mandal'],
+            'district': r['district'],
+            'state': r['state'],
+          });
+        }
+      } catch (_) {
+        // The villages already in use are still a valid answer; an unreachable
+        // reference must not empty the list and re-create the bug above.
+      }
+
       if (!mounted) return;
       setState(() {
-        _villageResults = (rows as List).cast<Map<String, dynamic>>();
+        _villageResults = merged;
         _villageSearchAttempted = true;
       });
     } catch (e) {
@@ -498,6 +539,43 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
         _villageSearchAttempted = true;
       });
     }
+  }
+
+  /// Commits a chosen village, creating its `locations` row when the pick came
+  /// from the LGD reference rather than from a village already in use.
+  ///
+  /// Split out of the ListTile's onTap because it can now await: the row the
+  /// Owner tapped may not exist yet. 'Village' is a real
+  /// `location_area_type_enum` label — the other is 'Town' — and every
+  /// directory pick in this file already hardcodes it.
+  Future<void> _chooseVillage(Map<String, dynamic> v, String label) async {
+    var id = v['location_id'] as String?;
+    if (id == null) {
+      final result = await NetworkErrorHandler.run(context, () async {
+        final rows = await Supabase.instance.client
+            .schema('app')
+            .rpc('add_location_if_missing', params: {
+          'p_pin_code': _pinCode.text.trim(),
+          'p_village_town_name': (v['village_town_name'] as String).trim(),
+          'p_area_type': 'Village',
+          'p_mandal': ((v['mandal'] as String?) ?? '').trim(),
+          'p_district': ((v['district'] as String?) ?? '').trim(),
+          'p_state': ((v['state'] as String?) ?? '').trim(),
+        });
+        return (rows as List).first as Map<String, dynamic>;
+      });
+      // Network failure: the handler has already said so. Leaving the list up
+      // means the Owner can simply tap again.
+      if (result == null) return;
+      id = result['location_id'] as String;
+    }
+    if (!mounted) return;
+    setState(() {
+      _selectedVillageId = id;
+      _selectedVillage = label;
+      _villageSearch.text = v['village_town_name'] as String;
+      _villageResults = [];
+    });
   }
 
   Future<void> _saveManualVillage() async {
@@ -628,12 +706,9 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
                     dense: true,
                     title: ManaText.raw(label,
                         style: ManaType.small),
-                    onTap: () => setState(() {
-                      _selectedVillageId = v['location_id'] as String;
-                      _selectedVillage = label;
-                      _villageSearch.text = v['village_town_name'] as String;
-                      _villageResults = [];
-                    }),
+                    // A reference suggestion has no location_id until it is
+                    // picked; reading it as a String unconditionally threw.
+                    onTap: () => _chooseVillage(v, label),
                   );
                 },
               ),

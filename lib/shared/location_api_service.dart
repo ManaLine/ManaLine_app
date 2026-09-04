@@ -60,11 +60,22 @@ class LocationApiService {
   static const _columns =
       'location_id, village_town_name, pin_code, mandal, district, state';
 
-  /// Villages already in use, for a PIN, optionally narrowed by name.
+  /// Villages for a PIN: the ones already in use first, then everything the
+  /// LGD reference knows, optionally narrowed by name.
   ///
   /// `status = 'Active'` is applied HERE rather than trusted to each caller:
   /// two of the thirteen call sites omitted it and were offering retired
   /// villages as if they were current.
+  ///
+  /// THE REFERENCE HALF EXISTS BECAUSE `locations` IS NOT A DIRECTORY. It holds
+  /// only villages some business already operates in, so a new book finds it
+  /// empty and every PIN answered with nothing — 517536 reported no villages
+  /// while the reference carried fifty, and 524129 while it carried Punabaka.
+  ///
+  /// A reference row has an EMPTY [ManaVillage.locationId]: it is a suggestion,
+  /// and the `locations` row is written only if somebody picks it. Callers must
+  /// put a pick through [resolveId] before storing it against a customer or an
+  /// operating area.
   Future<List<ManaVillage>> searchByPin({
     required String pinCode,
     String query = '',
@@ -83,10 +94,62 @@ class LocationApiService {
     if (needle.isNotEmpty) q = q.ilike('village_town_name', '%$needle%');
 
     final rows = await q.limit(limit);
-    return [
+    final results = [
       for (final r in (rows as List).cast<Map<String, dynamic>>())
         ManaVillage.fromRow(r),
     ];
+
+    final seen = {for (final v in results) v.name.toLowerCase()};
+    final lowerNeedle = needle.toLowerCase();
+
+    // An unreachable reference must leave the in-use villages standing rather
+    // than empty the list, which would be the original bug again.
+    List<Map<String, dynamic>> reference = const [];
+    try {
+      final suggested =
+          await _db.schema('app').rpc('suggest_villages', params: {'p_pincode': pin});
+      reference = (suggested as List? ?? const []).cast<Map<String, dynamic>>();
+    } catch (_) {
+      return results;
+    }
+
+    for (final r in reference) {
+      if (results.length >= limit) break;
+      final name = ((r['village'] as String?) ?? '').trim();
+      if (name.isEmpty) continue;
+      if (lowerNeedle.isNotEmpty && !name.toLowerCase().contains(lowerNeedle)) continue;
+      if (!seen.add(name.toLowerCase())) continue;
+      results.add(ManaVillage(
+        locationId: '', // suggestion — see resolveId
+        name: name,
+        pinCode: pin,
+        mandal: ((r['mandal'] as String?) ?? '').trim(),
+        district: ((r['district'] as String?) ?? '').trim(),
+        state: ((r['state'] as String?) ?? '').trim(),
+      ));
+    }
+    return results;
+  }
+
+  /// The `location_id` for a chosen village, creating the row when the pick
+  /// came from the reference rather than from a village already in use.
+  ///
+  /// Writing all fifty villages the moment a PIN is typed would fill
+  /// `locations` with places nobody operates in, so the write waits for a
+  /// decision.
+  Future<String> resolveId(ManaVillage village) async {
+    if (village.locationId.isNotEmpty) return village.locationId;
+    final created = await addIfMissing(
+      pinCode: village.pinCode,
+      villageTownName: village.name,
+      // 'Village' and 'Town' are the whole of location_area_type_enum, and
+      // every directory pick in this app already hardcodes the former.
+      areaType: 'Village',
+      mandal: village.mandal,
+      district: village.district,
+      state: village.state,
+    );
+    return created.locationId;
   }
 
   /// One village by id — for showing what an address already points at.

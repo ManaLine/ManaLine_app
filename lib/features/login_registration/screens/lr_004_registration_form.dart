@@ -320,8 +320,39 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
           mlid: result!.mlid,
           mlidType: result!.mlidType,
         );
-    if (result!.otpId != null) {
-      ref.read(authFlowProvider.notifier).setPendingOtpId(result!.otpId!);
+    // auth-register deliberately does NOT send the OTP. Its own header says so:
+    // identity creation is kept decoupled from the SMS gateway, so a gateway
+    // outage can never block account creation. It always answers
+    // `otp_id: null` and expects this caller to make the send call.
+    //
+    // That call was never written. The guard below read `if (otpId != null)`,
+    // found null every single time, skipped silently, and pushed to LR-005
+    // anyway — where the screen found no pending OTP and blamed a page refresh:
+    // "Your verification session was lost — this happens if the page was
+    // refreshed or reopened directly." On a phone there is no page to refresh.
+    // The message was describing a browser failure mode for a bug that hit
+    // every registrant on every platform, which is why it read as unrelated.
+    //
+    // NOBODY COULD REGISTER, and the error explained a cause that could not
+    // have occurred.
+    final otpId = result!.otpId ??
+        await NetworkErrorHandler.run(
+          context,
+          () => ref.read(authApiServiceProvider).sendOtp(
+                personId: result!.personId,
+                // A real otp_purpose_enum label, read from enum_range.
+                purpose: 'Registration',
+              ),
+        );
+    if (!mounted) return;
+
+    // A failed send does NOT go back to the form. The account already exists,
+    // so pressing Submit again registers the same person a second time and
+    // collides with the one just created (SP-001 blocks it outright). LR-005
+    // still has the personId, so its Resend is a working way out — and its
+    // no-otp message now says so instead of blaming a refresh.
+    if (otpId != null) {
+      ref.read(authFlowProvider.notifier).setPendingOtpId(otpId);
     }
     if (_livePhotoBytes != null) {
       ref.read(authFlowProvider.notifier).setPendingProfilePhoto(_livePhotoBytes!);

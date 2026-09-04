@@ -76,13 +76,20 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     if (_code.length != 6) return;
     final otpId = ref.read(authFlowProvider).pendingOtpId;
     if (otpId == null) {
-      // This screen's verification session lives in memory only — a page
-      // refresh (or directly navigating/pasting a URL) wipes it, since
-      // there's no persistence layer for it. Message is explicit about
-      // this rather than a generic "try again" that doesn't explain why
-      // simply retrying won't help.
-      setState(() => _error =
-          'Your verification session was lost — this happens if the page was refreshed or reopened directly. Please go back and start again from the beginning.');
+      // TWO DIFFERENT FAILURES WORE THE SAME MESSAGE, and the message named
+      // the rarer one. It said the page had been refreshed — which cannot
+      // happen on a handset — while the case that actually fired was
+      // LR-004 never sending the OTP at all, on every platform, for every
+      // registrant. Somebody reading it went looking for a browser problem
+      // that did not exist.
+      //
+      // The two are told apart by personId: it is set the moment registration
+      // returns, so if it survives, the flow is intact and only the code is
+      // missing — and Resend below is a working way out of that.
+      final canResend = ref.read(authFlowProvider).personId != null;
+      setState(() => _error = canResend
+          ? ref.t('otp_not_sent_tap_resend')
+          : ref.t('verification_session_lost'));
       return;
     }
 
@@ -141,8 +148,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     if (_resendCount >= 5) return;
     final personId = ref.read(authFlowProvider).personId;
     if (personId == null) {
-      setState(() => _error =
-          'Your verification session was lost — this happens if the page was refreshed or reopened directly. Please go back and start again from the beginning.');
+      // Here the message IS right: with no personId there is nothing to send
+      // an OTP for, and starting over is genuinely the only way forward.
+      setState(() => _error = ref.t('verification_session_lost'));
       return;
     }
 

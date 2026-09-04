@@ -18,6 +18,8 @@ import '../../login_registration/state/auth_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
 import '../../../design/components/mana_info_hint.dart';
+import '../../../shared/widgets/village_picker_field.dart';
+import '../../../shared/location_api_service.dart';
 
 /// OW-000 — First Business Setup. 6-step wizard shell over fields that
 /// already exist in OW-012/OW-014 (this screen introduces no new fields,
@@ -247,6 +249,12 @@ class _Step1CreateBusiness extends ConsumerStatefulWidget {
 
 class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
 
+  /// The village picked for the BUSINESS address, which is not the same thing
+  /// as an operating area and is deliberately never resolved into a
+  /// `locations` row — a head office nobody collects in does not belong in the
+  /// operating directory.
+  ManaVillage? _addressVillage;
+
   // Disposed with the State that owns them.
   //
   // These outlived every visit: a TextEditingController holds a listener list
@@ -305,8 +313,14 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
       return ref.read(businessSetupProvider.notifier).submitStep1(
             businessName: _businessName.text.trim(),
             registeredFinanceName: _financeName.text.trim(),
-            businessAddress:
-                _address.text.trim().isEmpty ? null : _address.text.trim(),
+            // Composed from the picked village, so the stored address always
+            // carries mandal, district, state and PIN. Falls back to whatever
+            // was typed when no village was picked — the field is optional and
+            // a half-filled address is better than none.
+            businessAddress: _addressVillage != null
+                ? manaComposeAddress(
+                    doorNo: _address.text, village: _addressVillage!)
+                : (_address.text.trim().isEmpty ? null : _address.text.trim()),
             businessPhone:
                 _phone.text.trim().isEmpty ? null : _phone.text.trim(),
             businessEmail:
@@ -391,10 +405,26 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: ManaSpacing.md),
+          // Door number plus a picked village, the same process registration
+          // uses. This was one free-text box, so two people typing the same
+          // place produced two different addresses and neither carried a PIN.
           TextField(
             controller: _address,
-            decoration: InputDecoration(labelText: ref.t('business_address_field')),
+            decoration: InputDecoration(labelText: ref.t('door_no_street_field')),
           ),
+          const SizedBox(height: ManaSpacing.sm),
+          ManaVillagePickerField(
+            label: ref.t('business_address_field'),
+            onPicked: (v) => setState(() => _addressVillage = v),
+          ),
+          if (_addressVillage != null) ...[
+            const SizedBox(height: ManaSpacing.xs),
+            ManaText.raw(
+              manaComposeAddress(
+                  doorNo: _address.text, village: _addressVillage!),
+              style: ManaType.note,
+            ),
+          ],
           const SizedBox(height: ManaSpacing.md),
           TextField(
             controller: _phone,

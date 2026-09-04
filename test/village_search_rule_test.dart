@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/state/business_management_state.dart';
 import 'package:mana_line/shared/location_api_service.dart';
+import 'package:mana_line/shared/widgets/village_picker_field.dart';
 
 /// PIN plus at least three letters of the village name, sorted A to Z.
 ///
@@ -60,6 +61,62 @@ void main() {
       // a screen nagging for a village before it has a PIN reads as broken.
       const s = OperatingAreaSearchState(pinCode: '5175', villageQuery: '');
       expect(s.needsVillageName, isFalse);
+    });
+  });
+
+  group('a composed address reads like an address', () {
+    const v = ManaVillage(
+      locationId: '',
+      name: 'Dommarametta',
+      pinCode: '517536',
+      mandal: 'Renigunta',
+      district: 'Tirupati',
+      state: 'Andhra Pradesh',
+    );
+
+    test('door number first, PIN last', () {
+      expect(
+        manaComposeAddress(doorNo: 'D.No 12', village: v),
+        'D.No 12, Dommarametta, Renigunta, Tirupati, Andhra Pradesh - 517536',
+      );
+    });
+
+    test('no door number leaves no stray comma', () {
+      // A business with no door number must not have an address that starts
+      // with a separator.
+      expect(
+        manaComposeAddress(village: v),
+        'Dommarametta, Renigunta, Tirupati, Andhra Pradesh - 517536',
+      );
+      expect(manaComposeAddress(doorNo: '   ', village: v),
+          startsWith('Dommarametta'));
+    });
+
+    test('a village the reference knows only by name still composes', () {
+      // The directory is incomplete in places — mandal or district can be
+      // blank, and the result must not carry ", ," through it.
+      const bare = ManaVillage(
+        locationId: '',
+        name: 'Punabaka',
+        pinCode: '524129',
+        mandal: '',
+        district: '',
+        state: 'Andhra Pradesh',
+      );
+      expect(manaComposeAddress(village: bare),
+          'Punabaka, Andhra Pradesh - 524129');
+    });
+
+    test('no PIN means no trailing dash', () {
+      const noPin = ManaVillage(
+        locationId: '',
+        name: 'Somewhere',
+        pinCode: '',
+        mandal: '',
+        district: '',
+        state: '',
+      );
+      expect(manaComposeAddress(village: noPin), 'Somewhere');
     });
   });
 }

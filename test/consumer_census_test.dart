@@ -42,6 +42,14 @@ const _census = <String, int>{
   'ManaStoredImage': 10,
   'ManaBusinessLogo': 5,
 
+  // The PIN + village picker, as a WIDGET. The service was consolidated first;
+  // this is the widget half, added so the two Create Business forms did not
+  // become copies eleven and twelve of a pattern that had already drifted ten
+  // ways. A new dependant here is a screen that should probably be using it
+  // rather than growing another.
+  'ManaVillagePickerField': 3,
+  'manaComposeAddress': 3,
+
   // The PIN directory pickers. State narrows district narrows mandal, and a
   // screen that half-adopts it silently offers free text again.
   'ManaReferenceField': 3,

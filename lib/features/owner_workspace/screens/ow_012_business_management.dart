@@ -20,6 +20,8 @@ import '../state/owner_api_service.dart' show AgentSummary;
 import 'ow_018_business_migration.dart';
 import 'ow_019_cheti_management.dart';
 import '../../../design/components/mana_info_hint.dart';
+import '../../../shared/widgets/village_picker_field.dart';
+import '../../../shared/location_api_service.dart';
 
 // A failed load previously left every one of this screen's tabs looking
 // like a legitimate empty state ("No Operating Areas yet.", "No active
@@ -312,6 +314,12 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
   final _registeredFinanceName = TextEditingController();
   final _businessType = TextEditingController();
   final _businessAddress = TextEditingController();
+
+  /// The village picked for the BUSINESS address. Never resolved into a
+  /// `locations` row: a registered office is not an operating area, and
+  /// writing one would put a place into the operating directory that no
+  /// collection round ever visits.
+  ManaVillage? _addressVillage;
   final _businessPhone = TextEditingController();
   final _businessEmail = TextEditingController();
   Uint8List? _logoBytes;
@@ -347,7 +355,15 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
             businessName: _businessName.text.trim(),
             registeredFinanceName: _registeredFinanceName.text.trim(),
             businessType: _businessType.text.trim().isEmpty ? null : _businessType.text.trim(),
-            businessAddress: _businessAddress.text.trim().isEmpty ? null : _businessAddress.text.trim(),
+            // Composed from the picked village, so a stored address always
+            // carries mandal, district, state and PIN. Falls back to whatever
+            // was typed when no village was picked — the field is optional.
+            businessAddress: _addressVillage != null
+                ? manaComposeAddress(
+                    doorNo: _businessAddress.text, village: _addressVillage!)
+                : (_businessAddress.text.trim().isEmpty
+                    ? null
+                    : _businessAddress.text.trim()),
             businessPhone: _businessPhone.text.trim().isEmpty ? null : _businessPhone.text.trim(),
             businessEmail: _businessEmail.text.trim().isEmpty ? null : _businessEmail.text.trim(),
           );
@@ -436,11 +452,27 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
             const SizedBox(height: ManaSpacing.md),
             TextField(controller: _businessType, decoration: InputDecoration(labelText: ref.t('business_type_field'))),
             const SizedBox(height: ManaSpacing.md),
+            // Door number plus a picked village, the same process registration
+            // uses. This was one free-text box two lines tall, so two people
+            // typing the same place produced two different addresses and
+            // neither carried a PIN.
             TextField(
               controller: _businessAddress,
-              decoration: InputDecoration(labelText: ref.t('business_address_field')),
-              maxLines: 2,
+              decoration: InputDecoration(labelText: ref.t('door_no_street_field')),
             ),
+            const SizedBox(height: ManaSpacing.sm),
+            ManaVillagePickerField(
+              label: ref.t('business_address_field'),
+              onPicked: (v) => setState(() => _addressVillage = v),
+            ),
+            if (_addressVillage != null) ...[
+              const SizedBox(height: ManaSpacing.xs),
+              ManaText.raw(
+                manaComposeAddress(
+                    doorNo: _businessAddress.text, village: _addressVillage!),
+                style: ManaType.note,
+              ),
+            ],
             const SizedBox(height: ManaSpacing.md),
             TextField(
               controller: _businessPhone,

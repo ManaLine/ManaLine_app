@@ -60,6 +60,10 @@ class LocationApiService {
   static const _columns =
       'location_id, village_town_name, pin_code, mandal, district, state';
 
+  /// The fewest letters of a village name [searchByPin] will search on. A PIN
+  /// alone can carry fifty villages; that is the directory, not a shortlist.
+  static const minVillageLetters = 3;
+
   /// Villages for a PIN: the ones already in use first, then everything the
   /// LGD reference knows, optionally narrowed by name.
   ///
@@ -76,6 +80,9 @@ class LocationApiService {
   /// and the `locations` row is written only if somebody picks it. Callers must
   /// put a pick through [resolveId] before storing it against a customer or an
   /// operating area.
+  ///
+  /// A PIN ALONE SEARCHES NOTHING. It needs at least [minVillageLetters] of the
+  /// name too, and the result is sorted A to Z.
   Future<List<ManaVillage>> searchByPin({
     required String pinCode,
     String query = '',
@@ -83,6 +90,9 @@ class LocationApiService {
   }) async {
     final pin = pinCode.trim();
     if (pin.length != 6) return const [];
+    // A PIN with no name searches nothing, so the screen can ask for the name
+    // instead of showing everything.
+    if (query.trim().length < minVillageLetters) return const [];
 
     var q = _db
         .from('locations')
@@ -128,6 +138,11 @@ class LocationApiService {
         state: ((r['state'] as String?) ?? '').trim(),
       ));
     }
+
+    // A to Z across the whole list. Ordering by provenance — in use first,
+    // reference after — is an order only the database understands; the person
+    // reading it is looking for a name.
+    results.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return results;
   }
 

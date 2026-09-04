@@ -179,7 +179,22 @@ class BusinessManagementApiService {
   /// Already-in-use rows come FIRST and carry a real `location_id`; reference
   /// rows carry null and are materialised on pick. Deduplicated on name, so a
   /// village already in use is never also offered as a suggestion.
+  /// The fewest letters of a village name this will search on.
+  ///
+  /// A PIN alone is not a question worth answering: 517536 carries fifty
+  /// villages and 524129 twenty-four, and a list that long is not a shortlist,
+  /// it is the directory. The Owner knows the name — asking for three letters
+  /// of it turns a scroll into a choice.
+  static const minVillageLetters = 3;
+
   Future<List<LocationOption>> searchLocations({String? pinCode, String? search}) async {
+    // Both halves, or nothing. Returning [] rather than everything is what
+    // makes "enter the village name" the honest thing for a screen to say.
+    final needle0 = (search ?? '').trim();
+    if ((pinCode ?? '').trim().length != 6 || needle0.length < minVillageLetters) {
+      return const [];
+    }
+
     var query = _db.from('locations').select('location_id, pin_code, village_town_name, mandal, district, state').eq('status', 'Active');
     if (pinCode != null && pinCode.isNotEmpty) query = query.eq('pin_code', pinCode);
     if (search != null && search.isNotEmpty) query = query.ilike('village_town_name', '%$search%');
@@ -230,6 +245,13 @@ class BusinessManagementApiService {
         state: (r['state'] as String?) ?? '',
       ));
     }
+
+    // A to Z across the whole list, not in-use-first. Ordering by provenance
+    // put villages in an order only the database understands; the Owner is
+    // scanning for a name, and the name is what should lead.
+    results.sort((a, b) => a.villageTownName
+        .toLowerCase()
+        .compareTo(b.villageTownName.toLowerCase()));
     return results;
   }
 
@@ -1758,19 +1780,35 @@ final businessDetailProvider = NotifierProvider.family<BusinessDetailNotifier, B
 
 class OperatingAreaSearchState {
   final String pinCode;
+
+  /// What the Owner has typed of the village name. A PIN alone searches
+  /// nothing — see [needsVillageName].
+  final String villageQuery;
   final List<LocationOption> matches;
   final LocationOption? selected;
   final bool searching;
 
   const OperatingAreaSearchState({
     this.pinCode = '',
+    this.villageQuery = '',
     this.matches = const [],
     this.selected,
     this.searching = false,
   });
 
+  /// The PIN is complete but the name is not, so nothing has been searched for.
+  ///
+  /// Distinct from "searched and found nothing", and the screens say so
+  /// differently: one asks for more, the other reports an absence. Conflating
+  /// them is how "No villages found for that PIN" came to be shown for a PIN
+  /// with fifty villages in it.
+  bool get needsVillageName =>
+      pinCode.trim().length == 6 &&
+      villageQuery.trim().length < BusinessManagementApiService.minVillageLetters;
+
   OperatingAreaSearchState copyWith({
     String? pinCode,
+    String? villageQuery,
     List<LocationOption>? matches,
     LocationOption? selected,
     bool clearSelected = false,
@@ -1778,6 +1816,7 @@ class OperatingAreaSearchState {
   }) {
     return OperatingAreaSearchState(
       pinCode: pinCode ?? this.pinCode,
+      villageQuery: villageQuery ?? this.villageQuery,
       matches: matches ?? this.matches,
       selected: clearSelected ? null : (selected ?? this.selected),
       searching: searching ?? this.searching,
@@ -1789,11 +1828,28 @@ class OperatingAreaSearchNotifier extends Notifier<OperatingAreaSearchState> {
   @override
   OperatingAreaSearchState build() => const OperatingAreaSearchState();
 
-  Future<void> searchByPin(String pinCode) async {
-    state = state.copyWith(pinCode: pinCode, searching: true, clearSelected: true);
+  /// Searches only when there is a full PIN AND enough of a village name.
+  ///
+  /// Called from both fields, so either one changing re-evaluates the pair.
+  /// Below the threshold the matches are CLEARED rather than left standing —
+  /// a list from the previous keystroke sitting under a half-typed name is the
+  /// kind of stale result somebody picks from.
+  Future<void> search({String? pinCode, String? villageQuery}) async {
+    final pin = (pinCode ?? state.pinCode).trim();
+    final needle = (villageQuery ?? state.villageQuery).trim();
+    state = state.copyWith(
+        pinCode: pin, villageQuery: needle, clearSelected: true);
+
+    if (pin.length != 6 ||
+        needle.length < BusinessManagementApiService.minVillageLetters) {
+      state = state.copyWith(matches: const [], searching: false);
+      return;
+    }
+
+    state = state.copyWith(searching: true);
     try {
       final api = ref.read(businessManagementApiServiceProvider);
-      final matches = await api.searchLocations(pinCode: pinCode);
+      final matches = await api.searchLocations(pinCode: pin, search: needle);
       state = state.copyWith(matches: matches, searching: false);
     } catch (_) {
       state = state.copyWith(searching: false);

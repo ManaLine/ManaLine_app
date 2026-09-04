@@ -457,8 +457,13 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
   final _manualState = TextEditingController();
   bool _savingManualVillage = false;
 
+  /// Three letters, not two, and a full PIN — the same rule the operating-area
+  /// pickers use. A PIN on its own would answer with every village it carries,
+  /// which for 517536 is fifty.
+  static const _minVillageLetters = 3;
+
   Future<void> _searchVillages(String query) async {
-    if (query.trim().length < 2) {
+    if (query.trim().length < _minVillageLetters) {
       setState(() {
         _villageResults = [];
         _villageSearchAttempted = false;
@@ -521,6 +526,12 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
         // The villages already in use are still a valid answer; an unreachable
         // reference must not empty the list and re-create the bug above.
       }
+
+      // A to Z, so the Owner scans for a name rather than for an order the
+      // database chose.
+      merged.sort((a, b) => ((a['village_town_name'] as String?) ?? '')
+          .toLowerCase()
+          .compareTo(((b['village_town_name'] as String?) ?? '').toLowerCase()));
 
       if (!mounted) return;
       setState(() {

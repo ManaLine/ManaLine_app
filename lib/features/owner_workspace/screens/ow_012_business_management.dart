@@ -636,11 +636,13 @@ class _OperatingAreasTab extends ConsumerStatefulWidget {
 
 class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
   final _pinCode = TextEditingController();
+  final _villageQuery = TextEditingController();
   final _areaName = TextEditingController();
 
   @override
   void dispose() {
     _pinCode.dispose();
+    _villageQuery.dispose();
     _areaName.dispose();
     super.dispose();
   }
@@ -666,6 +668,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     if (ok == true) {
       ref.read(operatingAreaSearchProvider.notifier).reset();
       _pinCode.clear();
+      _villageQuery.clear();
       _areaName.clear();
     }
   }
@@ -888,13 +891,36 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
           keyboardType: TextInputType.number,
           maxLength: 6,
           decoration: InputDecoration(labelText: ref.t('pin_code_field')),
-          onChanged: (v) {
-            if (v.trim().length == 6) {
-              ref.read(operatingAreaSearchProvider.notifier).searchByPin(v.trim());
-            }
-          },
+          onChanged: (v) => ref
+              .read(operatingAreaSearchProvider.notifier)
+              .search(pinCode: v.trim()),
         ),
+        // The PIN alone used to search, and answered with every village it
+        // carried — fifty of them for 517536. A directory is not a shortlist.
+        TextField(
+          controller: _villageQuery,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: ref.t('village_name_field')),
+          onChanged: (v) => ref
+              .read(operatingAreaSearchProvider.notifier)
+              .search(villageQuery: v.trim()),
+        ),
+        if (search.needsVillageName)
+          Padding(
+            padding: const EdgeInsets.only(top: ManaSpacing.xs),
+            child: ManaText.raw(ref.t('enter_village_name_to_search'),
+                style: ManaType.note),
+          ),
         if (search.searching) const Center(child: CircularProgressIndicator()),
+        if (!search.searching &&
+            search.matches.isEmpty &&
+            !search.needsVillageName &&
+            search.pinCode.length == 6)
+          Padding(
+            padding: const EdgeInsets.only(top: ManaSpacing.xs),
+            child: ManaText.raw(ref.t('no_villages_found_for_pin'),
+                style: ManaType.note),
+          ),
         if (!search.searching && search.matches.isNotEmpty)
           ...search.matches.map((m) {
             // Keyed on PIN + name, not location_id: a reference suggestion has
@@ -1079,6 +1105,7 @@ class _VillagePickerSheet extends ConsumerStatefulWidget {
 
 class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
   final _pinCode = TextEditingController();
+  final _villageQuery = TextEditingController();
 
   @override
   void initState() {
@@ -1093,6 +1120,7 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
   @override
   void dispose() {
     _pinCode.dispose();
+    _villageQuery.dispose();
     super.dispose();
   }
 
@@ -1118,14 +1146,28 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               decoration: InputDecoration(labelText: ref.t('pin_code_field')),
-              onChanged: (v) {
-                if (v.trim().length == 6) {
-                  ref.read(operatingAreaSearchProvider.notifier).searchByPin(v.trim());
-                }
-              },
+              onChanged: (v) => ref
+                  .read(operatingAreaSearchProvider.notifier)
+                  .search(pinCode: v.trim()),
+            ),
+            TextField(
+              controller: _villageQuery,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(labelText: ref.t('village_name_field')),
+              onChanged: (v) => ref
+                  .read(operatingAreaSearchProvider.notifier)
+                  .search(villageQuery: v.trim()),
             ),
             if (search.searching) const Center(child: CircularProgressIndicator()),
-            if (!search.searching && search.matches.isEmpty && _pinCode.text.trim().length == 6)
+            // Two different silences, said differently: nothing typed yet
+            // versus typed and genuinely absent.
+            if (search.needsVillageName)
+              ManaText.raw(ref.t('enter_village_name_to_search'),
+                  style: ManaType.note),
+            if (!search.searching &&
+                search.matches.isEmpty &&
+                !search.needsVillageName &&
+                search.pinCode.length == 6)
               ManaText.raw(ref.t('no_villages_found_for_pin'),
                   style: ManaType.note),
             ...search.matches.map((m) => ListTile(

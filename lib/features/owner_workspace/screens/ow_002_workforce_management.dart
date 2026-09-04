@@ -22,8 +22,9 @@ import '../state/investor_state.dart' show ProfitShareDeclaration;
 import '../../../shared/document_viewer.dart';
 
 /// OW-002 — Workforce Management (Agents). List view is the default landing
-/// state; Register/Add Existing are sub-flows reached from the header;
-/// selecting a row drills into the tabbed Agent Profile (C6).
+/// state; adding an agent goes to OW-014, which searches for an existing
+/// person and registers a new one when there is no match; selecting a row
+/// drills into the tabbed Agent Profile (C6).
 class WorkforceManagementScreen extends ConsumerStatefulWidget {
   final String businessId;
 
@@ -129,22 +130,22 @@ class _WorkforceManagementScreenState
                       ? ref.t('could_not_load_agents').replaceAll('{error}', '${state.error}')
                       : ref.t('no_agents_match_view'),
                   addLabel: ref.t('add_agent'),
+                  // ONE way to add an agent, at the Owner's instruction.
+                  //
+                  // There were three: Register Agent (a local sheet), Add
+                  // Existing Agent (another local sheet), and Pre-Existing
+                  // Agent (OW-014). Three buttons for one job, two of which
+                  // asked the Owner to know in advance whether the person
+                  // already had a MANA LINE ID -- which is exactly what a
+                  // search is for.
+                  //
+                  // OW-014 does the whole thing: search by MLID or name, and
+                  // register a new person when there is no match. The two
+                  // sheets are deleted rather than left unreachable.
                   addActions: [
                     MemberAction(
-                      label: ref.t('register_agent'),
+                      label: ref.t('add_an_agent'),
                       icon: Icons.person_add_alt_1_outlined,
-                      onTap: () => _openRegisterNewAgent(context),
-                    ),
-                    MemberAction(
-                      label: ref.t('add_existing_agent'),
-                      icon: Icons.badge_outlined,
-                      onTap: () => _openAddExistingAgent(context),
-                    ),
-                    // An agent who worked for this business before it joined
-                    // MANA LINE, so has no MANA LINE ID yet.
-                    MemberAction(
-                      label: ref.t('pre_existing_agent'),
-                      icon: Icons.history_edu_outlined,
                       onTap: () => context
                           .push('/ow-014?type=agent', extra: widget.businessId)
                           .then((_) =>
@@ -162,34 +163,6 @@ class _WorkforceManagementScreenState
         ),
       ),
     );
-  }
-
-  void _openRegisterNewAgent(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _RegisterNewAgentSheet(businessId: widget.businessId),
-    ).then((_) {
-      // The agent just added may not match a filter left over from an earlier
-      // visit — this provider is not autoDispose, so that filter outlives the
-      // screen. Same failure the investor roster had.
-      ref.read(workforceProvider.notifier).resetFilters();
-      return ref.read(workforceProvider.notifier).load(widget.businessId);
-    });
-  }
-
-  void _openAddExistingAgent(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _AddExistingAgentSheet(businessId: widget.businessId),
-    ).then((_) {
-      // The agent just added may not match a filter left over from an earlier
-      // visit — this provider is not autoDispose, so that filter outlives the
-      // screen. Same failure the investor roster had.
-      ref.read(workforceProvider.notifier).resetFilters();
-      return ref.read(workforceProvider.notifier).load(widget.businessId);
-    });
   }
 
   void _openAgentProfile(BuildContext context, AgentSummary agent) {
@@ -267,288 +240,6 @@ class _AgentRow extends StatelessWidget {
     );
   }
 }
-
-// --- C4 Register New Agent (sub-flow) ------------------------------------
-
-class _RegisterNewAgentSheet extends ConsumerStatefulWidget {
-  final String businessId;
-  const _RegisterNewAgentSheet({required this.businessId});
-
-  @override
-  ConsumerState<_RegisterNewAgentSheet> createState() =>
-      _RegisterNewAgentSheetState();
-}
-
-class _RegisterNewAgentSheetState
-    extends ConsumerState<_RegisterNewAgentSheet> {
-  final _fullName = TextEditingController();
-  final _fatherHusband = TextEditingController();
-  final _mobile = TextEditingController();
-  final _aadhaar = TextEditingController();
-  String? _gender;
-  bool _submitting = false;
-
-  // Global Rules Guide ADDENDUM v4: Aadhaar is mandatory at registration
-  // for all roles except OW-014's pre-existing-member migration path —
-  // Agent registration here is a normal registration path, so it applies.
-  bool get _canSubmit =>
-      _fullName.text.trim().length >= 2 &&
-      _fatherHusband.text.trim().length >= 2 &&
-      _gender != null &&
-      _mobile.text.trim().length == 10 &&
-      _aadhaar.text.trim().length == 12;
-
-  Future<void> _submit() async {
-    setState(() => _submitting = true);
-    final ok = await NetworkErrorHandler.run(context, () async {
-      return ref.read(workforceProvider.notifier).registerNewAgent(
-            businessId: widget.businessId,
-            fullName: _fullName.text.trim(),
-            fatherHusbandName: _fatherHusband.text.trim(),
-            genderDigit: _gender!,
-            mobileNumber: _mobile.text.trim(),
-            aadhaarNumber: _aadhaar.text.trim(),
-          );
-    });
-    if (!mounted) return;
-    setState(() => _submitting = false);
-    if (ok == true && mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: ManaText.raw(ref.t('agent_registered_note'))),
-      );
-    }
-  }
-
-  // Disposed with the State that owns them. Each controller holds a
-  // listener list and a ChangeNotifier; a State that never disposes them
-  // leaks one set per visit.
-  @override
-  void dispose() {
-    _fullName.dispose();
-    _fatherHusband.dispose();
-    _mobile.dispose();
-    _aadhaar.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => Padding(
-          padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: ListView(
-            controller: scrollController,
-            children: [
-              ManaText.raw(ref.t('register_new_agent'),
-                  style: ManaType.sheetTitle),
-              const SizedBox(height: ManaSpacing.xs),
-              ManaText.raw(
-                ref.t('register_new_agent_note'),
-                style: ManaType.note,
-              ),
-              const SizedBox(height: ManaSpacing.lg),
-              TextField(
-                controller: _fullName,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(labelText: '${ref.t("full_name")} *'),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: ManaSpacing.md),
-              TextField(
-                controller: _fatherHusband,
-                textCapitalization: TextCapitalization.words,
-                decoration:
-                    InputDecoration(labelText: '${ref.t("father_husband_name")} *'),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: ManaSpacing.md),
-              DropdownButtonFormField<String>(
-                // isExpanded: a DropdownButton sizes to its widest item and
-                // overflows rather than shrinking -- measured at 1.0x on OW-002.
-                isExpanded: true,
-                initialValue: _gender,
-                decoration: InputDecoration(labelText: '${ref.t("gender")} *'),
-                items: [
-                  DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
-                  DropdownMenuItem(value: '0', child: ManaText.raw(ref.t('female'))),
-                ],
-                onChanged: (v) => setState(() => _gender = v),
-              ),
-              const SizedBox(height: ManaSpacing.md),
-              TextField(
-                controller: _mobile,
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-                decoration: InputDecoration(labelText: '${ref.t("mobile_number")} *'),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: ManaSpacing.md),
-              TextField(
-                controller: _aadhaar,
-                keyboardType: TextInputType.number,
-                maxLength: 12,
-                decoration:
-                    InputDecoration(labelText: '${ref.t("aadhaar_number")} *'),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: ManaSpacing.lg),
-              ElevatedButton(
-                onPressed: (_canSubmit && !_submitting) ? _submit : null,
-                child: _submitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : ManaText.raw(ref.t('register_and_send_invitation')),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// --- C5 Add Existing Agent (sub-flow) ------------------------------------
-
-class _AddExistingAgentSheet extends ConsumerStatefulWidget {
-  final String businessId;
-  const _AddExistingAgentSheet({required this.businessId});
-
-  @override
-  ConsumerState<_AddExistingAgentSheet> createState() =>
-      _AddExistingAgentSheetState();
-}
-
-class _AddExistingAgentSheetState
-    extends ConsumerState<_AddExistingAgentSheet> {
-  final _mlid = TextEditingController();
-  AgentSummary? _found;
-  bool _searching = false;
-  bool _adding = false;
-
-  Future<void> _search() async {
-    setState(() => _searching = true);
-    final result = await NetworkErrorHandler.run(context, () async {
-      return ref
-          .read(workforceProvider.notifier)
-          .searchByMlid(_mlid.text.trim());
-    });
-    if (!mounted) return;
-    setState(() {
-      _searching = false;
-      _found = result;
-    });
-  }
-
-  Future<void> _add() async {
-    if (_found == null) return;
-    setState(() => _adding = true);
-    final ok = await NetworkErrorHandler.run(context, () async {
-      return ref.read(workforceProvider.notifier).addExistingAgent(
-            businessId: widget.businessId,
-            personId: _found!.personId!,
-          );
-    });
-    if (!mounted) return;
-    setState(() => _adding = false);
-    if (ok == true && mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: ManaText.raw(ref.t('invitation_sent_note'))),
-      );
-    }
-  }
-
-  // Disposed with the State that owns them. Each controller holds a
-  // listener list and a ChangeNotifier; a State that never disposes them
-  // leaks one set per visit.
-  @override
-  void dispose() {
-    _mlid.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: MediaQuery.of(context).viewInsets,
-      child: Padding(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ManaText.raw(ref.t('add_existing_agent'),
-                style: ManaType.sheetTitle),
-            const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw(
-              ref.t('add_existing_agent_note'),
-              style: ManaType.note,
-            ),
-            const SizedBox(height: ManaSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _mlid,
-                    decoration: InputDecoration(labelText: ref.t('enter_mlid')),
-                    onChanged: (_) => setState(() => _found = null),
-                  ),
-                ),
-                const SizedBox(width: ManaSpacing.sm),
-                ElevatedButton(
-                  onPressed: (_mlid.text.trim().isNotEmpty && !_searching)
-                      ? _search
-                      : null,
-                  child: _searching
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : ManaText.raw(ref.t('search')),
-                ),
-              ],
-            ),
-            const SizedBox(height: ManaSpacing.lg),
-            if (_found != null)
-              Card(
-                child: ListTile(
-                  leading:
-                      const ManaVerificationRing(isVerified: true, size: 40),
-                  title: ManaText.raw(_found!.fullName),
-                  subtitle: ManaText.raw(_found!.mlid),
-                  trailing: ElevatedButton(
-                    onPressed: _adding ? null : _add,
-                    child: _adding
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : ManaText.raw(ref.t('add')),
-                  ),
-                ),
-              )
-            else if (_mlid.text.trim().isNotEmpty && !_searching)
-              ManaText.raw(
-                  ref.t('no_match_found_note'),
-                  style:
-                      ManaType.note),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// --- C6 Agent Profile (tabbed drill-in) ------------------------------------
 
 class AgentProfileScreen extends ConsumerWidget {
   final String businessId;

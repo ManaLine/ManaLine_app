@@ -108,25 +108,36 @@ class GlobalWorkflowApiService {
     return result.personId;
   }
 
+  /// Makes somebody a member, with the role-side row their workspace needs.
+  ///
+  /// THIS USED TO BE ONE INSERT into business_members and nothing else. An
+  /// Active membership, no agents / customers / investors row, no
+  /// agent_permissions. Every other path that makes somebody Active creates the
+  /// role entity too, because that is what the workspaces read:
+  ///
+  ///     .from('agents').select('agent_id').eq('membership_id', ...).single()
+  ///
+  /// and `.single()` throws on zero rows. An Agent added this way opened a
+  /// workspace that crashed; a Customer added this way was invisible to every
+  /// customer list, because those join through `customers`.
+  ///
+  /// It matters more now than it did: OW-014 has become the only way to add an
+  /// agent from Workforce Management and from the assign-agent step of setup,
+  /// so this went from a rarely used path to the main one.
+  ///
+  /// An RPC because it is up to four writes that must all happen or none.
   Future<String> attachNewPersonToBusiness({
     required String businessId,
     required String personId,
     required MemberType type,
   }) async {
-    final verificationStatus = type == MemberType.customer ? 'Not Required' : 'Pending Verification';
-    final row = await _db
-        .from('business_members')
-        .insert({
-          'person_id': int.parse(personId),
-          'business_id': businessId,
-          'role': type.role,
-          'membership_status': 'Active',
-          'verification_status': verificationStatus,
-          'onboarding_method': 'Migration/Pre-Existing',
-        })
-        .select('membership_id')
-        .single();
-    return row['membership_id'] as String;
+    final res = await _db.schema('app').rpc('attach_person_to_business', params: {
+      'p_business_id': businessId,
+      'p_person_id': int.parse(personId),
+      'p_role': type.role,
+    });
+    final map = (res as Map).cast<String, dynamic>();
+    return map['membership_id'] as String;
   }
 
   /// Cross-references business_members against persons.profile_status —

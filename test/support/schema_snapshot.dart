@@ -145,6 +145,7 @@ const manaAppFunctions = <String>{
   'agent_expected_closing', 'agent_payable_salary', 'agent_permission',
   'agent_update_customer_address', 'agent_update_customer_phone',
   'amend_collection', 'anonymise_person', 'apply_investment_compounding',
+  'attach_person_to_business',
   'apply_loan_penalty', 'approve_agent_settlement',
   'assert_business_transferable', 'assign_agent_area', 'attach_investor',
   'attach_investor_with_first_investment', 'avail_cheti',

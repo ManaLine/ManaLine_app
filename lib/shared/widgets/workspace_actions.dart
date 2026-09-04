@@ -21,14 +21,43 @@ import 'workspace_nav.dart';
 /// Those have no business context to record an expense against, so the button
 /// would be dead or would have to ask which business first — a header action
 /// that opens a question is not an action.
+/// Who the header's + adds, on the screen it is drawn on.
+///
+/// The + used to add a Customer everywhere, including on Workforce Management
+/// and Investor Management — so on the two screens whose entire subject is
+/// agents and investors, the one button that creates something created the
+/// wrong kind of person. The Owner asked for this three separate ways (a way to
+/// add an agent while assigning areas, a way to add one from Workforce, and a
+/// header that matches the screen); it is one contract, decided here.
+enum ManaMemberKind {
+  customer,
+  agent,
+  investor;
+
+  /// OW-014 pre-fills its first step from this.
+  String get workflowType => name;
+}
+
+/// The screen's subject, from its route.
+///
+/// Route prefixes rather than a parameter on 60-odd call sites, for the same
+/// reason the bar itself is installed by route: a screen says where it is, it
+/// does not restate what its header should offer. Anything not named here adds
+/// a Customer, which is what every collection round and customer list wants.
+ManaMemberKind manaMemberKindForRoute(String location) {
+  if (location.startsWith('/ow-002')) return ManaMemberKind.agent;
+  if (location.startsWith('/ow-003')) return ManaMemberKind.investor;
+  return ManaMemberKind.customer;
+}
+
 List<Widget> manaWorkspaceActions({
   required ManaWorkspace workspace,
   required String businessId,
-
+  ManaMemberKind kind = ManaMemberKind.customer,
 }) =>
     [
       const ManaNotificationBell(),
-      _AddCustomerAction(workspace: workspace, businessId: businessId),
+      _AddMemberAction(workspace: workspace, businessId: businessId, kind: kind),
       _SearchAction(workspace: workspace, businessId: businessId),
     ];
 
@@ -54,6 +83,7 @@ void manaInstallWorkspaceActions() {
     return manaWorkspaceActions(
       workspace: workspace,
       businessId: ManaSession.instance.lastBusinessId ?? '',
+      kind: manaMemberKindForRoute(location),
     );
   };
 }
@@ -69,14 +99,48 @@ void manaInstallWorkspaceActions() {
 /// Ends with a choice -- add them, or add them and go straight to a loan --
 /// so somebody standing in front of a new borrower does not have to find
 /// them again in a list of fifty-six to lend to them.
-class _AddCustomerAction extends ConsumerWidget {
+class _AddMemberAction extends ConsumerWidget {
   final ManaWorkspace workspace;
   final String businessId;
+  final ManaMemberKind kind;
 
-  const _AddCustomerAction({required this.workspace, required this.businessId});
+  const _AddMemberAction({
+    required this.workspace,
+    required this.businessId,
+    required this.kind,
+  });
+
+  /// Agents and Investors go through OW-014, which already searches for an
+  /// existing person by MLID or name and registers a new one when there is no
+  /// match — the "search & add, or register new" the Owner asked for. It was
+  /// built and reachable at /ow-014?type=…; nothing pointed at it.
+  ///
+  /// Customers keep /customer-new, because that sheet ends with a choice OW-014
+  /// does not have: add them, or add them and go straight to a loan.
+  String get _route => switch (kind) {
+        ManaMemberKind.customer => '/customer-new',
+        ManaMemberKind.agent => '/ow-014?type=agent',
+        ManaMemberKind.investor => '/ow-014?type=investor',
+      };
+
+  String _label(WidgetRef ref) => switch (kind) {
+        ManaMemberKind.customer => ref.t('add_a_customer'),
+        ManaMemberKind.agent => ref.t('add_an_agent'),
+        ManaMemberKind.investor => ref.t('add_investor'),
+      };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (kind != ManaMemberKind.customer) {
+      return ManaHeaderAction(
+        icon: Icons.add,
+        bold: true,
+        label: _label(ref),
+        onPressed: businessId.isEmpty
+            ? null
+            : () => context.push(_route, extra: businessId),
+      );
+    }
     return ManaHeaderAction(
       // Bold: this is the only action in the bar that CREATES something, and
       // at a glance among three glyphs the weight is what separates it from

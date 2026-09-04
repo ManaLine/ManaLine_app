@@ -857,10 +857,8 @@ class _Step4ExistingMembers extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _StepScaffold(
-      title: 'add existing members',
-      subtitle:
-          'Optional — migrate pre-existing customers/agents/investors via the '
-          'Pre-Existing Member workflow (OW-014). Skip if there are none to migrate.',
+      title: 'migrate existing book',
+      subtitle: ref.t('migrate_existing_book_step_note'),
       onBack: onBack,
       onNext: () {
         ref
@@ -873,16 +871,26 @@ class _Step4ExistingMembers extends ConsumerWidget {
         child: ListTile(
           leading:
               Icon(Icons.group_add_outlined, color: ManaColors.brand),
-          title: ManaText.raw(ref.t('start_pre_existing_migration')),
-          subtitle: ManaText.raw(ref.t('launches_global_workflow_note'),
+          title: ManaText.raw(ref.t('migrate_existing_book')),
+          subtitle: ManaText.raw(ref.t('migrate_existing_book_note'),
               style: ManaType.small),
           trailing: const Icon(Icons.chevron_right),
+          // Was a SnackBar reading "OW-014 Global Workflow — not yet built in
+          // this pass", which was stale twice: OW-014 IS built, and it is the
+          // member-by-member workflow, not what this step is for. Step 3 is the
+          // pre-existing BUSINESS migration — the weekly-ledger import that
+          // brought the sri satyanarayana book across.
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text(
-                      'OW-014 Global Workflow — not yet built in this pass.')),
-            );
+            final businessId = ref.read(businessSetupProvider).businessId;
+            if (businessId == null) {
+              // Step 1 creates the business, so this cannot normally happen —
+              // and if it does, saying so beats a dead tap.
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: ManaText.raw(ref.t('create_the_business_first')),
+              ));
+              return;
+            }
+            context.push('/ow-018', extra: businessId);
           },
         ),
       ),
@@ -962,6 +970,10 @@ class _Step5Agreements extends ConsumerWidget {
 
 // --- Step 6 — Assign Operating Areas to Agents -------------------------------
 
+/// "Nobody in this list" — returned by the agent picker so the caller can tell
+/// a chosen agent from a request to go and add one.
+const Object _addAgentSentinel = Object();
+
 class _Step6AssignAreas extends ConsumerWidget {
   final VoidCallback onBack;
   const _Step6AssignAreas({required this.onBack});
@@ -977,7 +989,9 @@ class _Step6AssignAreas extends ConsumerWidget {
       return ref.read(ownerApiServiceProvider).fetchAgents(businessId: businessId, status: 'Active');
     });
     if (agents == null || !context.mounted) return;
-    final chosen = await showModalBottomSheet<AgentSummary>(
+    // Object?, because this sheet now has two kinds of answer: an agent to
+    // assign, or _addAgentSentinel meaning "there is nobody here I want".
+    final chosen = await showModalBottomSheet<Object?>(
       context: context,
       isScrollControlled: true,
       builder: (_) => SafeArea(
@@ -1003,18 +1017,44 @@ class _Step6AssignAreas extends ConsumerWidget {
                     subtitle: ManaText.raw(agent.mlid, style: ManaType.small),
                     onTap: () => Navigator.of(context).pop(agent),
                   )),
+            // The list previously held exactly one row on a new business -- the
+            // Owner, who is its first Agent -- and no way to reach anybody
+            // else. Assigning the round to yourself was the only possible
+            // answer, and the real one ("my agent is Ramesh") had to wait until
+            // after setup, from Workforce Management.
+            const Divider(height: 1),
+            ListTile(
+              leading: Icon(Icons.person_add_alt_1_outlined, color: ManaColors.brand),
+              title: ManaText.raw(ref.t('add_an_agent')),
+              subtitle: ManaText.raw(ref.t('search_or_register_agent_note'),
+                  style: ManaType.small),
+              onTap: () => Navigator.of(context).pop(_addAgentSentinel),
+            ),
             const SizedBox(height: ManaSpacing.md),
           ],
         ),
       ),
     );
-    if (chosen == null || chosen.membershipId == null || !context.mounted) return;
+    if (chosen == null || !context.mounted) return;
+
+    if (identical(chosen, _addAgentSentinel)) {
+      // OW-014 searches for an existing person by MLID or name and registers a
+      // new one when there is no match. Reopen the picker afterwards rather
+      // than leaving the Owner to find their way back: they came here to
+      // assign somebody, and adding the agent was a detour, not the goal.
+      await context.push('/ow-014?type=agent', extra: businessId);
+      if (!context.mounted) return;
+      return _assignAgent(context, ref, a);
+    }
+
+    final agent = chosen as AgentSummary;
+    if (agent.membershipId == null) return;
     await NetworkErrorHandler.run(context, () async {
       return ref.read(businessSetupProvider.notifier).assignAreaToAgent(
             areaLocalId: a.localId,
-            agentId: chosen.agentId,
-            agentMembershipId: chosen.membershipId!,
-            agentName: chosen.fullName,
+            agentId: agent.agentId,
+            agentMembershipId: agent.membershipId!,
+            agentName: agent.fullName,
           );
     });
   }

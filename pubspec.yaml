@@ -44,6 +44,8 @@ dependencies:
   url_launcher: ^6.3.2
   archive: ^3.6.1
   xml: ^6.6.1
+  # Browser APIs for the web half of the file-share helper
+  # (mana_file_share_web.dart), replacing the deprecated dart:html.
   web: ^1.1.1
 
   # Offline sync layer (see mana_line_offline_sync package delivered earlier)

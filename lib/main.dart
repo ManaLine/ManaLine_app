@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/router.dart';
 import 'shared/appearance_state.dart';
 import 'shared/mana_back_handler.dart';
+import 'design/components/mana_web_frame.dart';
 import 'design/theme.dart';
 import 'design/tokens/colors.dart';
 import 'design/tokens/spacing.dart';
@@ -181,7 +182,11 @@ class ManaLineApp extends ConsumerWidget {
           // build and every screen became an ErrorWidget. Copy-paste has to
           // be introduced below the Navigator -- inside the screens -- not
           // above it.
-          child: child!,
+          child: ManaWebFrame(
+            currentLocation: () =>
+                manaRouter.routerDelegate.currentConfiguration.uri.path,
+            child: child!,
+          ),
         );
       },
     );

@@ -1,12 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/mana_file_share.dart';
 import '../../../shared/mana_time.dart';
 
 /// P3 Backup — an Owner's records as a spreadsheet they can keep.
@@ -299,15 +297,10 @@ class BackupExportService {
   /// handset, and leaving customer names in app storage is a privacy cost with
   /// no upside.
   Future<void> shareWorkbook(BackupResult result) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/${result.fileName}');
-    await file.writeAsBytes(result.bytes, flush: true);
-
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path, name: result.fileName)],
-        subject: result.fileName,
-      ),
+    await manaShareBytes(
+      bytes: result.bytes,
+      fileName: result.fileName,
+      subject: result.fileName,
     );
   }
 }

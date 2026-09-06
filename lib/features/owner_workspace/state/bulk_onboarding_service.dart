@@ -1,13 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/mana_file_share.dart';
 import '../../../shared/xlsx_fallback_reader.dart';
 import 'collection_mode_state.dart';
 import 'mana_template_style.dart';
@@ -1673,13 +1671,8 @@ class BulkOnboardingService {
     return Uint8List.fromList(bytes);
   }
 
-  Future<void> shareBytes(Uint8List bytes, String fileName) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
-    await SharePlus.instance.share(
-      ShareParams(files: [XFile(file.path, name: fileName)], subject: fileName),
-    );
+  Future<void> shareBytes(Uint8List bytes, String fileName) {
+    return manaShareBytes(bytes: bytes, fileName: fileName, subject: fileName);
   }
 
   /// Every sheet in a workbook, as plain rows of strings, with the same

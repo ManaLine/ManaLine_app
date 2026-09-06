@@ -1,12 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../shared/mana_file_share.dart';
 
 /// P3 Import — bulk entry of a business's pre-existing loan book.
 ///
@@ -154,14 +153,10 @@ class ImportService {
   }
 
   Future<void> shareTemplate(Uint8List bytes) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/ManaLine-Loan-Import-Template.xlsx');
-    await file.writeAsBytes(bytes, flush: true);
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path, name: 'ManaLine-Loan-Import-Template.xlsx')],
-        subject: 'MANA LINE loan import template',
-      ),
+    await manaShareBytes(
+      bytes: bytes,
+      fileName: 'ManaLine-Loan-Import-Template.xlsx',
+      subject: 'MANA LINE loan import template',
     );
   }
 

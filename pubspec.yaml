@@ -44,6 +44,7 @@ dependencies:
   url_launcher: ^6.3.2
   archive: ^3.6.1
   xml: ^6.6.1
+  web: ^1.1.1
 
   # Offline sync layer (see mana_line_offline_sync package delivered earlier)
   # mana_line_offline_sync:

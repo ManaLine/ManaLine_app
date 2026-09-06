@@ -7,15 +7,13 @@
 /// `excel` dependency, same temp-file-and-share mechanism, different job.
 library;
 
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'ledger_history_service.dart';
+import 'mana_file_share.dart';
 import 'mana_time.dart';
 
 /// A statement period the user picked.
@@ -188,14 +186,10 @@ class LedgerStatementService {
   /// a shared handset, and leaving customer names in app storage is a privacy
   /// cost with no upside.
   Future<void> share(StatementResult result) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/${result.fileName}');
-    await file.writeAsBytes(result.bytes, flush: true);
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path, name: result.fileName)],
-        subject: result.fileName,
-      ),
+    await manaShareBytes(
+      bytes: result.bytes,
+      fileName: result.fileName,
+      subject: result.fileName,
     );
   }
 }

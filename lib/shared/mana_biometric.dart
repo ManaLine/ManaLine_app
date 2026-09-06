@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -45,6 +46,12 @@ class ManaBiometric {
   /// Checked before showing the toggle rather than after tapping it: an
   /// option that always fails is worse than one that is not offered.
   static Future<bool> isAvailable() async {
+    // No web implementation of local_auth, so the plugin THROWS here rather
+    // than answering false. Every caller treats this method as the question
+    // "may I offer the fingerprint button?", and on a browser the honest
+    // answer is no — the password path they already have is the whole
+    // fallback, so nothing else needs to change.
+    if (kIsWeb) return false;
     try {
       if (!await _auth.isDeviceSupported()) return false;
       if (!await _auth.canCheckBiometrics) return false;

@@ -15,6 +15,7 @@ import '../../../shared/live_photo_upload.dart';
 import '../../../shared/gps_address_service.dart';
 import 'lr_005_otp_verification.dart';
 import 'package:mana_line/design/tokens/typography.dart';
+import '../../../shared/app_version.dart';
 
 /// LR-007 — Mobile Number + Password auth. Branches by pin_exists in
 /// the response: false → LR-008 Create PIN; true → LR-012 Business
@@ -503,6 +504,11 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
                     onChanged: (l) => ref.read(authFlowProvider.notifier).setLanguage(l),
                   ),
                 ),
+                // Inside the same guard as the language selector, and for the
+                // same reason: embedded, this screen is drawn inside another
+                // that already carries both, and two version footers on one
+                // screen is worse than none.
+                const ManaVersionFooter(),
               ],
             ],
     );

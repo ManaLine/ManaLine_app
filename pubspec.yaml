@@ -1,8 +1,12 @@
 name: mana_line
 description: MANA LINE — Digital operating system for local lending businesses
 publish_to: 'none'
-version: 0.1.0
-
+# 0.1.0+N -- the +N becomes Android's versionCode, which sat at 1 for every
+# build ever made, so no installed APK could be told from another. Bumped per
+# build by tool/build_apk.ps1, which also updates manaBuildNumber in
+# lib/shared/app_version.dart; test/app_version_test.dart fails if the two
+# ever disagree.
+version: 0.1.0+3
 environment:
   sdk: '>=3.0.0 <4.0.0'
   flutter: ">=3.10.0"

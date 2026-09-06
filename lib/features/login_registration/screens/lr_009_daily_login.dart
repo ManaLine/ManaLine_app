@@ -22,6 +22,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import 'lr_005_otp_verification.dart';
 import 'lr_007_first_login.dart';
+import '../../../shared/app_version.dart';
 
 /// LR-009 — fast re-authentication for a returning person on an
 /// already-trusted device. PIN pad is primary (F1); biometric (F2)
@@ -655,6 +656,12 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                 onChanged: (l) =>
                     ref.read(authFlowProvider.notifier).setLanguage(l),
               ),
+              // Last thing on the screen, and INSIDE the scroll here rather
+              // than pinned under it: this column already sizes to its content
+              // and scrolls because Kannada labels and 2.0x text overflowed a
+              // fixed height. A footer pinned outside would reintroduce the
+              // fixed region that caused that.
+              const ManaVersionFooter(),
             ],
           ),
         ),

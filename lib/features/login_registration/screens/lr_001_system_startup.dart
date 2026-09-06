@@ -11,6 +11,7 @@ import '../../../design/components/mana_brand_mark.dart' show kManaAppName;
 import '../../../design/components/mana_centered_scroll.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/local_auth_store.dart';
+import '../../../shared/app_version.dart';
 
 enum _StartupState { loading, slowLoad, failure }
 
@@ -136,12 +137,14 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
       // where splash_background is the matching #FFFFFF.
       backgroundColor: const Color(0xFFFFFFFF),
       body: SafeArea(
-        // Scrollable, and not because the splash is long. At 2.0x text scale
-        // on a 360x640 handset the mark plus the failure card and its retry
-        // button do not fit, and a Column would simply clip the button — the
-        // one control someone with no signal actually needs. It scrolls
-        // instead, and centres whenever there is room, which is almost always.
-        child: ManaCenteredScroll(
+        // The version sits BELOW the scroll, not inside it. Inside, it would
+        // ride up with the mark when the failure card appears and land in the
+        // middle of the screen; outside, it stays where a footer belongs and
+        // the scroll keeps the whole viewport it needs at 2.0x.
+        child: Column(
+          children: [
+            Expanded(
+              child: ManaCenteredScroll(
           padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -167,6 +170,10 @@ class _SystemStartupScreenState extends ConsumerState<SystemStartupScreen> {
               if (_state == _StartupState.failure) _FailureCard(onRetry: _retryNow),
             ],
           ),
+              ),
+            ),
+            const ManaVersionFooter(),
+          ],
         ),
       ),
     );

@@ -1,7 +1,7 @@
 # MANA LINE on the web — design
 
 Date: 2026-09-07
-Status: approved (design). Two decisions still open, listed in section 11.
+Status: approved. All decisions closed — see section 11.
 
 ## The problem
 
@@ -101,20 +101,24 @@ public internet is the one that becomes a promise to a customer. So:
 Same pattern as `test/support/schema_snapshot.dart`: generated, guarded, never
 maintained by remembering.
 
-### 2.2 Publishing prices is an outward-facing act
+### 2.2 The public plans page carries no rupee figures
 
-The app currently says, in `planned_prices_note`: *"Nothing is being charged
-yet. These are the planned prices, shown so you can see which one fits your
-business."*
+**Decided: tiers and limits only. No prices on the public site.**
 
 Showing a figure to a logged-in Owner and publishing it on the open web are
 different acts — the second reads as an offer, and billing is not built. The
-page therefore carries that same sentence verbatim, at the same prominence as
-the figures.
+app's own `planned_prices_note` says *"Nothing is being charged yet"*, which is
+a sentence that works behind a login and does not work as a public price list.
 
-If that is not wanted, the fallback is a plans page listing tiers and limits
-with no rupee figures at all. That is a content switch in the generator, not a
-redesign.
+So the generator emits, per tier: the name, and the agent / customer / investor
+caps. It does not emit `monthly` or `yearly`. `test/site_plans_sync_test.dart`
+asserts both halves of that — the caps match `kOwnerTiers`, **and no rupee
+figure appears in `site/plans.html` at all**. The second assertion is the one
+that matters: it makes publishing a price an act that fails a test rather than
+one that slips through a regenerate.
+
+The in-app `/subscription` screen is unchanged and keeps showing prices to the
+Owner who is signed in.
 
 ## 3. The centred column
 
@@ -260,19 +264,20 @@ Reported the way this project requires: what was verified and how, stated
 separately from what was changed. Anything that could not be verified gets said
 plainly instead of being implied.
 
-## 11. Open decisions
+## 11. Decisions
 
-**(a) Session storage on the web.** Recommendation in section 7: memory plus
-`sessionStorage`, plus a CSP header, at the cost of re-entering a PIN after the
-tab closes. Default if unanswered: implement the recommendation, because it is
-the reversible direction — loosening later is a config change, tightening later
-means migrating live sessions.
+**(a) Session storage on the web — memory plus `sessionStorage`, plus a CSP
+header.** Taken as the recommended default rather than by explicit answer. The
+token dies with the tab; a web user re-enters their PIN after closing it. This
+is the reversible direction: loosening later is a config change, tightening
+later means migrating live sessions. Say so and it becomes `localStorage`.
 
-**(b) Hosting and domain.** SPA rewrites are required for `/app/*` deep links.
-Cloudflare Pages and Netlify both do this in a two-line config on a free tier;
-Cloudflare's edge is nearer to Indian users. GitHub Pages cannot rewrite and
-would force hash URLs, so it is ruled out. The domain is unconfirmed —
-`manaline.in` is inferred from the project's contact address and has not been
-verified as owned.
+**(b) Host — Cloudflare Pages.** Chosen for the SPA rewrite `/app/*` needs and
+for an edge nearer to Indian users. Netlify was the equivalent alternative;
+GitHub Pages was ruled out because it cannot rewrite and would force hash URLs.
 
-Neither decision blocks phases 0 to 3.
+**(c) Domain — `manaline.in`.** Confirmed by the owner. DNS is not yet
+verified as pointing anywhere; that is a phase 4 step, not an assumption.
+
+**(d) Public prices — none.** Section 2.2. Tiers and caps only, enforced by a
+test rather than by intent.

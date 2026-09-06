@@ -1,11 +1,11 @@
 {
-    "name": "mana_line",
-    "short_name": "mana_line",
+    "name": "MANA LINE",
+    "short_name": "MANA LINE",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#005A99",
+    "theme_color": "#005A99",
+    "description": "MANA LINE — the operating system for a local lending business. Loans, collections, agents and daily accounts, in five languages.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

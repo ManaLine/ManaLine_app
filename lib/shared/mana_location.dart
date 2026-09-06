@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -203,6 +204,16 @@ class ManaLocation {
   }) async {
     final fix = await currentFix(timeout: timeout);
     if (!fix.hasPosition) return ManaPlace(fix: fix);
+
+    // geolocator has a web implementation; geocoding does not. So on the web a
+    // coordinate is obtainable and a VILLAGE NAME is not — and a village name
+    // is the only part of this the address forms actually use.
+    //
+    // Returning an unresolved place rather than throwing, because the address
+    // forms already handle it: the PIN-code + village reference lookup is the
+    // primary path on every one of them, and "use my location" is the
+    // shortcut. Losing a shortcut in a browser is not an error state.
+    if (kIsWeb) return ManaPlace(fix: fix);
 
     try {
       final marks = await placemarkFromCoordinates(fix.latitude!, fix.longitude!);

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/stored_file.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../../shared/mana_token_store.dart';
 import '../../../shared/widgets/language_selector.dart';
 
 /// In-memory state carried across the LR-001..LR-013 flow.
@@ -397,7 +397,7 @@ class ManaSession {
   ManaSession._();
   static final ManaSession instance = ManaSession._();
 
-  static const _storage = FlutterSecureStorage();
+  static const _storage = ManaTokenStore();
   static const _kAccessToken = 'mana_session_access_token';
   static const _kPersonId = 'mana_session_person_id';
   static const _kLastBusinessId = 'mana_session_last_business_id';

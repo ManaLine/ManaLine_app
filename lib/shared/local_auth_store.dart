@@ -2,6 +2,44 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// Result of [decideDeviceFingerprint]: the value to return this call, and
+/// whether [LocalAuthStore.deviceFingerprint] still needs to persist it.
+class DeviceFingerprintDecision {
+  final String value;
+  final bool shouldPersist;
+  const DeviceFingerprintDecision(this.value, {required this.shouldPersist});
+}
+
+/// Pure decision logic behind [LocalAuthStore.deviceFingerprint], pulled out
+/// so it can be unit-tested against both `isWeb` branches without faking
+/// `kIsWeb` (that constant is compile-time and cannot be overridden in a
+/// test — this is the same extraction Task 7 used for
+/// `webUploadRejectionReason`).
+///
+/// - A value already in durable storage (`persisted`) always wins, on any
+///   platform — this is what makes native's "generated once, reused
+///   forever" true, and also means a pre-existing web value from before
+///   this change is honoured rather than silently replaced.
+/// - Otherwise on web: reuse the in-memory `cached` value if this page
+///   session already minted one; never persist.
+/// - Otherwise on web with no cache yet: mint one, still never persist —
+///   the caller is responsible for caching it in memory.
+/// - Otherwise (native, nothing persisted yet): mint one and persist it.
+DeviceFingerprintDecision decideDeviceFingerprint({
+  required bool isWeb,
+  required String? persisted,
+  required String? cached,
+  required String Function() generate,
+}) {
+  if (persisted != null) {
+    return DeviceFingerprintDecision(persisted, shouldPersist: false);
+  }
+  if (isWeb) {
+    return DeviceFingerprintDecision(cached ?? generate(), shouldPersist: false);
+  }
+  return DeviceFingerprintDecision(generate(), shouldPersist: true);
+}
+
 /// Device-local secure storage backing LR-009 Daily Login's stated
 /// prerequisites (per that screen's own spec):
 ///   - `pin_length` remembered locally from LR-008, non-sensitive
@@ -14,8 +52,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 ///   - `biometric_enabled`, set at LR-008's opt-in step.
 ///   - `device_fingerprint`, generated once per device install and
 ///     reused on every login call (LR-007 and LR-009 both send it).
+///     Native only — see [deviceFingerprint] for the web behaviour.
 ///   - `last_mobile_number`, so LR-009's step-down to LR-007 on 3x PIN
 ///     failure (BR-201) can pre-fill Mobile Number per that screen's S4.
+///     Native only — see [saveMobileNumber].
 class LocalAuthStore {
   static const _storage = FlutterSecureStorage();
 
@@ -24,6 +64,14 @@ class LocalAuthStore {
   static const _kBiometricEnabled = 'mana_biometric_enabled';
   static const _kDeviceFingerprint = 'mana_device_fingerprint';
   static const _kLastMobileNumber = 'mana_last_mobile_number';
+
+  // Web only: holds the fingerprint for the lifetime of the browser tab.
+  // A fingerprint minted per session is the accepted outcome (see
+  // deviceFingerprint's doc), but minting one per *login call* would insert
+  // a fresh `devices` row every time (auth-login/index.ts:255-274 upserts on
+  // fingerprint) — unbounded row growth once the site is public. This cache
+  // is what keeps one browser session to one row.
+  static String? _webFingerprintCache;
 
   // --- Written by LR-008 at PIN creation ---------------------------------
   static Future<void> savePin({required String pin, required bool biometricEnabled}) async {
@@ -42,8 +90,16 @@ class LocalAuthStore {
     await _storage.write(key: _kBiometricEnabled, value: biometricEnabled.toString());
   }
 
-  static Future<void> saveMobileNumber(String mobile) =>
-      _storage.write(key: _kLastMobileNumber, value: mobile);
+  // Web only: flutter_secure_storage is localStorage there — XSS-readable
+  // and outliving the browser closing, same exposure as the PIN value
+  // above. Nothing on web reads this back for anything functional (every
+  // reader only pre-fills a text field, per the LR-007/LR-009/Settings
+  // trace in fingerprint-investigation.md §7), so skipping the write on
+  // web costs a re-typed mobile number, never a broken flow.
+  static Future<void> saveMobileNumber(String mobile) async {
+    if (kIsWeb) return;
+    await _storage.write(key: _kLastMobileNumber, value: mobile);
+  }
 
   /// Toggle biometric on/off independently of PIN creation — used by the
   /// Settings screen when a person enables it AFTER initially skipping it
@@ -67,14 +123,38 @@ class LocalAuthStore {
 
   static Future<String?> readLastMobileNumber() => _storage.read(key: _kLastMobileNumber);
 
-  /// Generated once, persisted, reused on every /auth/login call from
-  /// this device (LR-007 and LR-009 both need the same value).
+  /// Native: generated once, persisted, reused on every /auth/login call
+  /// from this device forever (LR-007 and LR-009 both need the same value).
+  ///
+  /// Web: still generated and still sent on every login call — auth-login
+  /// requires the field (index.ts:67) — but never written to storage.
+  /// Browser storage here is localStorage: XSS-readable, outlives the
+  /// browser closing. The value still must not change on it, only where
+  /// it lives, is because nothing enforces on the result: a new
+  /// fingerprint only flips which `devices` row is `is_active`
+  /// (auth-login/index.ts:243-274, written and read nowhere else — no RPC,
+  /// no RLS policy, no app query gates on it), and it is not part of any
+  /// rate-limit key (those are `login:<identifier>:<ip>` and
+  /// `lockout:<person_id>`). So a fresh value once per browser session is
+  /// harmless. What is NOT harmless is a fresh value per *login call*
+  /// within one session — auth-login upserts a `devices` row per
+  /// fingerprint, so that would grow the table without bound. `_webFingerprintCache`
+  /// exists to prevent exactly that: one generation per page load, reused
+  /// for every login call after.
   static Future<String> deviceFingerprint() async {
-    final existing = await _storage.read(key: _kDeviceFingerprint);
-    if (existing != null) return existing;
-    final generated = _generateFingerprint();
-    await _storage.write(key: _kDeviceFingerprint, value: generated);
-    return generated;
+    final persisted = await _storage.read(key: _kDeviceFingerprint);
+    final decision = decideDeviceFingerprint(
+      isWeb: kIsWeb,
+      persisted: persisted,
+      cached: _webFingerprintCache,
+      generate: _generateFingerprint,
+    );
+    if (kIsWeb) {
+      _webFingerprintCache = decision.value;
+    } else if (decision.shouldPersist) {
+      await _storage.write(key: _kDeviceFingerprint, value: decision.value);
+    }
+    return decision.value;
   }
 
   static String _generateFingerprint() {

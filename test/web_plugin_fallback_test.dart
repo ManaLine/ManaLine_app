@@ -15,8 +15,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// Two ways a file may hold one of these, and only two:
 ///
 ///  1. Conditional import — the file is named `*_io.dart` and is only ever
-///     reached through a `dart.library.io` conditional export. Preferred: the
-///     web bundle then never compiles it at all.
+///     reached through a `dart.library.js_interop` conditional export (both
+///     seams in this codebase use `js_interop`, not `dart.library.io`, as
+///     the condition — `js_interop` is present only on web, so this is "if
+///     compiling for something other than web"). Preferred: the web bundle
+///     then never compiles it at all.
 ///  2. A `kIsWeb` branch in the same file, for a plugin whose Dart API has no
 ///     `dart:io` types in its signatures and can simply be skipped.
 const _webHostile = <String, String>{
@@ -41,12 +44,40 @@ void main() {
         reason: 'Only ${dartFiles.length} files scanned — lib/ moved and this '
             'guard is checking almost nothing.');
 
+    // The set of files actually named as the DEFAULT half of a conditional
+    // import somewhere in lib/ — `import '<default>.dart' if
+    // (dart.library.xxx) '<other>.dart'`, e.g. `'mana_file_share_io.dart' if
+    // (dart.library.js_interop) 'mana_file_share_web.dart'`. The default
+    // string (used everywhere the `if` condition is false) is what a
+    // `*_io.dart` file actually is in this codebase's two seams. When this
+    // exemption was written no `*_io.dart` file existed at all; this branch
+    // created two (mana_file_share_io.dart, mana_token_store_io.dart), which
+    // makes "named `*_io.dart`" a normal thing to type and an unconditional
+    // suffix match a free pass waiting to be used by a file that is NOT
+    // actually behind a conditional import. Requiring the file be the named
+    // default of a real `if (dart.library.` directive closes that gap.
+    final conditionalImportTargets = <String>{};
+    final conditionalImportPattern =
+        RegExp(r"""['"]([\w.]+)['"]\s*\n?\s*if\s*\(dart\.library\.""");
+    for (final file in dartFiles) {
+      for (final match in conditionalImportPattern.allMatches(file.readAsStringSync())) {
+        conditionalImportTargets.add(match.group(1)!);
+      }
+    }
+
     final offenders = <String>[];
 
     for (final file in dartFiles) {
       // Platform-specific halves of a conditional import are the sanctioned
-      // home for this code — the web bundle never compiles them.
-      if (file.path.endsWith('_io.dart')) continue;
+      // home for this code — the web bundle never compiles them. That is
+      // true only for a file actually named as such a target; a file merely
+      // NAMED `*_io.dart` with no conditional import pointing at it gets no
+      // exemption.
+      final fileName = file.path.split(RegExp(r'[\\/]')).last;
+      if (file.path.endsWith('_io.dart') &&
+          conditionalImportTargets.contains(fileName)) {
+        continue;
+      }
 
       final source = file.readAsStringSync();
       final guarded = source.contains('kIsWeb');

@@ -55,12 +55,15 @@ class LiveFaceCaptureScreen extends ConsumerStatefulWidget {
   /// the user backed out without capturing.
   static Future<Uint8List?> capture(BuildContext context) {
     return Navigator.of(context).push<Uint8List>(
-      MaterialPageRoute(builder: (_) => const LiveFaceCaptureScreen(), fullscreenDialog: true),
+      MaterialPageRoute(
+          builder: (_) => const LiveFaceCaptureScreen(),
+          fullscreenDialog: true),
     );
   }
 
   @override
-  ConsumerState<LiveFaceCaptureScreen> createState() => _LiveFaceCaptureScreenState();
+  ConsumerState<LiveFaceCaptureScreen> createState() =>
+      _LiveFaceCaptureScreenState();
 }
 
 /// Bounds decode cost for a web upload, NOT stored size — see the comment
@@ -70,6 +73,63 @@ class LiveFaceCaptureScreen extends ConsumerStatefulWidget {
 /// raw) must pass this comfortably; only a many-hundred-megapixel image or a
 /// full-desktop screenshot should ever hit it.
 const int _maxDecodableUploadBytes = 24 * 1024 * 1024; // 24MB
+
+/// Pure guard for a web-picked file: returns an error message if [bytes]
+/// should be rejected, or null if they are fine to hand to
+/// `cropToFaceCircle`. Extracted out of `_pickPhoto` so the two rejection
+/// branches — oversized, undecodable — are unit-testable without driving
+/// `file_selector` (which cannot be faked in a widget test in this project;
+/// there is no fake/mock file-picker seam anywhere else in the app either).
+/// `_pickPhoto` itself is left as the thin glue that calls this and updates
+/// state, so the two error strings live in exactly one place.
+String? webUploadRejectionReason(Uint8List bytes) {
+  // 1) Size, BEFORE decoding. `cropToFaceCircle`'s pixel-by-pixel loop runs
+  //    synchronously on the main isolate; decoding and cropping an
+  //    arbitrarily large file (a multi-hundred-megapixel photo, a screenshot
+  //    of a whole desktop) can visibly hang the tab with no feedback. Native
+  //    has no such exposure because `ResolutionPreset.medium` bounds every
+  //    frame before it ever reaches this file.
+  //
+  //    This bound is about DECODE COST, not stored size — do not reuse a
+  //    `ManaPhotoPreset.*.hardLimitBytes` here. Those constants cap the
+  //    *compressed* output that `ManaPhotoCompressor` produces later
+  //    (`live_photo_upload.dart`, under whichever preset the caller passes —
+  //    `loan` for this screen's LR-004/OW-005/AG callers, a different one for
+  //    OW-016's profile-photo use of this same screen), which is a storage
+  //    ceiling already enforced downstream. A raw phone photo straight off a
+  //    camera is routinely 2-5MB before that compression ever runs, so a cap
+  //    meant for decode safety has to sit far above that — this one only
+  //    refuses genuinely absurd input.
+  if (bytes.length > _maxDecodableUploadBytes) {
+    return 'That file is unusually large '
+        '(${(bytes.length / (1024 * 1024)).toStringAsFixed(1)}MB) and '
+        'cannot be processed. Please choose a normal photo.';
+  }
+
+  // 2) Decodability, BEFORE calling cropToFaceCircle. cropToFaceCircle
+  //    deliberately falls back to returning undecodable bytes as-is — right
+  //    for a live camera frame, where a failed decode is a rare glitch and an
+  //    uncropped photo beats no photo at a doorstep. It is wrong here: an
+  //    uploaded file that fails to decode is almost always not a photo at
+  //    all (a PDF or text file renamed .jpg), and that fallback would
+  //    silently store it as this customer's face photo with no error ever
+  //    shown. So the web upload path checks decodability itself and refuses
+  //    before reaching that fallback; cropToFaceCircle's own behaviour is
+  //    untouched for the native caller that still needs it.
+  //
+  //    This does mean `bytes` gets decoded twice on the success path — once
+  //    here, once inside cropToFaceCircle — real work at a 24MB bound. Not
+  //    eliminated: cropToFaceCircle's signature and native fallback
+  //    behaviour are both off-limits to change, and it takes raw bytes
+  //    rather than a pre-decoded `img.Image`, so there is no way to hand it
+  //    this decode result without changing what it is.
+  if (img.decodeImage(bytes) == null) {
+    return 'That file is not a readable image. Please choose a '
+        'different photo.';
+  }
+
+  return null;
+}
 
 class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   CameraController? _controller;
@@ -112,8 +172,8 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       // see _flip — because the tenth time is an Agent holding the handset up
       // to somebody standing in front of them, and before this there was no
       // way to do that at all.
-      final frontIndex =
-          _cameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+      final frontIndex = _cameras
+          .indexWhere((c) => c.lensDirection == CameraLensDirection.front);
       _cameraIndex = frontIndex >= 0 ? frontIndex : 0;
 
       await _openCamera(_cameras[_cameraIndex]);
@@ -123,7 +183,8 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       if (!mounted) return;
       setState(() {
         _initializing = false;
-        _error = 'Could not open camera. Check camera permission is granted. ($e)';
+        _error =
+            'Could not open camera. Check camera permission is granted. ($e)';
       });
     }
   }
@@ -142,8 +203,9 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       camera,
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup:
-          Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
+      imageFormatGroup: Platform.isAndroid
+          ? ImageFormatGroup.nv21
+          : ImageFormatGroup.bgra8888,
     );
     await controller.initialize();
     if (!mounted) {
@@ -204,7 +266,9 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   Future<void> _processImage(CameraImage image) async {
     try {
       final camera = _controller!.description;
-      final rotation = InputImageRotationValue.fromRawValue(camera.sensorOrientation) ?? InputImageRotation.rotation0deg;
+      final rotation =
+          InputImageRotationValue.fromRawValue(camera.sensorOrientation) ??
+              InputImageRotation.rotation0deg;
       final format = InputImageFormatValue.fromRawValue(image.format.raw);
       if (format == null) return;
 
@@ -274,59 +338,15 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       // Web's input is an arbitrary file from disk, not a bounded camera
       // frame — the extension filter above is cosmetic (any renamed file
       // passes it), so nothing before this point has actually looked at
-      // what was picked. Two checks the native path never needs:
-      //
-      // 1) Size, BEFORE decoding. `cropToFaceCircle`'s pixel-by-pixel loop
-      //    runs synchronously on the main isolate; decoding and cropping an
-      //    arbitrarily large file (a multi-hundred-megapixel photo, a
-      //    screenshot of a whole desktop) can visibly hang the tab with no
-      //    feedback. Native has no such exposure because `ResolutionPreset
-      //    .medium` bounds every frame before it ever reaches this file.
-      //
-      //    This bound is about DECODE COST, not stored size — do not reuse a
-      //    `ManaPhotoPreset.*.hardLimitBytes` here. Those constants cap the
-      //    *compressed* output that `ManaPhotoCompressor` produces later
-      //    (`live_photo_upload.dart`, under whichever preset the caller
-      //    passes — `loan` for this screen's LR-004/OW-005/AG callers, a
-      //    different one for OW-016's profile-photo use of this same
-      //    screen), which is a storage ceiling already enforced downstream.
-      //    A raw phone photo straight off a camera is routinely 2-5MB before
-      //    that compression ever runs, so a cap meant for decode safety has
-      //    to sit far above that — this one only refuses genuinely absurd
-      //    input.
-      if (bytes.length > _maxDecodableUploadBytes) {
+      // what was picked. See webUploadRejectionReason for the two checks
+      // the native path never needs and why. Rejection here is RECOVERABLE
+      // — the picker stays on screen (see build()/_buildWebPicker) so the
+      // person can immediately choose a different file.
+      final rejection = webUploadRejectionReason(bytes);
+      if (rejection != null) {
         setState(() {
           _busyCapturing = false;
-          _error = 'That file is unusually large '
-              '(${(bytes.length / (1024 * 1024)).toStringAsFixed(1)}MB) and '
-              'cannot be processed. Please choose a normal photo.';
-        });
-        return;
-      }
-
-      // 2) Decodability, BEFORE calling cropToFaceCircle. cropToFaceCircle
-      //    deliberately falls back to returning undecodable bytes as-is —
-      //    right for a live camera frame, where a failed decode is a rare
-      //    glitch and an uncropped photo beats no photo at a doorstep. It is
-      //    wrong here: an uploaded file that fails to decode is almost
-      //    always not a photo at all (a PDF or text file renamed .jpg), and
-      //    that fallback would silently store it as this customer's face
-      //    photo with no error ever shown. So the web upload path checks
-      //    decodability itself and refuses before reaching that fallback;
-      //    cropToFaceCircle's own behaviour is untouched for the native
-      //    caller that still needs it.
-      //
-      //    This does mean `bytes` gets decoded twice on the success path —
-      //    once here, once inside cropToFaceCircle — real work at a 24MB
-      //    bound. Not eliminated: cropToFaceCircle's signature and native
-      //    fallback behaviour are both off-limits to change, and it takes
-      //    raw bytes rather than a pre-decoded `img.Image`, so there is no
-      //    way to hand it this decode result without changing what it is.
-      if (img.decodeImage(bytes) == null) {
-        setState(() {
-          _busyCapturing = false;
-          _error = 'That file is not a readable image. Please choose a '
-              'different photo.';
+          _error = rejection;
         });
         return;
       }
@@ -367,88 +387,115 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       body: SafeArea(
         child: _initializing
             ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: ManaText(_error!, style: const TextStyle(color: Colors.white)),
-                    ),
-                  )
-                : kIsWeb
-                    ? _buildWebPicker()
+            // kIsWeb is checked BEFORE _error here, not after: _error is a
+            // terminal channel for the native camera-init failure below (no
+            // retry is possible — there is no camera to reopen), but
+            // _pickPhoto also writes into it for two RECOVERABLE upload
+            // rejections (oversized / undecodable file). Checking _error
+            // first used to make a rejected upload replace the whole picker
+            // with a dead-end error screen — the "choose a photo" button
+            // vanished and the only way back was leaving LR-004 and
+            // re-entering it. _buildWebPicker renders _error inline instead,
+            // so the picker (and the ability to immediately try another
+            // file) always stays on screen for web.
+            : kIsWeb
+                ? _buildWebPicker()
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: ManaText(_error!,
+                              style: const TextStyle(color: Colors.white)),
+                        ),
+                      )
                     // _controller is null for a beat mid-flip, so the spinner
                     // covers that too rather than the preview
                     // force-unwrapping a controller that is being replaced.
                     : _controller == null
                         ? const Center(child: CircularProgressIndicator())
                         : Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Positioned.fill(child: CameraPreview(_controller!)),
-                      // The circle is not decoration: it is exactly what gets
-                      // kept. Everything dimmed is discarded at capture, so
-                      // what is framed is what is stored -- see
-                      // cropToFaceCircle. Without it the preview promised a
-                      // whole room and the file delivered one.
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: CustomPaint(
-                            painter: _FaceCircleMask(
-                              ready: _faceDetected,
-                            ),
+                            alignment: Alignment.center,
+                            children: [
+                              Positioned.fill(
+                                  child: CameraPreview(_controller!)),
+                              // The circle is not decoration: it is exactly what gets
+                              // kept. Everything dimmed is discarded at capture, so
+                              // what is framed is what is stored -- see
+                              // cropToFaceCircle. Without it the preview promised a
+                              // whole room and the file delivered one.
+                              Positioned.fill(
+                                child: IgnorePointer(
+                                  child: CustomPaint(
+                                    painter: _FaceCircleMask(
+                                      ready: _faceDetected,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Only when there is somewhere to flip TO. A button that
+                              // does nothing on a single-camera handset is worse than
+                              // no button.
+                              if (_cameras.length > 1)
+                                Positioned(
+                                  top: 16,
+                                  right: 16,
+                                  child: IconButton.filledTonal(
+                                    onPressed: _switching || _busyCapturing
+                                        ? null
+                                        : _flip,
+                                    icon: Icon(_switching
+                                        ? Icons.hourglass_empty
+                                        : Icons.cameraswitch_outlined),
+                                    tooltip: ref.t('switch_camera'),
+                                  ),
+                                ),
+                              Positioned(
+                                bottom: 32,
+                                child: Column(
+                                  children: [
+                                    ManaText(
+                                      _faceDetected
+                                          ? 'Face detected — ready to capture'
+                                          : 'Position your face in frame',
+                                      style: TextStyle(
+                                        color: _faceDetected
+                                            ? Colors.greenAccent
+                                            : Colors.orangeAccent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed:
+                                          _faceDetected && !_busyCapturing
+                                              ? _capture
+                                              : null,
+                                      icon: const Icon(Icons.camera_alt,
+                                          size: 28),
+                                      label: ManaText.raw(
+                                        _busyCapturing
+                                            ? 'capturing...'
+                                            : 'capture',
+                                        style: ManaType.sheetTitle,
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: ManaColors.accent,
+                                        foregroundColor: Colors.white,
+                                        disabledBackgroundColor: ManaColors
+                                            .accent
+                                            .withValues(alpha: 0.4),
+                                        disabledForegroundColor:
+                                            Colors.white.withValues(alpha: 0.7),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 32, vertical: 18),
+                                        minimumSize: const Size(200, 56),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      // Only when there is somewhere to flip TO. A button that
-                      // does nothing on a single-camera handset is worse than
-                      // no button.
-                      if (_cameras.length > 1)
-                        Positioned(
-                          top: 16,
-                          right: 16,
-                          child: IconButton.filledTonal(
-                            onPressed: _switching || _busyCapturing ? null : _flip,
-                            icon: Icon(_switching
-                                ? Icons.hourglass_empty
-                                : Icons.cameraswitch_outlined),
-                            tooltip: ref.t('switch_camera'),
-                          ),
-                        ),
-                      Positioned(
-                        bottom: 32,
-                        child: Column(
-                          children: [
-                            ManaText(
-                              _faceDetected
-                                  ? 'Face detected — ready to capture'
-                                  : 'Position your face in frame',
-                              style: TextStyle(
-                                color: _faceDetected ? Colors.greenAccent : Colors.orangeAccent,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: _faceDetected && !_busyCapturing ? _capture : null,
-                              icon: const Icon(Icons.camera_alt, size: 28),
-                              label: ManaText.raw(
-                                _busyCapturing ? 'capturing...' : 'capture',
-                                style: ManaType.sheetTitle,
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: ManaColors.accent,
-                                foregroundColor: Colors.white,
-                                disabledBackgroundColor: ManaColors.accent.withValues(alpha: 0.4),
-                                disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-                                minimumSize: const Size(200, 56),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
       ),
     );
   }
@@ -464,13 +511,15 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.photo_camera_outlined, color: Colors.white70, size: 56),
+            const Icon(Icons.photo_camera_outlined,
+                color: Colors.white70, size: 56),
             const SizedBox(height: 16),
             const ManaText.raw(
               'Live capture needs a phone camera. On a computer, choose a '
               'recent photo instead — the same photo rules apply.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -483,12 +532,31 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: ManaColors.accent,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: ManaColors.accent.withValues(alpha: 0.4),
+                disabledBackgroundColor:
+                    ManaColors.accent.withValues(alpha: 0.4),
                 disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
                 minimumSize: const Size(200, 56),
               ),
             ),
+            // Rendered BESIDE the button, not instead of it — a rejected
+            // file (too large / not decodable, from webUploadRejectionReason)
+            // used to write into _error and get caught by build()'s old
+            // `_error != null` check ahead of the kIsWeb branch, which
+            // replaced this whole picker with a terminal error screen and no
+            // way to try another file short of leaving LR-004 and coming
+            // back. Keeping the picker on screen and showing the message
+            // here is the fix — the person can immediately pick again.
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              ManaText.raw(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.orangeAccent, fontWeight: FontWeight.w600),
+              ),
+            ],
           ],
         ),
       ),
@@ -566,7 +634,8 @@ class _FaceCircleMask extends CustomPainter {
       ..addOval(Rect.fromCircle(center: centre, radius: radius))
       ..fillType = PathFillType.evenOdd;
 
-    canvas.drawPath(outside, Paint()..color = Colors.black.withValues(alpha: 0.6));
+    canvas.drawPath(
+        outside, Paint()..color = Colors.black.withValues(alpha: 0.6));
     canvas.drawCircle(
       centre,
       radius,

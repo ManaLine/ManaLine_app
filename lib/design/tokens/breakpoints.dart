@@ -8,9 +8,14 @@
 class ManaBreakpoints {
   const ManaBreakpoints._();
 
-  /// Below this, a viewport is a handset and nothing here applies. Every
-  /// Android device this app targets sits under it, which is what makes the
-  /// clamp incapable of changing the Android build.
+  /// Below this, a viewport is a handset and nothing here applies. This used
+  /// to be the whole story — but it is an assumption about today's device
+  /// fleet (every targeted Android handset sits under it), not a mechanism:
+  /// an Android tablet or an unfolded foldable in portrait can exceed 600dp,
+  /// and `setPreferredOrientations` (main.dart) is a request the platform
+  /// routinely ignores on large screens. `ManaWebFrame` now also gates on
+  /// `kIsWeb`, which is what actually makes the clamp incapable of changing
+  /// the Android build — by construction, not by fleet assumption.
   static const compact = 600.0;
 
   /// How wide the centred column is allowed to get. Roughly a large handset,

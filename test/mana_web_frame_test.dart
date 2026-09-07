@@ -8,8 +8,16 @@ import 'package:mana_line/design/tokens/breakpoints.dart';
 /// one asserted first: BELOW the breakpoint it does nothing at all, so the
 /// Android build cannot be affected by it.
 void main() {
-  Future<double> widthOfChildAt(WidgetTester tester, double surface,
-      {String location = '/ow-001'}) async {
+  // `flutter test` runs on the VM, where the real `kIsWeb` is always false —
+  // so every test here must inject `isWeb` explicitly rather than rely on
+  // the widget's default, the same way `currentLocation` is already
+  // injected rather than read from a real router.
+  Future<double> widthOfChildAt(
+    WidgetTester tester,
+    double surface, {
+    String location = '/ow-001',
+    bool isWeb = true,
+  }) async {
     tester.view.physicalSize = Size(surface, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -17,6 +25,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: ManaWebFrame(
         currentLocation: () => location,
+        isWeb: () => isWeb,
         child: Container(key: const Key('content'), color: Colors.red),
       ),
     ));
@@ -38,5 +47,15 @@ void main() {
     kManaWideRoutes.add('/test-wide');
     addTearDown(() => kManaWideRoutes.remove('/test-wide'));
     expect(await widthOfChildAt(tester, 1440, location: '/test-wide'), 1440);
+  });
+
+  testWidgets('a desktop-width window is untouched off the web — I2', (tester) async {
+    // The mechanism this guards: `breakpoints.dart`'s "cannot change the
+    // Android build" claim used to rest only on every targeted handset
+    // being under 600dp — an assumption about today's fleet, not something
+    // width alone enforces. A tablet or unfolded foldable at >=600dp would
+    // have been clamped. Gating on `isWeb` too makes the claim true by
+    // construction: even a desktop-sized window is left alone off the web.
+    expect(await widthOfChildAt(tester, 1440, isWeb: false), 1440);
   });
 }

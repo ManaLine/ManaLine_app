@@ -12,7 +12,6 @@ import '../design/tokens/typography.dart';
 import '../design/components/mana_app_bar.dart';
 import 'translation_service.dart';
 import '../design/components/mana_text.dart';
-import 'photo_compression.dart' show ManaPhotoPreset;
 
 /// Reusable live-capture screen for every "Live Photo Capture (MANDATORY,
 /// camera only)" field in the app — LR-004 F1 (registration, BR-036) and
@@ -63,6 +62,14 @@ class LiveFaceCaptureScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<LiveFaceCaptureScreen> createState() => _LiveFaceCaptureScreenState();
 }
+
+/// Bounds decode cost for a web upload, NOT stored size — see the comment
+/// at its use site in `_pickPhoto`. The real storage ceiling is enforced
+/// later by `ManaPhotoCompressor` under whichever `ManaPhotoPreset` the
+/// caller uses (`live_photo_upload.dart`). An ordinary phone photo (2-5MB
+/// raw) must pass this comfortably; only a many-hundred-megapixel image or a
+/// full-desktop screenshot should ever hit it.
+const int _maxDecodableUploadBytes = 24 * 1024 * 1024; // 24MB
 
 class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   CameraController? _controller;
@@ -275,18 +282,24 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       //    screenshot of a whole desktop) can visibly hang the tab with no
       //    feedback. Native has no such exposure because `ResolutionPreset
       //    .medium` bounds every frame before it ever reaches this file.
-      //    The cap reuses `ManaPhotoPreset.loan.hardLimitBytes` rather than
-      //    inventing a new number: this exact photo is uploaded through
-      //    `live_photo_upload.dart` under `ManaPhotoPreset.loan`, so 1MB is
-      //    already the ceiling the `live-photos` bucket enforces on the
-      //    *compressed* result — a raw upload already past that figure is
-      //    certainly not a normal doorstep face photo.
-      if (bytes.length > ManaPhotoPreset.loan.hardLimitBytes) {
+      //
+      //    This bound is about DECODE COST, not stored size — do not reuse a
+      //    `ManaPhotoPreset.*.hardLimitBytes` here. Those constants cap the
+      //    *compressed* output that `ManaPhotoCompressor` produces later
+      //    (`live_photo_upload.dart`, under whichever preset the caller
+      //    passes — `loan` for this screen's LR-004/OW-005/AG callers, a
+      //    different one for OW-016's profile-photo use of this same
+      //    screen), which is a storage ceiling already enforced downstream.
+      //    A raw phone photo straight off a camera is routinely 2-5MB before
+      //    that compression ever runs, so a cap meant for decode safety has
+      //    to sit far above that — this one only refuses genuinely absurd
+      //    input.
+      if (bytes.length > _maxDecodableUploadBytes) {
         setState(() {
           _busyCapturing = false;
-          _error =
-              'That file is too large (${(bytes.length / 1024).round()}KB). '
-              'Please choose a smaller photo.';
+          _error = 'That file is unusually large '
+              '(${(bytes.length / (1024 * 1024)).toStringAsFixed(1)}MB) and '
+              'cannot be processed. Please choose a normal photo.';
         });
         return;
       }
@@ -302,6 +315,13 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       //    decodability itself and refuses before reaching that fallback;
       //    cropToFaceCircle's own behaviour is untouched for the native
       //    caller that still needs it.
+      //
+      //    This does mean `bytes` gets decoded twice on the success path —
+      //    once here, once inside cropToFaceCircle — real work at a 24MB
+      //    bound. Not eliminated: cropToFaceCircle's signature and native
+      //    fallback behaviour are both off-limits to change, and it takes
+      //    raw bytes rather than a pre-decoded `img.Image`, so there is no
+      //    way to hand it this decode result without changing what it is.
       if (img.decodeImage(bytes) == null) {
         setState(() {
           _busyCapturing = false;

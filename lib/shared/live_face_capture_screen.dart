@@ -12,6 +12,7 @@ import '../design/tokens/typography.dart';
 import '../design/components/mana_app_bar.dart';
 import 'translation_service.dart';
 import '../design/components/mana_text.dart';
+import 'photo_compression.dart' show ManaPhotoPreset;
 
 /// Reusable live-capture screen for every "Live Photo Capture (MANDATORY,
 /// camera only)" field in the app — LR-004 F1 (registration, BR-036) and
@@ -262,6 +263,54 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       }
       final bytes = await file.readAsBytes();
       if (!mounted) return;
+
+      // Web's input is an arbitrary file from disk, not a bounded camera
+      // frame — the extension filter above is cosmetic (any renamed file
+      // passes it), so nothing before this point has actually looked at
+      // what was picked. Two checks the native path never needs:
+      //
+      // 1) Size, BEFORE decoding. `cropToFaceCircle`'s pixel-by-pixel loop
+      //    runs synchronously on the main isolate; decoding and cropping an
+      //    arbitrarily large file (a multi-hundred-megapixel photo, a
+      //    screenshot of a whole desktop) can visibly hang the tab with no
+      //    feedback. Native has no such exposure because `ResolutionPreset
+      //    .medium` bounds every frame before it ever reaches this file.
+      //    The cap reuses `ManaPhotoPreset.loan.hardLimitBytes` rather than
+      //    inventing a new number: this exact photo is uploaded through
+      //    `live_photo_upload.dart` under `ManaPhotoPreset.loan`, so 1MB is
+      //    already the ceiling the `live-photos` bucket enforces on the
+      //    *compressed* result — a raw upload already past that figure is
+      //    certainly not a normal doorstep face photo.
+      if (bytes.length > ManaPhotoPreset.loan.hardLimitBytes) {
+        setState(() {
+          _busyCapturing = false;
+          _error =
+              'That file is too large (${(bytes.length / 1024).round()}KB). '
+              'Please choose a smaller photo.';
+        });
+        return;
+      }
+
+      // 2) Decodability, BEFORE calling cropToFaceCircle. cropToFaceCircle
+      //    deliberately falls back to returning undecodable bytes as-is —
+      //    right for a live camera frame, where a failed decode is a rare
+      //    glitch and an uncropped photo beats no photo at a doorstep. It is
+      //    wrong here: an uploaded file that fails to decode is almost
+      //    always not a photo at all (a PDF or text file renamed .jpg), and
+      //    that fallback would silently store it as this customer's face
+      //    photo with no error ever shown. So the web upload path checks
+      //    decodability itself and refuses before reaching that fallback;
+      //    cropToFaceCircle's own behaviour is untouched for the native
+      //    caller that still needs it.
+      if (img.decodeImage(bytes) == null) {
+        setState(() {
+          _busyCapturing = false;
+          _error = 'That file is not a readable image. Please choose a '
+              'different photo.';
+        });
+        return;
+      }
+
       Navigator.of(context).pop(cropToFaceCircle(bytes));
     } catch (e) {
       if (!mounted) return;
@@ -442,6 +491,14 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
 ///
 /// Falls back to the original bytes if they cannot be decoded. A photo that
 /// is not cropped is worth more than no photo at a doorstep.
+///
+/// That reasoning holds for `_capture`'s camera frames (a decode failure
+/// there is a rare hardware/codec glitch) and does NOT hold for
+/// `_pickPhoto`'s web uploads (an undecodable upload is almost always not a
+/// photo at all) — which is why `_pickPhoto` decodes and refuses bad input
+/// itself before ever calling this function, rather than this fallback being
+/// changed. Do not remove or tighten this fallback to "fix" the web case;
+/// the native caller still depends on it exactly as written.
 Uint8List cropToFaceCircle(Uint8List bytes) {
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return bytes;

@@ -184,11 +184,11 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
 
   Future<void> _captureLivePhoto() async {
     try {
-      // BR-036: camera capture only, no gallery upload — this screen never
-      // exposes a gallery/file picker at all, on any platform. On top of
-      // that base requirement, this now also gates capture on-device face
-      // detection (Android/iOS only — see LiveFaceCaptureScreen's own doc
-      // comment for the Flutter Web limitation).
+      // BR-036: camera capture only, no gallery upload, on Android/iOS —
+      // this also gates capture on on-device face detection there. Web has
+      // no camera plugin to open at all, so LiveFaceCaptureScreen shows a
+      // file picker instead on that platform only; see its own doc comment
+      // for why that is not a relaxation of BR-036.
       final bytes = await LiveFaceCaptureScreen.capture(context);
       if (bytes == null) return; // user backed out — not an error
       if (!mounted) return;

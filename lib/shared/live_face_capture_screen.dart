@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:image/image.dart' as img;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../design/tokens/colors.dart';
@@ -20,16 +21,26 @@ import '../design/components/mana_text.dart';
 ///
 /// PLATFORM LIMITATION (flagged, not silently worked around):
 /// google_mlkit_face_detection wraps native Android/iOS ML Kit — it has NO
-/// Flutter Web binding. Since this project targets Web + Android + iOS from
-/// one codebase, the live face-presence gate below only runs on
-/// Android/iOS. On Web (kIsWeb), this screen still enforces camera-only
-/// capture (no gallery picker anywhere in this file) but WITHOUT the
-/// face-detection gate — the capture button is always enabled there. This
-/// is a real platform gap, not a bug: there is no in-browser equivalent
-/// shipped by this package. If a same-quality Web face-detection gate is
-/// required later, it needs a different, web-specific library (e.g. a
-/// WASM/JS face-detection model), which is new scope, not a fix to this
-/// file.
+/// Flutter Web binding, so the live face-presence gate below only runs on
+/// Android/iOS.
+///
+/// The bigger gap is not ML Kit — it is `camera` itself. `camera` has no
+/// web implementation in this dependency set: `availableCameras()` throws
+/// before any face-detection logic is ever reached. An earlier version of
+/// this file assumed the opposite (that the camera opened on web and only
+/// the ML Kit gate was missing) and shipped nine `kIsWeb` branches built on
+/// that false premise — e.g. `_faceDetected = kIsWeb`, treating "on web" as
+/// "a face is present". That code compiled and read correctly, and would
+/// have thrown on the first browser visit to this screen.
+///
+/// So on Web this screen never touches `CameraController` at all. It shows
+/// the same chrome with a single "choose a photo" action backed by
+/// `file_selector` instead of a live viewfinder, and says so on screen —
+/// see `_pickPhoto` and the web branch of `build()`. The picked bytes are
+/// routed through the exact same `cropToFaceCircle` call the camera path
+/// uses, so nothing that arrives via upload skips the processing a live
+/// capture would have gone through. On Android/iOS, camera-only capture
+/// (no gallery picker) is still enforced exactly as before.
 ///
 /// WHAT THIS DETECTS: exactly ONE face present and roughly centered in
 /// frame. This is presence/liveness-adjacent (a live camera stream, not a
@@ -56,7 +67,7 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   CameraController? _controller;
   FaceDetector? _faceDetector;
   bool _initializing = true;
-  bool _faceDetected = false; // always treated as true on Web — see class doc
+  bool _faceDetected = false; // native only — the web branch never reads this
   bool _busyCapturing = false;
   bool _detecting = false; // reentrancy guard for the image-stream callback
 
@@ -75,6 +86,14 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   }
 
   Future<void> _init() async {
+    // Web never has a `camera` implementation to open — see the class doc.
+    // `availableCameras()` would throw here on every browser, so this skips
+    // straight to the upload UI instead of attempting (and failing) a
+    // camera open first.
+    if (kIsWeb) {
+      setState(() => _initializing = false);
+      return;
+    }
     try {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
@@ -106,14 +125,17 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   /// Shared by first start and by [_flip] so the two cannot drift — a flip
   /// that forgot to restart the stream would leave the Capture button
   /// permanently disabled, which is indistinguishable from a broken camera.
+  // Only ever called on Android/iOS — _init returns before this on Web, and
+  // _flip (the only other caller) is only reachable from the camera UI that
+  // Web never builds. So this no longer needs a kIsWeb branch of its own:
+  // the `camera` plugin it drives has no web implementation to branch for.
   Future<void> _openCamera(CameraDescription camera) async {
     final controller = CameraController(
       camera,
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup: kIsWeb
-          ? null
-          : (Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888),
+      imageFormatGroup:
+          Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
     );
     await controller.initialize();
     if (!mounted) {
@@ -121,15 +143,10 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       return;
     }
 
-    if (!kIsWeb) {
-      _faceDetector ??= FaceDetector(
-        options: FaceDetectorOptions(performanceMode: FaceDetectorMode.fast),
-      );
-      await controller.startImageStream(_onCameraImage);
-    } else {
-      // No ML Kit on Web — capture button is always enabled, gate skipped.
-      _faceDetected = true;
-    }
+    _faceDetector ??= FaceDetector(
+      options: FaceDetectorOptions(performanceMode: FaceDetectorMode.fast),
+    );
+    await controller.startImageStream(_onCameraImage);
 
     if (!mounted) {
       await controller.dispose();
@@ -138,14 +155,16 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
     setState(() => _controller = controller);
   }
 
-  /// Switches lens. Only offered when the device actually has a second one.
+  /// Switches lens. Only offered when the device actually has a second one
+  /// — native only; Web never populates `_cameras`, so the flip button
+  /// never renders there (see build()).
   Future<void> _flip() async {
     if (_cameras.length < 2 || _switching || _busyCapturing) return;
     setState(() {
       _switching = true;
       // The new lens has not seen a face yet, and carrying the old lens's
       // answer over would leave Capture enabled while pointing at nothing.
-      _faceDetected = kIsWeb;
+      _faceDetected = false;
     });
 
     final old = _controller;
@@ -154,7 +173,7 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
     setState(() => _controller = null);
     try {
       if (old != null) {
-        if (!kIsWeb && old.value.isStreamingImages) {
+        if (old.value.isStreamingImages) {
           await old.stopImageStream();
         }
         await old.dispose();
@@ -204,13 +223,12 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
     }
   }
 
+  // Native camera capture. Never called on Web — see _init and build().
   Future<void> _capture() async {
     if (_controller == null || _busyCapturing || !_faceDetected) return;
     setState(() => _busyCapturing = true);
     try {
-      if (!kIsWeb) {
-        await _controller!.stopImageStream();
-      }
+      await _controller!.stopImageStream();
       final file = await _controller!.takePicture();
       final bytes = await file.readAsBytes();
       if (!mounted) return;
@@ -220,6 +238,36 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       setState(() {
         _busyCapturing = false;
         _error = 'Capture failed: $e';
+      });
+    }
+  }
+
+  /// Web's stand-in for _capture: a "choose a photo" picker instead of a
+  /// live viewfinder, feeding the SAME crop/validation call and the SAME
+  /// Navigator.pop result path _capture uses — see the class doc for why
+  /// there must be exactly one of those, not two.
+  Future<void> _pickPhoto() async {
+    if (_busyCapturing) return;
+    setState(() => _busyCapturing = true);
+    try {
+      const group = XTypeGroup(
+        label: 'photo',
+        extensions: ['jpg', 'jpeg', 'png'],
+      );
+      final file = await openFile(acceptedTypeGroups: [group]);
+      if (file == null) {
+        // Cancelled — not an error, matches _capture's own return-early style.
+        if (mounted) setState(() => _busyCapturing = false);
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      Navigator.of(context).pop(cropToFaceCircle(bytes));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busyCapturing = false;
+        _error = 'Could not open the selected photo: $e';
       });
     }
   }
@@ -248,10 +296,7 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
-        // _controller is null for a beat mid-flip, so the spinner covers that
-        // too rather than the preview force-unwrapping a controller that is
-        // being replaced.
-        child: _initializing || (_error == null && _controller == null)
+        child: _initializing
             ? const Center(child: CircularProgressIndicator())
             : _error != null
                 ? Center(
@@ -260,7 +305,14 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
                       child: ManaText(_error!, style: const TextStyle(color: Colors.white)),
                     ),
                   )
-                : Stack(
+                : kIsWeb
+                    ? _buildWebPicker()
+                    // _controller is null for a beat mid-flip, so the spinner
+                    // covers that too rather than the preview
+                    // force-unwrapping a controller that is being replaced.
+                    : _controller == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : Stack(
                     alignment: Alignment.center,
                     children: [
                       Positioned.fill(child: CameraPreview(_controller!)),
@@ -273,7 +325,7 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
                         child: IgnorePointer(
                           child: CustomPaint(
                             painter: _FaceCircleMask(
-                              ready: _faceDetected || kIsWeb,
+                              ready: _faceDetected,
                             ),
                           ),
                         ),
@@ -298,13 +350,11 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
                         child: Column(
                           children: [
                             ManaText(
-                              _faceDetected || kIsWeb
-                                  ? (kIsWeb ? 'Position your face in frame, then tap Capture' : 'Face detected — ready to capture')
+                              _faceDetected
+                                  ? 'Face detected — ready to capture'
                                   : 'Position your face in frame',
                               style: TextStyle(
-                                color: kIsWeb
-                                    ? Colors.white
-                                    : (_faceDetected ? Colors.greenAccent : Colors.orangeAccent),
+                                color: _faceDetected ? Colors.greenAccent : Colors.orangeAccent,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -330,6 +380,48 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
                       ),
                     ],
                   ),
+      ),
+    );
+  }
+
+  /// Web's whole screen body: no viewfinder, because there is no camera to
+  /// show one from (see class doc). Same black chrome, a plain explanation
+  /// of why this control is different here, and the one action that feeds
+  /// _pickPhoto — which rejoins _capture's own validation/result path.
+  Widget _buildWebPicker() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.photo_camera_outlined, color: Colors.white70, size: 56),
+            const SizedBox(height: 16),
+            const ManaText.raw(
+              'Live capture needs a phone camera. On a computer, choose a '
+              'recent photo instead — the same photo rules apply.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _busyCapturing ? null : _pickPhoto,
+              icon: const Icon(Icons.photo_library_outlined, size: 28),
+              label: ManaText.raw(
+                _busyCapturing ? 'opening...' : 'choose a photo',
+                style: ManaType.sheetTitle,
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ManaColors.accent,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: ManaColors.accent.withValues(alpha: 0.4),
+                disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                minimumSize: const Size(200, 56),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

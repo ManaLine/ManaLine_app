@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Device-local secure storage backing LR-009 Daily Login's stated
@@ -26,7 +27,17 @@ class LocalAuthStore {
 
   // --- Written by LR-008 at PIN creation ---------------------------------
   static Future<void> savePin({required String pin, required bool biometricEnabled}) async {
-    await _storage.write(key: _kPinValue, value: pin);
+    // Web only: flutter_secure_storage is backed by localStorage there, not
+    // Keychain/Keystore — readable by any XSS on the origin and outlasting
+    // the browser closing, a no-expiry bearer credential strictly worse than
+    // the session JWT. It is stored at all only so a fingerprint unlock can
+    // replay it as a PIN login (see the class doc), and ManaBiometric.
+    // isAvailable() already returns false on web, so nothing on web can ever
+    // read this back. Skipping the write removes the exposure with no loss
+    // of function.
+    if (!kIsWeb) {
+      await _storage.write(key: _kPinValue, value: pin);
+    }
     await _storage.write(key: _kPinLength, value: pin.length.toString());
     await _storage.write(key: _kBiometricEnabled, value: biometricEnabled.toString());
   }

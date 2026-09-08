@@ -1,0 +1,20 @@
+# Cloudflare Pages header rules. Matching rules are ADDITIVE, not
+# override-by-specificity: a request under /app/* also matches /* below,
+# so both rule blocks' headers apply and same-named headers get
+# comma-joined unless removed first with "! Header-Name" (used below for
+# CSP). See docs/DEPLOY.md for how this was verified against the real
+# `flutter build web -t lib/main_web.dart` output, and why the /app/*
+# policy differs from the static site's.
+#
+# Do not add the anon key or any credential here — this file ships to
+# every visitor's browser as plain response headers.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+
+/app/*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.gstatic.com blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://www.gstatic.com https://fonts.gstatic.com https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'

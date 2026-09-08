@@ -1,8 +1,10 @@
 // OW-013 Account Review's card grid (Plan 2a Task 5): one column on a
-// phone, two at medium width, three at expanded width. Branches on
-// LayoutBuilder constraints (ManaBreakpoints.of), never MediaQuery -- see
-// _SettlementCardGrid's doc comment in ow_013_account_review.dart for why
-// that distinction matters inside ManaWebFrame's clamp.
+// phone, two at medium width, three at expanded width, via ManaFormGrid's
+// columnsAtMedium/columnsAtExpanded. Branches on LayoutBuilder constraints
+// (ManaBreakpoints.of), never MediaQuery -- see ManaFormGrid's doc comment
+// in mana_form_grid.dart for why that distinction matters inside
+// ManaWebFrame's clamp, and for why OW-013's own former copy of this
+// algorithm (`_SettlementCardGrid`) was deleted in favour of that widget.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_013_account_review.dart';

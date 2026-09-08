@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../design/tokens/breakpoints.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
@@ -10,6 +9,7 @@ import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../design/components/mana_card.dart';
+import '../../../design/components/mana_form_grid.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/account_review_state.dart';
@@ -116,72 +116,22 @@ class _AccountReviewTab extends ConsumerWidget {
                     ),
                   )
                 else
-                  _SettlementCardGrid(businessId: businessId, settlements: state.settlements),
+                  // 1 column on a phone, 2 at medium, 3 at expanded --
+                  // ManaFormGrid's own two-tier default extended to a third
+                  // via columnsAtExpanded (see that widget's doc comment for
+                  // why the local `_SettlementCardGrid` this used to be was
+                  // deleted rather than kept as a second copy of the same
+                  // anti-orphan algorithm).
+                  ManaFormGrid(
+                    columnsAtMedium: 2,
+                    columnsAtExpanded: 3,
+                    children: [
+                      for (final s in state.settlements)
+                        _SettlementCard(businessId: businessId, settlement: s),
+                    ],
+                  ),
               ],
             ),
-    );
-  }
-}
-
-/// Flows the settlement cards into columns once there is width for them:
-/// one column on a phone, two at [ManaWidthClass.medium], three at
-/// [ManaWidthClass.expanded] — a desk otherwise shows one card at a time in
-/// a column that uses a fraction of the window.
-///
-/// Branches on [LayoutBuilder] constraints, not `MediaQuery`: this widget is
-/// built inside a `ListView` inside `ManaWebFrame`'s clamp on every route not
-/// in `kManaWideRoutes`, and `ConstrainedBox` does not change what
-/// `MediaQuery.sizeOf` reports (see breakpoints.dart's doc comment) — reading
-/// `MediaQuery` here would size the grid off the whole window instead of the
-/// space this widget actually has.
-///
-/// A plain `Wrap` rather than a `GridView`: every child gets the SAME fixed
-/// width up front (the row's width minus inter-column gaps, divided evenly),
-/// so a final row shorter than the column count keeps its card at that same
-/// width instead of a `GridView`-style stretch — the same anti-orphan
-/// technique `ManaFormGrid` uses, kept local here because the card heights
-/// vary with content in a way `ManaFormGrid`'s callers do not.
-class _SettlementCardGrid extends StatelessWidget {
-  final String businessId;
-  final List<AccountSettlementSummary> settlements;
-  const _SettlementCardGrid({required this.businessId, required this.settlements});
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = switch (ManaBreakpoints.of(constraints.maxWidth)) {
-          ManaWidthClass.expanded => 3,
-          ManaWidthClass.medium => 2,
-          ManaWidthClass.compact => 1,
-        };
-
-        if (columns <= 1) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < settlements.length; i++) ...[
-                if (i > 0) const SizedBox(height: ManaSpacing.md),
-                _SettlementCard(businessId: businessId, settlement: settlements[i]),
-              ],
-            ],
-          );
-        }
-
-        final totalGaps = ManaSpacing.lg * (columns - 1);
-        final columnWidth = (constraints.maxWidth - totalGaps) / columns;
-        return Wrap(
-          spacing: ManaSpacing.lg,
-          runSpacing: ManaSpacing.md,
-          children: [
-            for (final s in settlements)
-              SizedBox(
-                width: columnWidth,
-                child: _SettlementCard(businessId: businessId, settlement: s),
-              ),
-          ],
-        );
-      },
     );
   }
 }

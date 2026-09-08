@@ -1,17 +1,27 @@
-/// A form's fields, flowed into columns once there is room for them.
+/// A form's fields, or cards, flowed into columns once there is room for them.
 ///
 /// On a phone every filter/field stacks single-file — there is nowhere else
 /// for it to go. A tablet or a desk has width to spare, and a form read as
 /// one column across the whole window forces the eye down a needlessly tall
 /// page. This widget is the shared answer: below [ManaWidthClass.medium] it
-/// is a plain vertical stack; at or above it, children flow into
-/// [columnsAtMedium] columns.
+/// is a plain vertical stack; at [ManaWidthClass.medium] children flow into
+/// [columnsAtMedium] columns; at [ManaWidthClass.expanded] into
+/// [columnsAtExpanded] (defaulting to [columnsAtMedium], so every existing
+/// caller written before that parameter existed keeps its original two-tier
+/// behaviour unchanged).
 ///
 /// LAYOUT-ONLY, on purpose, same boundary as [ManaLedgerTable]: this widget
 /// takes children already built by the caller and knows nothing about what a
-/// field is — no [TextField], no validation, no label. That is what lets
-/// OW-017's period filters and Plans 2b/2c/2e's forms share it without
-/// sharing behaviour.
+/// child is — no [TextField], no validation, no label, no [Card]. That is
+/// what lets OW-017's period filters and OW-013's settlement cards (whose
+/// heights vary with content — this widget never required uniform child
+/// heights, `Wrap` does not need them) share it without sharing behaviour.
+/// OW-013 originally kept a byte-for-byte duplicate of this widget's
+/// algorithm as `_SettlementCardGrid`, differing only in its column counts
+/// (1/2/3 instead of 1/N); it was deleted in favour of this one, with
+/// `columnsAtExpanded` added specifically to carry that third tier, because
+/// a second copy of an anti-orphan technique is a second place a future fix
+/// to it (RTL, scrollbar-width accounting, `Wrap` spacing) can silently miss.
 ///
 /// THE ORPHAN-CHILD DETAIL. A naive `Row`-per-line-of-N approach stretches a
 /// lone last child (an odd count, or any count not divisible by the column
@@ -32,16 +42,20 @@ import '../tokens/spacing.dart';
 class ManaFormGrid extends StatelessWidget {
   final List<Widget> children;
 
-  /// Columns used at [ManaWidthClass.medium] and [ManaWidthClass.expanded]
-  /// alike — a form grid does not need a third tier the way the ledger
-  /// table's column widths do; two columns already uses a desk's width well
-  /// without crowding a tablet.
+  /// Columns used at [ManaWidthClass.medium].
   final int columnsAtMedium;
+
+  /// Columns used at [ManaWidthClass.expanded]. Null (the default) reuses
+  /// [columnsAtMedium], which is exactly the single two-tier behaviour every
+  /// caller had before this field existed — adding it changes no existing
+  /// call site's rendered layout.
+  final int? columnsAtExpanded;
 
   const ManaFormGrid({
     super.key,
     required this.children,
     this.columnsAtMedium = 2,
+    this.columnsAtExpanded,
   });
 
   @override
@@ -51,9 +65,15 @@ class ManaFormGrid extends StatelessWidget {
         // An unbounded incoming width (e.g. inside a horizontally-scrolling
         // ancestor) has no meaningful column width to divide by — fall back
         // to the single-column stack, the same as a compact viewport.
-        final isCompact = !constraints.maxWidth.isFinite ||
-            ManaBreakpoints.of(constraints.maxWidth) == ManaWidthClass.compact;
-        final columns = isCompact ? 1 : columnsAtMedium.clamp(1, children.isEmpty ? 1 : children.length);
+        final widthClass = constraints.maxWidth.isFinite
+            ? ManaBreakpoints.of(constraints.maxWidth)
+            : ManaWidthClass.compact;
+        final rawColumns = switch (widthClass) {
+          ManaWidthClass.compact => 1,
+          ManaWidthClass.medium => columnsAtMedium,
+          ManaWidthClass.expanded => columnsAtExpanded ?? columnsAtMedium,
+        };
+        final columns = rawColumns.clamp(1, children.isEmpty ? 1 : children.length);
 
         if (columns <= 1) {
           return Column(

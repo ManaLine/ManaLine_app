@@ -88,13 +88,43 @@ class ManaLedgerHistoryView extends ConsumerStatefulWidget {
 }
 
 class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
-  final _scroll = ScrollController();
+  // TWO controllers, not one shared between the card ListView and the table's
+  // internal ListView.
+  //
+  // The original design handed the SAME controller to whichever layout
+  // `_body` built, reasoning that only one of `_cardBody`/`_tableBody` is
+  // ever mounted at a time. That is true of the WIDGET tree in one build, but
+  // not of the underlying Scrollables' lifetimes: when a browser resize
+  // crosses `ManaBreakpoints.expanded` between builds, Flutter deactivates
+  // the outgoing Scrollable and calls `initState` on the incoming one within
+  // the SAME build pass, while the outgoing Scrollable's `dispose()` -- which
+  // is what detaches its `ScrollPosition` from the shared controller -- is
+  // deferred to `BuildOwner.finalizeTree()` at the end of that frame. In the
+  // window between those two moments, a single `ScrollController` would have
+  // TWO attached positions. `_onScroll` reads `.position`, the singular
+  // getter that asserts exactly one attachment, so a scroll-metrics
+  // notification firing in that window throws "ScrollController attached to
+  // multiple scroll views" -- a real, reachable crash on resize, not a
+  // theoretical one. `hasClients` does not guard against it: it is true in
+  // that window too, since two is more than zero.
+  //
+  // The fix removes the hazard instead of making `_onScroll` defensive about
+  // it (checking `positions.length == 1` would hide a resize crash as a
+  // silently-skipped pagination check, which is worse: the next reader would
+  // believe sharing one controller was safe). Each layout gets its own
+  // controller, and the SAME `_onScroll` function is attached as a listener
+  // to both, so the "less than 400px left -> loadMore()" rule stays the one
+  // rule pagination is decided by, just evaluated against whichever
+  // Scrollable actually notified it.
+  final _cardScroll = ScrollController();
+  final _tableScroll = ScrollController();
   final _search = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(_onScroll);
+    _cardScroll.addListener(_onScroll);
+    _tableScroll.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -107,17 +137,26 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
 
   @override
   void dispose() {
-    _scroll.removeListener(_onScroll);
-    _scroll.dispose();
+    _cardScroll.removeListener(_onScroll);
+    _cardScroll.dispose();
+    _tableScroll.removeListener(_onScroll);
+    _tableScroll.dispose();
     _search.dispose();
     super.dispose();
   }
 
+  // Attached to BOTH controllers (see the field doc comment for why there are
+  // two). Only one is ever attached to a mounted Scrollable at a time, so at
+  // most one iteration below does anything; `hasClients` on the other is
+  // false, not "attached with zero positions", so this never touches
+  // `.position` on a controller with no Scrollable.
   void _onScroll() {
-    if (!_scroll.hasClients) return;
-    final remaining = _scroll.position.maxScrollExtent - _scroll.position.pixels;
-    if (remaining < 400) {
-      ref.read(ledgerHistoryProvider(_scope).notifier).loadMore();
+    for (final c in [_cardScroll, _tableScroll]) {
+      if (!c.hasClients) continue;
+      final remaining = c.position.maxScrollExtent - c.position.pixels;
+      if (remaining < 400) {
+        ref.read(ledgerHistoryProvider(_scope).notifier).loadMore();
+      }
     }
   }
 
@@ -357,7 +396,7 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
     }
 
     return ListView.builder(
-      controller: _scroll,
+      controller: _cardScroll,
       itemCount: slivers.length,
       itemBuilder: (_, i) => slivers[i],
     );
@@ -378,16 +417,14 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
   /// simply not redrawn a second time. This is a placement decision, not a
   /// calculation change.
   ///
-  /// Pagination: `_scroll` is the SAME [ScrollController] the card view
-  /// attaches to, handed to [ManaLedgerTable] here so its internal vertical
-  /// [ListView] attaches to it instead. Because `_body` only ever builds one
-  /// of `_cardBody`/`_tableBody` at a time, only one concrete Scrollable is
-  /// ever attached to `_scroll` at once -- there is no moment where two
-  /// Scrollables fight over it. `_onScroll` (the one threshold check, "less
-  /// than 400px of scroll extent left -> loadMore()") never needed to change
-  /// or duplicate: it already reads `_scroll.position`, which now belongs to
-  /// whichever list is currently mounted. A desk-width session pages exactly
-  /// like a phone-width one, off the one rule.
+  /// Pagination: `_tableScroll` is this layout's OWN [ScrollController] (see
+  /// the field doc comment on why it is not shared with `_cardBody`'s
+  /// `_cardScroll`), handed to [ManaLedgerTable] here so its internal
+  /// vertical [ListView] attaches to it. The same `_onScroll` function is
+  /// also a listener on this controller, so the one threshold rule ("less
+  /// than 400px of scroll extent left -> loadMore()") still governs both
+  /// layouts -- just off two controllers instead of one. A desk-width
+  /// session pages exactly like a phone-width one, off the one rule.
   Widget _tableBody(LedgerHistoryState state) {
     final agent = widget.membershipId != null;
     final columns = [
@@ -398,6 +435,7 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
 
     final rows = <List<Widget>>[];
     final dayHeaders = <Widget>[];
+    final rowOnTap = <VoidCallback?>[];
 
     for (final day in state.days) {
       for (var i = 0; i < day.events.length; i++) {
@@ -408,21 +446,16 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
           i == 0 ? _tableDayBand(day, agent: agent) : const SizedBox.shrink(),
         );
 
+        rowOnTap.add(() => _showDetail(e));
         rows.add([
-          _tappableCell(
-            e,
-            ManaText.raw(
-              ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
-              style: ManaType.fine,
-            ),
+          ManaText.raw(
+            ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
+            style: ManaType.fine,
           ),
-          _tappableCell(e, _tableDescriptionCell(e, bfToMe: bfToMe)),
-          _tappableCell(
-            e,
-            ManaLedgerAmount(
-              event: e,
-              directionFor: bfToMe ? LedgerDirection.moneyIn : null,
-            ),
+          _tableDescriptionCell(e, bfToMe: bfToMe),
+          ManaLedgerAmount(
+            event: e,
+            directionFor: bfToMe ? LedgerDirection.moneyIn : null,
           ),
         ]);
       }
@@ -451,10 +484,13 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
             columns: columns,
             rows: rows,
             dayHeaders: dayHeaders,
-            // Same controller the card ListView uses -- see the doc comment
-            // above on why one controller, never attached to both at once,
-            // is enough to keep pagination a single rule.
-            scrollController: _scroll,
+            // One handler per ROW, not per cell -- see ManaLedgerTable's
+            // rowOnTap doc comment for why a per-cell GestureDetector left
+            // dead (untappable) strips in the inter-column gaps.
+            rowOnTap: rowOnTap,
+            // This layout's own controller -- see the field doc comment for
+            // why it is not shared with the card view's `_cardScroll`.
+            scrollController: _tableScroll,
           ),
         ),
         if (state.loadingMore)
@@ -489,20 +525,6 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
             label: ref.t('brought_forward'),
           ),
       ],
-    );
-  }
-
-  /// Makes one table cell open the same detail sheet a tapped card opens --
-  /// [_showDetail], the exact same method and the exact same argument, so
-  /// there is one detail path, not a second one for the desk layout. Wrapping
-  /// each cell (rather than the row as a whole, which [ManaLedgerTable] has
-  /// no seam to accept) means every column responds, so the row reads as one
-  /// tappable target with no dead gaps between cells.
-  Widget _tappableCell(LedgerEvent e, Widget child) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _showDetail(e),
-      child: child,
     );
   }
 

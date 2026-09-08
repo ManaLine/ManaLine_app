@@ -88,5 +88,23 @@ void main() {
       expect(x2, greaterThan(x1));
       expectNoLayoutFault(tester, 'ManaFormGrid with columnsAtMedium: 3');
     });
+
+    testWidgets(
+      'a single child does not crash the columns.clamp(1, children.length) branch',
+      (tester) async {
+        // children.length == 1 with columnsAtMedium's default of 2 exercises
+        // the clamp's upper bound (1, not 2) -- untested before this, and the
+        // one case where requesting more columns than there are children
+        // could have produced a Wrap sizing a phantom column.
+        tester.view.physicalSize = const Size(1440, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(_hostedGrid([const Text('only field')]));
+        await tester.pumpAndSettle();
+
+        expect(find.text('only field'), findsOneWidget);
+        expectNoLayoutFault(tester, 'ManaFormGrid with a single child');
+      },
+    );
   });
 }

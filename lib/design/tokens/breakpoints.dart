@@ -76,8 +76,17 @@ enum ManaWidthClass { compact, medium, expanded }
 /// concern above — its own card grid (2 columns at medium, 3 at expanded)
 /// is self-contained inside `ow_013_account_review.dart` and has no sibling
 /// screen sharing the same widget to keep in step with.
+///
+/// `/ow-017-statement` joined afterward too, also alone: Task 5 gave
+/// `ow_017_statement_screen.dart` a `ManaFormGrid` for its filter fields, but
+/// the route itself was never added here, so `ManaWebFrame` kept clamping it
+/// to 480 and the two-column path never ran outside `mana_form_grid_test.dart`'s
+/// synthetic widgets. It is Owner-only (reached from `/ow-017`'s statement
+/// action) with no Agent counterpart, so it carries none of the `/ow-017`
+/// pairing concern either.
 final Set<String> kManaWideRoutes = <String>{
   '/ow-017',
   '/ag-010',
   '/ow-013',
+  '/ow-017-statement',
 };

@@ -88,6 +88,19 @@ class ManaLedgerTable extends StatelessWidget {
   final List<List<Widget>> rows;
   final List<Widget>? dayHeaders;
 
+  /// Optional per-row tap handler, positional against [rows] (same
+  /// convention as [dayHeaders]; `null` at an index means that row is not
+  /// tappable). Wrapping the whole [_rowOf] `Row` in one [GestureDetector]
+  /// -- rather than wrapping each cell, as an earlier version of this
+  /// widget's caller did -- means the hit area is the row's full width by
+  /// construction: `_cell` centers its child with `Align` inside a
+  /// fixed-width `SizedBox`, so a per-cell detector covered only the
+  /// content's own bounding box, leaving the inter-column
+  /// `ManaSpacing.md` gaps and any slack beyond short text (e.g. "9:32 AM"
+  /// in a wide Time column) untappable. One detector per row also means one
+  /// handler call site instead of N per row.
+  final List<VoidCallback?>? rowOnTap;
+
   /// Optional controller for the table's own internal (vertical) list.
   ///
   /// Layout-only, same as everything else here: this widget does not read
@@ -106,6 +119,7 @@ class ManaLedgerTable extends StatelessWidget {
     required this.columns,
     required this.rows,
     this.dayHeaders,
+    this.rowOnTap,
     this.scrollController,
   });
 
@@ -139,8 +153,8 @@ class ManaLedgerTable extends StatelessWidget {
     );
   }
 
-  Widget _rowOf(List<Widget> cells, List<double> widths) {
-    return Padding(
+  Widget _rowOf(List<Widget> cells, List<double> widths, VoidCallback? onTap) {
+    final row = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: ManaSpacing.lg,
         vertical: ManaSpacing.md,
@@ -155,6 +169,11 @@ class ManaLedgerTable extends StatelessWidget {
         ],
       ),
     );
+    if (onTap == null) return row;
+    // Opaque so the padding and inter-column gaps count as part of the hit
+    // area too, not just the Row's children -- see the field doc comment on
+    // [rowOnTap].
+    return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap, child: row);
   }
 
   Widget _headerRow(List<double> widths) {
@@ -193,6 +212,10 @@ class ManaLedgerTable extends StatelessWidget {
       dayHeaders == null || dayHeaders!.length == rows.length,
       'dayHeaders must have one entry per row (use SizedBox.shrink() where none is wanted)',
     );
+    assert(
+      rowOnTap == null || rowOnTap!.length == rows.length,
+      'rowOnTap must have one entry per row (use null where none is wanted)',
+    );
 
     final totalFlex = _totalFlex == 0 ? 1 : _totalFlex;
     final gaps = ManaSpacing.md * (columns.length - 1) + ManaSpacing.lg * 2;
@@ -216,7 +239,7 @@ class ManaLedgerTable extends StatelessWidget {
           if (i > 0) body.add(_rule());
           final header = dayHeaders != null ? dayHeaders![i] : null;
           if (header != null) body.add(header);
-          body.add(_rowOf(rows[i], widths));
+          body.add(_rowOf(rows[i], widths, rowOnTap != null ? rowOnTap![i] : null));
         }
 
         final content = Column(

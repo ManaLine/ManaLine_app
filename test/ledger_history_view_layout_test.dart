@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mana_line/design/components/mana_ledger.dart';
 import 'package:mana_line/design/components/mana_ledger_table.dart';
+import 'package:mana_line/features/agent_workspace/screens/ag_010_transaction_history.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_017_transaction_history.dart';
 import 'package:mana_line/shared/ledger_history_service.dart';
 import 'package:mana_line/shared/ledger_history_state.dart';
@@ -268,6 +270,58 @@ void main() {
     );
   });
 
+  group('ManaLedgerHistoryView table branch — AGENT config (Review Important 3)', () {
+    // Every test above uses TransactionHistoryScreen (membershipId: null).
+    // The review's exact finding: the _tableBody branch that shows the
+    // agent-only note and skips the business month band was exercised by
+    // zero tests at expanded width. An Agent's feed is an RLS-filtered
+    // subset, never a business position -- showing them the month band
+    // (read from day_ledger, the whole business) would be a figure they
+    // cannot all see attributed to them personally.
+    Future<void> pumpAgent(WidgetTester tester, {LedgerMonthSummary? summary}) =>
+        pumpManaScreen(
+          tester,
+          const Ag010TransactionHistoryScreen(
+              businessId: 'b1', agentMembershipId: 'm1'),
+          translations: _translations,
+          surfaceSize: const Size(1440, 900),
+          location: '/ag-010',
+          overrides: [
+            ledgerHistoryProvider.overrideWith(
+                () => _SeededLedgerNotifier(_loaded(summary: summary))),
+          ],
+        );
+
+    testWidgets(
+      'at expanded width the agent-only note renders, the month band does '
+      'not, and the table draws one row per seeded event',
+      (tester) async {
+        // Summary is deliberately non-null: proves the band is suppressed by
+        // membershipId, not merely by an absent summary.
+        await pumpAgent(tester, summary: _summary);
+
+        expect(find.byType(ManaLedgerTable), findsOneWidget);
+        expect(find.text('your_activity_only_note'), findsOneWidget,
+            reason: 'agent must be told this feed is their own slice, not '
+                'the business ledger');
+        expect(find.byType(ManaLedgerMonthBand), findsNothing,
+            reason: 'the month band is a business position; an agent feed '
+                'is an RLS-filtered subset and must never show one');
+
+        final table = tester.widget<ManaLedgerTable>(find.byType(ManaLedgerTable));
+        expect(table.rows.length, _events.length,
+            reason: 'the agent table must draw exactly one row per seeded '
+                'event, same ground truth as the owner table');
+      },
+    );
+
+    testWidgets('expectNoLayoutFault holds for the agent table at desk width',
+        (tester) async {
+      await pumpAgent(tester, summary: _summary);
+      expectNoLayoutFault(tester, 'Agent ManaLedgerHistoryView at width 1440');
+    });
+  });
+
   group('ManaLedgerHistoryView table row tap', () {
     testWidgets('tapping a table row opens the same detail sheet a tapped '
         'card would -- Gap 2', (tester) async {
@@ -299,5 +353,48 @@ void main() {
       // tap actually opened that sheet, not some table-only detail path.
       expect(find.text('Lakshmi Devi'), findsNWidgets(2));
     });
+
+    testWidgets(
+      'tapping the row padding, not just the cell content, opens the '
+      'detail sheet -- Review Important 2 (dead zones)',
+      (tester) async {
+        // Before the fix, ManaLedgerTable._cell wrapped each cell's content
+        // in a GestureDetector sized to the content's own bounding box
+        // (Align inside a fixed-width SizedBox), so the row's horizontal
+        // ManaSpacing.lg padding and the inter-column ManaSpacing.md gaps
+        // were never covered by any detector. This taps a point INSIDE that
+        // padding -- to the left of where the Time column's text starts --
+        // to prove the row itself, not merely its cells, is now tappable.
+        await pumpManaScreen(
+          tester,
+          ownerScreen(),
+          translations: _translations,
+          surfaceSize: const Size(1440, 900),
+          location: '/ow-017',
+          overrides: [
+            ledgerHistoryProvider.overrideWith(
+                () => _SeededLedgerNotifier(_loaded(summary: _summary))),
+          ],
+        );
+
+        expect(find.byType(ManaLedgerTable), findsOneWidget);
+        final nameFinder = find.text('Lakshmi Devi');
+        expect(nameFinder, findsOneWidget);
+
+        final tableRect = tester.getRect(find.byType(ManaLedgerTable));
+        final nameRect = tester.getRect(nameFinder);
+        // 4px inside the table's left edge: within the row's leading
+        // ManaSpacing.lg (16px) padding, strictly left of any cell content,
+        // at the seeded row's own vertical position.
+        final gapPoint = Offset(tableRect.left + 4, nameRect.center.dy);
+
+        await tester.tapAt(gapPoint);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Lakshmi Devi'), findsNWidgets(2),
+            reason: 'a tap inside the row padding must open the same '
+                'detail sheet a tap on the cell content does');
+      },
+    );
   });
 }

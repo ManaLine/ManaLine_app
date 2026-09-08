@@ -31,8 +31,8 @@ class ManaBreakpoints {
   /// pins them together so they cannot silently drift apart later.
   static const medium = 600.0;
 
-  /// A desk. Wide enough for a nav rail beside content, and for the ledger
-  /// table's columns to be read across without crowding.
+  /// A desk. Wide enough for a nav rail beside content, and for a
+  /// multi-column layout to be read across without crowding.
   static const expanded = 1024.0;
 
   /// Which width class a viewport falls into.
@@ -52,41 +52,22 @@ enum ManaWidthClass { compact, medium, expanded }
 
 /// Routes that have been laid out for a wide window and must NOT be clamped.
 ///
-/// Filled by Plan 2a Task 4, as each workflow becomes genuinely responsive —
+/// Filled by Plan 2a Task 4, as each workflow became genuinely responsive —
 /// a screen is only ever let out of the column once somebody has laid it out
-/// and tested it at that width. `/ow-017` and `/ag-010` arrive together: both
-/// render `ManaLedgerHistoryView`, which now branches to a ManaLedgerTable at
-/// `expanded` width, so leaving one route in the set without the other would
-/// give the Owner a table the Agent was never laid out for, or the reverse.
+/// and tested it at that width. `/ow-017`, `/ag-010` and `/ow-017-statement`
+/// joined that way: both history screens gained a desk-width table layout,
+/// and the statement screen a two-column filter grid.
 ///
-/// A third `ManaLedgerHistoryView` build site exists — OW-002 (Workforce
-/// Management) opens one agent's ledger via a raw `Navigator.push`, not a
-/// GoRouter route — and it is DELIBERATELY absent here, not an omission: it
-/// has no route path of its own to add (GoRouter's `currentLocation()` keeps
-/// reporting `/ow-002` while it is pushed), and `/ow-002` itself is not in
-/// this set, so `ManaWebFrame` keeps clamping it to 480. Because the view
-/// branches on `LayoutBuilder` constraints rather than `MediaQuery` (see
-/// `ManaLedgerHistoryView`'s doc comment), that clamp is what keeps this
-/// third call site rendering the card list correctly with no special case.
+/// Plan 3a Task 1 removed all three. The owner decided the website shows
+/// accounts, not transaction history, so the desk-width history layout has
+/// no consumer and was deleted along with the two routes that reached it and
+/// the statement route that hung off `/ow-017`. `/ow-013` (Account Review)
+/// is the one survivor: it renders no history view, so it carried none of
+/// the pairing concern above — its own card grid (2 columns at medium, 3 at
+/// expanded) is self-contained inside `ow_013_account_review.dart`.
 ///
 /// Mutable rather than const because the widget test needs to add and remove
 /// an entry; nothing in the app writes to it at runtime.
-/// `/ow-013` (Account Review) joined afterward, alone rather than paired: it
-/// renders no `ManaLedgerHistoryView`, so it carries none of the pairing
-/// concern above — its own card grid (2 columns at medium, 3 at expanded)
-/// is self-contained inside `ow_013_account_review.dart` and has no sibling
-/// screen sharing the same widget to keep in step with.
-///
-/// `/ow-017-statement` joined afterward too, also alone: Task 5 gave
-/// `ow_017_statement_screen.dart` a `ManaFormGrid` for its filter fields, but
-/// the route itself was never added here, so `ManaWebFrame` kept clamping it
-/// to 480 and the two-column path never ran outside `mana_form_grid_test.dart`'s
-/// synthetic widgets. It is Owner-only (reached from `/ow-017`'s statement
-/// action) with no Agent counterpart, so it carries none of the `/ow-017`
-/// pairing concern either.
 final Set<String> kManaWideRoutes = <String>{
-  '/ow-017',
-  '/ag-010',
   '/ow-013',
-  '/ow-017-statement',
 };

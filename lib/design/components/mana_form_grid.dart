@@ -10,9 +10,9 @@
 /// caller written before that parameter existed keeps its original two-tier
 /// behaviour unchanged).
 ///
-/// LAYOUT-ONLY, on purpose, same boundary as [ManaLedgerTable]: this widget
-/// takes children already built by the caller and knows nothing about what a
-/// child is — no [TextField], no validation, no label, no [Card]. That is
+/// LAYOUT-ONLY, on purpose: this widget takes children already built by the
+/// caller and knows nothing about what a child is — no [TextField], no
+/// validation, no label, no [Card]. That is
 /// what lets OW-017's period filters and OW-013's settlement cards (whose
 /// heights vary with content — this widget never required uniform child
 /// heights, `Wrap` does not need them) share it without sharing behaviour.

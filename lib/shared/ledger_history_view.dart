@@ -5,10 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_ledger.dart';
-import '../design/components/mana_ledger_table.dart';
 import '../design/components/mana_skeleton.dart';
 import '../design/components/mana_text.dart';
-import '../design/tokens/breakpoints.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
@@ -35,25 +33,6 @@ import 'translation_service.dart';
 /// Everything else -- keyset pagination, the filter sheet, day grouping, the
 /// brought-forward and carried-forward lines -- is identical and was being
 /// maintained twice.
-///
-/// AT DESK WIDTH (Plan 2a Task 4) the same [LedgerHistoryState] renders as a
-/// [ManaLedgerTable] instead of a card list -- one row per event, a day band
-/// above each day's first row, and the rupee column genuinely aligned. Both
-/// layouts read `state.days`; nothing is fetched or computed twice, so the
-/// two presentations cannot show a different figure for the same feed.
-///
-/// The branch is on `LayoutBuilder`'s incoming constraints, never on
-/// `MediaQuery`. `ManaWebFrame` clamps a clamped screen's content with a
-/// `ConstrainedBox(maxWidth: 480)`, which narrows what this widget is GIVEN
-/// without narrowing what `MediaQuery` REPORTS -- a screen reading
-/// `MediaQuery.sizeOf` inside that clamp sees the whole browser window (say
-/// 1440) while its real width is 480, and would try to lay a desk-width
-/// table into a phone-width column. Reading `constraints.maxWidth` instead
-/// makes the branch correct regardless of what sits above this widget, which
-/// is also why OW-002's raw `Navigator.push` of this same view (Consumer 3;
-/// there is no route for it to add to `kManaWideRoutes`) still renders the
-/// card list correctly: it is never un-clamped, so its constraints never
-/// cross [ManaBreakpoints.expanded], with no special case required.
 class ManaLedgerHistoryView extends ConsumerStatefulWidget {
   final String businessId;
 
@@ -88,43 +67,13 @@ class ManaLedgerHistoryView extends ConsumerStatefulWidget {
 }
 
 class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
-  // TWO controllers, not one shared between the card ListView and the table's
-  // internal ListView.
-  //
-  // The original design handed the SAME controller to whichever layout
-  // `_body` built, reasoning that only one of `_cardBody`/`_tableBody` is
-  // ever mounted at a time. That is true of the WIDGET tree in one build, but
-  // not of the underlying Scrollables' lifetimes: when a browser resize
-  // crosses `ManaBreakpoints.expanded` between builds, Flutter deactivates
-  // the outgoing Scrollable and calls `initState` on the incoming one within
-  // the SAME build pass, while the outgoing Scrollable's `dispose()` -- which
-  // is what detaches its `ScrollPosition` from the shared controller -- is
-  // deferred to `BuildOwner.finalizeTree()` at the end of that frame. In the
-  // window between those two moments, a single `ScrollController` would have
-  // TWO attached positions. `_onScroll` reads `.position`, the singular
-  // getter that asserts exactly one attachment, so a scroll-metrics
-  // notification firing in that window throws "ScrollController attached to
-  // multiple scroll views" -- a real, reachable crash on resize, not a
-  // theoretical one. `hasClients` does not guard against it: it is true in
-  // that window too, since two is more than zero.
-  //
-  // The fix removes the hazard instead of making `_onScroll` defensive about
-  // it (checking `positions.length == 1` would hide a resize crash as a
-  // silently-skipped pagination check, which is worse: the next reader would
-  // believe sharing one controller was safe). Each layout gets its own
-  // controller, and the SAME `_onScroll` function is attached as a listener
-  // to both, so the "less than 400px left -> loadMore()" rule stays the one
-  // rule pagination is decided by, just evaluated against whichever
-  // Scrollable actually notified it.
-  final _cardScroll = ScrollController();
-  final _tableScroll = ScrollController();
+  final _scroll = ScrollController();
   final _search = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _cardScroll.addListener(_onScroll);
-    _tableScroll.addListener(_onScroll);
+    _scroll.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -137,26 +86,17 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
 
   @override
   void dispose() {
-    _cardScroll.removeListener(_onScroll);
-    _cardScroll.dispose();
-    _tableScroll.removeListener(_onScroll);
-    _tableScroll.dispose();
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
     _search.dispose();
     super.dispose();
   }
 
-  // Attached to BOTH controllers (see the field doc comment for why there are
-  // two). Only one is ever attached to a mounted Scrollable at a time, so at
-  // most one iteration below does anything; `hasClients` on the other is
-  // false, not "attached with zero positions", so this never touches
-  // `.position` on a controller with no Scrollable.
   void _onScroll() {
-    for (final c in [_cardScroll, _tableScroll]) {
-      if (!c.hasClients) continue;
-      final remaining = c.position.maxScrollExtent - c.position.pixels;
-      if (remaining < 400) {
-        ref.read(ledgerHistoryProvider(_scope).notifier).loadMore();
-      }
+    if (!_scroll.hasClients) return;
+    final remaining = _scroll.position.maxScrollExtent - _scroll.position.pixels;
+    if (remaining < 400) {
+      ref.read(ledgerHistoryProvider(_scope).notifier).loadMore();
     }
   }
 
@@ -244,20 +184,9 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
               onFilterTap: _openFilters,
             ),
             Expanded(
-              // LayoutBuilder, not MediaQuery -- see the class doc comment.
-              // This Expanded is also what gives ManaLedgerTable the BOUNDED
-              // height its sticky header needs (its own doc comment calls
-              // this out as a silent trap for whoever wires it up): without
-              // it, the table's internal Expanded would throw "unbounded
-              // height" and silently fall back to an unscrollable Column.
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final widthClass = ManaBreakpoints.of(constraints.maxWidth);
-                  return RefreshIndicator(
-                    onRefresh: () => _load(),
-                    child: _body(state, widthClass),
-                  );
-                },
+              child: RefreshIndicator(
+                onRefresh: () => _load(),
+                child: _body(state),
               ),
             ),
           ],
@@ -266,7 +195,7 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
     );
   }
 
-  Widget _body(LedgerHistoryState state, ManaWidthClass widthClass) {
+  Widget _body(LedgerHistoryState state) {
     if (state.loading && state.events.isEmpty) {
       return const ManaSkeletonList(itemCount: 6);
     }
@@ -291,15 +220,6 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
       );
     }
 
-    // Below `expanded` this is exactly the list that rendered before this
-    // task -- unchanged. At `expanded` it is a ManaLedgerTable reading the
-    // SAME state.days, never a second pass over the feed.
-    return widthClass == ManaWidthClass.expanded
-        ? _tableBody(state)
-        : _cardBody(state);
-  }
-
-  Widget _cardBody(LedgerHistoryState state) {
     // Flattened so one lazy ListView covers headers and rows — a Column of
     // per-day ListViews would build every row up front, which is what the
     // unbounded fetch this replaces already cost us once.
@@ -396,172 +316,9 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
     }
 
     return ListView.builder(
-      controller: _cardScroll,
+      controller: _scroll,
       itemCount: slivers.length,
       itemBuilder: (_, i) => slivers[i],
-    );
-  }
-
-  /// The same feed as [_cardBody], read from the same `state.days` and drawn
-  /// as a [ManaLedgerTable] instead of a scrolling list of cards.
-  ///
-  /// ONE ROW PER EVENT, always -- the count a test can pin against
-  /// `state.events.length`. The day header and the day's opening line move
-  /// from being separate list items (in the card view) to one band placed
-  /// above that day's first row via [ManaLedgerTable.dayHeaders]; every other
-  /// row gets `SizedBox.shrink()`. No figure moves: [ManaLedgerDayHeader]'s
-  /// trailing amount is already the day's closing balance when one exists
-  /// (see its own doc comment), so the closing figure the card view repeats
-  /// at the FOOT of a day via a second [ManaLedgerOpeningRow] is not a
-  /// second number here -- it is the same number the band already shows,
-  /// simply not redrawn a second time. This is a placement decision, not a
-  /// calculation change.
-  ///
-  /// Pagination: `_tableScroll` is this layout's OWN [ScrollController] (see
-  /// the field doc comment on why it is not shared with `_cardBody`'s
-  /// `_cardScroll`), handed to [ManaLedgerTable] here so its internal
-  /// vertical [ListView] attaches to it. The same `_onScroll` function is
-  /// also a listener on this controller, so the one threshold rule ("less
-  /// than 400px of scroll extent left -> loadMore()") still governs both
-  /// layouts -- just off two controllers instead of one. A desk-width
-  /// session pages exactly like a phone-width one, off the one rule.
-  Widget _tableBody(LedgerHistoryState state) {
-    final agent = widget.membershipId != null;
-    final columns = [
-      ManaLedgerColumn(label: ref.t('time'), flex: 1),
-      ManaLedgerColumn(label: ref.t('description'), flex: 3),
-      ManaLedgerColumn(label: ref.t('amount'), flex: 1, numeric: true),
-    ];
-
-    final rows = <List<Widget>>[];
-    final dayHeaders = <Widget>[];
-    final rowOnTap = <VoidCallback?>[];
-
-    for (final day in state.days) {
-      for (var i = 0; i < day.events.length; i++) {
-        final e = day.events[i];
-        final bfToMe = agent && e.type == LedgerEventType.bfGrant;
-
-        dayHeaders.add(
-          i == 0 ? _tableDayBand(day, agent: agent) : const SizedBox.shrink(),
-        );
-
-        rowOnTap.add(() => _showDetail(e));
-        rows.add([
-          ManaText.raw(
-            ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
-            style: ManaType.fine,
-          ),
-          _tableDescriptionCell(e, bfToMe: bfToMe),
-          ManaLedgerAmount(
-            event: e,
-            directionFor: bfToMe ? LedgerDirection.moneyIn : null,
-          ),
-        ]);
-      }
-    }
-
-    return Column(
-      children: [
-        if (widget.membershipId != null)
-          Container(
-            width: double.infinity,
-            color: ManaColors.brandFaint,
-            padding: const EdgeInsets.symmetric(
-                horizontal: ManaSpacing.lg, vertical: ManaSpacing.sm),
-            child: ManaText.raw(ref.t('your_activity_only_note'), style: ManaType.fine),
-          ),
-        if (state.summary != null && widget.membershipId == null) ...[
-          ManaLedgerMonthBand(
-            monthLabel: _monthLabel(state.summary!.monthStart),
-            summary: state.summary,
-            onTap: () => _openMonthSheet(state.summary!),
-          ),
-          Divider(height: 1, color: ManaColors.divider),
-        ],
-        Expanded(
-          child: ManaLedgerTable(
-            columns: columns,
-            rows: rows,
-            dayHeaders: dayHeaders,
-            // One handler per ROW, not per cell -- see ManaLedgerTable's
-            // rowOnTap doc comment for why a per-cell GestureDetector left
-            // dead (untappable) strips in the inter-column gaps.
-            rowOnTap: rowOnTap,
-            // This layout's own controller -- see the field doc comment for
-            // why it is not shared with the card view's `_cardScroll`.
-            scrollController: _tableScroll,
-          ),
-        ),
-        if (state.loadingMore)
-          const Padding(
-            padding: EdgeInsets.all(ManaSpacing.lg),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          ),
-      ],
-    );
-  }
-
-  /// The band above a day's first row: the same [ManaLedgerDayHeader] the
-  /// card view shows, plus the day's opening line when one is known. Both
-  /// computed identically to [_cardBody] -- see that method's comments for
-  /// why the trailing figure and label differ for an Agent.
-  Widget _tableDayBand(LedgerDay day, {required bool agent}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ManaLedgerDayHeader(
-          dateLabel: ledgerDayLabel(day.businessDate),
-          trailingLabel: day.closingBf != null
-              ? ref.t('day_closing')
-              : ref.t(agent ? 'you_collected' : 'day_net'),
-          trailingAmount:
-              day.closingBf ?? (agent ? day.moneyIn : day.netOfLoadedEvents),
-          trailingIsNet: day.closingBf == null && !agent,
-        ),
-        if (day.openingBf != null)
-          ManaLedgerOpeningRow(
-            amount: day.openingBf!,
-            label: ref.t('brought_forward'),
-          ),
-      ],
-    );
-  }
-
-  /// The action/counterparty/detail text a table row shows, without the time
-  /// (that is its own column here) and without the leading direction icon
-  /// (there is no room for it at a single-flex column width, and the numeric
-  /// column's sign/tone already carries direction).
-  Widget _tableDescriptionCell(LedgerEvent e, {required bool bfToMe}) {
-    final detail = [
-      if (e.reference != null && e.reference!.isNotEmpty) e.reference!,
-      if (e.method != null && e.method!.isNotEmpty) e.method!,
-    ].join(' · ');
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ManaText.raw(
-          bfToMe ? ref.t('bf_received') : ledgerActionLabel(ref, e),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
-        ),
-        if (!bfToMe && e.counterparty != null && e.counterparty!.isNotEmpty)
-          ManaText.raw(
-            e.counterparty!,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-        if (detail.isNotEmpty)
-          ManaText.raw(
-            detail,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
-          ),
-      ],
     );
   }
 

@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mana_line/design/components/mana_ledger.dart';
-import 'package:mana_line/design/components/mana_ledger_table.dart';
-import 'package:mana_line/features/agent_workspace/screens/ag_010_transaction_history.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_017_transaction_history.dart';
 import 'package:mana_line/shared/ledger_history_service.dart';
 import 'package:mana_line/shared/ledger_history_state.dart';
 
 import 'support/mana_harness.dart';
 
-/// History becomes a table at desk width (Plan 2a Task 4).
+/// The card list is the only layout ManaLedgerHistoryView draws (Plan 3a
+/// Task 1 removed the desk-width table -- see breakpoints.dart's
+/// kManaWideRoutes doc comment for why).
 ///
 /// The one assertion that matters more than any other here is the row count:
 /// a presentation change that silently drops or duplicates a seeded event is
@@ -26,25 +25,6 @@ class _SeededLedgerNotifier extends LedgerHistoryNotifier {
 
   @override
   Future<void> loadMore() async {}
-}
-
-/// Same as [_SeededLedgerNotifier], plus a counter so a test can prove
-/// `loadMore()` was actually invoked -- the thing Gap 1 broke silently.
-class _CountingLedgerNotifier extends LedgerHistoryNotifier {
-  _CountingLedgerNotifier(this._seed);
-  final LedgerHistoryState _seed;
-  int loadMoreCalls = 0;
-
-  @override
-  LedgerHistoryState build(LedgerScope scope) => _seed;
-
-  @override
-  Future<void> load({bool withSummary = true}) async {}
-
-  @override
-  Future<void> loadMore() async {
-    loadMoreCalls++;
-  }
 }
 
 LedgerEvent _event({
@@ -101,22 +81,6 @@ final _events = [
       reference: 'L-1050'),
 ];
 
-/// A feed long enough to overflow a bounded viewport, so the table's
-/// internal ListView actually has somewhere to scroll to. One day, many
-/// rows -- day grouping is irrelevant to this test.
-final _manyEvents = [
-  for (var i = 0; i < 40; i++)
-    _event(
-      id: 'collection:$i',
-      type: 'collection',
-      date: '2026-08-12',
-      at: '2026-08-12T09:${(i % 60).toString().padLeft(2, '0')}:00',
-      amount: 100 + i,
-      counterparty: 'Customer $i',
-      reference: 'L-$i',
-    ),
-];
-
 const _summary = LedgerMonthSummary(
   monthStart: '2026-08-01',
   received: 152500,
@@ -164,22 +128,11 @@ void main() {
     );
   }
 
-  group('ManaLedgerHistoryView branches on LayoutBuilder width', () {
-    testWidgets('at 390 (compact) the card list renders, no table', (tester) async {
+  group('ManaLedgerHistoryView card list', () {
+    testWidgets('the card list renders at compact width', (tester) async {
       await pump(tester, 390);
 
-      expect(find.byType(ManaLedgerTable), findsNothing);
       // The card row for the seeded collection is present.
-      expect(find.text('Venkat Rao'), findsOneWidget);
-    });
-
-    testWidgets('at 1440 (expanded) a ManaLedgerTable renders, no card list',
-        (tester) async {
-      await pump(tester, 1440);
-
-      expect(find.byType(ManaLedgerTable), findsOneWidget);
-      // The card row's dedicated icon container is gone -- the table draws
-      // this event differently, not as a ManaLedgerRow card.
       expect(find.text('Venkat Rao'), findsOneWidget);
     });
 
@@ -192,12 +145,12 @@ void main() {
     });
 
     testWidgets(
-      'the same seeded row count appears in the card list and the table',
+      'the seeded row count appears in the card list',
       (tester) async {
-        // Card layout: one ManaLedgerAmount-bearing row per event is not
-        // directly countable without reaching into ManaLedgerRow internals,
-        // so count by the counterparty/reference text each event uniquely
-        // carries instead -- present exactly once per seeded event.
+        // One ManaLedgerAmount-bearing row per event is not directly
+        // countable without reaching into ManaLedgerRow internals, so count
+        // by the counterparty/reference text each event uniquely carries
+        // instead -- present exactly once per seeded event.
         await pump(tester, 390);
         for (final e in _events) {
           if (e.counterparty != null) {
@@ -205,195 +158,6 @@ void main() {
                 reason: 'card list should show ${e.counterparty} exactly once');
           }
         }
-
-        // Table layout: the table's own `rows` count is the ground truth for
-        // "how many transaction rows did it draw" and must equal the number
-        // of seeded events -- not more (duplicated) and not fewer (dropped).
-        await pump(tester, 1440);
-        final table = tester.widget<ManaLedgerTable>(find.byType(ManaLedgerTable));
-        expect(table.rows.length, _events.length,
-            reason: 'the table must draw exactly one row per seeded event');
-        for (final e in _events) {
-          if (e.counterparty != null) {
-            expect(find.text(e.counterparty!), findsOneWidget,
-                reason: 'table should show ${e.counterparty} exactly once');
-          }
-        }
-      },
-    );
-
-    testWidgets(
-      'reaching the end of the TABLE scroll triggers loadMore(), the same '
-      'as the card list -- Gap 1: the table used to be a dead end',
-      (tester) async {
-        final notifier = _CountingLedgerNotifier(_loaded(events: _manyEvents));
-        await pumpManaScreen(
-          tester,
-          ownerScreen(),
-          translations: _translations,
-          surfaceSize: const Size(1440, 900),
-          location: '/ow-017',
-          overrides: [
-            ledgerHistoryProvider.overrideWith(() => notifier),
-          ],
-        );
-
-        expect(find.byType(ManaLedgerTable), findsOneWidget);
-        expect(notifier.loadMoreCalls, 0);
-
-        // The table's OWN internal vertical list -- there is also a
-        // horizontal Scrollable in ManaLedgerTable for sideways overflow,
-        // so pick the one whose axis is vertical.
-        final verticalScrollable = tester.widgetList<Scrollable>(
-          find.descendant(
-            of: find.byType(ManaLedgerTable),
-            matching: find.byType(Scrollable),
-          ),
-        ).firstWhere((s) => s.axisDirection == AxisDirection.down);
-        final state = tester.state<ScrollableState>(
-          find.byWidgetPredicate((w) => identical(w, verticalScrollable)),
-        );
-
-        // Jump to the end -- the same "0px of scroll extent left" case
-        // `_onScroll`'s `remaining < 400` threshold is built to catch.
-        state.position.jumpTo(state.position.maxScrollExtent);
-        await tester.pump();
-
-        expect(
-          notifier.loadMoreCalls,
-          greaterThan(0),
-          reason: 'the table scrolling to its end must drive the SAME '
-              '_scroll controller the card list uses, not a second, '
-              'unwired Scrollable',
-        );
-      },
-    );
-  });
-
-  group('ManaLedgerHistoryView table branch — AGENT config (Review Important 3)', () {
-    // Every test above uses TransactionHistoryScreen (membershipId: null).
-    // The review's exact finding: the _tableBody branch that shows the
-    // agent-only note and skips the business month band was exercised by
-    // zero tests at expanded width. An Agent's feed is an RLS-filtered
-    // subset, never a business position -- showing them the month band
-    // (read from day_ledger, the whole business) would be a figure they
-    // cannot all see attributed to them personally.
-    Future<void> pumpAgent(WidgetTester tester, {LedgerMonthSummary? summary}) =>
-        pumpManaScreen(
-          tester,
-          const Ag010TransactionHistoryScreen(
-              businessId: 'b1', agentMembershipId: 'm1'),
-          translations: _translations,
-          surfaceSize: const Size(1440, 900),
-          location: '/ag-010',
-          overrides: [
-            ledgerHistoryProvider.overrideWith(
-                () => _SeededLedgerNotifier(_loaded(summary: summary))),
-          ],
-        );
-
-    testWidgets(
-      'at expanded width the agent-only note renders, the month band does '
-      'not, and the table draws one row per seeded event',
-      (tester) async {
-        // Summary is deliberately non-null: proves the band is suppressed by
-        // membershipId, not merely by an absent summary.
-        await pumpAgent(tester, summary: _summary);
-
-        expect(find.byType(ManaLedgerTable), findsOneWidget);
-        expect(find.text('your_activity_only_note'), findsOneWidget,
-            reason: 'agent must be told this feed is their own slice, not '
-                'the business ledger');
-        expect(find.byType(ManaLedgerMonthBand), findsNothing,
-            reason: 'the month band is a business position; an agent feed '
-                'is an RLS-filtered subset and must never show one');
-
-        final table = tester.widget<ManaLedgerTable>(find.byType(ManaLedgerTable));
-        expect(table.rows.length, _events.length,
-            reason: 'the agent table must draw exactly one row per seeded '
-                'event, same ground truth as the owner table');
-      },
-    );
-
-    testWidgets('expectNoLayoutFault holds for the agent table at desk width',
-        (tester) async {
-      await pumpAgent(tester, summary: _summary);
-      expectNoLayoutFault(tester, 'Agent ManaLedgerHistoryView at width 1440');
-    });
-  });
-
-  group('ManaLedgerHistoryView table row tap', () {
-    testWidgets('tapping a table row opens the same detail sheet a tapped '
-        'card would -- Gap 2', (tester) async {
-      await pumpManaScreen(
-        tester,
-        ownerScreen(),
-        translations: _translations,
-        surfaceSize: const Size(1440, 900),
-        location: '/ow-017',
-        overrides: [
-          ledgerHistoryProvider
-              .overrideWith(() => _SeededLedgerNotifier(_loaded(summary: _summary))),
-        ],
-      );
-
-      expect(find.byType(ManaLedgerTable), findsOneWidget);
-      // "Lakshmi Devi" is the loan_distribution event, not the collection
-      // one -- deliberately, so this test never reaches _showDetail's
-      // FutureBuilder branch (collectionExtras()), which calls the real
-      // Supabase client and has nothing to do with what Gap 2 is about.
-      expect(find.text('Lakshmi Devi'), findsOneWidget);
-
-      await tester.tap(find.text('Lakshmi Devi'));
-      await tester.pumpAndSettle();
-
-      // [_showDetail] -- the exact same method and argument the card's
-      // onTap calls -- also renders the counterparty, as its own sheet
-      // heading. A second widget bearing that name is only possible if the
-      // tap actually opened that sheet, not some table-only detail path.
-      expect(find.text('Lakshmi Devi'), findsNWidgets(2));
-    });
-
-    testWidgets(
-      'tapping the row padding, not just the cell content, opens the '
-      'detail sheet -- Review Important 2 (dead zones)',
-      (tester) async {
-        // Before the fix, ManaLedgerTable._cell wrapped each cell's content
-        // in a GestureDetector sized to the content's own bounding box
-        // (Align inside a fixed-width SizedBox), so the row's horizontal
-        // ManaSpacing.lg padding and the inter-column ManaSpacing.md gaps
-        // were never covered by any detector. This taps a point INSIDE that
-        // padding -- to the left of where the Time column's text starts --
-        // to prove the row itself, not merely its cells, is now tappable.
-        await pumpManaScreen(
-          tester,
-          ownerScreen(),
-          translations: _translations,
-          surfaceSize: const Size(1440, 900),
-          location: '/ow-017',
-          overrides: [
-            ledgerHistoryProvider.overrideWith(
-                () => _SeededLedgerNotifier(_loaded(summary: _summary))),
-          ],
-        );
-
-        expect(find.byType(ManaLedgerTable), findsOneWidget);
-        final nameFinder = find.text('Lakshmi Devi');
-        expect(nameFinder, findsOneWidget);
-
-        final tableRect = tester.getRect(find.byType(ManaLedgerTable));
-        final nameRect = tester.getRect(nameFinder);
-        // 4px inside the table's left edge: within the row's leading
-        // ManaSpacing.lg (16px) padding, strictly left of any cell content,
-        // at the seeded row's own vertical position.
-        final gapPoint = Offset(tableRect.left + 4, nameRect.center.dy);
-
-        await tester.tapAt(gapPoint);
-        await tester.pumpAndSettle();
-
-        expect(find.text('Lakshmi Devi'), findsNWidgets(2),
-            reason: 'a tap inside the row padding must open the same '
-                'detail sheet a tap on the cell content does');
       },
     );
   });

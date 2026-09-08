@@ -179,5 +179,108 @@ void main() {
         );
       },
     );
+
+    testWidgets('dayHeaders places each band above its matching row in order',
+        (tester) async {
+      final rows = _rows(3);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ManaLedgerTable(
+              columns: _columns,
+              rows: rows,
+              dayHeaders: const [
+                ManaText.raw('12 Sep'),
+                SizedBox.shrink(),
+                ManaText.raw('13 Sep'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Both day-header labels render exactly once.
+      expect(find.text('12 Sep'), findsOneWidget);
+      expect(find.text('13 Sep'), findsOneWidget);
+
+      // '12 Sep' sits above row 0's cells, and above '13 Sep' which sits
+      // above row 2's cells -- top-to-bottom order matches dayHeaders[i]
+      // above rows[i], not some other pairing.
+      final firstHeaderY = tester.getTopLeft(find.text('12 Sep')).dy;
+      final row0Y = tester.getTopLeft(find.text('12/00')).dy;
+      final secondHeaderY = tester.getTopLeft(find.text('13 Sep')).dy;
+      final row2Y = tester.getTopLeft(find.text('12/02')).dy;
+
+      expect(firstHeaderY, lessThan(row0Y));
+      expect(row0Y, lessThan(secondHeaderY));
+      expect(secondHeaderY, lessThan(row2Y));
+    });
+
+    testWidgets(
+      'an empty dayHeaders slot (SizedBox.shrink) produces no visible band '
+      'and does not shift the row it sits above',
+      (tester) async {
+        final rows = _rows(2);
+
+        // Baseline: no dayHeaders at all.
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ManaLedgerTable(columns: _columns, rows: rows),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final baselineRow0Y = tester.getTopLeft(find.text('12/00')).dy;
+        final baselineRow1Y = tester.getTopLeft(find.text('12/01')).dy;
+
+        // Same rows, but with an all-empty dayHeaders list.
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ManaLedgerTable(
+                columns: _columns,
+                rows: rows,
+                dayHeaders: const [SizedBox.shrink(), SizedBox.shrink()],
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SizedBox), findsWidgets);
+        final withEmptyHeadersRow0Y = tester.getTopLeft(find.text('12/00')).dy;
+        final withEmptyHeadersRow1Y = tester.getTopLeft(find.text('12/01')).dy;
+
+        expect(withEmptyHeadersRow0Y, baselineRow0Y);
+        expect(withEmptyHeadersRow1Y, baselineRow1Y);
+      },
+    );
+
+    testWidgets('a dayHeaders length mismatch trips the assert', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ManaLedgerTable(
+              columns: _columns,
+              rows: _rows(3),
+              dayHeaders: const [SizedBox.shrink(), SizedBox.shrink()],
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isAssertionError);
+    });
+
+    testWidgets('dayHeaders: null renders the table normally', (tester) async {
+      await tester.pumpWidget(_hostedTable(rows: _rows(2)));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('12/00'), findsOneWidget);
+      expect(find.text('12/01'), findsOneWidget);
+    });
   });
 }

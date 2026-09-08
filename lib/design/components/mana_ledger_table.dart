@@ -14,9 +14,17 @@
 /// a misread figure is the failure this project treats as worse than a
 /// crash (see CLAUDE.md's money-correctness rule). Every numeric column gets
 /// `FontFeature.tabularFigures()` merged onto whatever the caller placed in
-/// the cell, so a plain [ManaText] figure lines up exactly the same as a
-/// [ManaLedgerAmount] or [ManaAmount] — the guarantee does not depend on the
-/// caller remembering to opt in.
+/// the cell via `DefaultTextStyle.merge`, so a plain [ManaText] figure lines
+/// up exactly the same as a [ManaLedgerAmount] or [ManaAmount] without the
+/// caller opting in — this is a strong default, not an enforced guarantee.
+/// `TextStyle.merge` lets the *cell's own* non-null fields win over the
+/// ambient style it is merged onto, so a cell can still defeat it: setting
+/// its own explicit `fontFeatures` (including an empty list), setting
+/// `style.inherit = false`, or building a raw `RichText`/`CustomPaint` that
+/// never reads `DefaultTextStyle.of(context)` at all. None of these raise an
+/// error — the digits just silently stop lining up. Today's only cell
+/// content ([ManaText]/[ManaAmount]/[ManaLedgerAmount]) does none of these,
+/// but a future cell widget is not stopped from doing so by this mechanism.
 ///
 /// PURE LAYOUT, ON PURPOSE. This widget takes rows already built by the
 /// caller and knows nothing about ledgers, money rules or dates — it never
@@ -54,12 +62,15 @@ class ManaLedgerColumn {
   });
 }
 
-/// Baseline width per unit of [ManaLedgerColumn.flex], derived from the
-/// spacing scale rather than a new magic number — three [ManaSpacing.xxl]
-/// steps. This is what decides when the spread must scroll: on a narrow
-/// window the columns' combined minimum width exceeds the viewport and the
-/// table scrolls sideways in its own box; on a desk-wide window the columns
-/// stretch to fill the space instead.
+/// Baseline width per unit of [ManaLedgerColumn.flex]. Three [ManaSpacing.xxl]
+/// steps (96px) is the minimum a single-flex column needs to hold a rupee
+/// figure or a short label without wrapping at desk font sizes — one `xxl`
+/// reads as cramped for that, two is tight, three is comfortable; it is not
+/// itself an on-scale spacing token, just built from one. This is what
+/// decides when the spread must scroll: on a narrow window the columns'
+/// combined minimum width exceeds the viewport and the table scrolls
+/// sideways in its own box; on a desk-wide window the columns stretch to
+/// fill the space instead.
 const double _kColumnFlexUnit = ManaSpacing.xxl * 3;
 
 /// A ledger spread: a header row and data rows, ruled by hairlines, with the
@@ -92,9 +103,12 @@ class ManaLedgerTable extends StatelessWidget {
 
   Widget _cell(ManaLedgerColumn column, double width, Widget child) {
     final content = column.numeric
-        // Forced onto whatever the caller put in the cell -- a plain
-        // ManaText figure must line up exactly like a ManaLedgerAmount, and
-        // that can't depend on every call site remembering to opt in.
+        // Merged onto whatever the caller put in the cell -- a plain
+        // ManaText figure lines up like a ManaLedgerAmount without the call
+        // site opting in. This is a strong default, not an enforced one: a
+        // cell that sets its own fontFeatures/inherit=false, or a raw
+        // RichText that never reads DefaultTextStyle, can still defeat it
+        // silently (see the class doc comment).
         ? DefaultTextStyle.merge(
             style: const TextStyle(
               fontFeatures: [FontFeature.tabularFigures()],

@@ -77,7 +77,20 @@ List<_Tier> _readTiersFromSource() {
   return tiers;
 }
 
-String _cap(int? value) => value == null ? 'Unlimited' : value.toString();
+String _cap(int? value) => value == null ? 'Unlimited' : _withThousands(value);
+
+/// Renders an integer with comma thousands separators (e.g. 1500 -> "1,500"),
+/// matching how the app itself formats figures. Caps here are always
+/// non-negative counts, so no sign handling is needed.
+String _withThousands(int value) {
+  final digits = value.toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(digits[i]);
+  }
+  return buffer.toString();
+}
 
 String _renderTiers(List<_Tier> tiers) {
   final rows = tiers.map((t) {

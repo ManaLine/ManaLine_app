@@ -36,9 +36,23 @@ void main() {
 
     test('every cap figure matches, including Enterprise\'s unlimited caps',
         () {
+      // The page renders a finite cap with comma thousands separators (the
+      // app's own convention for figures) — e.g. 1500 -> "1,500" — so this
+      // reproduces that formatting rather than matching bare digits, which
+      // would pass even if the separator were dropped or wrong.
+      String withThousands(int value) {
+        final digits = value.toString();
+        final buffer = StringBuffer();
+        for (var i = 0; i < digits.length; i++) {
+          if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+          buffer.write(digits[i]);
+        }
+        return buffer.toString();
+      }
+
       for (final tier in kOwnerTiers) {
         for (final cap in [tier.agents, tier.customers, tier.investors]) {
-          final rendered = cap == null ? 'Unlimited' : cap.toString();
+          final rendered = cap == null ? 'Unlimited' : withThousands(cap);
           expect(html.contains(rendered), isTrue,
               reason: 'Tier "${tier.name}" cap "$rendered" is missing from '
                   'site/plans.html');

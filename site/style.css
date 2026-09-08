@@ -495,6 +495,110 @@ ul {
   white-space: nowrap;
 }
 
+/* --- Video carousel (site/videos.html) ---------------------------------
+   Base rules render the no-JS state: a plain numbered list, every slide
+   visible. Everything under .video-carousel--js is added by site.js after
+   it has confirmed it can run, and is the only thing that hides a slide. */
+
+.video-list {
+  list-style: decimal;
+  margin: 1.5rem 0 0;
+  padding-left: 1.4rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.video-slide {
+  background: var(--surface);
+  border: 1px solid var(--surface-sunken);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.video-slide h3 {
+  font-size: 1.05rem;
+  margin-bottom: 0.3em;
+}
+
+.video-slide p {
+  color: var(--ink-secondary);
+  font-size: 0.92rem;
+  margin-bottom: 0;
+}
+
+.video-slide__placeholder {
+  aspect-ratio: 16 / 9;
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-radius: 0.4rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.85rem;
+}
+
+/* JS-enhanced carousel state */
+
+.video-carousel--js .video-list {
+  list-style: none;
+  padding-left: 0;
+  gap: 0;
+  display: block;
+}
+
+.video-carousel--js .video-slide {
+  border: none;
+  padding: 0;
+}
+
+.video-carousel--js:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 0.5rem;
+}
+
+.video-carousel__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.video-carousel__btn {
+  font-family: var(--font-body);
+  font-size: 1.4rem;
+  line-height: 1;
+  background: var(--surface);
+  color: var(--brand-deep);
+  border: 2px solid var(--brand-deep);
+  border-radius: 999px;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-carousel__btn:hover:not(:disabled),
+.video-carousel__btn:focus-visible {
+  background: var(--brand-faint);
+}
+
+.video-carousel__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.video-carousel__position {
+  color: var(--ink-secondary);
+  font-size: 0.9rem;
+  min-width: 3.5rem;
+  text-align: center;
+}
+
 /* --- CTA band (cost / download) ----------------------------------------- */
 
 .cta-band {

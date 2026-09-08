@@ -173,11 +173,17 @@ Two constants at the top of the page's script or markup — `PLAY_STORE_URL`, `A
 
 **No dead links. No badge that looks live and goes nowhere. No claim the app is on a store when it is not.**
 
-- [ ] **Step 2: The APK is the real download**
+- [ ] **Step 2: There is no download yet**
 
-It is what works today. Explain what an Android user must do — allow installation from an unknown source — because otherwise the download fails silently for exactly the audience this app is for.
+**Changed 2026-09-08 by the owner: do NOT host the APK. Testing is unfinished.**
 
-Do not commit the APK. Decide and document where it is hosted; a release asset or a Cloudflare-hosted file are both fine, but the page must not link to a path that does not exist.
+This step originally read "the APK is the real download". It is not. Handing a build to strangers before its own testing is complete is how a lending app loses someone's money in a way nobody can reconstruct — and this app's own guard culture exists precisely because that class of failure is expensive here.
+
+So the page states plainly that MANA LINE is in testing and not yet publicly available. No APK link, no release asset, no file anywhere on the site.
+
+The tone is the whole difficulty. This must read as a product being built carefully, not as a product that is late or broken. It is neither — it is being tested before it is handed to people whose money depends on it, which is a reason to trust it rather than to wait doubtfully.
+
+**Do not invent a way to be notified.** There is no mailing list, no signup backend and no CRM. A form that collects an address and drops it is worse than no form. Point at the contact page, which is a real person.
 
 - [ ] **Step 3: iPhone**
 

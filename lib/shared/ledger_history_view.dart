@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 
 import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_ledger.dart';
+import '../design/components/mana_ledger_table.dart';
 import '../design/components/mana_skeleton.dart';
 import '../design/components/mana_text.dart';
+import '../design/tokens/breakpoints.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
@@ -33,6 +35,25 @@ import 'translation_service.dart';
 /// Everything else -- keyset pagination, the filter sheet, day grouping, the
 /// brought-forward and carried-forward lines -- is identical and was being
 /// maintained twice.
+///
+/// AT DESK WIDTH (Plan 2a Task 4) the same [LedgerHistoryState] renders as a
+/// [ManaLedgerTable] instead of a card list -- one row per event, a day band
+/// above each day's first row, and the rupee column genuinely aligned. Both
+/// layouts read `state.days`; nothing is fetched or computed twice, so the
+/// two presentations cannot show a different figure for the same feed.
+///
+/// The branch is on `LayoutBuilder`'s incoming constraints, never on
+/// `MediaQuery`. `ManaWebFrame` clamps a clamped screen's content with a
+/// `ConstrainedBox(maxWidth: 480)`, which narrows what this widget is GIVEN
+/// without narrowing what `MediaQuery` REPORTS -- a screen reading
+/// `MediaQuery.sizeOf` inside that clamp sees the whole browser window (say
+/// 1440) while its real width is 480, and would try to lay a desk-width
+/// table into a phone-width column. Reading `constraints.maxWidth` instead
+/// makes the branch correct regardless of what sits above this widget, which
+/// is also why OW-002's raw `Navigator.push` of this same view (Consumer 3;
+/// there is no route for it to add to `kManaWideRoutes`) still renders the
+/// card list correctly: it is never un-clamped, so its constraints never
+/// cross [ManaBreakpoints.expanded], with no special case required.
 class ManaLedgerHistoryView extends ConsumerStatefulWidget {
   final String businessId;
 
@@ -184,9 +205,20 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
               onFilterTap: _openFilters,
             ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => _load(),
-                child: _body(state),
+              // LayoutBuilder, not MediaQuery -- see the class doc comment.
+              // This Expanded is also what gives ManaLedgerTable the BOUNDED
+              // height its sticky header needs (its own doc comment calls
+              // this out as a silent trap for whoever wires it up): without
+              // it, the table's internal Expanded would throw "unbounded
+              // height" and silently fall back to an unscrollable Column.
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final widthClass = ManaBreakpoints.of(constraints.maxWidth);
+                  return RefreshIndicator(
+                    onRefresh: () => _load(),
+                    child: _body(state, widthClass),
+                  );
+                },
               ),
             ),
           ],
@@ -195,7 +227,7 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
     );
   }
 
-  Widget _body(LedgerHistoryState state) {
+  Widget _body(LedgerHistoryState state, ManaWidthClass widthClass) {
     if (state.loading && state.events.isEmpty) {
       return const ManaSkeletonList(itemCount: 6);
     }
@@ -220,6 +252,15 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
       );
     }
 
+    // Below `expanded` this is exactly the list that rendered before this
+    // task -- unchanged. At `expanded` it is a ManaLedgerTable reading the
+    // SAME state.days, never a second pass over the feed.
+    return widthClass == ManaWidthClass.expanded
+        ? _tableBody(state)
+        : _cardBody(state);
+  }
+
+  Widget _cardBody(LedgerHistoryState state) {
     // Flattened so one lazy ListView covers headers and rows — a Column of
     // per-day ListViews would build every row up front, which is what the
     // unbounded fetch this replaces already cost us once.
@@ -319,6 +360,153 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
       controller: _scroll,
       itemCount: slivers.length,
       itemBuilder: (_, i) => slivers[i],
+    );
+  }
+
+  /// The same feed as [_cardBody], read from the same `state.days` and drawn
+  /// as a [ManaLedgerTable] instead of a scrolling list of cards.
+  ///
+  /// ONE ROW PER EVENT, always -- the count a test can pin against
+  /// `state.events.length`. The day header and the day's opening line move
+  /// from being separate list items (in the card view) to one band placed
+  /// above that day's first row via [ManaLedgerTable.dayHeaders]; every other
+  /// row gets `SizedBox.shrink()`. No figure moves: [ManaLedgerDayHeader]'s
+  /// trailing amount is already the day's closing balance when one exists
+  /// (see its own doc comment), so the closing figure the card view repeats
+  /// at the FOOT of a day via a second [ManaLedgerOpeningRow] is not a
+  /// second number here -- it is the same number the band already shows,
+  /// simply not redrawn a second time. This is a placement decision, not a
+  /// calculation change.
+  ///
+  /// Pagination note: `loadMore()` is still triggered by `_scroll`, which is
+  /// attached to the CARD view's ListView. The table's own internal list
+  /// (inside ManaLedgerTable) is a separate Scrollable with no listener
+  /// wired to it, so a desk-width session does not yet page past the first
+  /// fetch. Out of scope for this task -- flagged, not silently dropped.
+  Widget _tableBody(LedgerHistoryState state) {
+    final agent = widget.membershipId != null;
+    final columns = [
+      ManaLedgerColumn(label: ref.t('time'), flex: 1),
+      ManaLedgerColumn(label: ref.t('description'), flex: 3),
+      ManaLedgerColumn(label: ref.t('amount'), flex: 1, numeric: true),
+    ];
+
+    final rows = <List<Widget>>[];
+    final dayHeaders = <Widget>[];
+
+    for (final day in state.days) {
+      for (var i = 0; i < day.events.length; i++) {
+        final e = day.events[i];
+        final bfToMe = agent && e.type == LedgerEventType.bfGrant;
+
+        dayHeaders.add(
+          i == 0 ? _tableDayBand(day, agent: agent) : const SizedBox.shrink(),
+        );
+
+        rows.add([
+          ManaText.raw(
+            ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
+            style: ManaType.fine,
+          ),
+          _tableDescriptionCell(e, bfToMe: bfToMe),
+          ManaLedgerAmount(
+            event: e,
+            directionFor: bfToMe ? LedgerDirection.moneyIn : null,
+          ),
+        ]);
+      }
+    }
+
+    return Column(
+      children: [
+        if (widget.membershipId != null)
+          Container(
+            width: double.infinity,
+            color: ManaColors.brandFaint,
+            padding: const EdgeInsets.symmetric(
+                horizontal: ManaSpacing.lg, vertical: ManaSpacing.sm),
+            child: ManaText.raw(ref.t('your_activity_only_note'), style: ManaType.fine),
+          ),
+        if (state.summary != null && widget.membershipId == null) ...[
+          ManaLedgerMonthBand(
+            monthLabel: _monthLabel(state.summary!.monthStart),
+            summary: state.summary,
+            onTap: () => _openMonthSheet(state.summary!),
+          ),
+          Divider(height: 1, color: ManaColors.divider),
+        ],
+        Expanded(
+          child: ManaLedgerTable(columns: columns, rows: rows, dayHeaders: dayHeaders),
+        ),
+        if (state.loadingMore)
+          const Padding(
+            padding: EdgeInsets.all(ManaSpacing.lg),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+      ],
+    );
+  }
+
+  /// The band above a day's first row: the same [ManaLedgerDayHeader] the
+  /// card view shows, plus the day's opening line when one is known. Both
+  /// computed identically to [_cardBody] -- see that method's comments for
+  /// why the trailing figure and label differ for an Agent.
+  Widget _tableDayBand(LedgerDay day, {required bool agent}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ManaLedgerDayHeader(
+          dateLabel: ledgerDayLabel(day.businessDate),
+          trailingLabel: day.closingBf != null
+              ? ref.t('day_closing')
+              : ref.t(agent ? 'you_collected' : 'day_net'),
+          trailingAmount:
+              day.closingBf ?? (agent ? day.moneyIn : day.netOfLoadedEvents),
+          trailingIsNet: day.closingBf == null && !agent,
+        ),
+        if (day.openingBf != null)
+          ManaLedgerOpeningRow(
+            amount: day.openingBf!,
+            label: ref.t('brought_forward'),
+          ),
+      ],
+    );
+  }
+
+  /// The action/counterparty/detail text a table row shows, without the time
+  /// (that is its own column here) and without the leading direction icon
+  /// (there is no room for it at a single-flex column width, and the numeric
+  /// column's sign/tone already carries direction).
+  Widget _tableDescriptionCell(LedgerEvent e, {required bool bfToMe}) {
+    final detail = [
+      if (e.reference != null && e.reference!.isNotEmpty) e.reference!,
+      if (e.method != null && e.method!.isNotEmpty) e.method!,
+    ].join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ManaText.raw(
+          bfToMe ? ref.t('bf_received') : ledgerActionLabel(ref, e),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 13, color: ManaColors.textSecondary),
+        ),
+        if (!bfToMe && e.counterparty != null && e.counterparty!.isNotEmpty)
+          ManaText.raw(
+            e.counterparty!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+        if (detail.isNotEmpty)
+          ManaText.raw(
+            detail,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: ManaColors.textSecondary),
+          ),
+      ],
     );
   }
 

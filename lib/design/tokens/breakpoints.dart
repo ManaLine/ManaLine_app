@@ -52,10 +52,26 @@ enum ManaWidthClass { compact, medium, expanded }
 
 /// Routes that have been laid out for a wide window and must NOT be clamped.
 ///
-/// Empty on purpose. Plan 2 adds a path here as each of the five workflows
-/// becomes genuinely responsive — so a screen is only ever let out of the
-/// column once somebody has laid it out and tested it at that width.
+/// Filled by Plan 2a Task 4, as each workflow becomes genuinely responsive —
+/// a screen is only ever let out of the column once somebody has laid it out
+/// and tested it at that width. `/ow-017` and `/ag-010` arrive together: both
+/// render `ManaLedgerHistoryView`, which now branches to a ManaLedgerTable at
+/// `expanded` width, so leaving one route in the set without the other would
+/// give the Owner a table the Agent was never laid out for, or the reverse.
+///
+/// A third `ManaLedgerHistoryView` build site exists — OW-002 (Workforce
+/// Management) opens one agent's ledger via a raw `Navigator.push`, not a
+/// GoRouter route — and it is DELIBERATELY absent here, not an omission: it
+/// has no route path of its own to add (GoRouter's `currentLocation()` keeps
+/// reporting `/ow-002` while it is pushed), and `/ow-002` itself is not in
+/// this set, so `ManaWebFrame` keeps clamping it to 480. Because the view
+/// branches on `LayoutBuilder` constraints rather than `MediaQuery` (see
+/// `ManaLedgerHistoryView`'s doc comment), that clamp is what keeps this
+/// third call site rendering the card list correctly with no special case.
 ///
 /// Mutable rather than const because the widget test needs to add and remove
 /// an entry; nothing in the app writes to it at runtime.
-final Set<String> kManaWideRoutes = <String>{};
+final Set<String> kManaWideRoutes = <String>{
+  '/ow-017',
+  '/ag-010',
+};

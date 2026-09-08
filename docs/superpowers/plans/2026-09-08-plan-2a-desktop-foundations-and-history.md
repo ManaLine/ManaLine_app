@@ -413,7 +413,18 @@ Assertion 4 is the important one. A layout change that loses a row is a wrong le
 
 - [ ] **Step 4: Implement the branch**
 
-In `build`, choose by `ManaBreakpoints.of(MediaQuery.sizeOf(context).width)`: `expanded` renders `ManaLedgerTable`, everything else renders exactly the list that renders today.
+In `build`, wrap in a `LayoutBuilder` and choose by
+`ManaBreakpoints.of(constraints.maxWidth)`: `expanded` renders
+`ManaLedgerTable`, everything else renders exactly the list that renders today.
+
+**`LayoutBuilder`, never `MediaQuery.sizeOf`.** `ManaWebFrame` clamps with a
+`ConstrainedBox(maxWidth: 480)`, and a `ConstrainedBox` does not change
+`MediaQuery` — so a screen inside the clamp reading `MediaQuery` sees the whole
+window (1440) while its real width is 480, and would render a desk-width table
+into a phone-width column. Every layout test would pass and the screen would be
+visibly broken. Constraints report the width the widget actually has.
+
+This also settles the third consumer below without special-casing it.
 
 **Both paths must read from the same already-built row model.** Do not write a second data path for the table — one source, two presentations. A second path is how the two views drift and how a figure appears in one and not the other.
 

@@ -71,6 +71,7 @@ Brand tokens as CSS custom properties at the top, taken from the app. One styles
 
 The priority order, which is the page's structure:
 
+0. **A way in.** Sign In and Register, in the site header on **every page**, pointing at `/app/`. Added 2026-09-08 after the owner could not find them: the priority order below ran from "what this is" to "who stands behind it" and never included a door to the authenticated half. The site has a logged-in area serving four roles, and a returning Owner landing on the home page had no way to reach it. Signing in is not a promotional step, which is why it belongs in the chrome — persistent, visible, and not competing with the download action for the same space.
 1. **What this is, in one line, above the fold.** Someone arriving from a WhatsApp link decides in seconds.
 2. **The problem it replaces** — the paper ledger, the collection nobody recorded, the figure that cannot be reconstructed. This audience knows this problem better than any feature list can describe it.
 3. **Proof it is real** — real screenshots of the app, the five languages, the four roles. Not offline.

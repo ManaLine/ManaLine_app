@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MANA LINE — a Flutter + Supabase field lending app for rural India (owner, agent, investor, customer workspaces; 5 languages). Read `README.md` first — it is current and accurate, including its "Status" and "Not yet true" sections.
+MANA LINE — a Flutter + Supabase field lending app for rural India (owner, agent, investor, customer workspaces; **2 languages — English and Telugu**). Read `README.md` first — it is current and accurate, including its "Status" and "Not yet true" sections.
+
+**Corrected 2026-09-08, was "5 languages".** `ui_translations` holds five columns, but of 1,600 keys: English 1,600, Telugu 1,591, and Hindi / Tamil / Kannada 174 each — about 11%. `lib/shared/translation_service.dart:22` says it outright: *"Only English/Telugu are ever looked up now (ManaLanguage was cut…)"*. The stale figure propagated from here into a plan and came within one implementer's diligence of being printed on the public website as a claim to strangers. Update this line as languages are genuinely completed — the number here is a promise the app has to keep.
 
 **Money correctness is a safety property here.** A confidently wrong number on a collection screen is worse than a crash, because nobody notices it. Never swallow an error into a plausible value (`catch (_) => 0` on a money path). Read the comments at the top of any money file before changing it; commit messages explain *why* and are worth reading before touching money code.
 
@@ -65,7 +67,7 @@ Full list in README §"Money conventions"; the ones that change code:
 
 `flutter test` runs everything. `test/support/mana_harness.dart` pumps a whole screen with everything it expects — Riverpod scope, translation cache, secure storage, GoRouter — using the real `ManaTheme.light()`, because against Flutter's default theme the type scale differs and you'd measure a layout that doesn't exist.
 
-- **Layout tests carry vendored translations on purpose** (`test/support/mana_translations_fixture.dart`): translated width is data, and without the fixture the "five languages" test measures narrower text than production.
+- **Layout tests carry vendored translations on purpose** (`test/support/mana_translations_fixture.dart`): translated width is data, and without the fixture the multi-language layout test measures narrower text than production. The languages that matter for width today are English and Telugu — Telugu is the one that overflows, because its rendered strings are consistently longer than the English the layout was drawn against.
 - **Overflow is the recurring bug class** (shipped 4×; always a bare unflexible child beside a flexible one). It is invisible to `flutter analyze`. The harness checks it via `expectNoLayoutFault`, at text scales `[1.0, 1.3, 1.6, 2.0]` on a 360×640 surface. On device, the only reliable check is `adb logcat | grep overflowed`.
 - **When a screen loads in `initState`, seed its provider** rather than letting it reach the network — otherwise the test lays out an empty state and proves nothing.
 

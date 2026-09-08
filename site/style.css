@@ -1,0 +1,518 @@
+/* MANA LINE — public site stylesheet.
+   One file for the whole site. Mobile-first: most visitors arrive on a
+   cheap Android phone from a WhatsApp link, on a slow connection, so
+   there is no web-font request and no build step — just this file.
+
+   Brand tokens are copied from lib/design/tokens/colors.dart
+   (ManaPalette.light) so the site and the app read as one product.
+   Do not invent new colours here; add a token if the app has one you
+   need and this file doesn't yet. */
+
+:root {
+  /* --- Brand (ManaPalette.light) -------------------------------- */
+  --brand: #007acc;         /* brand: 4.51:1 on white */
+  --brand-deep: #005a99;    /* brandDeep: 7.18:1, carries white text */
+  --brand-faint: #e3f2fb;   /* brandFaint */
+  --accent: #ffb616;        /* accent: fill only, never text on white */
+  --accent-faint: #fff4dc;  /* accentFaint */
+
+  /* --- Surfaces --------------------------------------------------- */
+  --surface: #ffffff;
+  --surface-muted: #f7f7f9;
+  --surface-sunken: #edeef2;
+
+  /* --- Text --------------------------------------------------------
+     textPrimary / textSecondary from the app palette. Body copy never
+     sits directly on --brand; it is a fill colour, not an ink. */
+  --ink: #12293d;
+  --ink-secondary: #5b6272;
+  --ink-on-dark: #f5f6f8;
+
+  /* --- Type --------------------------------------------------------
+     A serif for headings — this site is about a ledger, a register of
+     who owes what, and a serif carries that "official record" weight
+     the way a bahi khata's printed rules do. Body copy stays in the
+     system sans stack so it disappears into legibility on a small,
+     scratched screen. No web fonts: nothing here should block on a
+     network request. */
+  --font-display: Georgia, "Noto Serif", "Times New Roman", serif;
+  --font-body: -apple-system, "Segoe UI", Roboto, "Noto Sans", Helvetica,
+    Arial, sans-serif;
+
+  --content-width: 40rem;
+  --gutter: 1.25rem;
+}
+
+/* --- Reset -------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: var(--brand-deep);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  line-height: 1.2;
+  color: var(--ink);
+  margin: 0 0 0.6em;
+}
+
+p {
+  margin: 0 0 1em;
+}
+
+ul {
+  margin: 0 0 1em;
+  padding-left: 1.25em;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --- Skip link ------------------------------------------------------ */
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--brand-deep);
+  color: var(--ink-on-dark);
+  padding: 0.75em 1em;
+  z-index: 10;
+}
+
+.skip-link:focus {
+  left: var(--gutter);
+  top: var(--gutter);
+}
+
+/* --- Site header ----------------------------------------------------- */
+
+.site-header {
+  background: var(--brand-deep);
+  color: var(--ink-on-dark);
+}
+
+.site-header__inner {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 0.9rem var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--ink-on-dark);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.wordmark:focus-visible {
+  outline-color: var(--accent);
+}
+
+.site-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.1rem;
+}
+
+.site-nav a {
+  color: var(--ink-on-dark);
+  text-decoration: none;
+  font-size: 0.95rem;
+  border-bottom: 1px solid transparent;
+}
+
+.site-nav a:hover,
+.site-nav a:focus-visible {
+  border-bottom-color: var(--accent);
+}
+
+/* --- Ledger-rule motif ------------------------------------------------
+   The signature device of the site: faint horizontal rules, like the
+   printed lines of an accounts register, plus an amber "margin rule" —
+   the vertical line every Indian account book keeps near the left edge
+   to separate the running note from the figure. Used sparingly: once as
+   the hero's ground, once as a labelled section divider, and as the
+   left border on the one paragraph doing the heaviest emotional work. */
+
+.hero {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--brand-faint) 0,
+    var(--brand-faint) 1px,
+    transparent 1px,
+    transparent 2.6rem
+  );
+  background-position: 0 4.5rem;
+  border-bottom: 1px solid var(--surface-sunken);
+}
+
+.hero__inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 3rem var(--gutter) 2.5rem;
+}
+
+.hero__eyebrow {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-deep);
+  background: var(--accent-faint);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.25em 0.85em;
+  margin-bottom: 1rem;
+}
+
+.hero h1 {
+  font-size: 1.9rem;
+  border-left: 0.3rem solid var(--accent);
+  padding-left: 0.75rem;
+  margin-bottom: 0.5em;
+}
+
+.hero__lede {
+  font-size: 1.05rem;
+  color: var(--ink-secondary);
+  max-width: 34rem;
+}
+
+.hero__actions {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* --- Ledger divider: a labelled rule between sections ---------------- */
+
+.ledger-rule {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-secondary);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ledger-rule::before,
+.ledger-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--surface-sunken);
+}
+
+/* --- Buttons ----------------------------------------------------------- */
+
+.btn {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  padding: 0.7em 1.4em;
+  border-radius: 0.4em;
+  border: 2px solid transparent;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  background: #e6a412;
+  border-color: #e6a412;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--ink-on-dark);
+  border-color: var(--ink-on-dark);
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus-visible {
+  background: rgba(245, 246, 248, 0.12);
+}
+
+/* On a light background, the secondary button needs dark-on-light
+   colours — only the header/footer sit on the dark brand fill. */
+.section .btn-secondary,
+.hero .btn-secondary {
+  color: var(--brand-deep);
+  border-color: var(--brand-deep);
+}
+
+.section .btn-secondary:hover,
+.section .btn-secondary:focus-visible,
+.hero .btn-secondary:hover,
+.hero .btn-secondary:focus-visible {
+  background: var(--brand-faint);
+}
+
+/* --- Generic section shell --------------------------------------------- */
+
+.section {
+  padding: 2.75rem 0;
+}
+
+.section--muted {
+  background: var(--surface-muted);
+}
+
+.section__inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.section h2 {
+  font-size: 1.4rem;
+}
+
+.section__kicker {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-deep);
+  margin-bottom: 0.5em;
+  display: block;
+}
+
+/* --- Margin-rule pull quote: the one paragraph carrying recognition --- */
+
+.margin-rule {
+  border-left: 0.25rem solid var(--accent);
+  padding: 0.2rem 0 0.2rem 1rem;
+  margin: 1.25rem 0;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+/* --- Proof section: screenshots, languages, roles ---------------------- */
+
+.screens {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.screen-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-sunken);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.screen-card img,
+.screen-placeholder {
+  width: 100%;
+  display: block;
+}
+
+.screen-placeholder {
+  aspect-ratio: 360 / 780;
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.85rem;
+}
+
+.screen-card figcaption {
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--ink-secondary);
+  border-top: 1px solid var(--surface-sunken);
+}
+
+.fact-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.fact-list li {
+  background: var(--surface);
+  border: 1px solid var(--surface-sunken);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1rem;
+}
+
+.fact-list strong {
+  display: block;
+  color: var(--brand-deep);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.fact-list span {
+  color: var(--ink-secondary);
+  font-size: 0.9rem;
+}
+
+/* --- CTA band (cost / download) ----------------------------------------- */
+
+.cta-band {
+  background: var(--brand-faint);
+  border: 1px solid var(--brand);
+  border-radius: 0.6rem;
+  padding: 1.5rem;
+  margin-top: 1.25rem;
+}
+
+.cta-band h3 {
+  font-size: 1.15rem;
+  margin-bottom: 0.4em;
+}
+
+.cta-band p {
+  color: var(--ink-secondary);
+}
+
+/* --- Footer -------------------------------------------------------------- */
+
+.site-footer {
+  background: var(--ink);
+  color: var(--ink-on-dark);
+}
+
+.site-footer__inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 2.25rem var(--gutter);
+}
+
+.site-footer h2 {
+  color: var(--ink-on-dark);
+  font-size: 1.2rem;
+}
+
+.site-footer a {
+  color: var(--ink-on-dark);
+}
+
+.site-footer__links {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.site-footer__meta {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(245, 246, 248, 0.2);
+  font-size: 0.85rem;
+  color: #c3cad6;
+}
+
+/* --- Small screens are the default; widen gracefully ------------------- */
+
+@media (min-width: 640px) {
+  .hero h1 {
+    font-size: 2.4rem;
+  }
+
+  .section h2 {
+    font-size: 1.65rem;
+  }
+
+  .screens {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .fact-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .hero__inner,
+  .ledger-rule,
+  .section__inner,
+  .site-header__inner,
+  .site-footer__inner {
+    max-width: 56rem;
+  }
+}
+
+/* --- Reduced motion / print are not otherwise used, but stay honest ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+}

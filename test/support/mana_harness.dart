@@ -251,3 +251,25 @@ void expectNoLayoutFault(WidgetTester tester, String what) {
         'from a fixed height or a bare Row wrapping scalable/translated text',
   );
 }
+
+/// Pump [widget] at a phone, a tablet and a desk, running [check] at each.
+///
+/// WHY THREE AND WHY THESE: overflow is this project's recurring shipped bug —
+/// four times, always a bare unflexible child beside a flexible one, invisible
+/// to `flutter analyze`. Widening a layout is exactly how it recurs, and a
+/// layout tested only at 360 proves nothing about the width it was widened
+/// for. 390 is a common handset, 820 a tablet, 1440 a laptop.
+Future<void> pumpAtWidths(
+  WidgetTester tester,
+  Widget widget,
+  Future<void> Function(double width) check,
+) async {
+  for (final width in const [390.0, 820.0, 1440.0]) {
+    tester.view.physicalSize = Size(width, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+    await check(width);
+  }
+}

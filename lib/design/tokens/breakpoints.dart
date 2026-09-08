@@ -21,7 +21,34 @@ class ManaBreakpoints {
   /// How wide the centred column is allowed to get. Roughly a large handset,
   /// so the screens render in the shape they were designed and tested in.
   static const columnMax = 480.0;
+
+  /// A tablet, or a browser window somebody has narrowed. Two columns fit;
+  /// a nav rail does not, so the bottom nav stays.
+  ///
+  /// Deliberately the same number as [compact]: `compact` names the ceiling
+  /// of the phone range, `medium` the floor of the tablet range. Call sites
+  /// read better for having both names, and `mana_breakpoints_test.dart`
+  /// pins them together so they cannot silently drift apart later.
+  static const medium = 600.0;
+
+  /// A desk. Wide enough for a nav rail beside content, and for the ledger
+  /// table's columns to be read across without crowding.
+  static const expanded = 1024.0;
+
+  /// Which width class a viewport falls into.
+  static ManaWidthClass of(double width) => width >= expanded
+      ? ManaWidthClass.expanded
+      : width >= medium
+          ? ManaWidthClass.medium
+          : ManaWidthClass.compact;
 }
+
+/// Which of the three layouts a viewport gets.
+///
+/// Named for what the space affords rather than for a device, because the same
+/// browser window changes class when somebody drags its edge — and a tablet in
+/// portrait is a phone-shaped space regardless of what it is called.
+enum ManaWidthClass { compact, medium, expanded }
 
 /// Routes that have been laid out for a wide window and must NOT be clamped.
 ///

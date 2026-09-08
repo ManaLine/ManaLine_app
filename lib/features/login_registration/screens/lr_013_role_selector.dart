@@ -124,7 +124,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
       await ref.read(authFlowProvider.notifier).resolveSelectedMembershipEntity();
       if (!mounted) return;
       final businessId = ref.read(authFlowProvider).selectedBusinessId;
-      context.go(widget.roleHomeRoutes[result.roles.first] ?? '/ow-001', extra: businessId);
+      context.go(_homeRouteFor(result.roles.first), extra: businessId);
     }
     // >1 → render tile list below, no navigation yet.
   }
@@ -166,8 +166,21 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
     await ref.read(authFlowProvider.notifier).resolveSelectedMembershipEntity();
     if (!mounted) return;
     final businessId = ref.read(authFlowProvider).selectedBusinessId;
-    context.go(widget.roleHomeRoutes[role] ?? '/ow-001', extra: businessId);
+    context.go(_homeRouteFor(role), extra: businessId);
   }
+
+  /// [role] is missing from [widget.roleHomeRoutes] only if a fifth role is
+  /// ever added without also adding its entry to both the Android map here
+  /// and `kWebRoleHomeRoutes` in web_router.dart. `'/ow-001'` was hardcoded
+  /// here before — safe today only because every current role IS in the
+  /// map, and a trap the moment that stops being true: on the web build it
+  /// would send the missing role to a dashboard `manaWebRouter` never
+  /// registers. Falling back to the map's own 'Owner' entry keeps the
+  /// fallback platform-aware the same way the rest of the map already is;
+  /// '/lr-012' (the business selector, on both routers) is the last resort
+  /// if even that is absent.
+  String _homeRouteFor(String role) =>
+      widget.roleHomeRoutes[role] ?? widget.roleHomeRoutes['Owner'] ?? '/lr-012';
 
   @override
   Widget build(BuildContext context) {

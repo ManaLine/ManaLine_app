@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'translation_service.dart';
@@ -13,6 +12,7 @@ import 'widgets/language_selector.dart';
 import 'local_auth_store.dart';
 import 'mana_biometric.dart';
 import 'network_error_handler.dart';
+import 'mana_share_app.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
 import '../features/login_registration/state/auth_api_service.dart';
 import '../features/owner_workspace/state/business_transfer_state.dart';
@@ -118,19 +118,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// resolved a membership. Shared with LR-012's header avatar, which needs
   /// the same answer for the same reason.
   String get _lastUsedProfileRoute => manaLastUsedProfileRoute();
-  /// Opens the system share sheet. No app store link yet — MANA LINE is not
-  /// published — so the message says what the app is rather than pointing at a
-  /// download that would 404. Add the store URL here when there is one.
-  Future<void> _shareApp() async {
-    await SharePlus.instance.share(
-      ShareParams(
-        text: 'MANA LINE — the app my lending business runs on. It keeps every '
-            'loan, collection and daily balance in one place.',
-        subject: 'MANA LINE',
-      ),
-    );
-  }
-
   /// Backup exports business records, so it only means anything in the two
   /// workspaces that have them. The server is still the authority — RLS
   /// decides what any given person can actually read — this only keeps the row
@@ -572,11 +559,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // where hardcoded buttons would offer apps they do not have and
             // miss the one they use. Per-app deep links also break whenever
             // those apps change their URL schemes.
-            _SettingsTile(
+            const _SettingsTile(
               icon: Icons.share_outlined,
               title: 'Share App',
               subtitle: 'Tell someone about MANA LINE.',
-              onTap: _shareApp,
+              onTap: shareManaLineApp,
             ),
             const SizedBox(height: ManaSpacing.lg),
             const _SectionHeader('appearance'),

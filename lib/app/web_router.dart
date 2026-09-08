@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'router.dart' show manaSessionRedirect, manaRootNavigatorKey, manaSelectable;
 import '../design/tokens/colors.dart';
@@ -35,6 +34,7 @@ import '../shared/settings_screen.dart';
 import '../shared/about_screen.dart';
 import '../shared/appearance_screen.dart';
 import '../shared/translation_service.dart';
+import '../shared/mana_share_app.dart';
 import '../features/web/screens/web_home_screen.dart';
 
 /// THE SECOND ROUTER, AND WHY IT IS ALLOWED TO EXIST.
@@ -236,16 +236,12 @@ String _resolveBusinessId(GoRouterState s) {
 /// [kManaWebAllowedRoutes] — everything from a stale bookmark to someone
 /// typing an OW-006 URL they remember from a screenshot. Explains why nothing
 /// loaded and offers a way forward instead of a dead end: back to the web
-/// home, or the same "get the app" share used on that screen (MANA LINE has
-/// no published store listing yet — see ManaWebHomeScreen._shareApp's own
-/// note — so a literal download link would 404 exactly like this route did).
+/// home, or the same "get the app" share used on that screen (see
+/// [shareManaLineApp]'s own note — MANA LINE has no published store listing
+/// yet, so a literal download link would 404 exactly like this route did).
 ///
-/// TRANSLATION KEYS USED HERE DO NOT YET EXIST in ui_translations — noted
-/// rather than invented, per CLAUDE.md's rule against writing enum/DB
-/// literals that have not been confirmed. `ref.t()` degrades to the raw key
-/// until these are added as real rows:
-///   web_route_unavailable_title, web_route_unavailable_body,
-///   web_route_unavailable_action, web_route_unavailable_back
+/// Translation keys `web_route_unavailable_title/body/action/back` are
+/// seeded by migration `20260908141736_web_home_and_route_unavailable_translation_keys.sql`.
 class _WebRouteUnavailableScreen extends ConsumerWidget {
   const _WebRouteUnavailableScreen({required this.path});
 
@@ -276,13 +272,7 @@ class _WebRouteUnavailableScreen extends ConsumerWidget {
                 ManaText.raw(path, style: TextStyle(color: ManaColors.textDisabled, fontSize: 12)),
                 const SizedBox(height: ManaSpacing.xl),
                 FilledButton(
-                  onPressed: () => SharePlus.instance.share(
-                    ShareParams(
-                      text: 'MANA LINE — the app my lending business runs on. It keeps every '
-                          'loan, collection and daily balance in one place.',
-                      subject: 'MANA LINE',
-                    ),
-                  ),
+                  onPressed: shareManaLineApp,
                   child: ManaText(ref.t('web_route_unavailable_action')),
                 ),
                 const SizedBox(height: ManaSpacing.sm),

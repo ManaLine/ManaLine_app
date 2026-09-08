@@ -11,6 +11,9 @@ import 'package:mana_line/design/components/mana_app_bar.dart';
 ///
 /// The rule is now in one place: pop what is there, fall back only when there
 /// is nothing.
+bool _alwaysWeb() => true;
+bool _neverWeb() => false;
+
 void main() {
   Widget app(GoRouter router) => MaterialApp.router(routerConfig: router);
 
@@ -158,6 +161,64 @@ void main() {
     expect(find.text('Second'), findsOneWidget);
     expect(find.byType(BackButton), findsNothing,
         reason: 'the route can pop, and the arrow must still not be there');
+  });
+
+  testWidgets('on web, back-to-home always targets /web-home', (tester) async {
+    // `flutter test` runs on the VM, where the real kIsWeb is always false
+    // -- so this test injects isWeb explicitly, the same way
+    // ManaWebFrame's own tests inject isWeb rather than relying on the
+    // widget's default. homeRoute is a dashboard (/ow-001) that
+    // manaWebRouter never registers; every one of the ~30 screens that
+    // pass one would dead-end on the web build's errorBuilder without
+    // this branch.
+    final router = GoRouter(
+      initialLocation: '/second',
+      routes: [
+        GoRoute(path: '/ow-001', builder: (c, s) => const Scaffold(body: Text('dashboard'))),
+        GoRoute(path: '/web-home', builder: (c, s) => const Scaffold(body: Text('web home'))),
+        GoRoute(
+          path: '/second',
+          builder: (c, s) => const Scaffold(
+            appBar: ManaAppBar(title: 'Second', homeRoute: '/ow-001', isWeb: _alwaysWeb),
+            body: SizedBox.shrink(),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(app(router));
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text('web home'), findsOneWidget);
+    expect(find.text('dashboard'), findsNothing,
+        reason: 'the web build has no dashboard route -- homeRoute must never '
+            'be followed there');
+  });
+
+  testWidgets('off web, back-to-home still targets the passed homeRoute',
+      (tester) async {
+    // The counterpart: Android behaviour is unchanged by the web branch
+    // existing at all.
+    final router = GoRouter(
+      initialLocation: '/second',
+      routes: [
+        GoRoute(path: '/ow-001', builder: (c, s) => const Scaffold(body: Text('dashboard'))),
+        GoRoute(path: '/web-home', builder: (c, s) => const Scaffold(body: Text('web home'))),
+        GoRoute(
+          path: '/second',
+          builder: (c, s) => const Scaffold(
+            appBar: ManaAppBar(title: 'Second', homeRoute: '/ow-001', isWeb: _neverWeb),
+            body: SizedBox.shrink(),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(app(router));
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text('dashboard'), findsOneWidget);
+    expect(find.text('web home'), findsNothing);
   });
 
   testWidgets('a null homeRoute still allows the implicit arrow', (tester) async {

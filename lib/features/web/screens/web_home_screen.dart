@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../design/components/mana_adaptive_shell.dart';
 import '../../../design/components/mana_form_grid.dart';
@@ -12,6 +11,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/translation_service.dart';
+import '../../../shared/mana_share_app.dart';
 
 /// The web home — first thing a signed-in person sees on the site, and
 /// nowhere else. Plan 3a removed the four workspace dashboards from the
@@ -53,25 +53,6 @@ class ManaWebHomeScreen extends ConsumerWidget {
     return 'Owner';
   }
 
-  /// Shares what the app is rather than a store link.
-  ///
-  /// Mirrors `lib/shared/settings_screen.dart`'s `_shareApp` exactly, for
-  /// the exact same reason: MANA LINE has no published store listing yet, so
-  /// a "download" destination that pointed at one would 404. Not shared as a
-  /// widget between the two files because this task's file-touch list is
-  /// deliberately narrow (Task 3 wires the route; nothing else may change) —
-  /// duplicating four lines here is cheaper than reopening settings_screen.dart
-  /// for an import.
-  Future<void> _shareApp() async {
-    await SharePlus.instance.share(
-      ShareParams(
-        text: 'MANA LINE — the app my lending business runs on. It keeps every '
-            'loan, collection and daily balance in one place.',
-        subject: 'MANA LINE',
-      ),
-    );
-  }
-
   List<_Destination> _destinationsFor(String role, BuildContext context, WidgetRef ref) {
     void go(String route) => context.push(route);
 
@@ -80,7 +61,7 @@ class ManaWebHomeScreen extends ConsumerWidget {
           title: ref.t(primary ? 'web_home_agent_app_title' : 'web_home_secondary_app_title'),
           body: ref.t(primary ? 'web_home_agent_app_body' : 'web_home_secondary_app_body'),
           isPrimary: primary,
-          onTap: _shareApp,
+          onTap: shareManaLineApp,
         );
 
     _Destination profile(String route) => _Destination(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -84,6 +85,21 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// businessId to render anything.
   final Object? homeExtra;
 
+  /// Overridable only for tests — the real value is always [kIsWeb]. A
+  /// static tear-off rather than `() => kIsWeb` inline because a default
+  /// parameter value must be a compile-time constant (same pattern as
+  /// `ManaWebFrame.isWeb`).
+  ///
+  /// [homeRoute] is a dashboard route (`/ow-001`, `/cw-001`, …) that
+  /// `manaWebRouter` never registers — Plan 3a's web build has no
+  /// workspace dashboards, only `/web-home`. Every one of the ~30 screens
+  /// that pass a `homeRoute` would dead-end into the web router's
+  /// errorBuilder the moment its stack is empty and the fallback fires.
+  /// Branching here, once, is what makes the fix apply to all of them
+  /// without editing each call site — and each call site staying wrong is
+  /// exactly the failure mode CLAUDE.md warns about for a shared widget.
+  final bool Function() isWeb;
+
   /// Extra, screen-specific actions.
   ///
   /// On an Owner or Agent screen these come BEFORE the standard three
@@ -106,7 +122,10 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.foregroundColor,
     this.actions = const [],
     this.bottom,
+    this.isWeb = _realIsWeb,
   });
+
+  static bool _realIsWeb() => kIsWeb;
 
   @override
   Size get preferredSize => Size.fromHeight(
@@ -148,6 +167,13 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
                 // nothing behind this screen -- it is not the normal path.
                 if (Navigator.of(context).canPop()) {
                   Navigator.of(context).pop();
+                } else if (isWeb()) {
+                  // homeRoute names an Android dashboard (/ow-001, /cw-001,
+                  // ...) that manaWebRouter never registers -- every one of
+                  // these would land on the "screen lives in the app"
+                  // error screen instead of home. /web-home is the only
+                  // destination the web build actually has.
+                  context.go('/web-home');
                 } else {
                   context.go(homeRoute!, extra: homeExtra);
                 }

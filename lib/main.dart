@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'shared/widgets/workspace_actions.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/router.dart';
@@ -15,6 +16,27 @@ import 'features/login_registration/state/auth_flow_state.dart';
 import 'shared/supabase_config.dart';
 
 Future<void> main() async {
+  await bootstrapManaApp(router: manaRouter);
+  runApp(const ProviderScope(child: ManaLineApp()));
+}
+
+/// Everything both entrypoints need before `runApp` — Android's
+/// [main] above and the web build's `main_web.dart`. Pulled out here
+/// rather than left duplicated in both files: this project has already
+/// paid twice for two copies of the same setup drifting apart (see
+/// CLAUDE.md's "Not breaking the thing next to the thing you fixed"),
+/// and writing a second `Supabase.initialize`/hydrate/orientation block
+/// for the web entrypoint would be exactly that mistake on the task
+/// whose entire purpose is preventing drift.
+///
+/// [router] is the one piece that legitimately differs — Android drives
+/// `manaRouter`, the web build drives the restricted `manaWebRouter` — so
+/// it is a parameter rather than baked in, and it is also what the
+/// expired-token redirect below must send `.go('/lr-009')` through: that
+/// route exists on both routers, but it must be the SAME instance whose
+/// `go()` is later handed to `MaterialApp.router` for the redirect to be
+/// visible on screen.
+Future<void> bootstrapManaApp({required GoRouter router}) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Portrait only. This is a one-handed field app: an Agent stands at a door
@@ -23,6 +45,9 @@ Future<void> main() async {
   // not a supported shape and it showed -- the opening screen stranded its
   // logo against a wide empty band. Locking here is one line and undoing it
   // is one line, but every screen would need laying out again first.
+  //
+  // A no-op on the web build (there is no device orientation to lock), so
+  // sharing this call costs nothing there.
   await SystemChrome.setPreferredOrientations(
     const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown],
   );
@@ -68,7 +93,7 @@ Future<void> main() async {
       final session = ManaSession.instance;
       if (session.isAccessTokenExpired) {
         await session.clearExpiredAccessToken();
-        _redirectToPinLogin();
+        _redirectToPinLogin(router);
       }
       return session.currentAccessToken;
     },
@@ -82,8 +107,6 @@ Future<void> main() async {
   // The three actions every Owner and Agent header carries. Installed once
   // rather than assembled at 45 call sites -- see manaInstallWorkspaceActions.
   manaInstallWorkspaceActions();
-
-  runApp(const ProviderScope(child: ManaLineApp()));
 }
 
 /// Sends the person to PIN entry once, from wherever they were.
@@ -94,20 +117,33 @@ Future<void> main() async {
 /// next frame, so a genuinely later expiry still redirects.
 bool _redirectingToLogin = false;
 
-void _redirectToPinLogin() {
+void _redirectToPinLogin(GoRouter router) {
   if (_redirectingToLogin) return;
   _redirectingToLogin = true;
   // Scheduled rather than immediate: this runs inside a network callback,
   // which may be mid-build or mid-frame, and go_router must not be driven
   // from there.
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    manaRouter.go('/lr-009');
+    router.go('/lr-009');
     _redirectingToLogin = false;
   });
 }
 
 class ManaLineApp extends ConsumerWidget {
-  const ManaLineApp({super.key});
+  // Defaults to `manaRouter` so Android's call site (`runApp(const
+  // ProviderScope(child: ManaLineApp()))`) is untouched. main_web.dart is
+  // the only other constructor call, and it passes `manaWebRouter` — the
+  // restricted router built in lib/app/web_router.dart. Everything else
+  // (theme, misconfigured-build guard, text-scale handling) is identical
+  // between the two builds; only the routed screen set differs.
+  // Nullable rather than `= manaRouter`: a default parameter value must be
+  // a compile-time constant, and manaRouter is a `final` top-level
+  // GoRouter built at load time, not a const. The fallback happens in
+  // [build] instead.
+  const ManaLineApp({super.key, GoRouter? router}) : _router = router;
+
+  final GoRouter? _router;
+  GoRouter get router => _router ?? manaRouter;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -152,9 +188,9 @@ class ManaLineApp extends ConsumerWidget {
       // The pieces individually rather than routerConfig, so the back
       // button dispatcher can be ours. routerConfig supplies GoRouter's own,
       // and back would go straight to an empty stack and close the app.
-      routerDelegate: manaRouter.routerDelegate,
-      routeInformationParser: manaRouter.routeInformationParser,
-      routeInformationProvider: manaRouter.routeInformationProvider,
+      routerDelegate: router.routerDelegate,
+      routeInformationParser: router.routeInformationParser,
+      routeInformationProvider: router.routeInformationProvider,
       backButtonDispatcher: ManaBackButtonDispatcher(),
       // The chosen font size, applied once at the root so every screen and
       // every dialog inherits it.
@@ -184,7 +220,7 @@ class ManaLineApp extends ConsumerWidget {
           // above it.
           child: ManaWebFrame(
             currentLocation: () =>
-                manaRouter.routerDelegate.currentConfiguration.uri.path,
+                router.routerDelegate.currentConfiguration.uri.path,
             child: child!,
           ),
         );

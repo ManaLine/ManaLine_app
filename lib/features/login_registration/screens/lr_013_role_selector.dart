@@ -35,7 +35,15 @@ const _roleHomeRoutes = {
 /// Now returns null in that case, and every call site bounces back to
 /// LR-012 instead of crashing.
 class RoleSelectorScreen extends ConsumerStatefulWidget {
-  const RoleSelectorScreen({super.key});
+  const RoleSelectorScreen({super.key, this.roleHomeRoutes = _roleHomeRoutes});
+
+  /// Where each role lands once chosen. Defaults to the four Android
+  /// dashboards; the web entrypoint passes a map sending every role to
+  /// `/web-home` instead, because none of `/ow-001`, `/ag-001`, `/cw-001`
+  /// or `/iw-001` exist in `manaWebRouter` — Plan 3a's web build has no
+  /// workspace dashboards. Optional and defaulted so `manaRouter` (which
+  /// constructs this with no arguments) is untouched.
+  final Map<String, String> roleHomeRoutes;
 
   @override
   ConsumerState<RoleSelectorScreen> createState() => _RoleSelectorScreenState();
@@ -116,7 +124,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
       await ref.read(authFlowProvider.notifier).resolveSelectedMembershipEntity();
       if (!mounted) return;
       final businessId = ref.read(authFlowProvider).selectedBusinessId;
-      context.go(_roleHomeRoutes[result.roles.first] ?? '/ow-001', extra: businessId);
+      context.go(widget.roleHomeRoutes[result.roles.first] ?? '/ow-001', extra: businessId);
     }
     // >1 → render tile list below, no navigation yet.
   }
@@ -158,7 +166,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
     await ref.read(authFlowProvider.notifier).resolveSelectedMembershipEntity();
     if (!mounted) return;
     final businessId = ref.read(authFlowProvider).selectedBusinessId;
-    context.go(_roleHomeRoutes[role] ?? '/ow-001', extra: businessId);
+    context.go(widget.roleHomeRoutes[role] ?? '/ow-001', extra: businessId);
   }
 
   @override

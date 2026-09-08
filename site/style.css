@@ -618,6 +618,49 @@ ul {
   color: var(--ink-secondary);
 }
 
+/* --- Store badge (site/download.html) ----------------------------------
+   Plain, deliberately unofficial — the app is on neither store, so this
+   must not borrow Google Play or App Store artwork. The disabled state
+   carries real text ("Coming soon") and aria-disabled, never colour
+   alone, so it reads the same to a screen reader as it looks on screen. */
+
+.store-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.65em 1.1em;
+  border-radius: 0.4em;
+  border: 2px solid var(--brand-deep);
+  color: var(--brand-deep);
+  background: var(--surface);
+  text-decoration: none;
+  margin-top: 1rem;
+}
+
+.store-badge--disabled {
+  border-style: dashed;
+  border-color: var(--ink-secondary);
+  color: var(--ink-secondary);
+  background: var(--surface-muted);
+  cursor: not-allowed;
+}
+
+.store-badge__status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.store-badge__note {
+  font-size: 0.85rem;
+  color: var(--ink-secondary);
+  margin-top: 0.6rem;
+}
+
 /* --- Footer -------------------------------------------------------------- */
 
 .site-footer {

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MANA LINE — download</title>
+<meta name="description" content="MANA LINE is in testing and not yet publicly available. Where things stand on Android, why there is no iPhone version, and how to ask when it opens up.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <div class="site-header__row">
+      <a class="wordmark" href="index.html">MANA LINE</a>
+      <div class="header-auth">
+        <a class="header-auth__signin" href="/app/">Sign In</a>
+        <a class="btn btn-primary btn-sm" href="/app/">Register</a>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Primary">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="plans.html">Plans</a></li>
+        <li><a href="download.html">Download</a></li>
+        <li><a href="videos.html">Videos</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="legal.html">Legal</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!--
+    Store badge constants — the only two things to edit when a listing
+    goes live. Each is documented here rather than in a script because
+    the honest state today (both empty) needs no JavaScript to render
+    correctly, and a static site with "no build step" should not grow
+    one just to swap a link in.
+
+      PLAY_STORE_URL = ''   (empty → the Android badge below stays the
+                             disabled "Coming soon" <span> it is now)
+      APP_STORE_URL  = ''   (deliberately never wired to a badge — see
+                             the iPhone section: there is no iOS build,
+                             so there is nothing for a badge to point at
+                             even once this stops being empty)
+
+    To activate the Android badge once PLAY_STORE_URL is real: replace
+    the <span class="store-badge store-badge--disabled"> block in the
+    Android section with
+      <a class="store-badge" href="PLAY_STORE_URL">Android app — Get it on Google Play</a>
+    Nothing else on this page changes.
+  -->
+
+  <section class="hero">
+    <div class="hero__inner">
+      <span class="hero__eyebrow">Download</span>
+      <h1>MANA LINE is in testing. It isn't publicly available yet.</h1>
+      <p class="hero__lede">
+        A build exists and is being worked from a real lending business's
+        book today — but it hasn't been handed to anyone outside that
+        testing. A wrong number on a collection screen is a mistake nobody
+        notices, which is exactly the kind of mistake worth ruling out
+        before the app reaches your phone.
+      </p>
+    </div>
+  </section>
+
+  <div class="ledger-rule" role="presentation">Where things stand</div>
+
+  <!-- Android: a real build, no public listing yet. -->
+  <section class="section">
+    <div class="section__inner">
+      <span class="section__kicker">Android</span>
+      <h2>Play Store: not listed yet</h2>
+      <p>
+        MANA LINE runs on Android phones. The build is real; the Play
+        Store listing that would let you install it from there is not
+        published while testing continues.
+      </p>
+      <span class="store-badge store-badge--disabled" aria-disabled="true">
+        Android app <span class="store-badge__status">Coming soon</span>
+      </span>
+      <p class="store-badge__note">
+        This turns into a real link once the listing is published — nothing
+        else on this page changes.
+      </p>
+    </div>
+  </section>
+
+  <!-- iPhone: its own plain fact, not a greyed badge implying imminence. -->
+  <section class="section section--muted">
+    <div class="section__inner">
+      <span class="section__kicker">iPhone</span>
+      <h2>There is no iPhone version</h2>
+      <p>
+        MANA LINE does not run on iOS, and there is no iPhone build in
+        progress. That is not the same statement as "coming soon" — if an
+        iOS version is ever started, it will be announced here, not
+        implied by a badge sitting greyed out in the meantime.
+      </p>
+    </div>
+  </section>
+
+  <div class="ledger-rule" role="presentation">Want to know when it opens up</div>
+
+  <!-- No mailing list: point at a real person instead. -->
+  <section class="section">
+    <div class="section__inner">
+      <span class="section__kicker">Get told, not signed up</span>
+      <h2>There is no list to join — there is a person to ask</h2>
+      <p>
+        MANA LINE does not collect email addresses to notify people later;
+        there is no mailing list behind this page and nothing here saves
+        what you type. The contact page reaches someone who can tell you
+        where testing stands and let you know when that changes.
+      </p>
+      <div class="cta-band">
+        <h3>Ask about testing</h3>
+        <p>A real person, not a form that just stores your address.</p>
+        <a class="btn btn-secondary" href="contact.html">Go to contact</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <h2>Who stands behind it</h2>
+    <p>
+      MANA LINE is built and operated in India. For questions about your
+      account or your business's data, use the contact page; for terms and
+      how data is handled, see the legal page.
+    </p>
+    <ul class="site-footer__links">
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="legal.html">Legal &amp; privacy</a></li>
+      <li><a href="videos.html">Videos</a></li>
+      <li><a href="plans.html">Plans</a></li>
+      <li><a href="download.html">Download</a></li>
+    </ul>
+    <p class="site-footer__meta">© 2026 MANA LINE.</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -378,11 +378,16 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
   /// simply not redrawn a second time. This is a placement decision, not a
   /// calculation change.
   ///
-  /// Pagination note: `loadMore()` is still triggered by `_scroll`, which is
-  /// attached to the CARD view's ListView. The table's own internal list
-  /// (inside ManaLedgerTable) is a separate Scrollable with no listener
-  /// wired to it, so a desk-width session does not yet page past the first
-  /// fetch. Out of scope for this task -- flagged, not silently dropped.
+  /// Pagination: `_scroll` is the SAME [ScrollController] the card view
+  /// attaches to, handed to [ManaLedgerTable] here so its internal vertical
+  /// [ListView] attaches to it instead. Because `_body` only ever builds one
+  /// of `_cardBody`/`_tableBody` at a time, only one concrete Scrollable is
+  /// ever attached to `_scroll` at once -- there is no moment where two
+  /// Scrollables fight over it. `_onScroll` (the one threshold check, "less
+  /// than 400px of scroll extent left -> loadMore()") never needed to change
+  /// or duplicate: it already reads `_scroll.position`, which now belongs to
+  /// whichever list is currently mounted. A desk-width session pages exactly
+  /// like a phone-width one, off the one rule.
   Widget _tableBody(LedgerHistoryState state) {
     final agent = widget.membershipId != null;
     final columns = [
@@ -404,14 +409,20 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
         );
 
         rows.add([
-          ManaText.raw(
-            ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
-            style: ManaType.fine,
+          _tappableCell(
+            e,
+            ManaText.raw(
+              ledgerHasKnownTime(e) ? ledgerTimeLabel(e) : '',
+              style: ManaType.fine,
+            ),
           ),
-          _tableDescriptionCell(e, bfToMe: bfToMe),
-          ManaLedgerAmount(
-            event: e,
-            directionFor: bfToMe ? LedgerDirection.moneyIn : null,
+          _tappableCell(e, _tableDescriptionCell(e, bfToMe: bfToMe)),
+          _tappableCell(
+            e,
+            ManaLedgerAmount(
+              event: e,
+              directionFor: bfToMe ? LedgerDirection.moneyIn : null,
+            ),
           ),
         ]);
       }
@@ -436,7 +447,15 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
           Divider(height: 1, color: ManaColors.divider),
         ],
         Expanded(
-          child: ManaLedgerTable(columns: columns, rows: rows, dayHeaders: dayHeaders),
+          child: ManaLedgerTable(
+            columns: columns,
+            rows: rows,
+            dayHeaders: dayHeaders,
+            // Same controller the card ListView uses -- see the doc comment
+            // above on why one controller, never attached to both at once,
+            // is enough to keep pagination a single rule.
+            scrollController: _scroll,
+          ),
         ),
         if (state.loadingMore)
           const Padding(
@@ -470,6 +489,20 @@ class _ManaLedgerHistoryViewState extends ConsumerState<ManaLedgerHistoryView> {
             label: ref.t('brought_forward'),
           ),
       ],
+    );
+  }
+
+  /// Makes one table cell open the same detail sheet a tapped card opens --
+  /// [_showDetail], the exact same method and the exact same argument, so
+  /// there is one detail path, not a second one for the desk layout. Wrapping
+  /// each cell (rather than the row as a whole, which [ManaLedgerTable] has
+  /// no seam to accept) means every column responds, so the row reads as one
+  /// tappable target with no dead gaps between cells.
+  Widget _tappableCell(LedgerEvent e, Widget child) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showDetail(e),
+      child: child,
     );
   }
 

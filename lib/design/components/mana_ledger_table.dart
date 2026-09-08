@@ -88,11 +88,25 @@ class ManaLedgerTable extends StatelessWidget {
   final List<List<Widget>> rows;
   final List<Widget>? dayHeaders;
 
+  /// Optional controller for the table's own internal (vertical) list.
+  ///
+  /// Layout-only, same as everything else here: this widget does not read
+  /// scroll position or decide when to page. A caller that also drives
+  /// pagination off a [ScrollController] (see `ManaLedgerHistoryView`) can
+  /// hand the SAME controller instance here and to whatever other
+  /// Scrollable it swaps in/out in its place, so one listener and one
+  /// threshold check keep working regardless of which Scrollable currently
+  /// has the controller attached. Never attach one controller to two
+  /// concurrently-mounted Scrollables -- that is a Flutter framework error,
+  /// not something this widget can guard against.
+  final ScrollController? scrollController;
+
   const ManaLedgerTable({
     super.key,
     required this.columns,
     required this.rows,
     this.dayHeaders,
+    this.scrollController,
   });
 
   double get _totalFlex => columns.fold<double>(0, (sum, c) => sum + c.flex);
@@ -221,6 +235,7 @@ class ManaLedgerTable extends StatelessWidget {
             if (outer.hasBoundedHeight)
               Expanded(
                 child: ListView(
+                  controller: scrollController,
                   padding: EdgeInsets.zero,
                   children: body,
                 ),

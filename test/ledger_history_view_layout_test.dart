@@ -26,6 +26,25 @@ class _SeededLedgerNotifier extends LedgerHistoryNotifier {
   Future<void> loadMore() async {}
 }
 
+/// Same as [_SeededLedgerNotifier], plus a counter so a test can prove
+/// `loadMore()` was actually invoked -- the thing Gap 1 broke silently.
+class _CountingLedgerNotifier extends LedgerHistoryNotifier {
+  _CountingLedgerNotifier(this._seed);
+  final LedgerHistoryState _seed;
+  int loadMoreCalls = 0;
+
+  @override
+  LedgerHistoryState build(LedgerScope scope) => _seed;
+
+  @override
+  Future<void> load({bool withSummary = true}) async {}
+
+  @override
+  Future<void> loadMore() async {
+    loadMoreCalls++;
+  }
+}
+
 LedgerEvent _event({
   required String id,
   required String type,
@@ -80,6 +99,22 @@ final _events = [
       reference: 'L-1050'),
 ];
 
+/// A feed long enough to overflow a bounded viewport, so the table's
+/// internal ListView actually has somewhere to scroll to. One day, many
+/// rows -- day grouping is irrelevant to this test.
+final _manyEvents = [
+  for (var i = 0; i < 40; i++)
+    _event(
+      id: 'collection:$i',
+      type: 'collection',
+      date: '2026-08-12',
+      at: '2026-08-12T09:${(i % 60).toString().padLeft(2, '0')}:00',
+      amount: 100 + i,
+      counterparty: 'Customer $i',
+      reference: 'L-$i',
+    ),
+];
+
 const _summary = LedgerMonthSummary(
   monthStart: '2026-08-01',
   received: 152500,
@@ -103,8 +138,9 @@ const _translations = <String, Map<String, String>>{
   'retry': {'English': 'Retry'},
 };
 
-LedgerHistoryState _loaded({LedgerMonthSummary? summary}) => LedgerHistoryState(
-      events: _events,
+LedgerHistoryState _loaded({LedgerMonthSummary? summary, List<LedgerEvent>? events}) =>
+    LedgerHistoryState(
+      events: events ?? _events,
       summary: summary,
       loading: false,
     );
@@ -183,5 +219,85 @@ void main() {
         }
       },
     );
+
+    testWidgets(
+      'reaching the end of the TABLE scroll triggers loadMore(), the same '
+      'as the card list -- Gap 1: the table used to be a dead end',
+      (tester) async {
+        final notifier = _CountingLedgerNotifier(_loaded(events: _manyEvents));
+        await pumpManaScreen(
+          tester,
+          ownerScreen(),
+          translations: _translations,
+          surfaceSize: const Size(1440, 900),
+          location: '/ow-017',
+          overrides: [
+            ledgerHistoryProvider.overrideWith(() => notifier),
+          ],
+        );
+
+        expect(find.byType(ManaLedgerTable), findsOneWidget);
+        expect(notifier.loadMoreCalls, 0);
+
+        // The table's OWN internal vertical list -- there is also a
+        // horizontal Scrollable in ManaLedgerTable for sideways overflow,
+        // so pick the one whose axis is vertical.
+        final verticalScrollable = tester.widgetList<Scrollable>(
+          find.descendant(
+            of: find.byType(ManaLedgerTable),
+            matching: find.byType(Scrollable),
+          ),
+        ).firstWhere((s) => s.axisDirection == AxisDirection.down);
+        final state = tester.state<ScrollableState>(
+          find.byWidgetPredicate((w) => identical(w, verticalScrollable)),
+        );
+
+        // Jump to the end -- the same "0px of scroll extent left" case
+        // `_onScroll`'s `remaining < 400` threshold is built to catch.
+        state.position.jumpTo(state.position.maxScrollExtent);
+        await tester.pump();
+
+        expect(
+          notifier.loadMoreCalls,
+          greaterThan(0),
+          reason: 'the table scrolling to its end must drive the SAME '
+              '_scroll controller the card list uses, not a second, '
+              'unwired Scrollable',
+        );
+      },
+    );
+  });
+
+  group('ManaLedgerHistoryView table row tap', () {
+    testWidgets('tapping a table row opens the same detail sheet a tapped '
+        'card would -- Gap 2', (tester) async {
+      await pumpManaScreen(
+        tester,
+        ownerScreen(),
+        translations: _translations,
+        surfaceSize: const Size(1440, 900),
+        location: '/ow-017',
+        overrides: [
+          ledgerHistoryProvider
+              .overrideWith(() => _SeededLedgerNotifier(_loaded(summary: _summary))),
+        ],
+      );
+
+      expect(find.byType(ManaLedgerTable), findsOneWidget);
+      // "Lakshmi Devi" is the loan_distribution event, not the collection
+      // one -- deliberately, so this test never reaches _showDetail's
+      // FutureBuilder branch (collectionExtras()), which calls the real
+      // Supabase client and has nothing to do with what Gap 2 is about.
+      expect(find.text('Lakshmi Devi'), findsOneWidget);
+
+      await tester.tap(find.text('Lakshmi Devi'));
+      await tester.pumpAndSettle();
+
+      // [_showDetail] -- the exact same method and argument the card's
+      // onTap calls -- also renders the counterparty, as its own sheet
+      // heading. A second widget bearing that name is only possible if the
+      // tap actually opened that sheet, not some table-only detail path.
+      expect(find.text('Lakshmi Devi'), findsNWidgets(2));
+    });
   });
 }

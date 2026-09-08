@@ -44,35 +44,41 @@ into a canvas no search engine reads. That measurement has not changed.
 The site's logged-in area serves **all four roles**. What each role may reach
 differs, because "accounts" means something different to each.
 
-### The reading this rests on — correct it if wrong
+### The principle, now settled
 
-The instruction was "view accounts only (no history)" and "remove all the other
-stuff like collection entries, loans".
-
-Taken as: **viewing what you owe or are owed is in; doing the day's work is
-out.** A Customer seeing their own loan balance is an account view. Recording a
+**Seeing what you hold is in; doing the day's work is out.** Recording a
 collection, issuing a loan, closing a day, settling an agent — those are field
-operations, and they belong on the handset.
+operations and they belong on the handset.
 
-If "no loans" was meant to exclude a Customer seeing their own loan, the
-Customer's account view disappears entirely and item 2 becomes Owner-only. That
-is a one-line change to the allowlist below, not a redesign — but it must be
-decided before implementation, not after.
+Confirmed by the owner:
+
+- **A Customer sees their own loan account.** What they borrowed, what remains,
+  what falls due.
+- **An Investor sees where their money sits** — which businesses hold it and
+  how much.
+- **An Agent signs in and is pointed at the app.** An agent's entire role is
+  field work, so there is no web content for them to view. They authenticate
+  successfully and the site tells them where the work actually happens.
+
+The Agent case is not a degraded experience by accident — it is the honest one.
+Anything else would mean building an agent surface on the web that duplicates
+the handset badly.
 
 ### The allowlist
 
 | Item | Owner | Agent | Customer | Investor |
 |---|---|---|---|---|
 | 1 Login / registration | LR-001…013 (shared) |||| 
-| 2 Accounts | OW-013 | — | CW-004 | IW-003 |
+| 2 Accounts | OW-013 | none — see below | CW-004 (their own loan) | IW-003 (where their money sits) |
 | 3 Pre-existing business | OW-018, bulk onboarding, `/import` | — | — | — |
 | 4 Subscription | `/subscription` | — | — | — |
 | 5 Profile & settings | OW-016 | AG-009 | CW-006 | IW-005 |
 | 5 Shared settings | `/settings`, `/appearance`, `/about`, per-role settings routes ||||
 
-**The Agent has no account view.** An agent's standing is their BF and their
-settlement with the owner, and both are field operations rather than a
-statement. If that is wrong, AG-006 is the screen to add.
+**The Agent has no account view, by decision.** Their standing is BF and
+settlement, both field operations. On the web an Agent reaches the hub, their
+profile, and settings — and the hub's primary content for them is getting the
+app.
 
 Everything else is absent from the web router: all four dashboards, collection
 mode, new loan, loan distribution, day closure, reports, workforce, investor
@@ -188,10 +194,38 @@ analytics or tracking beyond what the host provides by default. No account
 creation flows that differ from the app's — registration is the app's own
 LR-004, not a second implementation.
 
-## 8. Open decision
+## 8. Copy
 
-**Does a Customer see their own loan account on the website?** §2 assumes yes,
-on the reading that viewing a balance is not "doing loans". If no, CW-004 and
-IW-003 leave the allowlist and item 2 becomes Owner-only.
+Every phrase in this document describes INTENT, not wording. Nothing here is
+approved copy, and none of it should reach a screen verbatim — least of all the
+plain-language shorthand used to settle decisions ("the work happens in the
+app", "coming soon").
 
-Nothing else in this document depends on the answer.
+The site is the first thing a stranger sees of this product. Copy is written
+for that reader: short, concrete, in the app's own voice, and never explaining
+the software's internals to someone who only wants to know whether it will help
+them get their money back.
+
+The Agent hub is the sharpest test of this. "There is nothing for you here,
+download the app" is the accurate meaning and would be an insulting thing to
+read. It has to be written as what it actually is — the work an agent does
+happens on their phone, in the field, and this is where they get it.
+
+Every string goes through `ManaText` (Title Case is enforced in code) and every
+string in the app half needs a translation key. The public site is English for
+now; the five languages are a claim the site makes about the APP, not a promise
+about the marketing pages.
+
+## 9. Decisions taken
+
+| Decision | Outcome |
+|---|---|
+| Desk-width history | Deleted, not unrouted |
+| Web routing | Separate entrypoint and router, guarded against drift |
+| Store listings | Neither exists; badges coming-soon, APK is the real download |
+| Customer account | In — their own loan |
+| Investor account | In — where their money sits |
+| Agent account | None; the hub points them at the app |
+| Public prices | None; tiers and caps only |
+
+No decisions remain open.

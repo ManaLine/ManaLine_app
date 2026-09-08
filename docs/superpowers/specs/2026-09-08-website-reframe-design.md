@@ -163,7 +163,14 @@ What the space is for, in priority order:
    figure nobody can reconstruct. This audience recognises the problem faster
    than any feature list.
 3. **Proof it is real**: screenshots of the actual app, the five languages
-   named, the fact that agents work offline in the field.
+   named, the four roles it serves.
+
+   **Corrected 2026-09-08.** This line originally offered "agents work offline
+   in the field" as proof. That is not true. `README.md`'s "Not yet true"
+   section states offline sync is not wired and calls it the largest remaining
+   gap. The claim was written into a marketing spec without being checked
+   against the app's own record of what it cannot do — which is exactly how a
+   site ends up promising something a customer discovers is missing.
 4. **What it costs** — tiers and caps, honestly, with no figure until billing
    exists.
 5. **Get it** — the APK, and the store badges when they are real.

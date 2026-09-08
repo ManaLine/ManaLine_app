@@ -455,6 +455,46 @@ ul {
   font-size: 0.9rem;
 }
 
+/* --- Plans table --------------------------------------------------------
+   A real <table>, not a card grid pretending to be one — it reads with
+   assistive technology and needs no JavaScript. table-scroll lets it
+   scroll horizontally on narrow phones instead of squeezing columns. */
+
+.table-scroll {
+  overflow-x: auto;
+  margin: 1.5rem 0 0;
+}
+
+.plans-table {
+  width: 100%;
+  min-width: 30rem;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.plans-table th,
+.plans-table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--surface-sunken);
+}
+
+.plans-table thead th {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-deep);
+  border-bottom: 2px solid var(--brand);
+}
+
+.plans-table tbody th {
+  font-family: var(--font-display);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* --- CTA band (cost / download) ----------------------------------------- */
 
 .cta-band {

@@ -22,6 +22,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// under lib/ and neither is the script that did it. Anything a tool edits in
 /// place is in scope now: lib/, tool/, and pubspec.yaml itself.
 ///
+/// WIDENED TO site/ ON 2026-09-08. The public site's copy carries rupee
+/// symbols and em dashes the same way the app does, and mojibake there is
+/// worse than in source — it is the first thing a stranger sees, on the
+/// home page, not buried in a screen nobody not testing the app opens.
+///
 /// test/ stays OUT of scope on purpose — the mojibake table below is a table OF
 /// the corrupt sequences, so a guard that scanned its own source would report
 /// all nine of them, every run, forever.
@@ -43,9 +48,9 @@ void main() {
 
     final offenders = <String>[];
 
-    // lib/ for source, tool/ for the scripts that edit source, and pubspec
+    // lib/ for source, tool/ for the scripts that edit source, pubspec
     // itself — the file that actually broke, and the one Android reads the
-    // version out of.
+    // version out of — and site/ for the public site's own HTML/CSS/JS.
     final targets = <File>[
       for (final root in ['lib', 'tool'])
         if (Directory(root).existsSync())
@@ -55,6 +60,14 @@ void main() {
               .where((f) =>
                   f.path.endsWith('.dart') || f.path.endsWith('.ps1')),
       if (File('pubspec.yaml').existsSync()) File('pubspec.yaml'),
+      if (Directory('site').existsSync())
+        ...Directory('site')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) =>
+                f.path.endsWith('.html') ||
+                f.path.endsWith('.css') ||
+                f.path.endsWith('.js')),
     ];
 
     // A scan that finds nothing passes without checking anything.

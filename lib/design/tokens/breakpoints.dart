@@ -71,7 +71,13 @@ enum ManaWidthClass { compact, medium, expanded }
 ///
 /// Mutable rather than const because the widget test needs to add and remove
 /// an entry; nothing in the app writes to it at runtime.
+/// `/ow-013` (Account Review) joined afterward, alone rather than paired: it
+/// renders no `ManaLedgerHistoryView`, so it carries none of the pairing
+/// concern above — its own card grid (2 columns at medium, 3 at expanded)
+/// is self-contained inside `ow_013_account_review.dart` and has no sibling
+/// screen sharing the same widget to keep in step with.
 final Set<String> kManaWideRoutes = <String>{
   '/ow-017',
   '/ag-010',
+  '/ow-013',
 };

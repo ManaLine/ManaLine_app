@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_form_grid.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
@@ -131,20 +132,31 @@ class _StatementScreenState extends ConsumerState<StatementScreen> {
             // Radio's groupValue/onChanged are deprecated in this Flutter in
             // favour of a RadioGroup ancestor, and a selectable row reads the
             // same to the user either way.
-            if (_mode == _Mode.range)
-              for (final days in const [30, 90, 180, 365])
-                _ChoiceTile(
-                  label: ref.t('last_n_days').replaceAll('{count}', '$days'),
-                  selected: _rangeDays == days,
-                  onTap: () => setState(() => _rangeDays = days),
-                )
-            else
-              for (final year in fyOptions)
-                _ChoiceTile(
-                  label: 'FY $year - ${year + 1}',
-                  selected: _fyStart == year,
-                  onTap: () => setState(() => _fyStart = year),
-                ),
+            //
+            // ManaFormGrid rather than a bare Column: this screen is clamped
+            // to phone width today (it is not in kManaWideRoutes), so it
+            // renders single-column in production, but it is the natural
+            // first consumer for the primitive — a screen that later joins
+            // the wide-route set gets the two-column filter list for free.
+            ManaFormGrid(
+              children: _mode == _Mode.range
+                  ? [
+                      for (final days in const [30, 90, 180, 365])
+                        _ChoiceTile(
+                          label: ref.t('last_n_days').replaceAll('{count}', '$days'),
+                          selected: _rangeDays == days,
+                          onTap: () => setState(() => _rangeDays = days),
+                        ),
+                    ]
+                  : [
+                      for (final year in fyOptions)
+                        _ChoiceTile(
+                          label: 'FY $year - ${year + 1}',
+                          selected: _fyStart == year,
+                          onTap: () => setState(() => _fyStart = year),
+                        ),
+                    ],
+            ),
             const Divider(height: ManaSpacing.xl),
             // Shows the resolved dates, so "Last 90 days" is never ambiguous
             // about which 90 days it means.

@@ -1,19 +1,22 @@
-# Plan 4 — village address by cascade, not by PIN
+# Plan 4 — two ways to find a village: by PIN, or by cascade
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace PIN-code-first address entry with a cascade — state, then district, then village name — so somebody who does not know their postal code can still find their own village, and so the district ambiguity that has plagued this data is resolved by the person rather than inferred.
+**Goal:** Keep PIN-code search exactly as it is and make it the default, and **add** a second way in — state, then district, then village name — so somebody who does not know their postal code can still find their own village.
 
-**Architecture:** One index makes the cascade possible at all. A new data-layer path serves three steps (states, districts in a state, villages in a district matching a prefix). A new picker widget replaces the PIN+village pair, and the eleven screens that use the old one adopt it.
+**Architecture:** One index makes the cascade possible at all. New data-layer methods serve the three cascade steps, alongside the existing `searchByPin` which is untouched. One widget offers both modes with PIN selected by default, and the eleven screens that use the current picker adopt it.
+
+**Revised 2026-09-11.** The first draft of this plan REPLACED PIN entry with the cascade. The owner corrected that: PIN search stays, is the default, and the cascade is an alternative the person can switch to. That is the better shape — for a user who does know their PIN, six digits is faster than three pickers, and nothing about the existing path needed fixing.
 
 **Tech Stack:** Flutter, Riverpod, Supabase/PostgREST, `flutter_test`.
 
 ## Global Constraints
 
-- **The PIN is not deleted from the DATA, only from the ENTRY.** `lgd_villages.pincode` still exists, still displays in a result row, and is still stored on the address. Only the "type your PIN first" step goes.
+- **PIN search is not removed, changed, or deprecated.** `searchByPin`, its 3-letter rule and its behaviour stay exactly as they are, and PIN is the **default** mode. The cascade is added beside it. A change that makes the existing path worse in order to add a new one has failed.
+- **Both rules are live at once.** PIN + ≥3 letters, and state + district + ≥3 letters prefix-first. Two search rules now exist deliberately, and the guard test must pin **both** rather than being switched from one to the other.
 - **Money paths are untouched.** No file matching `*_ledger*`, `*_collection*`, `*_loan_math*` is modified.
 - `flutter analyze` clean on every touched file. Full `flutter test` green after every task — baseline **2,245 passing**.
-- **The two guard tests are REWRITTEN to the new rule, never loosened.** `village_search_rule_test.dart` and `village_lookup_guard_test.dart` exist because the search rule had drifted across three copies. The rule is changing; the guarding is not.
+- **The two guard tests are EXTENDED to cover both rules, never loosened.** `village_search_rule_test.dart` and `village_lookup_guard_test.dart` exist because the search rule had already drifted across three copies. A second rule arriving beside the first is exactly the condition that produced that drift, so both guards must end up protecting more than they do today, not the same amount aimed elsewhere.
 - **Minimum 3 letters** before a village search runs. Decided by the owner; unchanged from today.
 - **No result cap** — the cascade bounds the list structurally. This is only safe with prefix matching (measured: 14–18 rows) and unsafe with substring (400–500 in the largest AP districts), which is why the fallback exists and is second.
 - UTF-8, no BOM. Never commit credentials.
@@ -103,17 +106,27 @@ Cover: fewer than 3 letters returns empty and issues no request; a prefix hit do
 
 ### Task 3: The picker
 
-**Files:** Create `lib/shared/widgets/village_cascade_field.dart` and its test.
+**Files:** Create `lib/shared/widgets/village_search_field.dart` and its test.
 
 **Interfaces:**
 - Consumes: Task 2's three methods.
-- Produces: `ManaVillageCascadeField({required ValueChanged<ManaVillage?> onPicked, String? label})` — **deliberately the same callback shape as `ManaVillagePickerField`**, so Task 4's eleven adoptions are a swap rather than a rewrite at each site.
+- Produces: `ManaVillageSearchField({required ValueChanged<ManaVillage?> onPicked, String? label})` — a two-mode field, PIN by default, cascade on request. **Deliberately the same callback shape as `ManaVillagePickerField`**, so Task 4's eleven adoptions are a swap rather than a rewrite at each site.
 
-- [ ] **Step 1: Read what you are replacing**
+- [ ] **Step 1: Read what you are extending, not replacing**
 
-`lib/shared/widgets/village_picker_field.dart` — a PIN field and a query field. Match its callback contract exactly, including emitting `null` when the person edits away a chosen village.
+`lib/shared/widgets/village_picker_field.dart` — a PIN field and a query field. **That mode stays and keeps working.** Match its callback contract exactly, including emitting `null` when the person edits away a chosen village.
 
-- [ ] **Step 2: Build the three steps**
+The new widget offers two modes with **PIN selected by default**. Reuse the existing PIN+query fields for that mode rather than reimplementing them — a second copy of a working search is how the two drift.
+
+- [ ] **Step 1b: The mode switch**
+
+A clear, plain control — two options, PIN first. Not a hidden setting, not an icon a person has to guess at.
+
+Switching modes **clears the current selection**, because a village found by PIN and a village found by cascade are the same row reached two ways, and carrying a half-finished selection across the switch is how someone submits an address they did not choose.
+
+Default is PIN on every open. Do not remember the last mode: the person who used the cascade once is usually someone who did not know that PIN, and next time they may be entering a different address entirely.
+
+- [ ] **Step 2: Build the cascade's three steps**
 
 State → district → village name. Each step reveals the next; changing an earlier step clears the later ones. A person who picks the wrong district must not be left with a stale village selection — that is how a customer ends up filed in a district nobody collects from.
 
@@ -149,21 +162,23 @@ Expected: `ag_004`, `cw_006`, `iw_005`, `lr_004`, `ow_000`, `ow_004`, `ow_012`, 
 
 - [ ] **Step 2: Migrate them one at a time**
 
-Each screen swaps `ManaVillagePickerField` for `ManaVillageCascadeField`. The callback shape is identical, so the surrounding code should not change. Where a screen also collected a PIN separately, that field goes.
+Each screen swaps `ManaVillagePickerField` for `ManaVillageSearchField`. The callback shape is identical, so the surrounding code should not change. A screen that collected a PIN separately keeps doing so — PIN entry is not being taken away.
 
 - [ ] **Step 3: `add_village_sheet` — the one that is not a swap**
 
-Adding a village the directory never recorded currently takes a PIN. It now takes state, district and mandal from the cascade's current selection, so a manually added village lands in the right place instead of wherever a typed PIN pointed. Read `app.add_location_if_missing` before changing what is passed to it.
+Adding a village the directory never recorded currently takes a PIN, and in PIN mode it still should. In CASCADE mode it takes state, district and mandal from the current selection instead, so a village added that way lands in the chosen district rather than wherever a typed PIN pointed. Both routes must reach `app.add_location_if_missing` with a consistent shape — read it before changing what is passed.
 
-- [ ] **Step 4: Rewrite both guards to the new rule**
+- [ ] **Step 4: Extend both guards to cover both rules**
 
-`village_search_rule_test.dart` pins the old PIN+3-letters rule across its copies. Rewrite it to pin the new rule: 3-letter minimum, prefix before substring, state and district required. `village_lookup_guard_test.dart` ensures a search reads the LGD reference rather than `locations`; keep that intent, update it to the cascade.
+`village_search_rule_test.dart` pins the PIN + 3-letters rule across its copies. **Keep every existing assertion** — that rule is still live — and **add** assertions for the cascade rule: 3-letter minimum, prefix before substring, state and district required.
 
-**Do not weaken either to get green.** If a guard now protects less than it did, say so explicitly with the reason.
+`village_lookup_guard_test.dart` ensures a village search reads the LGD reference rather than `locations`. That intent now applies to two paths; extend it to cover the cascade as well.
 
-- [ ] **Step 5: Delete what is genuinely dead**
+**Do not weaken either to get green.** Two search rules coexist now, so both guards protect more than before, not less. If either ends up protecting less, say so explicitly with the reason.
 
-Once nothing calls `searchByPin`, remove it and `village_picker_field.dart`. Confirm by grep, not by assumption. If something still calls them, leave them and report what.
+- [ ] **Step 5: Delete nothing**
+
+`searchByPin` and the PIN mode stay. There is no dead code to remove in this plan — the earlier draft's deletion step was removed when PIN search was kept. If you find something genuinely orphaned, report it rather than deleting it as part of this task.
 
 ---
 
@@ -171,7 +186,8 @@ Once nothing calls `searchByPin`, remove it and `village_picker_field.dart`. Con
 
 **Files:** none.
 
-- [ ] Build, install, and enter an address through the cascade on a real phone.
+- [ ] Build, install, and enter an address on a real phone BY PIN first, confirming the default path is unchanged from build 5.
+- [ ] Then switch to cascade mode and enter another address.
 - [ ] Find a village you know. Confirm the row shows mandal, district, state and PIN.
 - [ ] Pick the wrong district deliberately, then correct it — the village selection must clear.
 - [ ] Type three letters in the biggest district you can find and confirm the list is short and arrives quickly.

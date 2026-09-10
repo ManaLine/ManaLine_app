@@ -6,7 +6,7 @@ publish_to: 'none'
 # build by tool/build_apk.ps1, which also updates manaBuildNumber in
 # lib/shared/app_version.dart; test/app_version_test.dart fails if the two
 # ever disagree.
-version: 0.1.0+4
+version: 0.1.0+5
 environment:
   sdk: '>=3.0.0 <4.0.0'
   flutter: ">=3.10.0"

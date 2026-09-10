@@ -47,7 +47,12 @@ const _census = <String, int>{
   // become copies eleven and twelve of a pattern that had already drifted ten
   // ways. A new dependant here is a screen that should probably be using it
   // rather than growing another.
-  'ManaVillagePickerField': 3,
+  //
+  // Went 3 -> 4 when ManaVillageSearchField (Plan 4 Task 3) was added.
+  // Checked: it embeds ManaVillagePickerField itself for PIN mode rather than
+  // reimplementing the PIN+name search — the exact reuse this count exists to
+  // encourage — and passes its own onPicked straight through unchanged.
+  'ManaVillagePickerField': 4,
   'manaComposeAddress': 3,
 
   // Adding a village the LGD directory has never recorded. One sheet, seven

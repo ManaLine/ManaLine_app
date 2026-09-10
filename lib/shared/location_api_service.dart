@@ -87,16 +87,44 @@ class ManaSimilarVillage {
 
 class LocationApiService {
   final SupabaseClient _db;
-  const LocationApiService(this._db);
+  LocationApiService(this._db);
 
   /// Every column any caller needed, so no screen has to re-derive the list
   /// and none of them can quietly drift apart again.
   static const _columns =
       'location_id, village_town_name, pin_code, mandal, district, state';
 
+  /// The columns `lgd_villages` itself carries — a different shape from
+  /// `locations` (`village`/`pincode`, no `location_id`), because it is the
+  /// read-only LGD reference, never the app's own table.
+  static const _lgdColumns = 'village, mandal, district, state, pincode';
+
   /// The fewest letters of a village name [searchByPin] will search on. A PIN
   /// alone can carry fifty villages; that is the directory, not a shortlist.
+  /// [searchVillages] reuses this — one number, not a second one that could
+  /// drift from it (see `village_search_rule_test.dart`).
   static const minVillageLetters = 3;
+
+  /// `states()` result, kept for the life of this service instance. A
+  /// government list of Indian states does not change mid-session, and
+  /// `select distinct state` with no filter measures 244 ms — it cannot use
+  /// the `(state, district)` index without a filter, so it walks the whole
+  /// 767,191-row table. Paying that once per app run is fine; paying it every
+  /// time the cascade opens is not. `locationApiServiceProvider` hands out one
+  /// instance for the app's lifetime, so this cache lives exactly as long as
+  /// the 35 states it holds are true.
+  List<String>? _statesCache;
+
+  ManaVillage _fromLgdRow(Map<String, dynamic> r) => ManaVillage(
+        // A directory row, not a `locations` row: no id until [resolveId]
+        // materialises it, same as the reference half of [searchByPin].
+        locationId: '',
+        name: (r['village'] as String?)?.trim() ?? '',
+        pinCode: (r['pincode'] as String?)?.trim() ?? '',
+        mandal: (r['mandal'] as String?)?.trim() ?? '',
+        district: (r['district'] as String?)?.trim() ?? '',
+        state: (r['state'] as String?)?.trim() ?? '',
+      );
 
   /// Villages for a PIN: the ones already in use first, then everything the
   /// LGD reference knows, optionally narrowed by name.
@@ -316,6 +344,100 @@ class LocationApiService {
         .schema('app')
         .rpc('suggest_villages', params: {'p_pincode': pinCode.trim()});
     return (rows as List? ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// Every state the LGD reference carries — the second way into an address,
+  /// for a person who does not know their PIN. PIN entry stays the default;
+  /// this is the cascade beside it (state -> district -> >=3 letters).
+  ///
+  /// PostgREST has no DISTINCT on a plain table select, so this calls
+  /// `app.lgd_states()`, which runs the DISTINCT in SQL and returns 35 rows
+  /// instead of 767,191. See [_statesCache] for why the result is kept
+  /// in memory rather than re-fetched.
+  Future<List<String>> states() async {
+    final cached = _statesCache;
+    if (cached != null) return cached;
+    final rows = await _db.schema('app').rpc('lgd_states');
+    final list = [
+      for (final r in (rows as List? ?? const []).cast<Map<String, dynamic>>())
+        ((r['state'] as String?) ?? '').trim(),
+    ]..removeWhere((s) => s.isEmpty);
+    _statesCache = list;
+    return list;
+  }
+
+  /// Districts the LGD reference lists under [state], alphabetical.
+  ///
+  /// Not cached, unlike [states]: `select distinct district where state = ?`
+  /// measures 8 ms because the `(state, district)` index already serves it —
+  /// there is no 244 ms problem here to solve, and caching per state would
+  /// add bookkeeping (which state's list is stale, when to evict) for a
+  /// saving too small to matter.
+  Future<List<String>> districtsIn(String state) async {
+    final s = state.trim();
+    if (s.isEmpty) return const [];
+    final rows =
+        await _db.schema('app').rpc('lgd_districts', params: {'p_state': s});
+    return [
+      for (final r in (rows as List? ?? const []).cast<Map<String, dynamic>>())
+        ((r['district'] as String?) ?? '').trim(),
+    ]..removeWhere((d) => d.isEmpty);
+  }
+
+  /// Villages in [district] of [state] whose names start with [query] —
+  /// falling back to a substring match only when the prefix search finds
+  /// nothing.
+  ///
+  /// PREFIX FIRST, DELIBERATELY. Measured in Visakhapatnam (3,275 villages):
+  /// a prefix search for `pal` returns 14 rows; a substring search for the
+  /// same three letters returns 500. The owner decided this list carries no
+  /// cap, and that decision is only safe because prefix keeps it short — 500
+  /// rows on a cheap phone is not a list, it is a wall. Do not "simplify"
+  /// this into one substring query: that is the wall coming back.
+  ///
+  /// The substring fallback exists because LGD spellings diverge mid-word —
+  /// *Ichapuram* and *Ichchapuram* are one place — and it fires rarely,
+  /// because a prefix of `ich` already catches both.
+  ///
+  /// Fewer than [minVillageLetters] letters issues no query at all, same rule
+  /// as [searchByPin].
+  Future<List<ManaVillage>> searchVillages({
+    required String state,
+    required String district,
+    required String query,
+  }) async {
+    final needle = query.trim();
+    if (needle.length < minVillageLetters) return const [];
+    final st = state.trim();
+    final di = district.trim();
+    if (st.isEmpty || di.isEmpty) return const [];
+
+    final prefixRows = await _db
+        .from('lgd_villages')
+        .select(_lgdColumns)
+        .eq('state', st)
+        .eq('district', di)
+        .ilike('village', '$needle%')
+        .order('village', ascending: true);
+    final prefixResults = [
+      for (final r in (prefixRows as List).cast<Map<String, dynamic>>())
+        _fromLgdRow(r),
+    ];
+    if (prefixResults.isNotEmpty) return prefixResults;
+
+    // Only reached when the prefix search found nothing — see the doc
+    // comment above for why this must stay a fallback, not a default.
+    final substringRows = await _db
+        .from('lgd_villages')
+        .select(_lgdColumns)
+        .eq('state', st)
+        .eq('district', di)
+        .ilike('village', '%$needle%')
+        .order('village', ascending: true);
+    return [
+      for (final r in (substringRows as List).cast<Map<String, dynamic>>())
+        _fromLgdRow(r),
+    ];
   }
 }
 

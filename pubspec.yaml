@@ -57,6 +57,10 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.1
+  # Direct dependency (was already transitive via supabase_flutter) so
+  # test/location_api_service_test.dart can fake the HTTP layer SupabaseClient
+  # sends requests through, rather than hitting the network.
+  http: ^1.2.0
 
 flutter_launcher_icons:
   android: true

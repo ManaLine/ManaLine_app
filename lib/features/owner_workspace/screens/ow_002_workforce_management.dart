@@ -146,8 +146,13 @@ class _WorkforceManagementScreenState
                     MemberAction(
                       label: ref.t('add_an_agent'),
                       icon: Icons.person_add_alt_1_outlined,
+                      // Universal Search, like every other way of adding a
+                      // member. OW-014's ?type= entry searched by MLID or
+                      // name only; global search also takes a phone number
+                      // and an Aadhaar, shows the village that tells two
+                      // people of one name apart, and asks for the role.
                       onTap: () => context
-                          .push('/ow-014?type=agent', extra: widget.businessId)
+                          .push('/ow-search', extra: widget.businessId)
                           .then((_) =>
                               (() {
                                 ref.read(workforceProvider.notifier).resetFilters();

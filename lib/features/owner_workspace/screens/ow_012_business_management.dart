@@ -1536,36 +1536,17 @@ class _MembersTab extends ConsumerStatefulWidget {
 }
 
 class _MembersTabState extends ConsumerState<_MembersTab> {
-  Future<void> _addExisting(String role) async {
-    final personId = await showDialog<String>(
-      context: context,
-      builder: (_) {
-        final controller = TextEditingController();
-        return AlertDialog(
-          title: ManaText.raw(ref.t(role == 'Agent' ? 'add_existing_agent' : 'add_existing_customer')),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(labelText: ref.t('mlid_field')),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: ManaText.raw(ref.t('cancel'))),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-              child: ManaText.raw(ref.t('add')),
-            ),
-          ],
-        );
-      },
-    );
-    if (personId == null || personId.isEmpty || !mounted) return;
-
-    await NetworkErrorHandler.run(context, () async {
-      final notifier = ref.read(businessDetailProvider(widget.businessId).notifier);
-      return role == 'Agent'
-          ? notifier.addExistingAgent(personId: personId)
-          : notifier.addExistingCustomer(personId: personId);
-    });
-  }
+  // _addExisting is gone, and with it the two MLID dialogs.
+  //
+  // They asked for a MANA LINE ID typed from memory, into a box that could
+  // not search, could not tell you whether the ID belonged to the person you
+  // meant, and offered nothing at all if you did not have one. Two buttons --
+  // "Add Existing Agent" and "Add Existing Customer" -- each opened their own
+  // copy of it, and neither could add an Investor at all.
+  //
+  // One link now, to Universal Search: it takes a phone number, an MLID, an
+  // Aadhaar or a name, shows the village that tells two people of one name
+  // apart, and asks which of the three roles before adding.
 
   @override
   Widget build(BuildContext context) {
@@ -1581,9 +1562,12 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
           spacing: ManaSpacing.sm,
           runSpacing: ManaSpacing.sm,
           children: [
-            OutlinedButton(onPressed: () => _addExisting('Agent'), child: ManaText.raw(ref.t('add_existing_agent'))),
-            OutlinedButton(
-                onPressed: () => _addExisting('Customer'), child: ManaText.raw(ref.t('add_existing_customer'))),
+            OutlinedButton.icon(
+              onPressed: () =>
+                  context.push('/ow-search', extra: widget.businessId),
+              icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+              label: ManaText.raw(ref.t('add_a_member')),
+            ),
           ],
         ),
         const SizedBox(height: ManaSpacing.lg),

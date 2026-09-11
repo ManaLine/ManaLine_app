@@ -14,7 +14,6 @@ import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
-import '../../../shared/person_search_service.dart';
 import '../../../shared/text_utils.dart';
 import '../../../shared/translation_service.dart';
 import '../state/investor_state.dart';
@@ -66,16 +65,6 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
         ref.read(investorWorkforceProvider.notifier).setStatusFilter(widget.initialFilter);
       }
       ref.read(investorWorkforceProvider.notifier).load(widget.businessId);
-      if (widget.initialAction == 'existing') {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => _AddExistingInvestorSheet(businessId: widget.businessId),
-        ).then((_) {
-          ref.read(investorWorkforceProvider.notifier).resetFilters();
-          return ref.read(investorWorkforceProvider.notifier).load(widget.businessId);
-        });
-      }
     });
   }
 
@@ -137,34 +126,25 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
                           .replaceAll('{error}', '${state.error}')
                       : ref.t('no_investors_match_view'),
                   addLabel: ref.t('add_investor'),
+                  // ONE way in, at the Owner's instruction. There were two:
+                  // "Add Existing Investor" (an MLID/name sheet of this
+                  // screen's own) and "Pre-Existing Investor" (OW-014). Both
+                  // searched and added; they differed only in which half they
+                  // would refuse. Universal Search does both, takes a phone
+                  // number and an Aadhaar as well, shows the village that
+                  // tells two people of one name apart, and asks for the role.
                   addActions: [
                     MemberAction(
-                      label: ref.t('add_existing_investor'),
+                      label: ref.t('add_investor'),
                       icon: Icons.person_add_alt_1_outlined,
-                      onTap: () => showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (_) =>
-                            _AddExistingInvestorSheet(businessId: widget.businessId),
-                      ).then((_) {
-                        // Clear the filter before reloading: the investor just
-                        // added is Active, and a roster still filtered to
-                        // Pending Acceptance would report that nothing matched
-                        // straight after saying they were added.
-                        ref.read(investorWorkforceProvider.notifier).resetFilters();
-                        return ref
-                            .read(investorWorkforceProvider.notifier)
-                            .load(widget.businessId);
-                      }),
-                    ),
-                    // An investor whose money predates this business joining
-                    // MANA LINE.
-                    MemberAction(
-                      label: ref.t('pre_existing_investor'),
-                      icon: Icons.history_edu_outlined,
                       onTap: () => context
-                          .push('/ow-014?type=investor', extra: widget.businessId)
+                          .push('/ow-search', extra: widget.businessId)
                           .then((_) {
+                            // Clear the filter before reloading: an investor
+                            // just added is Pending Invitation, and a roster
+                            // still filtered to something else would report
+                            // that nothing matched straight after saying the
+                            // request was sent.
                             ref.read(investorWorkforceProvider.notifier).resetFilters();
                             return ref
                                 .read(investorWorkforceProvider.notifier)
@@ -247,334 +227,6 @@ class _InvestorRow extends StatelessWidget {
     );
   }
 }
-
-class _AddExistingInvestorSheet extends ConsumerStatefulWidget {
-  final String businessId;
-  const _AddExistingInvestorSheet({required this.businessId});
-
-  @override
-  ConsumerState<_AddExistingInvestorSheet> createState() => _AddExistingInvestorSheetState();
-}
-
-class _AddExistingInvestorSheetState extends ConsumerState<_AddExistingInvestorSheet> {
-  // One free-text box plus two optional narrowers. It used to be MLID only,
-  // which meant the Owner had to already know a 13-character code for someone
-  // they were trying to look up by name.
-  final _query = TextEditingController();
-  final _pin = TextEditingController();
-  final _village = TextEditingController();
-  bool _filtersOpen = false;
-
-  List<PersonSearchResult> _results = const [];
-  bool _searched = false;
-  bool _searching = false;
-  String? _addingPersonId;
-
-  @override
-  void dispose() {
-    _query.dispose();
-    _pin.dispose();
-    _village.dispose();
-    _amount.dispose();
-    _roi.dispose();
-    _profitShare.dispose();
-    super.dispose();
-  }
-
-  bool get _canSearch =>
-      _query.text.trim().isNotEmpty ||
-      _pin.text.trim().isNotEmpty ||
-      _village.text.trim().isNotEmpty;
-
-  Future<void> _search() async {
-    if (!_canSearch) return;
-    setState(() => _searching = true);
-    final result = await NetworkErrorHandler.run(context, () async {
-      return ref.read(personSearchServiceProvider).search(
-            query: _query.text,
-            pinCode: _pin.text,
-            village: _village.text,
-          );
-    });
-    if (!mounted) return;
-    setState(() {
-      _searching = false;
-      _results = result ?? const [];
-      // Only true once a search actually came back, so "nobody found" is
-      // never shown before one has run.
-      _searched = result != null;
-    });
-  }
-
-  // The first investment, collected in the same step. Membership is implicit
-  // now — someone is an investor in this business because they have money in
-  // it, not because they were once added to a list — so there is no way to
-  // attach a person without one.
-  final _amount = TextEditingController();
-  final _roi = TextEditingController(text: '1.5');
-  final _profitShare = TextEditingController();
-  String _interestType = 'Simple';
-  DateTime _investedOn = manaNowIst();
-
-  /// Adds the person. The money is optional here.
-  ///
-  /// This used to refuse -- "Enter the amount they invested and the ROI
-  /// first" -- and send the Owner back up the sheet before the person was on
-  /// the roster at all. Wrong order for a doorstep: you establish who somebody
-  /// is, then you talk about figures. With an amount filled in it still does
-  /// both at once, because an Owner who has the numbers should not have to
-  /// come back for them.
-  Future<void> _add(PersonSearchResult person) async {
-    final amount = int.tryParse(_amount.text.trim());
-    final roi = double.tryParse(_roi.text.trim());
-    final withMoney = amount != null && amount > 0 && roi != null;
-
-    if (!withMoney) {
-      setState(() => _addingPersonId = person.personId);
-      final ok = await NetworkErrorHandler.run(context, () async {
-        return ref.read(investorWorkforceProvider.notifier).attachInvestor(
-              businessId: widget.businessId,
-              personId: person.personId,
-            );
-      });
-      if (!mounted) return;
-      setState(() => _addingPersonId = null);
-      if (ok == true && mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: ManaText.raw(ref
-              .t('investor_added_record_investment_note')
-              .replaceAll('{name}', person.fullName)),
-        ));
-      }
-      return;
-    }
-
-    setState(() => _addingPersonId = person.personId);
-    final ok = await NetworkErrorHandler.run(context, () async {
-      return ref.read(investorWorkforceProvider.notifier).attachWithFirstInvestment(
-            businessId: widget.businessId,
-            personId: person.personId,
-            amount: amount,
-            roiRate: roi,
-            interestType: _interestType,
-            effectiveDate: _investedOn,
-            profitSharePercent: double.tryParse(_profitShare.text.trim()),
-          );
-    });
-    if (!mounted) return;
-    setState(() => _addingPersonId = null);
-    if (ok == true && mounted) Navigator.of(context).pop();
-  }
-
-  Future<void> _pickInvestedOn() async {
-    final today = manaNowIst();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _investedOn,
-      firstDate: DateTime(2000),
-      lastDate: today,
-    );
-    if (picked != null && mounted) setState(() => _investedOn = picked);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // SCROLLS, and is capped at nine tenths of the screen.
-    //
-    // This sheet carries a search box, two folded narrowers, a whole first
-    // investment (amount, ROI, interest type, profit %, date) and a results
-    // list. As a bare Column it fit only on a tall handset with the keyboard
-    // down — "bottom overflowed by 51 pixels" on a real phone. viewInsets
-    // padding alone cannot fix that: it moves the content up but never gives
-    // it anywhere to go.
-    return Padding(
-      padding: MediaQuery.of(context).viewInsets,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            ManaText.raw(ref.t('add_existing_investor'), style: ManaType.sheetTitle),
-            const SizedBox(height: ManaSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _query,
-                    textInputAction: TextInputAction.search,
-                    decoration: InputDecoration(
-                      labelText: ref.t('search_by_name_or_mlid'),
-                      suffixIcon: const ManaInfoHint('Name, MLID, phone, Aadhaar or PIN'),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _search(),
-                  ),
-                ),
-                const SizedBox(width: ManaSpacing.sm),
-                ElevatedButton(
-                  onPressed: (_canSearch && !_searching) ? _search : null,
-                  child: _searching
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : ManaText.raw(ref.t('search')),
-                ),
-              ],
-            ),
-            // Narrowers, folded away until wanted. Two people of the same name
-            // in one village is the case these exist for.
-            TextButton.icon(
-              onPressed: () => setState(() => _filtersOpen = !_filtersOpen),
-              icon: Icon(_filtersOpen ? Icons.expand_less : Icons.expand_more, size: 18),
-              label: const ManaText.raw('Narrow By Village Or PIN'),
-            ),
-            if (_filtersOpen)
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _village,
-                      decoration: const InputDecoration(labelText: 'Village'),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: ManaSpacing.sm),
-                  Expanded(
-                    child: TextField(
-                      controller: _pin,
-                      keyboardType: TextInputType.number,
-                      maxLength: 6,
-                      decoration: const InputDecoration(labelText: 'PIN Code', counterText: ''),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                ],
-              ),
-            const SizedBox(height: ManaSpacing.md),
-            // Optional now, and the copy says so. It read "Their First
-            // Investment" with two required fields, and Add refused without
-            // them -- so the Owner was stopped before the person was on the
-            // roster at all. Filled in, Add still does both at once.
-            const Divider(height: ManaSpacing.xl),
-            const ManaText.raw('Their First Investment — Optional',
-                style: ManaType.heavy),
-            const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw(ref.t('first_investment_optional_note'),
-                style: ManaType.note),
-            const SizedBox(height: ManaSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _amount,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Amount', prefixText: '₹ '),
-                  ),
-                ),
-                const SizedBox(width: ManaSpacing.sm),
-                Expanded(
-                  child: TextField(
-                    controller: _roi,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'ROI',
-                      suffixIcon: ManaInfoHint('Rupees per ₹100 per month, not per year.'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: ManaSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _interestType,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Interest Type'),
-                    items: const [
-                      DropdownMenuItem(value: 'Simple', child: ManaText.raw('Simple')),
-                      DropdownMenuItem(
-                          value: 'Yearly Compound', child: ManaText.raw('Yearly Compound')),
-                    ],
-                    onChanged: (v) => setState(() => _interestType = v ?? 'Simple'),
-                  ),
-                ),
-                const SizedBox(width: ManaSpacing.sm),
-                Expanded(
-                  child: TextField(
-                    controller: _profitShare,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Profit % (optional)'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: ManaSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: ManaText.raw(
-                    'Invested on ${_investedOn.toIso8601String().split("T").first}',
-                    style: ManaType.small,
-                  ),
-                ),
-                Flexible(
-                  child: OutlinedButton(
-                    onPressed: _pickInvestedOn,
-                    child: const ManaText.raw('Change Date'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: ManaSpacing.md),
-            if (_searched && _results.isEmpty)
-              ManaText.raw(
-                'Nobody matches that. Try fewer details, or add them as a new investor.',
-                style: ManaType.note,
-              ),
-            if (_results.isNotEmpty)
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 320),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _results.length,
-                  itemBuilder: (_, i) {
-                    final person = _results[i];
-                    final place = person.placeLabel;
-                    return Card(
-                      child: ListTile(
-                        leading: const ManaVerificationRing(isVerified: true, size: 40),
-                        title: ManaText.raw(person.fullName),
-                        subtitle: ManaText.raw(
-                          place.isEmpty ? person.mlid : '${person.mlid} · $place',
-                          maxLines: 2,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        trailing: ElevatedButton(
-                          onPressed: _addingPersonId == null ? () => _add(person) : null,
-                          child: _addingPersonId == person.personId
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : ManaText.raw(ref.t('add')),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// --- C6 Investor Profile ---------------------------------------------
 
 class InvestorProfileScreen extends ConsumerWidget {
   final String businessId;

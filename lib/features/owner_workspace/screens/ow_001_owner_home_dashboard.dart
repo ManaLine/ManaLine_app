@@ -1316,11 +1316,15 @@ class _QuickActionsState extends ConsumerState<_QuickActions> {
       (
         ref.t('investor'),
         [
+          // Straight to Universal Search, which is the one way anybody is
+          // added to a business now. This used to deep-link OW-003 with
+          // open=existing to pop that screen's own MLID/name sheet, which
+          // has been deleted.
           (
             Icons.person_add_alt_1_outlined,
-            ref.t('add_existing_investor'),
-            '/ow-003',
-            'open=existing'
+            ref.t('add_investor'),
+            '/ow-search',
+            null
           ),
           (
             Icons.inbox_outlined,

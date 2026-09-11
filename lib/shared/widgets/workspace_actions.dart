@@ -110,17 +110,24 @@ class _AddMemberAction extends ConsumerWidget {
     required this.kind,
   });
 
-  /// Agents and Investors go through OW-014, which already searches for an
-  /// existing person by MLID or name and registers a new one when there is no
-  /// match — the "search & add, or register new" the Owner asked for. It was
-  /// built and reachable at /ow-014?type=…; nothing pointed at it.
+  /// Agents and Investors go through Universal Search, which is now the one
+  /// way anybody is added to a business: it searches by phone, MLID, Aadhaar
+  /// or name, shows the village that tells two people of one name apart, and
+  /// asks which role before adding. OW-014's ?type= entry searched by MLID or
+  /// name only.
   ///
-  /// Customers keep /customer-new, because that sheet ends with a choice OW-014
-  /// does not have: add them, or add them and go straight to a loan.
+  /// The LABEL still follows the screen — "Add an Agent" on Workforce, "Add
+  /// Investor" on Investor Management — because the header saying what it
+  /// does on the screen you are standing on is the contract this enum exists
+  /// for. Only the destination is shared.
+  ///
+  /// Customers keep /customer-new, because that sheet ends with a choice
+  /// Universal Search does not have: add them, or add them and go straight to
+  /// a loan. Adding a borrower and lending to them is one errand.
   String get _route => switch (kind) {
         ManaMemberKind.customer => '/customer-new',
-        ManaMemberKind.agent => '/ow-014?type=agent',
-        ManaMemberKind.investor => '/ow-014?type=investor',
+        ManaMemberKind.agent => '/ow-search',
+        ManaMemberKind.investor => '/ow-search',
       };
 
   String _label(WidgetRef ref) => switch (kind) {

@@ -240,6 +240,16 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
   }
 
   Future<void> _openAddSheet() async {
+    // One action needs no menu.
+    //
+    // All three rosters -- agents, investors, customers -- offer exactly one
+    // way to add somebody now, and a bottom sheet containing a single row is
+    // a tap that asks a question with one answer. The sheet earns its place
+    // again the moment a second action exists.
+    if (widget.addActions.length == 1) {
+      widget.addActions.single.onTap();
+      return;
+    }
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,

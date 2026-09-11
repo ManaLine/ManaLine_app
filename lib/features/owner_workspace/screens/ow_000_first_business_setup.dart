@@ -783,11 +783,10 @@ class _Step6AssignAreas extends ConsumerWidget {
     if (chosen == null || !context.mounted) return;
 
     if (identical(chosen, _addAgentSentinel)) {
-      // OW-014 searches for an existing person by MLID or name and registers a
-      // new one when there is no match. Reopen the picker afterwards rather
-      // than leaving the Owner to find their way back: they came here to
-      // assign somebody, and adding the agent was a detour, not the goal.
-      await context.push('/ow-014?type=agent', extra: businessId);
+      // Universal Search is the one way in. Reopen the picker afterwards
+      // rather than leaving the Owner to find their way back: they came here
+      // to assign somebody, and adding the agent was a detour, not the goal.
+      await context.push('/ow-search', extra: businessId);
       if (!context.mounted) return;
       return _assignAgent(context, ref, a);
     }

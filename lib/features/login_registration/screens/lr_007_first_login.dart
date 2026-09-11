@@ -68,6 +68,9 @@ class FirstLoginScreen extends ConsumerStatefulWidget {
 
 class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
   final _mobile = TextEditingController();
+
+  /// Where the cursor goes when the number is already known.
+  final FocusNode _passwordFocus = FocusNode();
   final _password = TextEditingController();
   bool _submitting = false;
   bool _obscurePassword = true;
@@ -88,11 +91,26 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
     });
+    // THE NUMBER IS ALREADY KNOWN, so stop asking for it.
+    //
+    // saveMobileNumber() is written on every successful login, and this
+    // screen greets the person BY NAME -- "Welcome Back, Karri Priyanka" over
+    // an empty Mobile Number box. It knew who they were and made them type
+    // their own phone number anyway, ten digits at a time, every day.
+    //
+    // The prefill existed and was gated on stepDownFromFailedPin, so it only
+    // ever fired for somebody who had just got their PIN wrong three times --
+    // the one arrival where the number was LEAST likely to be the one they
+    // wanted. It fires on every arrival now, and an explicit prefilledMobile
+    // still wins because that one is what they typed a moment ago.
     if (widget.prefilledMobile != null) {
       _mobile.text = widget.prefilledMobile!;
-    } else if (widget.stepDownFromFailedPin) {
+      _focusPasswordIfNumberKnown();
+    } else {
       LocalAuthStore.readLastMobileNumber().then((mobile) {
-        if (mobile != null && mounted) setState(() => _mobile.text = mobile);
+        if (mobile == null || mobile.isEmpty || !mounted) return;
+        setState(() => _mobile.text = mobile);
+        _focusPasswordIfNumberKnown();
       });
     }
     if (widget.successToast != null) {
@@ -111,8 +129,21 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
   // a listener list and a ChangeNotifier, and a State that never disposes them
   // leaks one set per visit. On a low-end handset an Agent opens screens like
   // this forty times a round.
+  /// Puts the cursor where the remaining work is.
+  ///
+  /// Only when the number is filled: landing on the password box with the
+  /// number blank would hide the empty field behind the keyboard and leave
+  /// somebody typing a password into a form that cannot be submitted.
+  void _focusPasswordIfNumberKnown() {
+    if (_mobile.text.trim().length != 10) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _passwordFocus.requestFocus();
+    });
+  }
+
   @override
   void dispose() {
+    _passwordFocus.dispose();
     _mobile.dispose();
     _password.dispose();
     super.dispose();
@@ -426,6 +457,7 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
               ),
               TextField(
                 controller: _password,
+                focusNode: _passwordFocus,
                 obscureText: _obscurePassword,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(

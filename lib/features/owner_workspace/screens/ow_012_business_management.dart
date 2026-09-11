@@ -669,55 +669,66 @@ class _OperatingAreasTab extends ConsumerStatefulWidget {
 }
 
 class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
-  final _pinCode = TextEditingController();
-  final _villageQuery = TextEditingController();
   final _areaName = TextEditingController();
+
+  /// The village chosen in the shared field.
+  ///
+  /// This tab used to hand-roll its own PIN box, its own village-name box and
+  /// its own results list on top of operatingAreaSearchProvider -- the NINTH
+  /// private copy of a village search in this app, and the one Plan 4 missed
+  /// when it consolidated the other eight, because it returned a different
+  /// type. So the Owner got PIN-only search here while registration had
+  /// offered PIN-or-village-name for two builds.
+  ManaVillage? _picked;
 
   @override
   void dispose() {
-    _pinCode.dispose();
-    _villageQuery.dispose();
     _areaName.dispose();
     super.dispose();
   }
 
   Future<void> _addSelected() async {
-    final selected = ref.read(operatingAreaSearchProvider).selected;
+    final selected = _picked;
     if (selected == null) return;
     // Default the name to the first village. A one-village round named
     // after its village is the common case and typing it again is friction;
     // the Owner can rename once a second village joins.
-    final name = _areaName.text.trim().isEmpty ? selected.villageTownName : _areaName.text.trim();
+    final name = _areaName.text.trim().isEmpty ? selected.name : _areaName.text.trim();
     final ok = await NetworkErrorHandler.run(context, () async {
       // A village the LGD reference knows but no business works in yet has no
-      // location_id until this call writes one.
-      final locationId = await ref
-          .read(businessManagementApiServiceProvider)
-          .resolveLocationId(selected);
+      // location_id until this call writes one. resolveId is
+      // resolveLocationId's twin -- both short-circuit on an existing id and
+      // otherwise call add_location_if_missing with the same six fields.
+      final locationId =
+          await ref.read(locationApiServiceProvider).resolveId(selected);
       return ref.read(businessDetailProvider(widget.businessId).notifier).addOperatingArea(
             name: name,
             locationId: locationId,
           );
     });
     if (ok == true) {
-      ref.read(operatingAreaSearchProvider.notifier).reset();
-      _pinCode.clear();
-      _villageQuery.clear();
+      // The field clears itself on a fresh pick; what has to be cleared here
+      // is the name, and the pick, so the button goes back to disabled rather
+      // than offering to add the same village twice.
+      setState(() => _picked = null);
       _areaName.clear();
     }
   }
 
   Future<void> _addVillage(OperatingAreaSummary area) async {
-    final picked = await showModalBottomSheet<LocationOption>(
+    // ManaVillage, not LocationOption. The sheet pops whatever the shared
+    // field produced, and a stale type argument here would NOT fail to
+    // compile -- Navigator.pop takes a dynamic -- it would throw on the cast
+    // the first time somebody picked a village.
+    final picked = await showModalBottomSheet<ManaVillage>(
       context: context,
       isScrollControlled: true,
       builder: (_) => _VillagePickerSheet(areaName: area.name),
     );
     if (picked == null || !mounted) return;
     await NetworkErrorHandler.run(context, () async {
-      final locationId = await ref
-          .read(businessManagementApiServiceProvider)
-          .resolveLocationId(picked);
+      final locationId =
+          await ref.read(locationApiServiceProvider).resolveId(picked);
       return ref.read(businessDetailProvider(widget.businessId).notifier).addVillageToArea(
             operatingAreaId: area.operatingAreaId,
             locationId: locationId,
@@ -895,7 +906,6 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
   Widget build(BuildContext context) {
     final detail = ref.watch(businessDetailProvider(widget.businessId));
     final areas = detail.operatingAreas;
-    final search = ref.watch(operatingAreaSearchProvider);
 
     // areas holds ACTIVE areas only; the summary counts every row. When those
     // disagree, this business has areas that were removed and kept for their
@@ -921,65 +931,20 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
             suffixIcon: ManaInfoHint(ref.t('area_name_helper')),
           ),
         ),
-        TextField(
-          controller: _pinCode,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: InputDecoration(labelText: ref.t('pin_code_field')),
-          onChanged: (v) => ref
-              .read(operatingAreaSearchProvider.notifier)
-              .search(pinCode: v.trim()),
+        // The same field registration uses: PIN by default, village name for
+        // somebody who does not know their postal code. What it replaces was
+        // two bare boxes and a results list wired to this screen's own
+        // provider -- PIN-only in practice, because the village-name box
+        // could not search without a PIN beside it.
+        ManaVillageSearchField(
+          label: ref.t('village_name_field'),
+          onPicked: (v) => setState(() => _picked = v),
         ),
-        // The PIN alone used to search, and answered with every village it
-        // carried — fifty of them for 517536. A directory is not a shortlist.
-        TextField(
-          controller: _villageQuery,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(labelText: ref.t('village_name_field')),
-          onChanged: (v) => ref
-              .read(operatingAreaSearchProvider.notifier)
-              .search(villageQuery: v.trim()),
-        ),
-        if (search.needsVillageName)
-          Padding(
-            padding: const EdgeInsets.only(top: ManaSpacing.xs),
-            child: ManaText.raw(ref.t('enter_village_name_to_search'),
-                style: ManaType.note),
-          ),
-        if (search.searching) const Center(child: CircularProgressIndicator()),
-        if (!search.searching &&
-            search.matches.isEmpty &&
-            !search.needsVillageName &&
-            search.pinCode.length == 6)
-          Padding(
-            padding: const EdgeInsets.only(top: ManaSpacing.xs),
-            child: ManaText.raw(ref.t('no_villages_found_for_pin'),
-                style: ManaType.note),
-          ),
-        if (!search.searching && search.matches.isNotEmpty)
-          ...search.matches.map((m) {
-            // Keyed on PIN + name, not location_id: a reference suggestion has
-            // no id yet, so comparing ids would make every unselected
-            // suggestion look selected (null == null).
-            final selected = search.selected?.key == m.key;
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                selected ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: selected ? ManaColors.statusGood : ManaColors.textSecondary,
-              ),
-              title: ManaText.raw('${m.villageTownName} — ${m.pinCode}'),
-              subtitle: _placeNote(m).isEmpty
-                  ? null
-                  : ManaText.raw(_placeNote(m), style: ManaType.note),
-              onTap: () => ref.read(operatingAreaSearchProvider.notifier).selectVillage(m),
-            );
-          }),
         const SizedBox(height: ManaSpacing.md),
         Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.tonalIcon(
-            onPressed: search.selected != null ? _addSelected : null,
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            onPressed: _picked == null ? null : _addSelected,
             icon: const Icon(Icons.add, size: 18),
             label: ManaText.raw(ref.t('add_area')),
           ),
@@ -1121,48 +1086,31 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
 /// apart in a list a PIN can fill with fifty entries.
 ///
 /// Empty when the reference carries neither, which is what the callers check
-/// before drawing a subtitle — a blank second line under every row reads as a
-/// rendering fault.
-String _placeNote(LocationOption o) =>
-    [o.mandal, o.district].where((s) => s.trim().isNotEmpty).join(' · ');
-
-/// PIN → village picker, reused for "attach another village to this area".
-/// Shares `operatingAreaSearchProvider` with the create panel above and
-/// resets it on the way in and out, so a half-finished search in one place
-/// never leaks into the other.
+/// "Add a village to <area>", from the Operating Areas tab.
+///
+/// WHAT THIS REPLACES: a PIN box, a village-name box and a results list, all
+/// wired to this screen's own operatingAreaSearchProvider. It was the ninth
+/// private copy of a village search in the app and the one Plan 4 missed when
+/// it consolidated the other eight -- missed because it returned a
+/// LocationOption rather than a ManaVillage, which is a difference in
+/// plumbing and not one an Owner can see.
+///
+/// It now uses the same field as registration: PIN by default, village name
+/// for somebody who does not know their postal code.
 class _VillagePickerSheet extends ConsumerStatefulWidget {
   final String areaName;
   const _VillagePickerSheet({required this.areaName});
 
   @override
-  ConsumerState<_VillagePickerSheet> createState() => _VillagePickerSheetState();
+  ConsumerState<_VillagePickerSheet> createState() =>
+      _VillagePickerSheetState();
 }
 
 class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
-  final _pinCode = TextEditingController();
-  final _villageQuery = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    // Provider write, so it must not happen during build — same Riverpod
-    // guard the tab controller note above documents.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(operatingAreaSearchProvider.notifier).reset();
-    });
-  }
-
-  @override
-  void dispose() {
-    _pinCode.dispose();
-    _villageQuery.dispose();
-    super.dispose();
-  }
+  ManaVillage? _picked;
 
   @override
   Widget build(BuildContext context) {
-    final search = ref.watch(operatingAreaSearchProvider);
-
     return Padding(
       padding: MediaQuery.of(context).viewInsets,
       child: DraggableScrollableSheet(
@@ -1173,52 +1121,24 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
           controller: scrollController,
           padding: const EdgeInsets.all(ManaSpacing.lg),
           children: [
-            ManaText.raw(ref.t('add_village_to_note').replaceAll('{area}', widget.areaName),
+            ManaText.raw(
+                ref.t('add_village_to_note').replaceAll('{area}', widget.areaName),
                 style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.md),
-            TextField(
-              controller: _pinCode,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: InputDecoration(labelText: ref.t('pin_code_field')),
-              onChanged: (v) => ref
-                  .read(operatingAreaSearchProvider.notifier)
-                  .search(pinCode: v.trim()),
+            ManaVillageSearchField(
+              label: ref.t('village_name_field'),
+              onPicked: (v) => setState(() => _picked = v),
             ),
-            TextField(
-              controller: _villageQuery,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(labelText: ref.t('village_name_field')),
-              onChanged: (v) => ref
-                  .read(operatingAreaSearchProvider.notifier)
-                  .search(villageQuery: v.trim()),
+            const SizedBox(height: ManaSpacing.lg),
+            FilledButton(
+              // Disabled until something is actually chosen: the field emits
+              // null when a pick is edited away or the mode is switched, and
+              // adding whatever was picked before that would file a village
+              // the Owner had already changed their mind about.
+              onPressed:
+                  _picked == null ? null : () => Navigator.of(context).pop(_picked),
+              child: ManaText.raw(ref.t('add')),
             ),
-            if (search.searching) const Center(child: CircularProgressIndicator()),
-            // Two different silences, said differently: nothing typed yet
-            // versus typed and genuinely absent.
-            if (search.needsVillageName)
-              ManaText.raw(ref.t('enter_village_name_to_search'),
-                  style: ManaType.note),
-            if (!search.searching &&
-                search.matches.isEmpty &&
-                !search.needsVillageName &&
-                search.pinCode.length == 6)
-              ManaText.raw(ref.t('no_villages_found_for_pin'),
-                  style: ManaType.note),
-            ...search.matches.map((m) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.location_on_outlined, color: ManaColors.brand),
-                  title: ManaText.raw('${m.villageTownName} — ${m.pinCode}'),
-                  // A PIN can carry fifty villages. Mandal and district are how
-                  // an Owner tells two similar names apart.
-                  subtitle: _placeNote(m).isEmpty
-                      ? null
-                      : ManaText.raw(_placeNote(m), style: ManaType.note),
-                  onTap: () {
-                    ref.read(operatingAreaSearchProvider.notifier).reset();
-                    Navigator.of(context).pop(m);
-                  },
-                )),
           ],
         ),
       ),

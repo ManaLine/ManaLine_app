@@ -50,6 +50,44 @@ class RoleSelectorScreen extends ConsumerStatefulWidget {
 }
 
 class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
+  /// One OTP escalation per visit to this screen.
+  ///
+  /// Coming back from the OTP with the membership still unverified would
+  /// otherwise send a second OTP and push the same screen again -- a loop
+  /// with a blank spinner between each lap.
+  bool _escalated = false;
+
+  /// Re-reads memberships from the server.
+  ///
+  /// Lifted out of initState because it is needed TWICE: once on arrival,
+  /// and again after the OTP screen pops back, which is the whole of this
+  /// screen's defect. `memberships` is a snapshot, and the row that Role
+  /// Escalation just verified is stale in it by definition.
+  ///
+  /// Non-fatal: on failure the cached snapshot stands, which is what this
+  /// screen used before.
+  Future<void> _refreshMemberships() async {
+    final auth = ref.read(authFlowProvider);
+    if (auth.personId == null) return;
+    try {
+      final fresh =
+          await ref.read(authApiServiceProvider).fetchMemberships(auth.personId!);
+      if (!mounted) return;
+      if (fresh.isNotEmpty) ref.read(authFlowProvider.notifier).setMemberships(fresh);
+    } catch (_) {
+      // keep the cached list
+    }
+  }
+
+  /// Somewhere usable, for every path that cannot resolve a role here.
+  ///
+  /// EVERY early return in this screen used to land on build()'s bare
+  /// spinner, which has no app bar, no message and no way out -- an Investor
+  /// accepting an invitation by OTP watched it turn until they killed the
+  /// app. A screen that can neither route nor explain is worse than one that
+  /// admits it is lost, so these go back to the business list.
+  void _leaveToBusinessList() => context.go('/lr-012');
+
   @override
   void initState() {
     super.initState();
@@ -64,17 +102,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
       //
       // Non-fatal: on failure we fall through to the cached snapshot,
       // which is what this screen used before.
-      final auth = ref.read(authFlowProvider);
-      if (auth.personId != null) {
-        try {
-          final fresh =
-              await ref.read(authApiServiceProvider).fetchMemberships(auth.personId!);
-          if (!mounted) return;
-          if (fresh.isNotEmpty) ref.read(authFlowProvider.notifier).setMemberships(fresh);
-        } catch (_) {
-          // keep the cached list
-        }
-      }
+      await _refreshMemberships();
       if (!mounted) return;
       _applyRoutingRule();
     });
@@ -130,10 +158,21 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
   }
 
   Future<void> _startRoleEscalation() async {
+    // One per visit. Without this, a membership that is still unverified
+    // when the OTP screen pops back sends another OTP and pushes it again.
+    if (_escalated) {
+      _leaveToBusinessList();
+      return;
+    }
+    _escalated = true;
+
     final auth = ref.read(authFlowProvider);
     final businessId = auth.selectedBusinessId;
     final personId = auth.personId;
-    if (personId == null || businessId == null) return; // defensive
+    if (personId == null || businessId == null) {
+      _leaveToBusinessList(); // defensive
+      return;
+    }
 
     // The specific membership row that's blocking this person from
     // reaching any eligible role at this business — the one _eligibleRoles
@@ -142,7 +181,10 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
         m.businessId == businessId &&
         m.membershipStatus == 'Active' &&
         m.verificationStatus == 'Pending Verification');
-    if (pending.isEmpty) return; // defensive — nothing to escalate
+    if (pending.isEmpty) {
+      _leaveToBusinessList(); // nothing to escalate
+      return;
+    }
     final membershipId = pending.first.membershipId;
 
     final otpId = await NetworkErrorHandler.run(context, () async {
@@ -152,13 +194,31 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
             membershipId: membershipId,
           );
     });
-    if (!mounted || otpId == null) return; // network failure — SnackBar already shown
+    if (!mounted) return;
+    if (otpId == null) {
+      // Network failure — the SnackBar is already up. Leaving for the
+      // business list beats sitting on a spinner that will never move.
+      _leaveToBusinessList();
+      return;
+    }
 
     ref.read(authFlowProvider.notifier).setPendingOtpId(otpId);
-    context.push(
+    // AWAITED. LR-005 ends Role Escalation with context.pop(), and this
+    // screen's postFrameCallback has long since run -- so without this the
+    // pop returned to a build() reading the SAME stale snapshot, which still
+    // said Pending Verification, which rendered the spinner again with
+    // nothing left alive to move it. That is the hang: not a request that
+    // failed, but a screen that had already finished thinking.
+    await context.push(
       '/lr-005',
       extra: OtpEntryArgs(purpose: OtpPurpose.roleEscalation, membershipId: membershipId),
     );
+    if (!mounted) return;
+
+    // The row that was Pending Verification is the row the OTP just verified.
+    await _refreshMemberships();
+    if (!mounted) return;
+    await _applyRoutingRule();
   }
 
   Future<void> _selectRole(String role) async {

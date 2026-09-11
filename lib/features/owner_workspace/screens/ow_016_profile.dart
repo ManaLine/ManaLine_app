@@ -18,7 +18,6 @@ import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../../../shared/mana_time.dart';
-import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/location_api_service.dart';
 import '../../../shared/widgets/village_search_field.dart';
 
@@ -174,8 +173,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
   Future<void> _editAddress() async {
     final result = await showDialog<_AddressEditResult>(
       context: context,
-      builder: (_) =>
-          _AddressEditDialog(initialPinCode: _address?['pin_code'] as String?),
+      builder: (_) => const _AddressEditDialog(),
     );
     if (result == null) return;
 
@@ -485,8 +483,7 @@ class _AddressEditResult {
 /// Address edit dialog — same real search + "add if not found" pattern
 /// already established across LR-004/OW-000/OW-004/CW-006/IW-005.
 class _AddressEditDialog extends ConsumerStatefulWidget {
-  final String? initialPinCode;
-  const _AddressEditDialog({this.initialPinCode});
+  const _AddressEditDialog();
   @override
   ConsumerState<_AddressEditDialog> createState() => _AddressEditDialogState();
 }
@@ -503,12 +500,9 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
   @override
   void dispose() {
     _doorNo.dispose();
-    _pinCode.dispose();
     super.dispose();
   }
   late final _doorNo = TextEditingController();
-  late final _pinCode =
-      TextEditingController(text: widget.initialPinCode ?? '');
   ManaVillage? _selectedVillage;
   bool _resolving = false;
 
@@ -516,16 +510,18 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
   /// contract [ManaVillagePickerField] documents: it does not write anything,
   /// so a caller that needs the id resolves it. Resolved on pick, not on
   /// confirm, so Save only ever has a real id to send.
+  ///
+  /// The picked village's own `pinCode` is what gets submitted — there is no
+  /// screen-level PIN box any more. ManaVillageSearchField's PIN mode embeds
+  /// ManaVillagePickerField, which renders the PIN field; a second, unlinked
+  /// box here would just go stale the moment a village is picked.
   Future<void> _onVillagePicked(ManaVillage? v) async {
     if (v == null) {
       setState(() => _selectedVillage = null);
       return;
     }
     if (v.locationId.isNotEmpty) {
-      setState(() {
-        _selectedVillage = v;
-        _pinCode.text = v.pinCode;
-      });
+      setState(() => _selectedVillage = v);
       return;
     }
     setState(() => _resolving = true);
@@ -541,14 +537,12 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
         district: v.district,
         state: v.state,
       );
-      _pinCode.text = v.pinCode;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final canSave = _doorNo.text.trim().isNotEmpty &&
-        _pinCode.text.trim().length == 6 &&
         _selectedVillage != null &&
         !_resolving;
     return AlertDialog(
@@ -567,15 +561,6 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 8),
-              TextField(
-                controller: _pinCode,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                    labelText: ref.t('pin_code_required_field'),
-                    isDense: true,
-                    suffixIcon: ManaInfoHint(ref.t('villages_limited_to_pin_helper')),),
-              ),
               ManaVillageSearchField(
                 label: ref.t('search_village_town_field'),
                 onPicked: _onVillagePicked,
@@ -603,7 +588,7 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
                     context,
                     _AddressEditResult(
                       doorNo: _doorNo.text.trim(),
-                      pinCode: _pinCode.text.trim(),
+                      pinCode: _selectedVillage!.pinCode,
                       villageId: _selectedVillage!.locationId,
                       mandal: _selectedVillage!.mandal,
                       district: _selectedVillage!.district,

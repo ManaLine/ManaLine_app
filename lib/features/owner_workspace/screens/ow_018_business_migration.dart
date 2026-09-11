@@ -585,10 +585,14 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   final _mobile = TextEditingController();
   final _aadhaar = TextEditingController();
   final _doorNo = TextEditingController();
-  final _pinCode = TextEditingController();
   String? _gender;
   String? _villageId;
   String? _villageName;
+  // The submitted pin_code comes from the picked village's directory row —
+  // ManaVillageSearchField owns PIN entry now (its PIN mode embeds
+  // ManaVillagePickerField, which renders the PIN field), so there is no
+  // separate screen-typed box to read it from.
+  String? _villagePinCode;
   // Re-keyed after a GPS fix so the search field starts fresh with the new
   // PIN rather than keep a search typed against wherever it was before.
   Key _villageFieldKey = UniqueKey();
@@ -618,7 +622,6 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     _mobile.dispose();
     _aadhaar.dispose();
     _doorNo.dispose();
-    _pinCode.dispose();
     _given.dispose();
     _interest.dispose();
     _fee.dispose();
@@ -626,7 +629,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     _emi.dispose();
     for (final c in [
       _given, _interest, _fee, _balance, _emi,
-      _fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode,
+      _fullName, _fatherHusband, _mobile, _aadhaar, _doorNo,
     ]) {
       c.dispose();
     }
@@ -644,6 +647,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       setState(() {
         _villageId = null;
         _villageName = null;
+        _villagePinCode = null;
       });
       return;
     }
@@ -655,7 +659,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     setState(() {
       _villageId = id;
       _villageName = v.name;
-      if (v.pinCode.isNotEmpty) _pinCode.text = v.pinCode;
+      if (v.pinCode.isNotEmpty) _villagePinCode = v.pinCode;
     });
   }
 
@@ -735,22 +739,19 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
         UseMyLocationButton(
           onCaptured: (place) {
             setState(() {
-              if (place.pinCode != null) _pinCode.text = place.pinCode!;
               // Not the geocoder's name. At a doorstep it usually returns the
               // colony, which no PIN's directory holds, so a typed name could
-              // never match. The PIN is kept; the search field is re-keyed so
-              // it starts fresh with the new PIN.
+              // never match. ManaVillageSearchField owns the PIN box now, and
+              // it has no hook to accept a prefilled PIN, so the geocoded PIN
+              // cannot be carried into it here — the search field is only
+              // re-keyed so a stale search is cleared, not silently kept
+              // against the new position.
               _villageId = null;
               _villageName = null;
+              _villagePinCode = null;
               _villageFieldKey = UniqueKey();
             });
           },
-        ),
-        TextField(
-          controller: _pinCode,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(labelText: 'PIN Code *'),
         ),
         ManaVillageSearchField(
           key: _villageFieldKey,
@@ -764,8 +765,8 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       _fatherHusband.text.trim().length >= 2 &&
       _gender != null &&
       migrationMobileAcceptable(_mobile.text) &&
-      _pinCode.text.trim().length == 6 &&
-      _villageId != null;
+      _villageId != null &&
+      _villagePinCode != null;
 
   int? get _givenV => int.tryParse(_given.text.trim());
   int? get _interestV => int.tryParse(_interest.text.trim());
@@ -981,7 +982,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
               mobileNumber: _mobile.text.trim(),
               aadhaarNumber: _aadhaar.text.trim().isEmpty ? null : _aadhaar.text.trim(),
               doorNo: _doorNo.text.trim(),
-              pinCode: _pinCode.text.trim(),
+              pinCode: _villagePinCode,
               villageId: _villageId!,
             );
       });
@@ -1037,11 +1038,12 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       _gender = null;
       _villageId = null;
       _villageName = null;
+      _villagePinCode = null;
       // Same reason as a GPS fix: the search field owns its own text/pick
       // state internally and has no reset method, so re-keying is the only
       // way to send the Owner back to a blank search for the next customer.
       _villageFieldKey = UniqueKey();
-      for (final c in [_fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _given, _interest, _balance, _emi]) {
+      for (final c in [_fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _given, _interest, _balance, _emi]) {
         c.clear();
       }
       _fee.text = '0';

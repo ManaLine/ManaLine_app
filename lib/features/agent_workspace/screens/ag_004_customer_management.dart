@@ -389,9 +389,13 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
   Future<void> _showEditContactSheet(BuildContext context, WidgetRef ref, CustomerProfile? profile) async {
     final phoneController = TextEditingController(text: profile?.summary.phoneNumber ?? '');
     final doorNoController = TextEditingController();
-    final pinCodeController = TextEditingController();
     String? selectedVillageId;
     String? selectedVillageLabel; // "Village — Mandal, District" for confirmation display
+    // The submitted pin_code comes from the picked village's directory row —
+    // ManaVillageSearchField owns PIN entry now (its PIN mode embeds
+    // ManaVillagePickerField, which renders the PIN field), so there is no
+    // separate screen-typed box to read it from.
+    String? selectedVillagePinCode;
 
     final result = await showModalBottomSheet<bool>(
       context: context,
@@ -421,12 +425,6 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                     decoration: InputDecoration(labelText: ref.t('door_no_field')),
                   ),
                   const SizedBox(height: ManaSpacing.md),
-                  TextField(
-                    controller: pinCodeController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: ref.t('pin_code_plain_field')),
-                  ),
-                  const SizedBox(height: ManaSpacing.md),
                   ManaVillageSearchField(
                     label: ref.t('search_village_town_plain_field'),
                     onPicked: (v) async {
@@ -434,6 +432,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                         setSheetState(() {
                           selectedVillageId = null;
                           selectedVillageLabel = null;
+                          selectedVillagePinCode = null;
                         });
                         return;
                       }
@@ -462,7 +461,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                             ? v.name
                             : '${v.name} — ${v.placeLabel}';
                         if (v.pinCode.isNotEmpty) {
-                          pinCodeController.text = v.pinCode;
+                          selectedVillagePinCode = v.pinCode;
                         }
                       });
                     },
@@ -489,7 +488,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
       return ref.read(agentCustomerProfileProvider(customerId).notifier).updateContactInfo(
             phoneNumber: phoneController.text.trim().isEmpty ? null : phoneController.text.trim(),
             doorNo: doorNoController.text.trim().isEmpty ? null : doorNoController.text.trim(),
-            pinCode: pinCodeController.text.trim().isEmpty ? null : pinCodeController.text.trim(),
+            pinCode: selectedVillagePinCode,
             villageId: selectedVillageId,
           );
     });

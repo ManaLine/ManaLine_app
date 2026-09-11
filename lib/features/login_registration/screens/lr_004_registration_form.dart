@@ -48,7 +48,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     _mobile.dispose();
     _password.dispose();
     _confirmPassword.dispose();
-    _pinCode.dispose();
     _doorNo.dispose();
     _aadhaar.dispose();
     _confirmAadhaar.dispose();
@@ -97,7 +96,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   final _mobile = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
-  final _pinCode = TextEditingController();
 
   /// Set only when "Use My Location" actually got a fix. Null means the
   /// address was typed without one — see the register() call below.
@@ -115,6 +113,11 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   DateTime? _dob;
   String? _villageId; // set by ManaVillageSearchField below (locations table)
   String? _selectedVillageLabel;
+  // The submitted pin_code comes from the picked village's directory row,
+  // not a screen-typed box — ManaVillageSearchField owns PIN entry now (its
+  // PIN mode embeds ManaVillagePickerField, which renders the PIN field).
+  // See _onVillagePicked.
+  String? _villagePinCode;
   // Re-keyed after a GPS fix so the search field starts over from the fresh
   // PIN, rather than keep a search typed against wherever it was before.
   Key _villageFieldKey = UniqueKey();
@@ -169,8 +172,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
       missing.add('Confirm Password (must match)');
     }
     if (_doorNo.text.trim().isEmpty) missing.add('Door/House No');
-    if (_pinCode.text.trim().length != 6) missing.add('PIN Code (6 digits)');
-    if (_villageId == null) missing.add('Village');
+    if (_villageId == null || _villagePinCode == null) missing.add('Village');
     if (!_aadhaarValid) {
       missing.add('Aadhaar Number / Confirm Aadhaar (mandatory, 12 digits, matching, cannot start with 0 or 1)');
     }
@@ -265,7 +267,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               aadhaarNumber: _aadhaar.text.trim(),
               address: {
                 'door_no': _doorNo.text.trim(),
-                'pin_code': _pinCode.text.trim(),
+                'pin_code': _villagePinCode ?? '',
                 'village_id': _villageId,
                 // Only when "Use My Location" actually got a fix. Absent
                 // means the address was typed without one, which
@@ -361,6 +363,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
       setState(() {
         _villageId = null;
         _selectedVillageLabel = null;
+        _villagePinCode = null;
       });
       return;
     }
@@ -378,7 +381,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     setState(() {
       _villageId = id;
       _selectedVillageLabel = label;
-      if (v.pinCode.isNotEmpty) _pinCode.text = v.pinCode;
+      if (v.pinCode.isNotEmpty) _villagePinCode = v.pinCode;
     });
   }
 
@@ -528,15 +531,18 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 onCaptured: (place) {
                   setState(() {
                     _gps = place.fix;
-                    if (place.pinCode != null) _pinCode.text = place.pinCode!;
                     // The geocoder's name is not typed into the village box.
                     // At a doorstep it usually returns the colony, which is
                     // not in the directory under any PIN, so a typed name
-                    // could never match. The PIN is the reliable half: it is
-                    // kept, and the search field is re-keyed so it starts
-                    // fresh with the new PIN rather than a stale search.
+                    // could never match. ManaVillageSearchField owns the PIN
+                    // box now, and it has no hook to accept a prefilled PIN,
+                    // so the geocoded PIN cannot be carried into it here —
+                    // the search field is only re-keyed so a stale search
+                    // (and any village picked against the old fix) is
+                    // cleared, not silently kept against the new position.
                     _villageId = null;
                     _selectedVillageLabel = null;
+                    _villagePinCode = null;
                     _villageFieldKey = UniqueKey();
                   });
                 },
@@ -546,12 +552,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 decoration: const InputDecoration(labelText: 'Door / House No *'),
               ),
               const SizedBox(height: ManaSpacing.md),
-              TextFormField(
-                controller: _pinCode,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: const InputDecoration(labelText: 'PIN Code *', suffixIcon: ManaInfoHint('Enter PIN code first — villages shown are limited to this PIN'),),
-              ),
               ManaVillageSearchField(
                 key: _villageFieldKey,
                 label: 'Search Village/Town *',

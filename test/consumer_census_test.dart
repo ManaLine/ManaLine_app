@@ -57,7 +57,17 @@ const _census = <String, int>{
   // added no such comment. None of the ten instantiates
   // ManaVillagePickerField directly any more — the two real uses are its own
   // file and ManaVillageSearchField's PIN-mode embed, unchanged from before.
-  'ManaVillagePickerField': 9,
+  //
+  // Went 9 -> 11 fixing task-4-review.md's Important finding (nine of the
+  // ten screens kept a duplicate, unlinked screen-level PIN TextField beside
+  // ManaVillageSearchField). AG-004 and OW-018 gained their first mention: a
+  // doc comment on the new `_villagePinCode`/`selectedVillagePinCode` field
+  // explaining that ManaVillageSearchField's PIN mode embeds
+  // ManaVillagePickerField, which renders the actual PIN box now, so the
+  // submitted pin_code has to come from the picked village rather than a
+  // screen-typed one. Checked: both are doc comments only, same as the seven
+  // above — still nothing instantiates ManaVillagePickerField directly.
+  'ManaVillagePickerField': 11,
   'manaComposeAddress': 3,
 
   // Adding a village the LGD directory has never recorded. Went 8 -> 1 in

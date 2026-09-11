@@ -12,7 +12,6 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/live_photo_upload.dart';
 import '../state/global_workflow_state.dart';
-import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/location_api_service.dart';
 import '../../../shared/widgets/village_search_field.dart';
 
@@ -362,11 +361,9 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
   @override
   void dispose() {
     _doorNo.dispose();
-    _pinCode.dispose();
     super.dispose();
   }
   final _doorNo = TextEditingController();
-  final _pinCode = TextEditingController();
 
   ManaVillage? _selectedVillage;
   bool _resolving = false;
@@ -375,16 +372,18 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
   /// contract [ManaVillagePickerField] documents: it does not write anything,
   /// so a caller that needs the id resolves it. Resolved on pick, not on
   /// confirm, so Save only ever has a real id to send.
+  ///
+  /// The picked village's own `pinCode` is what gets submitted — there is no
+  /// screen-level PIN box any more. ManaVillageSearchField's PIN mode embeds
+  /// ManaVillagePickerField, which renders the PIN field; a second, unlinked
+  /// box here would just go stale the moment a village is picked.
   Future<void> _onVillagePicked(ManaVillage? v) async {
     if (v == null) {
       setState(() => _selectedVillage = null);
       return;
     }
     if (v.locationId.isNotEmpty) {
-      setState(() {
-        _selectedVillage = v;
-        _pinCode.text = v.pinCode;
-      });
+      setState(() => _selectedVillage = v);
       return;
     }
     setState(() => _resolving = true);
@@ -400,14 +399,12 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
         district: v.district,
         state: v.state,
       );
-      _pinCode.text = v.pinCode;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final canSave = _doorNo.text.trim().isNotEmpty &&
-        _pinCode.text.trim().length == 6 &&
         _selectedVillage != null &&
         !_resolving;
     return AlertDialog(
@@ -425,17 +422,6 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: ManaSpacing.sm),
-              TextField(
-                controller: _pinCode,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(
-                  labelText: ref.t('pin_code_required_field'),
-                  isDense: true,
-                  suffixIcon: ManaInfoHint(ref.t('villages_limited_to_pin_helper')),
-                ),
-              ),
               ManaVillageSearchField(
                 label: ref.t('search_village_town_field'),
                 onPicked: _onVillagePicked,
@@ -460,7 +446,7 @@ class _AddressDialogState extends ConsumerState<_AddressDialog> {
                     context,
                     _AddressResult(
                       doorNo: _doorNo.text.trim(),
-                      pinCode: _pinCode.text.trim(),
+                      pinCode: _selectedVillage!.pinCode,
                       villageId: _selectedVillage!.locationId,
                     ),
                   )

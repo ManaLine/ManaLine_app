@@ -11,7 +11,6 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_card.dart';
 import '../../../shared/network_error_handler.dart';
 import '../state/customer_profile_state.dart';
-import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/location_api_service.dart';
 import '../../../shared/widgets/village_search_field.dart';
 
@@ -158,7 +157,7 @@ class _SummaryCard extends ConsumerWidget {
   Future<void> _editAddress(BuildContext context, WidgetRef ref) async {
     final result = await showDialog<_VillageSelection>(
       context: context,
-      builder: (_) => _VillageSelectorDialog(initialPinCode: profile.currentAddress?.pinCode),
+      builder: (_) => const _VillageSelectorDialog(),
     );
     if (result == null) return;
     if (!context.mounted) return;
@@ -397,28 +396,13 @@ class _VillageSelection {
 }
 
 class _VillageSelectorDialog extends ConsumerStatefulWidget {
-  final String? initialPinCode;
-  const _VillageSelectorDialog({this.initialPinCode});
+  const _VillageSelectorDialog();
 
   @override
   ConsumerState<_VillageSelectorDialog> createState() => _VillageSelectorDialogState();
 }
 
 class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> {
-
-  // Disposed with the State that owns them.
-  //
-  // These outlived every visit: a TextEditingController holds a listener list
-  // and a ChangeNotifier, and a State that never disposes them leaks one set
-  // each time the screen is opened. Attached per class rather than in bulk --
-  // disposing a controller that belongs to a different State would be a
-  // use-after-dispose, which is worse than the leak.
-  @override
-  void dispose() {
-    _pinCode.dispose();
-    super.dispose();
-  }
-  late final _pinCode = TextEditingController(text: widget.initialPinCode ?? '');
   ManaVillage? _selectedVillage;
   bool _resolving = false;
 
@@ -426,16 +410,18 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
   /// contract [ManaVillagePickerField] documents: it does not write anything,
   /// so a caller that needs the id resolves it. Resolved on pick, not on
   /// confirm, so Save only ever has a real id to send.
+  ///
+  /// The picked village's own `pinCode` is what gets submitted — there is no
+  /// screen-level PIN box any more. ManaVillageSearchField's PIN mode embeds
+  /// ManaVillagePickerField, which renders the PIN field; a second, unlinked
+  /// box here would just go stale the moment a village is picked.
   Future<void> _onVillagePicked(ManaVillage? v) async {
     if (v == null) {
       setState(() => _selectedVillage = null);
       return;
     }
     if (v.locationId.isNotEmpty) {
-      setState(() {
-        _selectedVillage = v;
-        _pinCode.text = v.pinCode;
-      });
+      setState(() => _selectedVillage = v);
       return;
     }
     setState(() => _resolving = true);
@@ -451,15 +437,12 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
         district: v.district,
         state: v.state,
       );
-      _pinCode.text = v.pinCode;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final canConfirm = _pinCode.text.trim().length == 6 &&
-        _selectedVillage != null &&
-        !_resolving;
+    final canConfirm = _selectedVillage != null && !_resolving;
     return AlertDialog(
       // Scrolls if it does not fit -- see ow_011_day_closure.dart.
       scrollable: true,
@@ -468,13 +451,6 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: _pinCode,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            decoration: InputDecoration(labelText: ref.t('pin_code_plain_field'), suffixIcon: ManaInfoHint(ref.t('pin_code_first_helper')),),
-          ),
-          const SizedBox(height: 8),
           ManaVillageSearchField(
             label: ref.t('search_village_town_plain_field'),
             onPicked: _onVillagePicked,
@@ -495,7 +471,7 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
               ? () => Navigator.pop(
                     context,
                     _VillageSelection(
-                      pinCode: _pinCode.text.trim(),
+                      pinCode: _selectedVillage!.pinCode,
                       villageId: _selectedVillage!.locationId,
                       villageName: _selectedVillage!.name,
                       mandal: _selectedVillage!.mandal,

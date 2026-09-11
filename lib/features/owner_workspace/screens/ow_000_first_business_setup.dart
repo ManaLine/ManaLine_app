@@ -17,7 +17,6 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../../login_registration/state/auth_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
-import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/widgets/village_picker_field.dart';
 import '../../../shared/widgets/village_search_field.dart';
 import '../../../shared/location_api_service.dart';
@@ -465,14 +464,13 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
   // each time the screen is opened. Attached per class rather than in bulk --
   // disposing a controller that belongs to a different State would be a
   // use-after-dispose, which is worse than the leak.
-  @override
-  void dispose() {
-    _pinCode.dispose();
-    super.dispose();
-  }
-  final _pinCode = TextEditingController();
   String? _selectedVillageId;
   String? _selectedVillage; // display label
+  // The submitted pin_code comes from the picked village's directory row —
+  // ManaVillageSearchField owns PIN entry now (its PIN mode embeds
+  // ManaVillagePickerField, which renders the PIN field), so there is no
+  // separate screen-typed box to read it from.
+  String? _selectedVillagePinCode;
   Key _villageFieldKey = UniqueKey();
 
   /// Resolves a picked village to a real `location_id`, materialising it from
@@ -484,6 +482,7 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
       setState(() {
         _selectedVillageId = null;
         _selectedVillage = null;
+        _selectedVillagePinCode = null;
       });
       return;
     }
@@ -502,15 +501,15 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
     setState(() {
       _selectedVillageId = id;
       _selectedVillage = label;
-      if (v.pinCode.isNotEmpty) _pinCode.text = v.pinCode;
+      if (v.pinCode.isNotEmpty) _selectedVillagePinCode = v.pinCode;
     });
   }
 
   Future<void> _addArea() async {
-    if (_pinCode.text.trim().length != 6 || _selectedVillageId == null) return;
+    if (_selectedVillageId == null || _selectedVillagePinCode == null) return;
     final ok = await NetworkErrorHandler.run(context, () async {
       return ref.read(businessSetupProvider.notifier).addOperatingArea(
-            pinCode: _pinCode.text.trim(),
+            pinCode: _selectedVillagePinCode!,
             villageId: _selectedVillageId!,
             villageName: _selectedVillage!,
           );
@@ -518,9 +517,9 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
     if (ok == true) {
       if (!mounted) return;
       setState(() {
-        _pinCode.clear();
         _selectedVillageId = null;
         _selectedVillage = null;
+        _selectedVillagePinCode = null;
         // A new key, not just cleared state: the search field owns its own
         // text/pick state internally and has no reset method, so re-keying is
         // the only way to send the Owner back to a blank search for the next
@@ -545,14 +544,6 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: _pinCode,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            decoration: InputDecoration(
-                labelText: ref.t('pin_code_plain_field'),
-                suffixIcon: const ManaInfoHint('Enter PIN code first — villages shown are limited to this PIN'),),
-          ),
           ManaVillageSearchField(
             key: _villageFieldKey,
             label: ref.t('search_village_town_plain_field'),
@@ -568,8 +559,8 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
           Align(
             alignment: Alignment.centerLeft,
             child: FilledButton.tonalIcon(
-              onPressed: (_pinCode.text.trim().length == 6 &&
-                      _selectedVillageId != null)
+              onPressed: (_selectedVillageId != null &&
+                      _selectedVillagePinCode != null)
                   ? _addArea
                   : null,
               icon: const Icon(Icons.add, size: 18),

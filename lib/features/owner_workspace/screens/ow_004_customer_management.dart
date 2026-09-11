@@ -24,7 +24,6 @@ import '../../../shared/customer_row.dart';
 import '../../../shared/customer_collections_tab.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart';
-import '../../../design/components/mana_info_hint.dart';
 import '../../../design/components/mana_call_button.dart';
 import '../../../shared/widgets/village_search_field.dart';
 
@@ -452,7 +451,6 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
     _mobile.dispose();
     _aadhaar.dispose();
     _doorNo.dispose();
-    _pinCode.dispose();
     super.dispose();
   }
   @override
@@ -484,10 +482,13 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
   final _mobile = TextEditingController();
   final _aadhaar = TextEditingController();
   final _doorNo = TextEditingController();
-  final _pinCode = TextEditingController();
   String? _gender;
   bool _submitting = false;
   String? _villageId;
+  // Submitted pin_code comes from the picked village's directory row, not a
+  // screen-typed box — ManaVillageSearchField owns PIN entry now (its PIN
+  // mode embeds ManaVillagePickerField, which renders the PIN field).
+  String? _villagePinCode;
   String? _selectedVillageLabel;
   // Re-keyed after a GPS fix so the search field starts fresh with the new
   // PIN rather than keep a search typed against wherever it was before.
@@ -569,6 +570,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       setState(() {
         _villageId = null;
         _selectedVillageLabel = null;
+        _villagePinCode = null;
       });
       return;
     }
@@ -586,7 +588,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
     setState(() {
       _villageId = id;
       _selectedVillageLabel = label;
-      if (v.pinCode.isNotEmpty) _pinCode.text = v.pinCode;
+      if (v.pinCode.isNotEmpty) _villagePinCode = v.pinCode;
     });
   }
 
@@ -606,18 +608,18 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
   /// The optional fields are still THERE and still validated when filled --
   /// a half-typed mobile or a five-digit PIN is still refused. They just no
   /// longer block a customer who has neither.
+  // An address used to be all-or-nothing here (a typed PIN without a picked
+  // village, or vice versa, was refused). That half-typed state cannot occur
+  // any more: the PIN comes from the picked village's own directory row
+  // (_villagePinCode, set in _onVillagePicked), so a village pick and a
+  // valid PIN arrive together or not at all — nothing left to gate on.
   bool get _canCreateNew =>
       _fullName.text.trim().length >= 2 &&
       _fatherHusband.text.trim().length >= 2 &&
       _gender != null &&
       // Filled or empty, never half-typed.
       (_mobile.text.trim().isEmpty || _mobile.text.trim().length == 10) &&
-      (_aadhaar.text.trim().isEmpty || _aadhaar.text.trim().length == 12) &&
-      // An address is all-or-nothing: the RPC writes person_addresses only
-      // when it has both a village and a PIN, so half of one is not a state
-      // worth allowing.
-      ((_pinCode.text.trim().isEmpty && _villageId == null) ||
-          (_pinCode.text.trim().length == 6 && _villageId != null));
+      (_aadhaar.text.trim().isEmpty || _aadhaar.text.trim().length == 12);
 
   Future<void> _createNew({bool thenLoan = false}) async {
     setState(() => _submitting = true);
@@ -633,7 +635,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
             mobileNumber: _mobile.text.trim(),
             aadhaarNumber: _aadhaar.text.trim().isEmpty ? null : _aadhaar.text.trim(),
             doorNo: _doorNo.text.trim(),
-            pinCode: _pinCode.text.trim(),
+            pinCode: _villagePinCode,
             villageId: _villageId!,
           );
     });
@@ -836,25 +838,22 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
         UseMyLocationButton(
           onCaptured: (place) {
             setState(() {
-              if (place.pinCode != null) _pinCode.text = place.pinCode!;
               // The geocoder's name is NOT typed into the village box. It used
               // to be, and what it usually returns at a doorstep is the colony
               // -- "Aphb Colony" -- which is not in the directory under any
               // PIN, so a typed name could never match.
               //
-              // The PIN is the reliable half. It is filled, and the search
-              // field is re-keyed so it starts fresh with the new PIN.
+              // ManaVillageSearchField owns the PIN box now, and it has no
+              // hook to accept a prefilled PIN, so the geocoded PIN cannot be
+              // carried into it here — the search field is only re-keyed so a
+              // stale search (and any village picked against the old fix) is
+              // cleared, not silently kept against the new position.
               _villageId = null;
               _selectedVillageLabel = null;
+              _villagePinCode = null;
               _villageFieldKey = UniqueKey();
             });
           },
-        ),
-        TextField(
-          controller: _pinCode,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: InputDecoration(labelText: ref.t('pin_code'), suffixIcon: ManaInfoHint(ref.t('pin_code_helper')),),
         ),
         TextField(
           controller: _doorNo,

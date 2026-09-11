@@ -621,8 +621,69 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       (_mobile.text.trim().isEmpty || _mobile.text.trim().length == 10) &&
       (_aadhaar.text.trim().isEmpty || _aadhaar.text.trim().length == 12);
 
+  /// True when Create New was stopped because somebody already on file looks
+  /// like the same person. The matches are in [_results].
+  bool _duplicateBlocked = false;
+
+  /// The one duplicate the database cannot refuse on its own.
+  ///
+  /// persons.mobile_number is UNIQUE, so two people cannot share one -- a
+  /// second registration on the same number is 23505 and already reaches the
+  /// Owner as "that mobile number is already registered". But the column is
+  /// NULLABLE, and Postgres allows unlimited NULLs in a unique column, while
+  /// _canCreateNew permits an empty mobile. So two people with the same name,
+  /// the same father's name, the same gender and the same village and no
+  /// phone between them are two separate persons rows, one MLID each, and
+  /// nothing anywhere objects. That is a duplicate customer, and the only
+  /// remaining way to add somebody now runs straight through it: a search
+  /// that finds nobody falls through to Create New.
+  ///
+  /// So the check is exactly where the constraint is not: WITHOUT a mobile
+  /// number, a name plus father's name that already exists blocks the create
+  /// and shows who it matched. WITH one, the database is already the
+  /// authority and this stays out of the way -- which also means an Owner
+  /// registering a genuine namesake is never stuck, because typing the phone
+  /// number that distinguishes them is the way through.
+  ///
+  /// Not a database constraint on (name, father, village): namesakes in one
+  /// village are real -- this file says so twice about picking the wrong
+  /// person -- so the right answer is to make the Owner look, not to make the
+  /// row impossible.
+  Future<bool> _wouldDuplicate() async {
+    if (_mobile.text.trim().isNotEmpty) return false;
+
+    final matches = await NetworkErrorHandler.run(context, () async {
+      return ref
+          .read(customerListProvider.notifier)
+          .searchIdentity(fullName: _fullName.text.trim());
+    });
+    // A failed lookup is NOT a clean bill of health. Refuse to create rather
+    // than create blind: the error is already on screen, and the Owner can
+    // press the button again.
+    if (matches == null || !mounted) return true;
+
+    final father = _fatherHusband.text.trim().toLowerCase();
+    final likely = matches
+        .where((p) => p.fatherHusbandName.trim().toLowerCase() == father)
+        .toList();
+    if (likely.isEmpty) return false;
+
+    setState(() {
+      _results = likely;
+      _foundIdentity = likely.length == 1 ? likely.first : null;
+      _duplicateBlocked = true;
+      _stage = _AddCustomerStage.found;
+    });
+    return true;
+  }
+
   Future<void> _createNew({bool thenLoan = false}) async {
     setState(() => _submitting = true);
+    if (await _wouldDuplicate()) {
+      if (mounted) setState(() => _submitting = false);
+      return;
+    }
+    if (!mounted) return;
     // createNewReturningId either way: the id costs nothing to receive and
     // is the difference between offering a loan next and asking the person
     // to find their own customer again.
@@ -725,6 +786,13 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       ];
 
   List<Widget> _foundStage() => [
+        if (_duplicateBlocked) ...[
+          // Says what happened and what to do about it. "Already exists" with
+          // no way forward is how an Owner standing in front of a real new
+          // customer gets stuck.
+          ManaText.raw(ref.t('duplicate_person_note'), style: ManaType.noteBad),
+          const SizedBox(height: ManaSpacing.sm),
+        ],
         ManaText.raw(
           _results.length == 1
               ? ref.t('identity_found')
@@ -773,7 +841,10 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
           onAddAndLend: () => _linkExisting(thenLoan: true),
         ),
         TextButton(
-          onPressed: () => setState(() => _stage = _AddCustomerStage.search),
+          onPressed: () => setState(() {
+            _duplicateBlocked = false;
+            _stage = _AddCustomerStage.search;
+          }),
           child: ManaText.raw(ref.t('search_again')),
         ),
       ];

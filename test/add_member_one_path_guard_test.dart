@@ -72,16 +72,64 @@ void main() {
 
     test('nothing asks the add sheet to refuse to create', () {
       // existingOnly still EXISTS on the sheet and now has no caller passing
-      // true. Left in place deliberately rather than deleted in the same
-      // change: its branch carries a real rule -- a person who already holds a
-      // MANA LINE ID must never be re-registered as a new one -- and whether
-      // that protection is still wanted is the Owner's call, not a tidy-up.
-      // This pins the current state so the answer is a decision rather than a
-      // drift.
+      // true. The rule it used to carry -- an already-registered person must
+      // not be re-registered as a new one -- is enforced by _wouldDuplicate
+      // now, on the one path that remains, rather than by a second entry point
+      // somebody had to know to choose.
       expect(RegExp(r'existingOnly:\s*true').hasMatch(ow004), isFalse,
           reason: 'a caller has started using existingOnly again; if that is '
               'deliberate, this guard and the comment above it need updating '
               'together');
+    });
+
+    test('Create New cannot be reached without the duplicate check', () {
+      // The hole this closes, measured: persons.mobile_number is UNIQUE but
+      // NULLABLE, Postgres allows unlimited NULLs in a unique column, and
+      // _canCreateNew permits an empty mobile -- so two people with the same
+      // name, father's name, gender and village and no phone between them were
+      // two rows with an MLID each, and nothing objected. A search that finds
+      // nobody falls straight through to Create New, so this is on the live
+      // path, not a corner.
+      final createNew = ow004.substring(ow004.indexOf('Future<void> _createNew('));
+      final body = createNew.substring(0, createNew.indexOf('createNewReturningId'));
+      expect(body, contains('_wouldDuplicate'),
+          reason: 'createNewReturningId is reachable without the duplicate '
+              'check in front of it');
+    });
+
+    test('the check runs exactly where the unique constraint does not', () {
+      // With a mobile number the database is already the authority: a second
+      // registration on the same number is 23505 and already reaches the Owner
+      // as "that mobile number is already registered". The check bows out
+      // there, which is also what keeps a genuine namesake registerable --
+      // typing the phone number that distinguishes them is the way through.
+      final guard = ow004.substring(ow004.indexOf('Future<bool> _wouldDuplicate('));
+      expect(guard.substring(0, guard.indexOf('}')),
+          contains('_mobile.text.trim().isNotEmpty'),
+          reason: 'the duplicate check must stand down when a mobile number '
+              'makes the database the authority');
+    });
+  });
+
+  group('telling two people apart', () {
+    test('every screen that lists search matches shows the village', () {
+      // A name search legitimately returns several people, and the village is
+      // the only line an Owner can tell two men of the same name apart by --
+      // owner_search_person has returned it all along. The Add Customer sheet
+      // showed it; Universal Search did not, so the one screen you reach a
+      // stranger from was the one that could not distinguish them.
+      final screens = {
+        'lib/features/owner_workspace/screens/ow_001_owner_home_dashboard.dart':
+            'Universal Search',
+        'lib/features/owner_workspace/screens/ow_004_customer_management.dart':
+            'the Add Customer sheet',
+      };
+      screens.forEach((path, what) {
+        final source = File(path).readAsStringSync();
+        expect(source, contains('person.village.isNotEmpty'),
+            reason: '$what lists identity matches without the village, which '
+                'is what distinguishes two people of the same name');
+      });
     });
   });
 

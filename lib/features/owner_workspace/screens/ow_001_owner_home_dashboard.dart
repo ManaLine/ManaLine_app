@@ -881,7 +881,19 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                           children: [
                             ListTile(
                               title: ManaText.raw(match.person.fullName),
+                              // Village FIRST, after the name it qualifies --
+                              // the same order the Add Customer sheet already
+                              // uses, and for the same reason: a name search
+                              // legitimately returns several people, and the
+                              // village is the only line an Owner can tell two
+                              // men of the same name apart by. owner_search_person
+                              // has returned it all along; this screen was
+                              // simply never taught to show it. Omitted when
+                              // there is no address on file, so a missing one
+                              // never renders as a real place.
                               subtitle: ManaText.raw([
+                                if (match.person.village.isNotEmpty)
+                                  match.person.village,
                                 match.person.mlid,
                                 if (match.person.fatherHusbandName.isNotEmpty)
                                   match.person.fatherHusbandName,

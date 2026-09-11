@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
@@ -23,9 +22,9 @@ import '../../../shared/photo_compression.dart';
 import '../../owner_workspace/state/customer_state.dart' show CustomerProfile, CustomerRemark;
 import '../../owner_workspace/state/collection_mode_state.dart' show CollectionDueRow;
 import '../../../shared/soft_delete_service.dart';
-import '../../../shared/location_api_service.dart';
 import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
+import '../../../shared/widgets/village_search_field.dart';
 import '../state/agent_customer_state.dart';
 import 'ag_007_loan_distribution.dart';
 import '../../../design/components/mana_call_button.dart';
@@ -391,55 +390,14 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
     final phoneController = TextEditingController(text: profile?.summary.phoneNumber ?? '');
     final doorNoController = TextEditingController();
     final pinCodeController = TextEditingController();
-    final villageSearchController = TextEditingController();
     String? selectedVillageId;
-    String? selectedVillageLabel; // "Village — Mandal, District, State" for confirmation display
-    List<Map<String, dynamic>> villageResults = [];
+    String? selectedVillageLabel; // "Village — Mandal, District" for confirmation display
 
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (sheetContext, setSheetState) {
-          Future<void> searchVillages(String query) async {
-            if (query.trim().length < 2) {
-              setSheetState(() => villageResults = []);
-              return;
-            }
-            // With a PIN, go through LocationApiService, which merges the
-            // villages already in use with the LGD reference. Searching
-            // `locations` alone — which is all this did — offers only villages
-            // some business already works in, so an Agent correcting an address
-            // could never reach a village nobody had used yet, and this sheet
-            // has no manual-entry fallback to escape into.
-            final pin = pinCodeController.text.trim();
-            if (pin.length == 6) {
-              final villages = await ref
-                  .read(locationApiServiceProvider)
-                  .searchByPin(pinCode: pin, query: query.trim(), limit: 15);
-              setSheetState(() => villageResults = [
-                    for (final v in villages)
-                      {
-                        'location_id': v.locationId.isEmpty ? null : v.locationId,
-                        'village_town_name': v.name,
-                        'mandal': v.mandal,
-                        'district': v.district,
-                        'state': v.state,
-                        'pin_code': v.pinCode,
-                      },
-                  ]);
-              return;
-            }
-
-            final rows = await Supabase.instance.client
-                .from('locations')
-                .select('location_id, village_town_name, mandal, district, state')
-                .eq('status', 'Active')
-                .ilike('village_town_name', '%${query.trim()}%')
-                .limit(10);
-            setSheetState(() => villageResults = (rows as List).cast<Map<String, dynamic>>());
-          }
-
           return Padding(
             padding: MediaQuery.of(sheetContext).viewInsets,
             child: Padding(
@@ -469,58 +427,46 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                     decoration: InputDecoration(labelText: ref.t('pin_code_plain_field')),
                   ),
                   const SizedBox(height: ManaSpacing.md),
-                  TextField(
-                    controller: villageSearchController,
-                    decoration: InputDecoration(labelText: ref.t('search_village_town_plain_field')),
-                    onChanged: (v) {
-                      selectedVillageId = null;
-                      selectedVillageLabel = null;
-                      searchVillages(v);
+                  ManaVillageSearchField(
+                    label: ref.t('search_village_town_plain_field'),
+                    onPicked: (v) async {
+                      if (v == null) {
+                        setSheetState(() {
+                          selectedVillageId = null;
+                          selectedVillageLabel = null;
+                        });
+                        return;
+                      }
+                      // A reference suggestion has no location_id until it is
+                      // picked. village_id is a FK, so it has to be a real row
+                      // before this address is saved.
+                      var id = v.locationId;
+                      if (id.isEmpty) {
+                        final resolved = await manaAddVillageIfMissing(
+                          sheetContext,
+                          ref,
+                          pinCode: v.pinCode,
+                          villageTownName: v.name,
+                          areaType: 'Village',
+                          mandal: v.mandal,
+                          district: v.district,
+                          state: v.state,
+                        );
+                        if (resolved == null) return; // already explained
+                        id = resolved;
+                      }
+                      if (!sheetContext.mounted) return;
+                      setSheetState(() {
+                        selectedVillageId = id;
+                        selectedVillageLabel = v.placeLabel.isEmpty
+                            ? v.name
+                            : '${v.name} — ${v.placeLabel}';
+                        if (v.pinCode.isNotEmpty) {
+                          pinCodeController.text = v.pinCode;
+                        }
+                      });
                     },
                   ),
-                  if (villageResults.isNotEmpty)
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 180),
-                      margin: const EdgeInsets.only(top: ManaSpacing.xs),
-                      decoration: BoxDecoration(border: Border.all(color: ManaColors.surfaceSunken)),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: villageResults.length,
-                        itemBuilder: (_, i) {
-                          final v = villageResults[i];
-                          final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
-                          return ListTile(
-                            dense: true,
-                            title: ManaText.raw(label, style: ManaType.small),
-                            onTap: () async {
-                              // A reference suggestion has no location_id until
-                              // it is picked. village_id is a FK, so it has to
-                              // be a real row before this address is saved.
-                              var id = v['location_id'] as String?;
-                              if (id == null) {
-                                id = await manaAddVillageIfMissing(
-                                  sheetContext,
-                                  ref,
-                                  pinCode: pinCodeController.text.trim(),
-                                  villageTownName: (v['village_town_name'] as String).trim(),
-                                  areaType: 'Village',
-                                  mandal: ((v['mandal'] as String?) ?? '').trim(),
-                                  district: ((v['district'] as String?) ?? '').trim(),
-                                  state: ((v['state'] as String?) ?? '').trim(),
-                                );
-                                if (id == null) return; // already explained
-                              }
-                              setSheetState(() {
-                                selectedVillageId = id;
-                                selectedVillageLabel = label;
-                                villageSearchController.text = v['village_town_name'] as String;
-                                villageResults = [];
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    ),
                   if (selectedVillageLabel != null) ...[
                     const SizedBox(height: ManaSpacing.xs),
                     ManaText.raw(ref.t('selected_note').replaceAll('{value}', '$selectedVillageLabel'),

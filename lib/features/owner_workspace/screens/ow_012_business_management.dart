@@ -21,6 +21,7 @@ import 'ow_018_business_migration.dart';
 import 'ow_019_cheti_management.dart';
 import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/widgets/village_picker_field.dart';
+import '../../../shared/widgets/village_search_field.dart';
 import '../../../shared/location_api_service.dart';
 
 // A failed load previously left every one of this screen's tabs looking
@@ -461,7 +462,7 @@ class _CreateBusinessScreenState extends ConsumerState<_CreateBusinessScreen> {
               decoration: InputDecoration(labelText: ref.t('door_no_street_field')),
             ),
             const SizedBox(height: ManaSpacing.sm),
-            ManaVillagePickerField(
+            ManaVillageSearchField(
               label: ref.t('business_address_field'),
               onPicked: (v) => setState(() => _addressVillage = v),
             ),

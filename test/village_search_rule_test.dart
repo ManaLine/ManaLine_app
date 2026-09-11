@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/state/business_management_state.dart';
 import 'package:mana_line/shared/location_api_service.dart';
@@ -122,6 +124,68 @@ void main() {
         state: '',
       );
       expect(manaComposeAddress(village: noPin), 'Somewhere');
+    });
+  });
+
+  // Two search rules coexist now: PIN + 3 letters (above, unchanged) and the
+  // cascade added in Plan 4 — state -> district -> 3 letters, prefix before
+  // substring. searchVillages has no test seam (it talks straight to
+  // Supabase, and this file has no harness to fake that client), so these
+  // read the guard conditions out of LocationApiService.searchVillages the
+  // same way village_lookup_guard_test.dart reads its own target: by source
+  // text. That is weaker than exercising the method, and worth saying so —
+  // it proves the guard is present in the code, not that it behaves right at
+  // runtime.
+  group('the cascade rule: state, district and 3 letters, prefix first', () {
+    late final String source;
+    late final String body;
+
+    setUpAll(() {
+      source = File('lib/shared/location_api_service.dart').readAsStringSync();
+      final start = source.indexOf('Future<List<ManaVillage>> searchVillages');
+      expect(start, greaterThan(-1),
+          reason: 'searchVillages moved or was renamed; this guard reads it '
+              'by source text and needs updating alongside it.');
+      // Up to the next top-level method, `Future<ManaPinOption` say — good
+      // enough to bound one method body without a real parser.
+      final next = source.indexOf('\n  Future<', start + 10);
+      body = source.substring(start, next == -1 ? source.length : next);
+    });
+
+    test('the cascade shares the PIN path\'s letter threshold', () {
+      // One constant, not two copies that could disagree — searchVillages
+      // and searchByPin both gate on LocationApiService.minVillageLetters.
+      expect(LocationApiService.minVillageLetters, 3);
+      expect(body, contains('needle.length < minVillageLetters'),
+          reason: 'searchVillages must gate on the shared constant, not a '
+              'new literal that could drift from it.');
+    });
+
+    test('state and district are both required before any query runs', () {
+      expect(body, contains('st.isEmpty || di.isEmpty'),
+          reason: 'Without this, a cascade missing a district (or a state) '
+              'would search every village on earth instead of returning '
+              'nothing — the wall the PIN path already refuses to become.');
+    });
+
+    test('the prefix search runs, and is checked, before the substring one', () {
+      final prefixAt = body.indexOf("ilike('village', '\$needle%')");
+      final substringAt = body.indexOf("ilike('village', '%\$needle%')");
+      expect(prefixAt, greaterThan(-1),
+          reason: 'No prefix query found — searchVillages must try `needle%` '
+              'first (14 rows in Visakhapatnam) before ever trying `%needle%` '
+              '(500 rows): see the doc comment on searchVillages.');
+      expect(substringAt, greaterThan(-1),
+          reason: 'No substring fallback found — Ichapuram/Ichchapuram-style '
+              'mid-word spelling drift needs one.');
+      expect(prefixAt, lessThan(substringAt),
+          reason: 'The substring query must be reachable only after the '
+              'prefix query returns nothing, not run alongside or before it.');
+      expect(body.indexOf('prefixResults.isNotEmpty) return prefixResults'),
+          allOf(greaterThan(prefixAt), lessThan(substringAt)),
+          reason: 'A non-empty prefix result must return before the '
+              'substring query is ever issued — "fallback" means it does '
+              'not run when the first search already found something.');
     });
   });
 }

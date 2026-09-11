@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
-import '../../../shared/add_village_if_missing.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
@@ -13,7 +12,7 @@ import '../../../shared/network_error_handler.dart';
 import '../state/investor_profile_state.dart';
 import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/location_api_service.dart';
-import '../../../shared/widgets/add_village_sheet.dart';
+import '../../../shared/widgets/village_search_field.dart';
 
 /// IW-005 — My Profile / Business Memberships. Entry: IW-001 Investor
 /// Dashboard → My Profile / Memberships.
@@ -348,103 +347,51 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
   // use-after-dispose, which is worse than the leak.
   @override
   void dispose() {
-    _villageSearch.dispose();
     _pinCode.dispose();
     super.dispose();
   }
   late final _pinCode = TextEditingController(text: widget.initialPinCode ?? '');
-  final _villageSearch = TextEditingController();
-  Map<String, dynamic>? _selectedVillage; // real row: location_id, village_town_name, mandal, district, state
-  List<Map<String, dynamic>> _villageResults = [];
-  bool _villageSearchAttempted = false;
+  ManaVillage? _selectedVillage;
+  bool _resolving = false;
 
-  Future<void> _searchVillages(String query) async {
-    // Three letters and a full PIN, the same rule every other village picker
-    // uses. LocationApiService enforces it too; this is the early return that
-    // keeps the "searched yet?" flag honest.
-    if (query.trim().length < 3) {
+  /// A picked reference row has no `location_id` until it is resolved — same
+  /// contract [ManaVillagePickerField] documents: it does not write anything,
+  /// so a caller that needs the id resolves it. Resolved on pick, not on
+  /// confirm, so Save only ever has a real id to send.
+  Future<void> _onVillagePicked(ManaVillage? v) async {
+    if (v == null) {
+      setState(() => _selectedVillage = null);
+      return;
+    }
+    if (v.locationId.isNotEmpty) {
       setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = false;
+        _selectedVillage = v;
+        _pinCode.text = v.pinCode;
       });
       return;
     }
-    final pin = _pinCode.text.trim();
-    if (pin.length != 6) {
-      setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = false;
-      });
-      return;
-    }
-    try {
-      // Through LocationApiService, which merges the villages already in use
-      // with the LGD reference. This searched `locations` ALONE, and that table
-      // holds only villages some business already operates in — so a person
-      // editing their own address could never reach a village nobody had used
-      // yet, and fell through to typing mandal, district and state by hand.
-      // A reference row carries an empty id; manaResolvePickedVillage writes
-      // the real one when they confirm.
-      final villages = await ref
-          .read(locationApiServiceProvider)
-          .searchByPin(pinCode: pin, query: query.trim(), limit: 15);
-      if (!mounted) return;
-      setState(() {
-        _villageResults = [
-          for (final v in villages)
-            {
-              'location_id': v.locationId.isEmpty ? null : v.locationId,
-              'village_town_name': v.name,
-              'mandal': v.mandal,
-              'district': v.district,
-              'state': v.state,
-            },
-        ];
-        _villageSearchAttempted = true;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = true;
-      });
-    }
-  }
-
-  /// Opens the shared Add New Village sheet.
-  ///
-  /// Was ~60 lines of inline form here asking for village, mandal, district and
-  /// state as free text — one of SEVEN copies of the same four boxes, and the
-  /// reason a village once recorded its state as "Andhrapradesh" and then
-  /// narrowed every picker to nothing.
-  ///
-  /// The sheet derives mandal and district from the PIN (99.8% of pincodes mean
-  /// one state) and asks whether a near-matching village was meant before
-  /// creating a second row for one place.
-  Future<void> _openAddVillage() async {
-    final picked = await manaShowAddVillageSheet(
-      context,
-      ref,
-      pinCode: _pinCode.text.trim(),
-      initialName: _villageSearch.text.trim(),
-    );
-    if (picked == null || !mounted) return;
+    setState(() => _resolving = true);
+    final id = await ref.read(locationApiServiceProvider).resolveId(v);
+    if (!mounted) return;
     setState(() {
-      _selectedVillage = {
-        'location_id': picked.locationId,
-        'village_town_name': picked.name,
-        'mandal': picked.mandal,
-        'district': picked.district,
-        'state': picked.state,
-      };
-      _villageSearch.text = picked.name;
-      _villageResults = [];
+      _resolving = false;
+      _selectedVillage = ManaVillage(
+        locationId: id,
+        name: v.name,
+        pinCode: v.pinCode,
+        mandal: v.mandal,
+        district: v.district,
+        state: v.state,
+      );
+      _pinCode.text = v.pinCode;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final canConfirm = _pinCode.text.trim().length == 6 && _selectedVillage != null;
+    final canConfirm = _pinCode.text.trim().length == 6 &&
+        _selectedVillage != null &&
+        !_resolving;
     return AlertDialog(
       // Scrolls if it does not fit -- see ow_011_day_closure.dart.
       scrollable: true,
@@ -458,58 +405,16 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
             keyboardType: TextInputType.number,
             maxLength: 6,
             decoration: InputDecoration(labelText: ref.t('pin_code_plain_field'), suffixIcon: ManaInfoHint(ref.t('pin_code_first_helper')),),
-            onChanged: (_) {
-              setState(() {
-                _selectedVillage = null;
-              });
-              _searchVillages(_villageSearch.text);
-            },
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: _villageSearch,
-            decoration: InputDecoration(labelText: ref.t('search_village_town_plain_field')),
-            onChanged: (v) {
-              setState(() => _selectedVillage = null);
-              _searchVillages(v);
-            },
+          ManaVillageSearchField(
+            label: ref.t('search_village_town_plain_field'),
+            onPicked: _onVillagePicked,
           ),
-          if (_villageSearchAttempted && _villageResults.isEmpty && _selectedVillage == null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: TextButton(
-                style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-                onPressed: _openAddVillage,
-                child: Text('"${_villageSearch.text.trim()}" not found — add it'),
-              ),
-            ),
-          if (_villageResults.isNotEmpty)
-            Container(
-              constraints: const BoxConstraints(maxHeight: 160),
-              margin: const EdgeInsets.only(top: 4),
-              decoration: BoxDecoration(border: Border.all(color: ManaColors.surfaceSunken)),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _villageResults.length,
-                itemBuilder: (_, i) {
-                  final v = _villageResults[i];
-                  final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
-                  return ListTile(
-                    dense: true,
-                    title: ManaText.raw(label, style: ManaType.small),
-                    onTap: () => setState(() {
-                      _selectedVillage = v;
-                      _villageSearch.text = v['village_town_name'] as String;
-                      _villageResults = [];
-                    }),
-                  );
-                },
-              ),
-            ),
           if (_selectedVillage != null) ...[
             const SizedBox(height: 4),
             ManaText.raw(
-              'Selected: ${_selectedVillage!['village_town_name']} — ${_selectedVillage!['mandal']}, ${_selectedVillage!['district']}, ${_selectedVillage!['state']}',
+              'Selected: ${_selectedVillage!.name} — ${_selectedVillage!.placeLabel}',
               style: ManaType.note,
             ),
           ],
@@ -519,23 +424,17 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
         TextButton(onPressed: () => Navigator.pop(context), child: ManaText.raw(ref.t('cancel'))),
         ElevatedButton(
           onPressed: canConfirm
-              ? () async {
-                  // A reference pick has no id until now.
-                  final id = await manaResolvePickedVillage(context, ref,
-                      row: _selectedVillage!, pinCode: _pinCode.text.trim());
-                  if (id == null || !context.mounted) return;
-                  Navigator.pop(
+              ? () => Navigator.pop(
                     context,
                     _VillageSelection(
                       pinCode: _pinCode.text.trim(),
-                      villageId: id,
-                      villageName: _selectedVillage!['village_town_name'] as String,
-                      mandal: _selectedVillage!['mandal'] as String,
-                      district: _selectedVillage!['district'] as String,
-                      state: _selectedVillage!['state'] as String,
+                      villageId: _selectedVillage!.locationId,
+                      villageName: _selectedVillage!.name,
+                      mandal: _selectedVillage!.mandal,
+                      district: _selectedVillage!.district,
+                      state: _selectedVillage!.state,
                     ),
-                  );
-                }
+                  )
               : null,
           child: ManaText.raw(ref.t('save')),
         ),

@@ -19,8 +19,8 @@ import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
 import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/widgets/village_picker_field.dart';
+import '../../../shared/widgets/village_search_field.dart';
 import '../../../shared/location_api_service.dart';
-import '../../../shared/widgets/add_village_sheet.dart';
 
 /// OW-000 — First Business Setup. 6-step wizard shell over fields that
 /// already exist in OW-012/OW-014 (this screen introduces no new fields,
@@ -414,7 +414,7 @@ class _Step1CreateBusinessState extends ConsumerState<_Step1CreateBusiness> {
             decoration: InputDecoration(labelText: ref.t('door_no_street_field')),
           ),
           const SizedBox(height: ManaSpacing.sm),
-          ManaVillagePickerField(
+          ManaVillageSearchField(
             label: ref.t('business_address_field'),
             onPicked: (v) => setState(() => _addressVillage = v),
           ),
@@ -468,174 +468,41 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
   @override
   void dispose() {
     _pinCode.dispose();
-    _villageSearch.dispose();
     super.dispose();
   }
   final _pinCode = TextEditingController();
-  final _villageSearch = TextEditingController();
   String? _selectedVillageId;
   String? _selectedVillage; // display label
-  List<Map<String, dynamic>> _villageResults = [];
-  bool _villageSearchAttempted = false;
+  Key _villageFieldKey = UniqueKey();
 
-  /// Three letters, not two, and a full PIN — the same rule the operating-area
-  /// pickers use. A PIN on its own would answer with every village it carries,
-  /// which for 517536 is fifty.
-  static const _minVillageLetters = 3;
-
-  Future<void> _searchVillages(String query) async {
-    if (query.trim().length < _minVillageLetters) {
+  /// Resolves a picked village to a real `location_id`, materialising it from
+  /// the LGD reference first if the Owner picked a suggestion nobody had used
+  /// yet — same reasoning as [ManaVillagePickerField]'s own doc comment: it
+  /// does not write anything, so a caller that needs the id resolves it.
+  Future<void> _onVillagePicked(ManaVillage? v) async {
+    if (v == null) {
       setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = false;
+        _selectedVillageId = null;
+        _selectedVillage = null;
       });
       return;
     }
-    final pin = _pinCode.text.trim();
-    if (pin.length != 6) {
-      setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = false;
-      });
-      return;
-    }
-    try {
-      final rows = await Supabase.instance.client
-          .from('locations')
-          .select('location_id, village_town_name, mandal, district, state')
-          .eq('status', 'Active')
-          .eq('pin_code', pin)
-          .ilike('village_town_name', '%${query.trim()}%')
-          .limit(10);
-
-      // `locations` holds only villages some business already works in, so on
-      // the very first business it is EMPTY and this search found nothing for
-      // every PIN — pushing every new Owner into typing mandal, district and
-      // state by hand for villages the LGD reference already knows. 517536
-      // carries fifty of them; 524129 carries Punabaka.
-      //
-      // Merged the same way OW-012 and LR-004 do it: rows already in use first,
-      // because those carry a real location_id, then the reference with a null
-      // id, materialised only if the Owner actually picks one.
-      final merged = [
-        for (final r in (rows as List).cast<Map<String, dynamic>>()) r,
-      ];
-      final seen = {
-        for (final r in merged)
-          ((r['village_town_name'] as String?) ?? '').toLowerCase(),
-      };
-      final needle = query.trim().toLowerCase();
-      try {
-        final suggested = await Supabase.instance.client
-            .schema('app')
-            .rpc('suggest_villages', params: {'p_pincode': pin});
-        for (final r in (suggested as List? ?? const []).cast<Map<String, dynamic>>()) {
-          if (merged.length >= 15) break;
-          final name = ((r['village'] as String?) ?? '').trim();
-          if (name.isEmpty) continue;
-          if (needle.isNotEmpty && !name.toLowerCase().contains(needle)) continue;
-          if (!seen.add(name.toLowerCase())) continue;
-          merged.add({
-            'location_id': null,
-            'village_town_name': name,
-            'mandal': r['mandal'],
-            'district': r['district'],
-            'state': r['state'],
-          });
-        }
-      } catch (_) {
-        // The villages already in use are still a valid answer; an unreachable
-        // reference must not empty the list and re-create the bug above.
-      }
-
-      // A to Z, so the Owner scans for a name rather than for an order the
-      // database chose.
-      merged.sort((a, b) => ((a['village_town_name'] as String?) ?? '')
-          .toLowerCase()
-          .compareTo(((b['village_town_name'] as String?) ?? '').toLowerCase()));
-
-      if (!mounted) return;
-      setState(() {
-        _villageResults = merged;
-        _villageSearchAttempted = true;
-      });
-    } catch (e) {
-      // A failed search must still unlock the "add if not found" fallback
-      // — silently swallowing this here (no catch, pre-fix) meant
-      // _villageSearchAttempted never flipped true, so NEITHER the
-      // results list NOR the manual-add prompt ever appeared: the person
-      // was stuck with no visible next step at all.
-      if (!mounted) return;
-      setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = true;
-      });
-    }
-  }
-
-  /// Commits a chosen village, creating its `locations` row when the pick came
-  /// from the LGD reference rather than from a village already in use.
-  ///
-  /// Split out of the ListTile's onTap because it can now await: the row the
-  /// Owner tapped may not exist yet. 'Village' is a real
-  /// `location_area_type_enum` label — the other is 'Town' — and every
-  /// directory pick in this file already hardcodes it.
-  Future<void> _chooseVillage(Map<String, dynamic> v, String label) async {
-    var id = v['location_id'] as String?;
-    if (id == null) {
+    var id = v.locationId;
+    if (id.isEmpty) {
       final result = await NetworkErrorHandler.run(context, () async {
-        final rows = await Supabase.instance.client
-            .schema('app')
-            .rpc('add_location_if_missing', params: {
-          'p_pin_code': _pinCode.text.trim(),
-          'p_village_town_name': (v['village_town_name'] as String).trim(),
-          'p_area_type': 'Village',
-          'p_mandal': ((v['mandal'] as String?) ?? '').trim(),
-          'p_district': ((v['district'] as String?) ?? '').trim(),
-          'p_state': ((v['state'] as String?) ?? '').trim(),
-        });
-        return (rows as List).first as Map<String, dynamic>;
+        return ref.read(locationApiServiceProvider).resolveId(v);
       });
-      // Network failure: the handler has already said so. Leaving the list up
-      // means the Owner can simply tap again.
-      if (result == null) return;
-      id = result['location_id'] as String;
+      if (result == null || !mounted) return;
+      id = result;
     }
     if (!mounted) return;
+    final label = [v.name, v.mandal, v.district, v.state]
+        .where((s) => s.trim().isNotEmpty)
+        .join(' — ');
     setState(() {
       _selectedVillageId = id;
       _selectedVillage = label;
-      _villageSearch.text = v['village_town_name'] as String;
-      _villageResults = [];
-    });
-  }
-
-  /// Opens the shared Add New Village sheet.
-  ///
-  /// Was an inline form asking for village, mandal, district and state as free
-  /// text -- one of SEVEN copies of the same four boxes, and the reason a
-  /// village once recorded its state as "Andhrapradesh" and then narrowed every
-  /// picker to nothing.
-  ///
-  /// The sheet derives mandal and district from the PIN and asks whether a
-  /// near-matching village was meant before creating a second row for one
-  /// place.
-  Future<void> _openAddVillage() async {
-    final picked = await manaShowAddVillageSheet(
-      context,
-      ref,
-      pinCode: _pinCode.text.trim(),
-      initialName: _villageSearch.text.trim(),
-    );
-    if (picked == null || !mounted) return;
-    final label = [picked.name, picked.mandal, picked.district, picked.state]
-        .where((v) => v.trim().isNotEmpty)
-        .join(' — ');
-    setState(() {
-      _selectedVillageId = picked.locationId;
-      _selectedVillage = label;
-      _villageSearch.text = picked.name;
-      _villageResults = [];
+      if (v.pinCode.isNotEmpty) _pinCode.text = v.pinCode;
     });
   }
 
@@ -652,9 +519,13 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
       if (!mounted) return;
       setState(() {
         _pinCode.clear();
-        _villageSearch.clear();
         _selectedVillageId = null;
         _selectedVillage = null;
+        // A new key, not just cleared state: the search field owns its own
+        // text/pick state internally and has no reset method, so re-keying is
+        // the only way to send the Owner back to a blank search for the next
+        // area rather than leaving the just-added village showing as picked.
+        _villageFieldKey = UniqueKey();
       });
     }
   }
@@ -681,62 +552,12 @@ class _Step2OperatingAreasState extends ConsumerState<_Step2OperatingAreas> {
             decoration: InputDecoration(
                 labelText: ref.t('pin_code_plain_field'),
                 suffixIcon: const ManaInfoHint('Enter PIN code first — villages shown are limited to this PIN'),),
-            onChanged: (_) {
-              setState(() {
-                _selectedVillageId = null;
-                _selectedVillage = null;
-              });
-              _searchVillages(_villageSearch.text);
-            },
           ),
-          TextField(
-            controller: _villageSearch,
-            decoration: InputDecoration(labelText: ref.t('search_village_town_plain_field')),
-            onChanged: (v) {
-              setState(() {
-                _selectedVillageId = null;
-                _selectedVillage = null;
-                        });
-              _searchVillages(v);
-            },
+          ManaVillageSearchField(
+            key: _villageFieldKey,
+            label: ref.t('search_village_town_plain_field'),
+            onPicked: _onVillagePicked,
           ),
-          if (_villageResults.isNotEmpty)
-            Container(
-              constraints: const BoxConstraints(maxHeight: 180),
-              margin: const EdgeInsets.only(top: ManaSpacing.xs),
-              decoration: BoxDecoration(
-                  border: Border.all(color: ManaColors.surfaceSunken)),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _villageResults.length,
-                itemBuilder: (_, i) {
-                  final v = _villageResults[i];
-                  final label =
-                      '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
-                  return ListTile(
-                    dense: true,
-                    title: ManaText.raw(label,
-                        style: ManaType.small),
-                    // A reference suggestion has no location_id until it is
-                    // picked; reading it as a String unconditionally threw.
-                    onTap: () => _chooseVillage(v, label),
-                  );
-                },
-              ),
-            ),
-          if (_villageSearchAttempted &&
-              _villageResults.isEmpty &&
-              _selectedVillageId == null)
-            Padding(
-              padding: const EdgeInsets.only(top: ManaSpacing.xs),
-              child: TextButton(
-                style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-                onPressed: _openAddVillage,
-                child:
-                    Text('"${_villageSearch.text.trim()}" not found — add it'),
-              ),
-            ),
           if (_selectedVillage != null) ...[
             const SizedBox(height: ManaSpacing.xs),
             ManaText.raw(ref.t('selected_note').replaceAll('{value}', '$_selectedVillage'),

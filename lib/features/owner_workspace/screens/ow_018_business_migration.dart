@@ -9,6 +9,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/location_api_service.dart';
+import '../../../shared/widgets/village_search_field.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
@@ -585,11 +586,12 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   final _aadhaar = TextEditingController();
   final _doorNo = TextEditingController();
   final _pinCode = TextEditingController();
-  final _villageSearch = TextEditingController();
   String? _gender;
   String? _villageId;
-  List<ManaVillage> _villageResults = [];
-  bool _villageSearchAttempted = false;
+  String? _villageName;
+  // Re-keyed after a GPS fix so the search field starts fresh with the new
+  // PIN rather than keep a search typed against wherever it was before.
+  Key _villageFieldKey = UniqueKey();
   final _given = TextEditingController();
   final _interest = TextEditingController();
   final _fee = TextEditingController(text: '0');
@@ -617,7 +619,6 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     _aadhaar.dispose();
     _doorNo.dispose();
     _pinCode.dispose();
-    _villageSearch.dispose();
     _given.dispose();
     _interest.dispose();
     _fee.dispose();
@@ -625,37 +626,11 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     _emi.dispose();
     for (final c in [
       _given, _interest, _fee, _balance, _emi,
-      _fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _villageSearch,
+      _fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode,
     ]) {
       c.dispose();
     }
     super.dispose();
-  }
-
-  /// Villages for the typed PIN.
-  ///
-  /// Through LocationApiService, which is the only place `locations` is
-  /// supposed to be read. This site had drifted: it was the one village search
-  /// in the app with no `status = 'Active'` filter, so it offered RETIRED
-  /// villages as though they were current — and person_addresses.village_id is
-  /// a FK, so choosing one writes a real address pointing at a dead row.
-  Future<void> _searchVillages(String query) async {
-    final pin = _pinCode.text.trim();
-    if (pin.length != 6) {
-      setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = false;
-      });
-      return;
-    }
-    final villages = await ref
-        .read(locationApiServiceProvider)
-        .searchByPin(pinCode: pin, query: query, limit: 20);
-    if (!mounted) return;
-    setState(() {
-      _villageResults = villages;
-      _villageSearchAttempted = true;
-    });
   }
 
   /// Commits a chosen village, creating its `locations` row when the pick came
@@ -664,7 +639,14 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
   /// person_addresses.village_id is a FK, so this has to be a real row before
   /// the migrated customer is written — an empty id would fail the insert at
   /// the end of a long form.
-  Future<void> _chooseVillage(ManaVillage v) async {
+  Future<void> _chooseVillage(ManaVillage? v) async {
+    if (v == null) {
+      setState(() {
+        _villageId = null;
+        _villageName = null;
+      });
+      return;
+    }
     final id = await NetworkErrorHandler.run(
       context,
       () => ref.read(locationApiServiceProvider).resolveId(v),
@@ -672,7 +654,8 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
     if (id == null || !mounted) return; // handler already said why
     setState(() {
       _villageId = id;
-      _villageSearch.text = v.name;
+      _villageName = v.name;
+      if (v.pinCode.isNotEmpty) _pinCode.text = v.pinCode;
     });
   }
 
@@ -754,13 +737,13 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
             setState(() {
               if (place.pinCode != null) _pinCode.text = place.pinCode!;
               // Not the geocoder's name. At a doorstep it usually returns the
-              // colony, which no PIN's directory holds, so the box filled
-              // itself with a term that could never match. The PIN is kept and
-              // the box cleared; the PIN's villages are offered instead.
-              _villageSearch.clear();
+              // colony, which no PIN's directory holds, so a typed name could
+              // never match. The PIN is kept; the search field is re-keyed so
+              // it starts fresh with the new PIN.
               _villageId = null;
+              _villageName = null;
+              _villageFieldKey = UniqueKey();
             });
-            if (_pinCode.text.trim().length == 6) _searchVillages('');
           },
         ),
         TextField(
@@ -768,41 +751,12 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
           keyboardType: TextInputType.number,
           maxLength: 6,
           decoration: const InputDecoration(labelText: 'PIN Code *'),
-          onChanged: (_) {
-            setState(() => _villageId = null);
-            _searchVillages(_villageSearch.text);
-          },
         ),
-        TextField(
-          controller: _villageSearch,
-          decoration: const InputDecoration(labelText: 'Search Village/Town *'),
-          onChanged: (v) {
-            setState(() => _villageId = null);
-            _searchVillages(v);
-          },
+        ManaVillageSearchField(
+          key: _villageFieldKey,
+          label: 'Search Village/Town *',
+          onPicked: _chooseVillage,
         ),
-        if (_villageResults.isNotEmpty)
-          ..._villageResults.map((v) => ListTile(
-                dense: true,
-                title: ManaText.raw(v.name),
-                subtitle: ManaText.raw(v.placeLabel, style: ManaType.fine),
-                // Compared on NAME, not id: a reference suggestion has an empty
-                // id until it is picked, so comparing ids would tick every
-                // suggestion at once ('' == '').
-                trailing: _villageSearch.text == v.name && _villageId != null
-                    ? Icon(Icons.check, color: ManaColors.statusGood)
-                    : null,
-                onTap: () => _chooseVillage(v),
-              )),
-        if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
-            child: ManaText.raw(
-              'No village found for this PIN code. Add it from Customer '
-              'Management first, then come back.',
-              style: TextStyle(fontSize: 12, color: ManaColors.statusBad),
-            ),
-          ),
       ];
 
   bool get _personComplete =>
@@ -922,7 +876,7 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
 
   Future<bool> _confirmPreview() async {
     final person = _newPerson ? _fullName.text.trim() : (_customer?.fullName ?? '');
-    final village = _newPerson ? _villageSearch.text.trim() : null;
+    final village = _newPerson ? (_villageName ?? '') : null;
 
     // Landscape, or a large text size, leaves the dialog short enough that
     // only the first two rows show. It scrolled, but nothing said so — the
@@ -1082,9 +1036,12 @@ class _MigrateLoanScreenState extends ConsumerState<_MigrateLoanScreen> {
       _newPerson = false;
       _gender = null;
       _villageId = null;
-      _villageResults = [];
-      _villageSearchAttempted = false;
-      for (final c in [_fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _villageSearch, _given, _interest, _balance, _emi]) {
+      _villageName = null;
+      // Same reason as a GPS fix: the search field owns its own text/pick
+      // state internally and has no reset method, so re-keying is the only
+      // way to send the Owner back to a blank search for the next customer.
+      _villageFieldKey = UniqueKey();
+      for (final c in [_fullName, _fatherHusband, _mobile, _aadhaar, _doorNo, _pinCode, _given, _interest, _balance, _emi]) {
         c.clear();
       }
       _fee.text = '0';

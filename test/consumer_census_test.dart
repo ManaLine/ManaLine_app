@@ -48,31 +48,46 @@ const _census = <String, int>{
   // ways. A new dependant here is a screen that should probably be using it
   // rather than growing another.
   //
-  // Went 3 -> 4 when ManaVillageSearchField (Plan 4 Task 3) was added.
-  // Checked: it embeds ManaVillagePickerField itself for PIN mode rather than
-  // reimplementing the PIN+name search — the exact reuse this count exists to
-  // encourage — and passes its own onPicked straight through unchanged.
-  'ManaVillagePickerField': 4,
+  // Went 4 -> 9 when Plan 4 Task 4 swapped all ten remaining consumers from
+  // ManaVillagePickerField to ManaVillageSearchField. Checked all seven new
+  // mentions: they are doc comments on the replacement code in CW-006,
+  // IW-005, LR-004, OW-000, OW-004, OW-014 and OW-016, explaining the
+  // contract ("does not write anything", resolve on pick) the way the old
+  // inline code used to explain it inline. AG-004, OW-012 and OW-018's swaps
+  // added no such comment. None of the ten instantiates
+  // ManaVillagePickerField directly any more — the two real uses are its own
+  // file and ManaVillageSearchField's PIN-mode embed, unchanged from before.
+  'ManaVillagePickerField': 9,
   'manaComposeAddress': 3,
 
-  // Adding a village the LGD directory has never recorded. One sheet, seven
-  // callers — it replaced seven inline forms that each asked for village,
-  // mandal, district and state as free text. An eighth caller is a screen that
-  // should be opening this rather than growing another.
-  'manaShowAddVillageSheet': 8,
+  // Adding a village the LGD directory has never recorded. Went 8 -> 1 in
+  // the same swap: LR-004 and OW-004 (the two Create Business forms this
+  // sheet says it exists for) moved to ManaVillageSearchField too, whose PIN
+  // mode has its own inline add-panel rather than opening this sheet, and
+  // the address editors (CW-006, IW-005, OW-014, OW-016) followed the same
+  // path. Checked: none of the ten calls manaShowAddVillageSheet any more.
+  // ORPHANED, not deleted — Task 4 still had to extend it for a cascade mode
+  // that does not exist as a caller yet (state/district/mandal pre-fill,
+  // typed PIN), because the wiring of an "add" affordance into
+  // ManaVillageSearchField's cascade branch is blocked on a stale-response
+  // race in village_search_field.dart being fixed separately. Flagged, not
+  // fixed here: this file is currently dead code with one caller (itself)
+  // until that wiring lands.
+  'manaShowAddVillageSheet': 1,
 
   // The PIN directory pickers. State narrows district narrows mandal, and a
   // screen that half-adopts it silently offers free text again.
   //
-  // NOT INSTANTIATED ANY MORE. Both real consumers — LR-004 and OW-004 — moved
-  // their manual village forms into manaShowAddVillageSheet, which does the
-  // same narrowing from app.pin_administrative_options. The three files here
-  // are the widget itself and two COMMENTS naming what the sheet replaced, so
-  // this count no longer measures use. manaReferenceOptions is down to 1 — its
-  // own file — because only ManaReferenceField ever called it. Left in place rather than deleted
-  // unasked: it is a working shared widget and the decision to retire it is
-  // the Owner's, the same call that kept registerNewAgent.
-  'ManaReferenceField': 3,
+  // Went 3 -> 1 in the same swap: LR-004 and OW-004 each carried a comment
+  // naming ManaReferenceField as what their old manual village form was
+  // replaced by ("... rather than four" / "... through ManaReferenceField
+  // rather than as free"). Both comments were themselves rewritten when
+  // those two screens moved on to ManaVillageSearchField, so the mentions
+  // went with them. Checked: ManaReferenceField's own file is the only one
+  // left, and manaReferenceOptions still has its one caller inside it — the
+  // widget itself is untouched by this task and its retirement is still the
+  // Owner's call, same as before.
+  'ManaReferenceField': 1,
   'manaReferenceOptions': 1,
 
   // Two ledgers, one provider family. Keyed on business alone, the Owner's

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/title_case_formatter.dart';
@@ -19,7 +18,8 @@ import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../design/components/mana_info_hint.dart';
-import '../../../shared/widgets/add_village_sheet.dart';
+import '../../../shared/location_api_service.dart';
+import '../../../shared/widgets/village_search_field.dart';
 
 /// LR-004 — long single-scroll form, not a wizard. Register button
 /// disabled until mandatory fields + both acknowledgement checkboxes
@@ -52,7 +52,6 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     _doorNo.dispose();
     _aadhaar.dispose();
     _confirmAadhaar.dispose();
-    _villageSearch.dispose();
     super.dispose();
   }
   final _formKey = GlobalKey<FormState>();
@@ -114,11 +113,11 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   // a NOT NULL would need a backfill nobody can supply; the requirement is
   // enforced here and again server-side in auth-register.
   DateTime? _dob;
-  String? _villageId; // set by real village search below (locations table)
+  String? _villageId; // set by ManaVillageSearchField below (locations table)
   String? _selectedVillageLabel;
-  List<Map<String, dynamic>> _villageResults = [];
-  final _villageSearch = TextEditingController();
-  bool _villageSearchAttempted = false; // true once a real search has run and returned (even if empty)
+  // Re-keyed after a GPS fix so the search field starts over from the fresh
+  // PIN, rather than keep a search typed against wherever it was before.
+  Key _villageFieldKey = UniqueKey();
   bool _acceptTerms = false;
   bool _acceptPrivacy = false;
   bool _submitting = false;
@@ -352,172 +351,34 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     context.push('/lr-005');
   }
 
-  /// Villages already known for this PIN, from the LGD reference. Fetched once
-  /// per PIN and filtered locally: a PIN averages about 45 villages and tops
-  /// out at 358, so this is one query and then instant typing.
-  final Map<String, List<Map<String, dynamic>>> _lgdByPin = {};
-
-  Future<void> _searchVillages(String query) async {
-    final pin = _pinCode.text.trim();
-    if (pin.length != 6) {
+  /// A picked reference row has no `location_id` until it is resolved — same
+  /// contract [ManaVillagePickerField] documents: it does not write anything,
+  /// so a caller that needs the id resolves it. `resolveId` writes with
+  /// source 'Directory', the same provenance this screen's own manual resolve
+  /// used to record — chosen from the reference, not typed.
+  Future<void> _onVillagePicked(ManaVillage? v) async {
+    if (v == null) {
       setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = false;
+        _villageId = null;
+        _selectedVillageLabel = null;
       });
       return;
     }
-    // One character narrows nothing; nothing typed is not the same thing. A
-    // PIN on its own already names a short list of villages, and showing it is
-    // the answer to "which village am I in". Demanding two characters first is
-    // what left the box empty after a location capture filled the PIN.
-    if (query.trim().length == 1) {
-      setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = false;
-      });
-      return;
+    var id = v.locationId;
+    if (id.isEmpty) {
+      final result = await NetworkErrorHandler.run(
+          context, () => ref.read(locationApiServiceProvider).resolveId(v));
+      if (result == null || !mounted) return; // network failure — already shown
+      id = result;
     }
-    try {
-      // `locations` holds only the villages some business already operates in
-      // — eleven rows for the whole app. Searching it alone is why typing a
-      // real village name returned nothing and every registrant was pushed
-      // into manual entry. lgd_villages is the reference for exactly this and
-      // has 768,529 rows, so the two are merged: places already in use first,
-      // because those carry a real location_id, then everything the reference
-      // knows about this PIN.
-      final known = await Supabase.instance.client
-          .from('locations')
-          .select('location_id, village_town_name, mandal, district, state')
-          .eq('status', 'Active')
-          .eq('pin_code', pin)
-          // An empty needle is '%%', which matches every village the business
-          // already works at this PIN -- deliberate, that is the untyped case.
-          .ilike('village_town_name', '%${query.trim()}%')
-          .limit(10);
-
-      var lgd = _lgdByPin[pin];
-      if (lgd == null) {
-        final rows = await Supabase.instance.client
-            .schema('app')
-            .rpc('suggest_villages', params: {'p_pincode': pin});
-        lgd = (rows as List? ?? const []).cast<Map<String, dynamic>>();
-        _lgdByPin[pin] = lgd;
-      }
-
-      final needle = query.trim().toLowerCase();
-      final results = <Map<String, dynamic>>[
-        for (final r in (known as List).cast<Map<String, dynamic>>()) r,
-      ];
-      final alreadyListed = {
-        for (final r in results) (r['village_town_name'] as String? ?? '').toLowerCase(),
-      };
-
-      for (final r in lgd) {
-        if (results.length >= 15) break;
-        final name = (r['village'] as String? ?? '').trim();
-        if (name.isEmpty || !name.toLowerCase().contains(needle)) continue;
-        if (!alreadyListed.add(name.toLowerCase())) continue;
-        results.add({
-          // No location_id: this one is a suggestion, and the locations row is
-          // created only if the person actually picks it.
-          'location_id': null,
-          'village_town_name': name,
-          'mandal': r['mandal'],
-          'district': r['district'],
-          'state': r['state'],
-        });
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _villageResults = results;
-        _villageSearchAttempted = true;
-      });
-    } catch (e) {
-      // A failed search must still unlock the "add if not found" fallback
-      // — silently swallowing this here (no catch, pre-fix) meant
-      // _villageSearchAttempted never flipped true, so NEITHER the
-      // results list NOR the manual-add prompt ever appeared: the person
-      // was stuck with no visible next step at all.
-      if (!mounted) return;
-      setState(() {
-        _villageResults = [];
-        _villageSearchAttempted = true;
-      });
-    }
-  }
-
-  /// Turns a chosen row into a real `locations` id. A row that came from the
-  /// LGD reference has none until now; `add_location_if_missing` is the same
-  /// call the manual-entry path uses, so both routes converge on one row per
-  /// (PIN, village) rather than two spellings of the same place.
-  Future<void> _selectVillage(Map<String, dynamic> v, String label) async {
-    final existing = v['location_id'] as String?;
-    if (existing != null) {
-      setState(() {
-        _villageId = existing;
-        _selectedVillageLabel = label;
-        _villageSearch.text = v['village_town_name'] as String;
-        _villageResults = [];
-      });
-      return;
-    }
-
-    // No busy flag: the only widget that read one was the manual village form,
-    // which is the shared sheet now. A field written and never read is not a
-    // spinner, it is a lie waiting for a reader.
-    final result = await NetworkErrorHandler.run(context, () async {
-      final rows = await Supabase.instance.client.schema('app').rpc('add_location_if_missing', params: {
-        'p_pin_code': _pinCode.text.trim(),
-        'p_village_town_name': v['village_town_name'],
-        'p_area_type': 'Village',
-        'p_mandal': v['mandal'],
-        'p_district': v['district'],
-        'p_state': v['state'],
-        // Chosen from the reference, not typed — provenance follows the act.
-        'p_source': 'Directory',
-      });
-      return (rows as List).first as Map<String, dynamic>;
-    });
     if (!mounted) return;
-    if (result == null) return; // network/RPC failure — SnackBar already shown
-
-    setState(() {
-      _villageId = result['location_id'] as String;
-      _selectedVillageLabel = label;
-      _villageSearch.text = v['village_town_name'] as String;
-      _villageResults = [];
-    });
-  }
-
-  /// Opens the shared Add New Village sheet.
-  ///
-  /// Like OW-004, this copy had already grown PIN-derived pickers of its own
-  /// (_prefillFromPin, _referenceOptions, ManaReferenceField) rather than four
-  /// free-text boxes. What it could not do is ask whether a near-matching
-  /// village was meant before creating a second row for one place --
-  /// `ichapuram` and `Ichchapuram` are one town and score 0.83.
-  ///
-  /// So this loses nothing and gains the duplicate check, and the local
-  /// implementation goes with it. Registration is the one screen in this app
-  /// nobody can afford to break, which is why it was adopted LAST, after the
-  /// sheet had been through six other screens.
-  Future<void> _openAddVillage() async {
-    final picked = await manaShowAddVillageSheet(
-      context,
-      ref,
-      pinCode: _pinCode.text.trim(),
-      initialName: _villageSearch.text.trim(),
-    );
-    if (picked == null || !mounted) return;
-    final label = [picked.name, picked.mandal, picked.district, picked.state]
-        .where((v) => v.trim().isNotEmpty)
+    final label = [v.name, v.mandal, v.district, v.state]
+        .where((s) => s.trim().isNotEmpty)
         .join(' — ');
     setState(() {
-      _villageId = picked.locationId;
+      _villageId = id;
       _selectedVillageLabel = label;
-      _villageSearch.text = picked.name;
-      _villageResults = [];
+      if (v.pinCode.isNotEmpty) _pinCode.text = v.pinCode;
     });
   }
 
@@ -670,17 +531,14 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                     if (place.pinCode != null) _pinCode.text = place.pinCode!;
                     // The geocoder's name is not typed into the village box.
                     // At a doorstep it usually returns the colony, which is
-                    // not in the directory under any PIN, so the box filled
-                    // with a term that could never match. The PIN is the
-                    // reliable half: it is kept, the box is cleared, and the
-                    // PIN's own villages are offered to pick from.
-                    _villageSearch.clear();
+                    // not in the directory under any PIN, so a typed name
+                    // could never match. The PIN is the reliable half: it is
+                    // kept, and the search field is re-keyed so it starts
+                    // fresh with the new PIN rather than a stale search.
                     _villageId = null;
                     _selectedVillageLabel = null;
+                    _villageFieldKey = UniqueKey();
                   });
-                  if (_pinCode.text.trim().length == 6) {
-                    _searchVillages('');
-                  }
                 },
               ),
               TextFormField(
@@ -693,69 +551,12 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 decoration: const InputDecoration(labelText: 'PIN Code *', suffixIcon: ManaInfoHint('Enter PIN code first — villages shown are limited to this PIN'),),
-                onChanged: (_) {
-                  setState(() {
-                    _villageId = null;
-                    _selectedVillageLabel = null;
-                  });
-                  _searchVillages(_villageSearch.text);
-                },
               ),
-              TextFormField(
-                controller: _villageSearch,
-                decoration: const InputDecoration(labelText: 'Search Village/Town *'),
-                onChanged: (v) {
-                  setState(() {
-                    _villageId = null;
-                    _selectedVillageLabel = null;
-                                });
-                  _searchVillages(v);
-                },
+              ManaVillageSearchField(
+                key: _villageFieldKey,
+                label: 'Search Village/Town *',
+                onPicked: _onVillagePicked,
               ),
-              if (_villageResults.isNotEmpty)
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 180),
-                  margin: const EdgeInsets.only(top: ManaSpacing.xs),
-                  decoration: BoxDecoration(border: Border.all(color: ManaColors.surfaceSunken)),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _villageResults.length,
-                    itemBuilder: (_, i) {
-                      final v = _villageResults[i];
-                      final label = '${v['village_town_name']} — ${v['mandal']}, ${v['district']}, ${v['state']}';
-                      return ListTile(
-                        dense: true,
-                        title: ManaText.raw(label, style: ManaType.small),
-                        // A row from the LGD reference has no location_id yet.
-                        // It gets one the moment it is chosen, not before —
-                        // otherwise browsing the list would seed `locations`
-                        // with every village someone scrolled past.
-                        subtitle: v['location_id'] == null
-                            ? ManaText.raw('From the village list',
-                                style: TextStyle(fontSize: 11, color: ManaColors.textSecondary))
-                            : null,
-                        onTap: () => _selectVillage(v, label),
-                      );
-                    },
-                  ),
-                ),
-              if (_villageSearchAttempted && _villageResults.isEmpty && _villageId == null)
-                Padding(
-                  padding: const EdgeInsets.only(top: ManaSpacing.xs),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 16, color: ManaColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: TextButton(
-                          style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-                          onPressed: _openAddVillage,
-                          child: Text('"${_villageSearch.text.trim()}" not found — add it'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               if (_selectedVillageLabel != null) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw('Selected: $_selectedVillageLabel',

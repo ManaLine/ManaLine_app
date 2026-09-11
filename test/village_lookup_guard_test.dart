@@ -26,8 +26,21 @@ import 'package:flutter_test/flutter_test.dart';
 /// because the alternative is a live database.
 const _pinFilter = "eq('pin_code'";
 
+/// The second way in, added in Plan 4: state -> district -> village name,
+/// beside the PIN default. THE SAME RULE APPLIES, for the same reason a PIN
+/// search that reads `locations` alone finds nothing on a new book — a
+/// district filter on `locations` alone would offer only villages some
+/// business already operates in, and every new business has none. A file
+/// filtering by `district` for a village lookup must reach the LGD reference
+/// too, not just narrow within whatever `locations` happens to hold.
+const _districtFilter = "eq('district'";
+
 /// Reaching the reference, by either route.
-const _referenceMarkers = ['suggest_villages', 'locationApiServiceProvider'];
+const _referenceMarkers = [
+  'suggest_villages',
+  'locationApiServiceProvider',
+  'lgd_villages',
+];
 
 /// Files allowed to search `locations` by PIN without reaching the reference.
 ///
@@ -100,6 +113,44 @@ void main() {
       reason: 'Listed as manual-only but no longer doing a PIN search — fixed, '
           'renamed or deleted. Remove from _knownManualOnly:\n  '
           '${stale.join('\n  ')}',
+    );
+  });
+
+  // The cascade path (state -> district -> name), added in Plan 4 beside the
+  // PIN default. Same intent as the block above, extended to the second way
+  // in: a village lookup gated on district must not read `locations` alone.
+  List<File> districtSearchers() => [
+        for (final f in files)
+          if (f.readAsStringSync().contains(_districtFilter)) f,
+      ];
+
+  test('the cascade guard is looking at something', () {
+    // Same reasoning as the PIN version above: zero here means the matcher
+    // drifted from the real query, not that the codebase is clean.
+    expect(districtSearchers(), isNotEmpty,
+        reason: 'No file filters by district any more. Either the cascade '
+            'moved to a different query style and $_districtFilter needs '
+            'updating, or LocationApiService.searchVillages was removed.');
+  });
+
+  test('every district village search reaches the LGD reference', () {
+    final offenders = <String>[];
+    for (final f in districtSearchers()) {
+      final source = f.readAsStringSync();
+      if (_referenceMarkers.any(source.contains)) continue;
+      offenders.add(f.path);
+    }
+
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'These search by district without reaching the LGD reference, '
+          'so a cascade search would offer only villages some business '
+          'already operates in — the exact `locations`-alone bug the PIN '
+          'path was fixed for, on the second way in:\n  '
+          '${offenders.join('\n  ')}\n\n'
+          'Query lgd_villages directly (see searchVillages in '
+          'location_api_service.dart) or go through LocationApiService.',
     );
   });
 }

@@ -35,23 +35,65 @@ import '../translation_service.dart';
 ///
 /// Returns the village that ended up chosen — created, or an existing one the
 /// person recognised from the suggestions — or null if they backed out.
+///
+/// TWO WAYS IN, ONE WRITE. Pass [pinCode] for PIN mode (unchanged): the PIN
+/// already knows the administrative geography, so mandal/district/state are a
+/// choice from [LocationApiService.pinOptions], not a question.
+///
+/// Pass [cascadeState] and [cascadeDistrict] for CASCADE mode instead — the
+/// person got here via state -> district -> name and never typed a PIN.
+/// `locations.pin_code` is `NOT NULL varchar(6)` and `add_location_if_missing`
+/// takes it as a required parameter, so a village added this way still needs
+/// one. It is ASKED, not derived: a district maps to more than one PIN, and
+/// guessing one would write a fabricated postal code onto a real address —
+/// worse than the friction of one more field. State and district come
+/// pre-filled and locked from the cascade selection that got the person here,
+/// so they are not retyping a choice they already made; mandal pre-fills from
+/// [cascadeMandal] when the caller has one, but stays editable, because the
+/// cascade (state -> district -> village name) never asks for a mandal itself.
 Future<ManaVillage?> manaShowAddVillageSheet(
   BuildContext context,
   WidgetRef ref, {
-  required String pinCode,
+  String? pinCode,
   String initialName = '',
+  String? cascadeState,
+  String? cascadeDistrict,
+  String? cascadeMandal,
 }) {
+  assert(
+    (pinCode != null) != (cascadeState != null && cascadeDistrict != null),
+    'Pass either pinCode (PIN mode) or cascadeState + cascadeDistrict '
+    '(cascade mode) — never both, never neither.',
+  );
   return showModalBottomSheet<ManaVillage>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _AddVillageSheet(pinCode: pinCode, initialName: initialName),
+    builder: (_) => _AddVillageSheet(
+      pinCode: pinCode,
+      initialName: initialName,
+      cascadeState: cascadeState,
+      cascadeDistrict: cascadeDistrict,
+      cascadeMandal: cascadeMandal,
+    ),
   );
 }
 
 class _AddVillageSheet extends ConsumerStatefulWidget {
-  final String pinCode;
+  final String? pinCode;
   final String initialName;
-  const _AddVillageSheet({required this.pinCode, required this.initialName});
+  final String? cascadeState;
+  final String? cascadeDistrict;
+  final String? cascadeMandal;
+
+  const _AddVillageSheet({
+    this.pinCode,
+    required this.initialName,
+    this.cascadeState,
+    this.cascadeDistrict,
+    this.cascadeMandal,
+  });
+
+  bool get isCascade => pinCode == null;
 
   @override
   ConsumerState<_AddVillageSheet> createState() => _AddVillageSheetState();
@@ -62,11 +104,18 @@ class _AddVillageSheetState extends ConsumerState<_AddVillageSheet> {
       TextEditingController(text: widget.initialName);
 
   /// Free-text fallbacks, used ONLY when the directory does not carry this PIN
-  /// at all. A genuinely new postal area has nothing to offer, and refusing to
+  /// at all (PIN mode) or the cascade selection carried no mandal (cascade
+  /// mode). A genuinely new postal area has nothing to offer, and refusing to
   /// let somebody proceed would be worse than asking them to type it.
-  final _mandal = TextEditingController();
+  late final TextEditingController _mandal =
+      TextEditingController(text: widget.cascadeMandal ?? '');
   final _district = TextEditingController();
   final _state = TextEditingController();
+
+  /// Cascade mode's only new field. State -> district -> name never collects
+  /// a PIN, but a village row is `NOT NULL` on it — see the doc comment on
+  /// [manaShowAddVillageSheet] for why this is asked rather than guessed.
+  final _cascadePin = TextEditingController();
 
   List<ManaPinOption> _options = const [];
   ManaPinOption? _chosen;
@@ -75,10 +124,23 @@ class _AddVillageSheetState extends ConsumerState<_AddVillageSheet> {
   bool _saving = false;
   String? _error;
 
+  bool get _isCascade => widget.isCascade;
+
+  /// The PIN the write will use — typed directly in cascade mode, the one
+  /// this sheet was opened with otherwise.
+  String get _effectivePin =>
+      _isCascade ? _cascadePin.text.trim() : widget.pinCode!;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    if (_isCascade) {
+      // Nothing to look up: state and district are already chosen, and
+      // there are no PIN options to offer for a PIN nobody has typed yet.
+      _loading = false;
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    }
   }
 
   @override
@@ -87,12 +149,13 @@ class _AddVillageSheetState extends ConsumerState<_AddVillageSheet> {
     _mandal.dispose();
     _district.dispose();
     _state.dispose();
+    _cascadePin.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
     final api = ref.read(locationApiServiceProvider);
-    final options = await api.pinOptions(widget.pinCode);
+    final options = await api.pinOptions(widget.pinCode!);
     if (!mounted) return;
     setState(() {
       _options = options;
@@ -104,14 +167,29 @@ class _AddVillageSheetState extends ConsumerState<_AddVillageSheet> {
   }
 
   Future<void> _checkSimilar() async {
-    final found = await ref.read(locationApiServiceProvider).similarVillages(
-        pinCode: widget.pinCode, name: _name.text.trim());
+    final pin = _effectivePin;
+    // Nothing to check against yet in cascade mode until a full PIN is
+    // typed — similarVillages is keyed on PIN, and a partial one would just
+    // find nothing every time, not "found nothing".
+    if (pin.length != 6) {
+      setState(() => _similar = const []);
+      return;
+    }
+    final found = await ref
+        .read(locationApiServiceProvider)
+        .similarVillages(pinCode: pin, name: _name.text.trim());
     if (!mounted) return;
     setState(() => _similar = found);
   }
 
   bool get _canSave {
     if (_name.text.trim().isEmpty) return false;
+    if (_isCascade) {
+      return _cascadePin.text.trim().length == 6 &&
+          _mandal.text.trim().isNotEmpty;
+      // District and state are guaranteed non-empty by the assertion in
+      // manaShowAddVillageSheet — cascade mode cannot open without both.
+    }
     if (_options.isNotEmpty) return _chosen != null;
     return _mandal.text.trim().isNotEmpty &&
         _district.text.trim().isNotEmpty &&
@@ -157,12 +235,18 @@ class _AddVillageSheetState extends ConsumerState<_AddVillageSheet> {
     });
     try {
       final created = await ref.read(locationApiServiceProvider).addIfMissing(
-            pinCode: widget.pinCode,
+            pinCode: _effectivePin,
             villageTownName: _name.text.trim(),
             areaType: 'Village',
-            mandal: _chosen?.mandal ?? _mandal.text.trim(),
-            district: _chosen?.district ?? _district.text.trim(),
-            state: _chosen?.state ?? _state.text.trim(),
+            mandal: _isCascade
+                ? _mandal.text.trim()
+                : (_chosen?.mandal ?? _mandal.text.trim()),
+            district: _isCascade
+                ? widget.cascadeDistrict!
+                : (_chosen?.district ?? _district.text.trim()),
+            state: _isCascade
+                ? widget.cascadeState!
+                : (_chosen?.state ?? _state.text.trim()),
             // Typed, not chosen from the reference — recorded so a village
             // added by mistake can be found again.
             source: 'Owner Entered',
@@ -195,8 +279,14 @@ class _AddVillageSheetState extends ConsumerState<_AddVillageSheet> {
               ManaText.raw(ref.t('add_new_village'), style: ManaType.sheetTitle),
               const SizedBox(height: ManaSpacing.xs),
               ManaText.raw(
-                ref.t('add_village_for_pin_note')
-                    .replaceAll('{pin}', widget.pinCode),
+                _isCascade
+                    ? ref
+                        .t('add_village_for_place_note')
+                        .replaceAll('{district}', widget.cascadeDistrict!)
+                        .replaceAll('{state}', widget.cascadeState!)
+                    : ref
+                        .t('add_village_for_pin_note')
+                        .replaceAll('{pin}', widget.pinCode!),
                 style: ManaType.note,
               ),
               const SizedBox(height: ManaSpacing.md),
@@ -238,7 +328,43 @@ class _AddVillageSheetState extends ConsumerState<_AddVillageSheet> {
               ],
 
               const SizedBox(height: ManaSpacing.sm),
-              if (_loading)
+              if (_isCascade) ...[
+                // State and district are LOCKED, not fields — they are the
+                // choice that got the person here, and re-asking them invites
+                // a second, differently-spelled answer for what is already
+                // settled. Shown, not editable: an InputDecorator rather than
+                // a disabled TextField, so there is no controller to leak on
+                // every rebuild for a value that never changes.
+                InputDecorator(
+                  decoration:
+                      InputDecoration(labelText: ref.t('district_field')),
+                  child: ManaText.raw(widget.cascadeDistrict!),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                InputDecorator(
+                  decoration: InputDecoration(labelText: ref.t('state_field')),
+                  child: ManaText.raw(widget.cascadeState!),
+                ),
+                const SizedBox(height: ManaSpacing.sm),
+                TextField(
+                  controller: _mandal,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(labelText: ref.t('mandal_field')),
+                  onChanged: (_) => setState(() {}),
+                ),
+                ManaText.raw(ref.t('village_needs_pin_note'),
+                    style: ManaType.note),
+                TextField(
+                  controller: _cascadePin,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  decoration: InputDecoration(labelText: ref.t('pin_code_field')),
+                  onChanged: (_) {
+                    setState(() {});
+                    _checkSimilar();
+                  },
+                ),
+              ] else if (_loading)
                 const Center(child: CircularProgressIndicator())
               else if (_options.isNotEmpty)
                 DropdownButtonFormField<ManaPinOption>(

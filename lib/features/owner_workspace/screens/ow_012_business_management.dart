@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design/tokens/colors.dart';
@@ -865,7 +866,8 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     final choice = await showModalBottomSheet<_AreaAssignmentChoice>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _AssignAgentSheet(area: area, agents: agents),
+      builder: (_) => _AssignAgentSheet(
+          area: area, agents: agents, businessId: widget.businessId),
     );
     if (choice == null || !mounted) return;
     final businessId = widget.businessId;
@@ -1235,7 +1237,9 @@ class _AreaAssignmentChoice {
 class _AssignAgentSheet extends ConsumerWidget {
   final OperatingAreaSummary area;
   final List<AgentSummary> agents;
-  const _AssignAgentSheet({required this.area, required this.agents});
+  final String businessId;
+  const _AssignAgentSheet(
+      {required this.area, required this.agents, required this.businessId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1279,31 +1283,75 @@ class _AssignAgentSheet extends ConsumerWidget {
                 )),
             const Divider(height: 1),
           ],
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.xs),
-            child: ManaText.raw(ref.t('add_an_agent'),
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
-          ),
-          if (agents.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(ManaSpacing.lg),
-              child: ManaText.raw(
-                  ref.t('no_active_agents_note'),
-                  style: ManaType.note),
-            )
-          else
-            // Anyone already on the round is filtered out — assigning the
-            // same agent twice is rejected by uq_area_assignment_live.
-            ...agents
-                .where((agent) => !area.assignedAgents.any((a) => a.agentId == agent.agentId))
-                .map((agent) => ListTile(
-                      leading: const ManaVerificationRing(isVerified: true, size: 32),
-                      title: ManaText.raw(agent.fullName),
-                      subtitle: ManaText.raw(agent.mlid, style: ManaType.small),
-                      onTap: () => Navigator.of(context).pop(_AreaAssignmentChoice.agent(agent)),
-                    )),
+          // Anyone already on the round is filtered out -- assigning the same
+          // agent twice is rejected by uq_area_assignment_live.
+          ...() {
+            final assignable = agents
+                .where((agent) =>
+                    !area.assignedAgents.any((a) => a.agentId == agent.agentId))
+                .toList();
+            return [
+              // A REAL ACTION, not a heading.
+              //
+              // This was a bold grey label with a list under it, and the list
+              // was the assignable agents. With every agent already on the
+              // round that list is empty and `agents.isEmpty` is FALSE, so
+              // neither the rows nor the "no active agents" note rendered:
+              // the words "Add an Agent" sat over a blank gap, which is
+              // exactly what "add an agent is not working" looked like.
+              //
+              // It goes to Universal Search now, which is the one way into
+              // the business for every kind of member. Assigning somebody who
+              // is already an Agent and adding a new one are two different
+              // errands, and this sheet only ever offered the first while
+              // being named for the second.
+              ListTile(
+                leading: const Icon(Icons.person_add_alt_1_outlined),
+                title: ManaText.raw(ref.t('add_an_agent')),
+                trailing: const Icon(Icons.chevron_right),
+                // The sheet closes first. Pushing a screen over a modal sheet
+                // leaves the sheet underneath to come back to, which is not
+                // where somebody who has just gone looking for a new agent
+                // wants to land.
+                onTap: () {
+                  Navigator.of(context).pop();
+                  context.push('/ow-search', extra: businessId);
+                },
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(ManaSpacing.lg,
+                    ManaSpacing.md, ManaSpacing.lg, ManaSpacing.xs),
+                child: ManaText.raw(ref.t('assign_to_this_round'),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: ManaColors.textSecondary)),
+              ),
+              // Both empty cases say something. The second one -- agents
+              // exist but every one of them is already on this round -- is
+              // the case that used to render nothing at all.
+              if (assignable.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(ManaSpacing.lg),
+                  child: ManaText.raw(
+                      agents.isEmpty
+                          ? ref.t('no_active_agents_note')
+                          : ref.t('every_agent_already_on_this_round_note'),
+                      style: ManaType.note),
+                ),
+              ...assignable
+                  .map((agent) => ListTile(
+                        leading: const ManaVerificationRing(
+                            isVerified: true, size: 32),
+                        title: ManaText.raw(agent.fullName),
+                        subtitle:
+                            ManaText.raw(agent.mlid, style: ManaType.small),
+                        onTap: () => Navigator.of(context)
+                            .pop(_AreaAssignmentChoice.agent(agent)),
+                      )),
+            ];
+          }(),
           const SizedBox(height: ManaSpacing.md),
         ],
       ),

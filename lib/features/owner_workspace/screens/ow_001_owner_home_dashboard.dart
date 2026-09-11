@@ -219,11 +219,15 @@ class _OwnerHomeDashboardScreenState
           // grew downwards off the edge — they were laid out in a plain
           // non-scrolling Column, so a name search matching twenty people
           // overflowed rather than scrolling.
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => UniversalSearchScreen(businessId: widget.businessId),
-            ),
-          ),
+          //
+          // The ROUTE, not a bare MaterialPageRoute. This was the last screen
+          // still pushed above the router's own pages, which router.dart names
+          // as the shape that broke the Agent's back button -- and it left the
+          // router's location on /ow-001 while Universal Search was the thing
+          // on screen. The header's + reads that location to decide whom it
+          // adds, so the one screen you reach a stranger from was the one
+          // screen whose + could not know what it was looking at.
+          onPressed: () => context.push('/ow-search', extra: widget.businessId),
         ),
       ],
       sections: [

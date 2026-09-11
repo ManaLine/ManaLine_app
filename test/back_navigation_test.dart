@@ -67,6 +67,7 @@ void main() {
     });
 
     test('an empty stack AT home is not handled, so the app exits', () {
+      // With nobody to ask, the old behaviour stands.
       final handled = ManaBackHandler.handleBack(
         canPop: false,
         pop: () => fail('nothing to pop'),
@@ -86,6 +87,89 @@ void main() {
         goHome: (_) => fail('login has no workspace home'),
       );
       expect(handled, isFalse);
+    });
+  });
+
+  group('asking before the app closes', () {
+    // One back press on a dashboard closed the app outright. An Owner who
+    // reached for Back out of habit lost the session and came back to the PIN
+    // pad, and nothing had warned them.
+
+    test('at a workspace home the question is asked instead of exiting', () {
+      for (final home in ['/ow-001', '/ag-001', '/cw-001', '/iw-001']) {
+        var asked = false;
+        final handled = ManaBackHandler.handleBack(
+          canPop: false,
+          pop: () => fail('nothing to pop'),
+          location: home,
+          goHome: (_) => fail('already home'),
+          confirmExit: () {
+            asked = true;
+            return true;
+          },
+        );
+        expect(asked, isTrue, reason: '$home must ask before closing');
+        expect(handled, isTrue,
+            reason: 'handled, so Flutter does not also close the app under '
+                'the dialog');
+      }
+    });
+
+    test('a question that cannot be shown still closes the app', () {
+      // The one outcome worse than closing is a back press that neither asks
+      // nor acts, because the button then simply looks broken.
+      final handled = ManaBackHandler.handleBack(
+        canPop: false,
+        pop: () => fail('nothing to pop'),
+        location: '/ow-001',
+        goHome: (_) => fail('already home'),
+        confirmExit: () => false,
+      );
+      expect(handled, isFalse);
+    });
+
+    test('nothing is asked while there is still somewhere to go', () {
+      // Away from home, back navigates. Asking here would put a "close the
+      // app?" dialog in front of somebody who is three screens deep.
+      String? destination;
+      ManaBackHandler.handleBack(
+        canPop: false,
+        pop: () => fail('nothing to pop'),
+        location: '/ow-006',
+        goHome: (home) => destination = home,
+        confirmExit: () => fail('there is somewhere to go back to'),
+      );
+      expect(destination, '/ow-001');
+
+      var popped = false;
+      ManaBackHandler.handleBack(
+        canPop: true,
+        pop: () => popped = true,
+        location: '/ow-001',
+        goHome: (_) => fail('popping is enough'),
+        confirmExit: () => fail('the dialog itself is what is being popped'),
+      );
+      expect(popped, isTrue,
+          reason: 'a second back press dismisses the confirmation, which is '
+              'how "stay" is reached without looking at the buttons');
+    });
+
+    test('inside login there is still no workspace home to jump to', () {
+      // The confirmation must not turn login into a place that routes
+      // somewhere; it only changes what happens at the exit itself.
+      var asked = false;
+      final handled = ManaBackHandler.handleBack(
+        canPop: false,
+        pop: () => fail('nothing to pop'),
+        location: '/lr-009',
+        goHome: (_) => fail('login has no workspace home'),
+        confirmExit: () {
+          asked = true;
+          return true;
+        },
+      );
+      expect(asked, isTrue);
+      expect(handled, isTrue);
     });
   });
 }

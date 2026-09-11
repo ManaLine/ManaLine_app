@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/router.dart';
+import '../design/components/mana_text.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
 
 /// Makes the Android back button go back.
@@ -19,7 +21,7 @@ import '../features/login_registration/state/auth_flow_state.dart';
 ///   1. Something on the navigator stack -> pop it. Covers imperative pushes
 ///      (collection entry, business detail) and dialogs.
 ///   2. Otherwise, not on a workspace home -> go to the home for this role.
-///   3. Already home -> leave, which is what back means there.
+///   3. Already home -> ASK, then leave if that is what they meant.
 ///
 /// Step 2 is what `go()` took away and this gives back.
 ///
@@ -60,11 +62,19 @@ class ManaBackHandler {
 
   /// The decision itself, separated from where it is installed so it can be
   /// tested without a live router. Returns true when it handled the press.
+  ///
+  /// [confirmExit] is asked only at the point where the app would otherwise
+  /// close, and only IT decides whether the press was taken care of. It
+  /// returns false when it could not put a question on screen, and the press
+  /// then falls through and closes the app as before -- a back press that
+  /// neither asks nor acts is the one outcome worse than closing, because the
+  /// button simply appears broken.
   static bool handleBack({
     required bool canPop,
     required VoidCallback pop,
     required String location,
     required void Function(String home) goHome,
+    bool Function()? confirmExit,
   }) {
     if (canPop) {
       pop();
@@ -75,6 +85,11 @@ class ManaBackHandler {
       goHome(home);
       return true;
     }
+    // Nowhere left to go, so this press closes the app. One back press on a
+    // dashboard used to do exactly that, with no warning: an Owner who
+    // reached for Back out of habit lost their session and came back to the
+    // PIN pad.
+    if (confirmExit != null && confirmExit()) return true;
     return false;
   }
 }
@@ -82,6 +97,14 @@ class ManaBackHandler {
 /// Installed as the Router's backButtonDispatcher, which is where an Android
 /// back press actually arrives.
 class ManaBackButtonDispatcher extends RootBackButtonDispatcher {
+  /// True while the confirmation is on screen.
+  ///
+  /// Belt and braces: once the dialog is up it is itself a route, so the next
+  /// back press is answered by `canPop` and never reaches here. This covers
+  /// the gap between showDialog being called and its route being mounted,
+  /// which a double-tap can land in.
+  bool _asking = false;
+
   @override
   Future<bool> didPopRoute() async {
     final nav = manaRootNavigatorKey.currentState;
@@ -91,8 +114,45 @@ class ManaBackButtonDispatcher extends RootBackButtonDispatcher {
       location: manaRouter.routerDelegate.currentConfiguration.uri.path,
       goHome: (home) =>
           manaRouter.go(home, extra: ManaSession.instance.lastBusinessId),
+      confirmExit: _confirmExit,
     );
-    // false falls through to Flutter, which exits the app -- what back means
-    // on a workspace home.
+    // false falls through to Flutter, which exits the app.
+  }
+
+  /// Asks before closing. Returns whether the question actually got on screen.
+  ///
+  /// The wording and all four strings are LR-009's, which has asked this same
+  /// question since the field-UX batch -- so the keys are already in
+  /// ui_translations with Telugu, and the two places the app can be closed
+  /// from now say the same thing rather than two similar things.
+  bool _confirmExit() {
+    if (_asking) return true;
+    final context = manaRootNavigatorKey.currentContext;
+    if (context == null) return false;
+    _asking = true;
+    showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const ManaText('exit app'),
+        content: const ManaText('are you sure you want to close mana line?'),
+        actions: [
+          // Staying is the default and sits where Cancel always sits. The
+          // destructive-by-habit press is the one that needs the longer reach.
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const ManaText('cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const ManaText('exit'),
+          ),
+        ],
+      ),
+    ).then((leave) {
+      _asking = false;
+      // Dismissed by tapping outside or by another back press -> null -> stay.
+      if (leave == true) SystemNavigator.pop();
+    });
+    return true;
   }
 }

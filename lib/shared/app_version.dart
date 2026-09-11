@@ -30,7 +30,7 @@ import '../design/tokens/spacing.dart';
 const manaVersionName = 'Test V-0.1';
 
 /// Bumped once per build. Must match the `+N` in pubspec.yaml's version.
-const manaBuildNumber = 7;
+const manaBuildNumber = 8;
 
 /// "Test V-0.1 · build 7" — the name a person reads, and the number that
 /// identifies the APK.

@@ -22,6 +22,8 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
+import '../state/global_workflow_state.dart'
+    show MemberType, globalWorkflowApiServiceProvider;
 import '../state/investor_state.dart' show investorApiServiceProvider, InvestorSummary;
 import 'ow_004_customer_management.dart'
     show CustomerProfileScreen, ManaAddCustomerSheet;
@@ -468,6 +470,10 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   /// need a round trip before their screen can be opened, and without this the
   /// row looks dead for the second it takes on a village connection.
   String? _opening;
+
+  /// Set while a person is being attached to this business, keyed by
+  /// person_id, so only that card's button disables.
+  String? _adding;
   String? _error;
   /// All matches, with each one's roles in THIS business. A name is not
   /// unique, so a search for "sai" legitimately returns several people —
@@ -493,6 +499,71 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     _query.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Adding somebody the search found who is not in this business yet.
+  ///
+  /// THE DEAD END THIS REPLACES: a search that found a real person with no
+  /// role here printed "Not a member of this business." and stopped. The Add
+  /// button appeared only when the search found NOBODY -- so the app offered
+  /// to create a brand new person, and offered nothing at all for the person
+  /// it had just put on screen. Searching a phone number, recognising the
+  /// name, and then having no way to act on it is the case this screen exists
+  /// for.
+  ///
+  /// Search, choose a role, add: one path for all three kinds of member, at
+  /// the Owner's instruction. app.attach_person_to_business is the whole
+  /// backend for it -- it checks ownership itself, refuses a role that is not
+  /// one of the three, and writes the membership, the role-side row and (for
+  /// an Agent) the permissions together, which is what a membership with no
+  /// agents row taught this project to insist on.
+  Future<void> _addToBusiness(CustomerSummary person) async {
+    final personId = person.personId;
+    if (personId == null || personId.isEmpty) return;
+
+    final type = await showModalBottomSheet<MemberType>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.sm),
+              child: ManaText.raw(ref.t('select_role'),
+                  style: ManaType.cardTitle),
+            ),
+            // Named, not iconed. Three unlabelled glyphs competing for one
+            // corner is what the add actions on Customer Management were
+            // before they became rows carrying their names.
+            for (final option in MemberType.values)
+              ListTile(
+                title: ManaText.raw(ref.t(option.name)),
+                onTap: () => Navigator.pop(sheetContext, option),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (type == null || !mounted) return;
+
+    setState(() => _adding = personId);
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref.read(globalWorkflowApiServiceProvider).attachNewPersonToBusiness(
+            businessId: widget.businessId,
+            personId: personId,
+            type: type,
+          );
+      return true;
+    });
+    if (!mounted) return;
+    setState(() => _adding = null);
+    // Re-run the search rather than adding the role to the list in memory:
+    // the roles on these cards are what the server says they are, and a list
+    // that guesses is a list that can be wrong about who is in the business.
+    if (ok == true) await _search();
   }
 
   Future<void> _search() async {
@@ -823,11 +894,35 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                                     0,
                                     ManaSpacing.lg,
                                     ManaSpacing.md),
-                                child: ManaText.raw(
-                                    ref.t('not_a_member_of_business'),
-                                    style: TextStyle(
-                                        color: ManaColors.textSecondary,
-                                        fontSize: 13)),
+                                child: Row(
+                                  children: [
+                                    // Flexible, not bare: the translated
+                                    // sentence beside a button is this
+                                    // codebase's recurring overflow shape.
+                                    Flexible(
+                                      child: ManaText.raw(
+                                          ref.t('not_a_member_of_business'),
+                                          style: TextStyle(
+                                              color: ManaColors.textSecondary,
+                                              fontSize: 13)),
+                                    ),
+                                    const SizedBox(width: ManaSpacing.sm),
+                                    if (_adding == match.person.personId)
+                                      const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2))
+                                    else
+                                      FilledButton.tonal(
+                                        onPressed: _adding != null
+                                            ? null
+                                            : () => _addToBusiness(match.person),
+                                        child: ManaText.raw(
+                                            ref.t('add_to_this_business')),
+                                      ),
+                                  ],
+                                ),
                               )
                             else
                               // A person can hold more than one role in the

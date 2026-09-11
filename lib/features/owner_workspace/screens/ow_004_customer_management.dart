@@ -107,12 +107,25 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     return ok == true;
   }
 
-  /// The three ways to add a customer, in one sheet behind one FAB.
+  /// ONE way to add a customer, at the Owner's instruction: search, and add.
   ///
-  /// These were three separate AppBar icon buttons — a person-add glyph, a
-  /// badge glyph and a history glyph — which is three unlabelled icons
-  /// competing for the same corner and no way to tell them apart without
-  /// long-pressing each. As sheet rows they carry their names.
+  /// There were three, and all three already did search-and-add -- they
+  /// differed only in which half they would refuse. "Existing Customers" was
+  /// the same sheet locked against creating anybody; "Pre-Existing Customer"
+  /// was OW-014, whose own name is Global Workflow (Pre-Existing Member
+  /// Creation) and which searches by MLID or name and registers when there is
+  /// no match. Three doors into one room, and the person adding a customer had
+  /// to know which was which before they could start.
+  ///
+  /// The Owner's rule: somebody added while a book was being migrated stays as
+  /// they are, but once the business is running in the app there is one path
+  /// in. OW-018's migration form is untouched by this -- it keeps its own
+  /// add-a-customer, because that is the migration, not the running business.
+  ///
+  /// The role is not asked for here. This screen's subject IS the customer,
+  /// the same way the header's + reads its role from the screen it is drawn
+  /// on; Universal Search asks, because a stranger found by phone number
+  /// could be any of the three.
   List<MemberAction> _addActions() => [
         MemberAction(
           label: ref.t('add_customer'),
@@ -122,25 +135,6 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
             isScrollControlled: true,
             builder: (_) => ManaAddCustomerSheet(businessId: widget.businessId),
           ).then((_) => _reload()),
-        ),
-        // Locked to search-and-link: a customer who already holds a MANA LINE
-        // ID must never be re-registered as a new person, which is what the
-        // shared sheet does when a search comes back empty.
-        MemberAction(
-          label: ref.t('existing_customers'),
-          icon: Icons.badge_outlined,
-          onTap: () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => ManaAddCustomerSheet(businessId: widget.businessId, existingOnly: true),
-          ).then((_) => _reload()),
-        ),
-        MemberAction(
-          label: ref.t('pre_existing_customer'),
-          icon: Icons.history_edu_outlined,
-          onTap: () => context
-              .push('/ow-014?type=customer', extra: widget.businessId)
-              .then((_) => _reload()),
         ),
       ];
 

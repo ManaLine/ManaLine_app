@@ -23,7 +23,7 @@ import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
 import '../state/global_workflow_state.dart'
-    show MemberType, globalWorkflowApiServiceProvider;
+    show MemberType, MemberTypeLabel, globalWorkflowApiServiceProvider;
 import '../state/investor_state.dart' show investorApiServiceProvider, InvestorSummary;
 import 'ow_004_customer_management.dart'
     show CustomerProfileScreen, ManaAddCustomerSheet;
@@ -560,10 +560,25 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     });
     if (!mounted) return;
     setState(() => _adding = null);
+    if (ok != true) return;
+
+    // WHICH of the two things happened, said plainly.
+    //
+    // An Agent and an Investor are ASKED -- they land on Pending Invitation
+    // and are not working for this business until they accept. A Customer is
+    // in straight away. One word for both would tell the Owner an Agent is
+    // on their book when that Agent has not answered yet, and the Owner would
+    // find out by wondering why nothing was collected.
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: ManaText.raw(type.needsAcceptance
+          ? ref.t('request_sent_note')
+          : ref.t('added_to_business_note')),
+    ));
+
     // Re-run the search rather than adding the role to the list in memory:
     // the roles on these cards are what the server says they are, and a list
     // that guesses is a list that can be wrong about who is in the business.
-    if (ok == true) await _search();
+    await _search();
   }
 
   Future<void> _search() async {

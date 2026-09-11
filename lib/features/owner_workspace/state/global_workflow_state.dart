@@ -20,6 +20,20 @@ extension MemberTypeLabel on MemberType {
       };
 
   String get role => label; // business_members.role uses the same string
+
+  /// Whether adding somebody in this role ASKS them first.
+  ///
+  /// The Owner's rule: an Agent and an Investor both get reach into somebody
+  /// else's book, so both are asked and land on 'Pending Invitation'. A
+  /// Customer is being recorded rather than granted anything, and putting a
+  /// login between a field agent and a collection would be absurd, so they
+  /// go straight to 'Active'.
+  ///
+  /// THE SERVER IS THE AUTHORITY -- app.attach_person_to_business decides the
+  /// status and this only decides what sentence the Owner is shown. The two
+  /// are pinned together by add_member_one_path_guard_test, because a rule
+  /// living in two languages is exactly how this project's regressions start.
+  bool get needsAcceptance => this != MemberType.customer;
 }
 
 class GlobalWorkflowApiService {

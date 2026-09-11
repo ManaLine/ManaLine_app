@@ -133,6 +133,67 @@ void main() {
     });
   });
 
+  group('who gets asked, and who just gets added', () {
+    // The Owner's rule: an Agent and an Investor both get reach into somebody
+    // else's book, so both are ASKED. A Customer is being recorded rather
+    // than granted anything.
+    //
+    // The rule lives in two languages -- plpgsql decides the status, Dart
+    // decides the sentence the Owner reads -- which is precisely the shape
+    // that produced this project's worst regressions. These pin them to each
+    // other.
+    final migration = File(
+            'supabase/migrations/20260911211146_agents_and_investors_are_asked_customers_are_added.sql')
+        .readAsStringSync();
+
+    test('Dart and the migration agree about who needs to accept', () {
+      expect(MemberType.customer.needsAcceptance, isFalse);
+      expect(MemberType.agent.needsAcceptance, isTrue);
+      expect(MemberType.investor.needsAcceptance, isTrue);
+
+      // The server's half of the same sentence, verified by invocation on
+      // 2026-09-11: Agent and Investor returned 'Pending Invitation',
+      // Customer returned 'Active'.
+      // The server's half of the same sentence, verified by invocation on
+      // 2026-09-11: Agent and Investor returned 'Pending Invitation',
+      // Customer returned 'Active'. Matched as fragments rather than one
+      // pattern so reformatting the SQL does not read as a rule change.
+      final statusRule = migration.substring(
+          migration.indexOf('v_status := CASE'),
+          migration.indexOf('membership_status_enum;',
+              migration.indexOf('v_status := CASE')));
+      expect(statusRule, contains("WHEN v_role = 'Customer'"));
+      expect(statusRule, contains("THEN 'Active'"));
+      expect(statusRule, contains("ELSE 'Pending Invitation'"),
+          reason: 'the migration no longer says what '
+              'MemberType.needsAcceptance says; change both or neither');
+    });
+
+    test('accepting an Agent still creates their permissions row', () {
+      // The precondition that made this change safe. respond_to_invitation
+      // creates the agents row; before this migration it did NOT create
+      // agent_permissions, which attach_person_to_business always had. Every
+      // column but agent_id defaults true, so a MISSING row is not "no
+      // permissions yet" -- it is every permission reading false, a workspace
+      // that loads and refuses every action. One live agent was already in
+      // that state; routing all new Agents through acceptance would have
+      // given it to all of them.
+      final respond =
+          migration.substring(migration.indexOf('FUNCTION app.respond_to_invitation'));
+      expect(respond, contains('INSERT INTO agent_permissions'),
+          reason: 'an accepted Agent gets a workspace that refuses everything '
+              'without this');
+    });
+
+    test('the Owner is told when somebody accepts', () {
+      final respond =
+          migration.substring(migration.indexOf('FUNCTION app.respond_to_invitation'));
+      expect(respond, contains('INSERT INTO notifications'));
+      expect(respond, contains("o.role = 'Owner'"),
+          reason: 'the notification must reach the Owner who sent the request');
+    });
+  });
+
   group('the role the Owner picks', () {
     test('all three member types can be added, and only those three', () {
       // app.attach_person_to_business raises 22023 for anything that is not

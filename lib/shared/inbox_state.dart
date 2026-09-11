@@ -87,6 +87,14 @@ class InboxNotifier extends Notifier<InboxState> {
     }
   }
 
+  /// Answers one actionable item.
+  ///
+  /// THROWS on failure, and clears the spinner on the way out. It used to
+  /// swallow the error into `state.error`, which the screen renders only when
+  /// both lists are EMPTY -- so a decision that failed on a populated inbox
+  /// reported itself nowhere at all: the spinner stopped and no sentence
+  /// appeared. Callers wrap this in NetworkErrorHandler.run, which is where
+  /// the wording, the Retry and the session-expiry case already live.
   Future<bool> decide(InboxAction action, {required bool yes}) async {
     state = state.copyWith(busyItemId: action.itemId, clearError: true);
     try {
@@ -98,7 +106,10 @@ class InboxNotifier extends Notifier<InboxState> {
         case InboxActionKind.settlement:
           // Only approval happens here. Returning one needs a reason the
           // Agent can act on, which belongs on Account Review, so the card
-          // for a settlement offers no "no".
+          // for a settlement offers no "no". This guard is unreachable from
+          // the inbox -- that card passes `noLabel: null` -- and exists to
+          // stop a future caller, so its text never has to read well to a
+          // field user.
           if (!yes) {
             throw StateError(
                 'Returning a settlement needs a reason — open Account Review.');
@@ -114,16 +125,24 @@ class InboxNotifier extends Notifier<InboxState> {
           }
           await _svc.payOutWithdrawal(requestId: action.itemId);
       }
-      // Reload rather than removing locally: approving a membership request
-      // can create a membership, which may itself change what is pending.
-      // Guessing the new state in memory is how a list starts lying.
-      await load();
+    } catch (_) {
+      // The spinner comes off here and nowhere else. Whatever went wrong,
+      // the card must become usable again -- that is the whole defect.
       state = state.copyWith(clearBusy: true);
-      return true;
-    } catch (e) {
-      state = state.copyWith(clearBusy: true, error: e.toString());
-      return false;
+      rethrow;
     }
+
+    // Past this line the decision HAS landed, so a reload that fails is not
+    // the decision failing and must not be reported as one. load() keeps its
+    // own error to itself for exactly that reason, and the worst case is an
+    // inbox one pull-to-refresh out of date.
+    //
+    // Reload rather than removing locally: approving a membership request can
+    // create a membership, which may itself change what is pending. Guessing
+    // the new state in memory is how a list starts lying.
+    await load();
+    state = state.copyWith(clearBusy: true);
+    return true;
   }
 
   Future<void> markRead(String id) async {

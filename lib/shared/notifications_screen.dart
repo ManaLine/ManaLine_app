@@ -27,6 +27,7 @@ import '../design/tokens/typography.dart';
 import '../design/tokens/spacing.dart';
 import 'inbox_service.dart';
 import 'inbox_state.dart';
+import 'network_error_handler.dart';
 import 'translation_service.dart';
 
 final _when = DateFormat('d MMM, h:mm a');
@@ -216,6 +217,17 @@ class _ActionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Through the shared handler, like every other network action in the app:
+    // it carries the deadline, the connectivity vs server-reached wording, the
+    // session-expiry sentence and the Retry. Answering an invitation was the
+    // one action that had none of that -- it reported failure into a field the
+    // screen only renders on an empty inbox, so on a populated one a failed
+    // Accept said nothing whatsoever.
+    Future<void> decide({required bool yes}) => NetworkErrorHandler.run(
+          context,
+          () => ref.read(inboxProvider.notifier).decide(action, yes: yes),
+        );
+
     // An approval names the person asking; an invitation names the business
     // asking. Either way the headline is "who wants what".
     final who = switch (action.kind) {
@@ -276,15 +288,11 @@ class _ActionCard extends ConsumerWidget {
               children: [
                 if (noLabel != null)
                   TextButton(
-                    onPressed: busy
-                        ? null
-                        : () => ref.read(inboxProvider.notifier).decide(action, yes: false),
+                    onPressed: busy ? null : () => decide(yes: false),
                     child: ManaText.raw(noLabel!),
                   ),
                 ElevatedButton(
-                  onPressed: busy
-                      ? null
-                      : () => ref.read(inboxProvider.notifier).decide(action, yes: true),
+                  onPressed: busy ? null : () => decide(yes: true),
                   child: busy
                       ? const SizedBox(
                           width: 16, height: 16,

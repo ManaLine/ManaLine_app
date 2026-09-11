@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'mana_time.dart';
+import 'network_error_handler.dart';
 
 /// Which decision an actionable item is asking for.
 ///
@@ -126,9 +127,30 @@ class InboxService {
   InboxService(this._db);
   final SupabaseClient _db;
 
+  /// Every call in this service carries the app's standard deadline.
+  ///
+  /// WHY: PostgREST has no client-side deadline of its own, so a request made
+  /// on a dying connection never completes and never errors. An Agent
+  /// accepting an invitation at 11:57 AM watched the spinner inside the
+  /// Accept button turn for as long as they were willing to wait: the RPC had
+  /// been sent, the await never returned, so the catch that clears
+  /// `busyItemId` never ran. Nothing was cancellable and nothing was wrong
+  /// with the server -- `app.respond_to_invitation` answers correctly when
+  /// invoked directly.
+  ///
+  /// It belongs HERE rather than in InboxNotifier because the notifier is not
+  /// the thing that hangs. A deadline wrapped around `decide()` would fire on
+  /// time and still leave the inner await pending forever, so the button would
+  /// go on spinning behind the error message.
+  ///
+  /// The constant is shared with NetworkErrorHandler deliberately: a second
+  /// copy of a timeout is how two paths start disagreeing about how long is
+  /// too long.
+  Future<T> _withDeadline<T>(Future<T> call) => call.timeout(kManaQueryTimeout);
+
   /// `.schema('app')` is required — a bare `.rpc()` targets public and 404s.
   Future<List<InboxAction>> pendingActions() async {
-    final rows = await _db.schema('app').rpc('my_inbox_actions');
+    final rows = await _withDeadline(_db.schema('app').rpc('my_inbox_actions'));
     return (rows as List).cast<Map<String, dynamic>>().map(InboxAction.fromRow).toList();
   }
 
@@ -136,38 +158,39 @@ class InboxService {
   /// per person, and someone who is an Agent in one business and a Customer
   /// in another should see both without switching workspace first.
   Future<List<InboxNotice>> notices({int limit = 100}) async {
-    final rows = await _db
+    final rows = await _withDeadline(_db
         .from('notifications')
         .select('notification_id, notification_type, message, is_read, created_at')
         // Dismissed notices are put away, not deleted: they stay readable in
         // the table and stop occupying the bell.
         .isFilter('dismissed_at', null)
         .order('created_at', ascending: false)
-        .limit(limit);
+        .limit(limit));
     return (rows as List).cast<Map<String, dynamic>>().map(InboxNotice.fromRow).toList();
   }
 
   Future<void> markRead(String notificationId) async {
-    await _db
+    await _withDeadline(_db
         .from('notifications')
         .update({'is_read': true})
-        .eq('notification_id', notificationId);
+        .eq('notification_id', notificationId));
   }
 
   /// Puts one notice away. Read is not the same as dealt with -- a notice can
   /// be read and still waiting, or dismissed without being opened -- so this
   /// is its own column rather than another way of setting is_read.
   Future<void> dismiss(String notificationId) async {
-    await _db
+    await _withDeadline(_db
         .from('notifications')
         .update({'dismissed_at': manaTimestamp(), 'is_read': true})
-        .eq('notification_id', notificationId);
+        .eq('notification_id', notificationId));
   }
 
   /// PostgREST needs a filter; `.neq('is_read', true)` is the "all mine that
   /// are unread" form, with RLS already limiting the rows to this person.
   Future<void> markAllRead() async {
-    await _db.from('notifications').update({'is_read': true}).neq('is_read', true);
+    await _withDeadline(
+        _db.from('notifications').update({'is_read': true}).neq('is_read', true));
   }
 
   /// Approving a request has to MAKE somebody a member.
@@ -187,11 +210,12 @@ class InboxService {
     required bool approve,
     String? rejectionReason,
   }) async {
-    await _db.schema('app').rpc('decide_membership_request', params: {
+    await _withDeadline(
+        _db.schema('app').rpc('decide_membership_request', params: {
       'p_request_id': requestId,
       'p_approve': approve,
       'p_rejection_reason': rejectionReason,
-    });
+    }));
     return true;
   }
 
@@ -222,10 +246,10 @@ class InboxService {
     required String membershipId,
     required bool accept,
   }) async {
-    await _db.schema('app').rpc('respond_to_invitation', params: {
+    await _withDeadline(_db.schema('app').rpc('respond_to_invitation', params: {
       'p_membership_id': membershipId,
       'p_accept': accept,
-    });
+    }));
     return true;
   }
 
@@ -246,16 +270,17 @@ class InboxService {
     // Keyed on the request, because an inbox row is a request id -- the
     // amount and the investment both come from it. One payout path, shared
     // with the Withdrawal Requests screen.
-    await _db.schema('app').rpc('pay_out_withdrawal_request', params: {
+    await _withDeadline(
+        _db.schema('app').rpc('pay_out_withdrawal_request', params: {
       'p_request_id': requestId,
-    });
+    }));
     return true;
   }
 
   Future<bool> approveSettlement({required String settlementId}) async {
-    await _db.schema('app').rpc('approve_agent_settlement', params: {
+    await _withDeadline(_db.schema('app').rpc('approve_agent_settlement', params: {
       'p_settlement_id': settlementId,
-    });
+    }));
     return true;
   }
 }

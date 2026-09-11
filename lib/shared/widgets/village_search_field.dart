@@ -43,7 +43,15 @@ class ManaVillageSearchField extends ConsumerStatefulWidget {
   /// Shown above the mode switch. Null for none.
   final String? label;
 
-  const ManaVillageSearchField({super.key, required this.onPicked, this.label});
+  /// Prefills PIN mode's PIN box on open — an existing address's PIN, so
+  /// editing it does not start from nothing. Passed straight through to the
+  /// embedded [ManaVillagePickerField]; it does not pre-pick a village or
+  /// fire a search on its own (see that widget's own doc comment). Cascade
+  /// mode has no PIN field to prefill and ignores this.
+  final String? initialPin;
+
+  const ManaVillageSearchField(
+      {super.key, required this.onPicked, this.label, this.initialPin});
 
   @override
   ConsumerState<ManaVillageSearchField> createState() =>
@@ -219,7 +227,11 @@ class _ManaVillageSearchFieldState
         ),
         const SizedBox(height: ManaSpacing.sm),
         if (_mode == _VillageSearchMode.pin)
-          ManaVillagePickerField(key: _pinKey, onPicked: widget.onPicked)
+          ManaVillagePickerField(
+            key: _pinKey,
+            onPicked: widget.onPicked,
+            initialPin: widget.initialPin,
+          )
         else
           ..._cascade(),
       ],

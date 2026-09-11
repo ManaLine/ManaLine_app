@@ -38,7 +38,16 @@ class ManaVillagePickerField extends ConsumerStatefulWidget {
   /// Shown above the two fields. Null for none.
   final String? label;
 
-  const ManaVillagePickerField({super.key, required this.onPicked, this.label});
+  /// Prefills the PIN box on first build — an existing address's PIN, say,
+  /// so editing it does not start from nothing. A convenience for typing,
+  /// not a pick: it seeds [TextEditingController] text only, so it fires no
+  /// search (both fields' `onChanged` handlers, not initState, call
+  /// [_search]) and leaves [onPicked] uncalled until the person actually
+  /// searches and taps a result themselves.
+  final String? initialPin;
+
+  const ManaVillagePickerField(
+      {super.key, required this.onPicked, this.label, this.initialPin});
 
   @override
   ConsumerState<ManaVillagePickerField> createState() =>
@@ -47,7 +56,7 @@ class ManaVillagePickerField extends ConsumerStatefulWidget {
 
 class _ManaVillagePickerFieldState
     extends ConsumerState<ManaVillagePickerField> {
-  final _pin = TextEditingController();
+  late final _pin = TextEditingController(text: widget.initialPin ?? '');
   final _query = TextEditingController();
 
   List<ManaVillage> _results = const [];

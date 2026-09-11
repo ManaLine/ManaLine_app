@@ -157,7 +157,7 @@ class _SummaryCard extends ConsumerWidget {
   Future<void> _editAddress(BuildContext context, WidgetRef ref) async {
     final result = await showDialog<_VillageSelection>(
       context: context,
-      builder: (_) => const _VillageSelectorDialog(),
+      builder: (_) => _VillageSelectorDialog(initialPinCode: profile.currentAddress?.pinCode),
     );
     if (result == null) return;
     if (!context.mounted) return;
@@ -396,7 +396,8 @@ class _VillageSelection {
 }
 
 class _VillageSelectorDialog extends ConsumerStatefulWidget {
-  const _VillageSelectorDialog();
+  final String? initialPinCode;
+  const _VillageSelectorDialog({this.initialPinCode});
 
   @override
   ConsumerState<_VillageSelectorDialog> createState() => _VillageSelectorDialogState();
@@ -454,6 +455,7 @@ class _VillageSelectorDialogState extends ConsumerState<_VillageSelectorDialog> 
           ManaVillageSearchField(
             label: ref.t('search_village_town_plain_field'),
             onPicked: _onVillagePicked,
+            initialPin: widget.initialPinCode,
           ),
           if (_selectedVillage != null) ...[
             const SizedBox(height: 4),

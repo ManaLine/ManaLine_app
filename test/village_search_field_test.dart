@@ -126,7 +126,11 @@ LocationApiService _delayedService(
   return (service: LocationApiService(client), requests: fake.requests);
 }
 
-Widget _hosted(LocationApiService service, ValueChanged<ManaVillage?> onPicked) {
+Widget _hosted(
+  LocationApiService service,
+  ValueChanged<ManaVillage?> onPicked, {
+  String? initialPin,
+}) {
   return UncontrolledProviderScope(
     container: ProviderContainer(overrides: [
       locationApiServiceProvider.overrideWithValue(service),
@@ -140,7 +144,7 @@ Widget _hosted(LocationApiService service, ValueChanged<ManaVillage?> onPicked) 
     child: MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
-          child: ManaVillageSearchField(onPicked: onPicked),
+          child: ManaVillageSearchField(onPicked: onPicked, initialPin: initialPin),
         ),
       ),
     ),
@@ -239,6 +243,46 @@ void main() {
       // old pick if the person switches back.
       await tester.tap(find.text('village_search_by_pin'));
       await tester.pumpAndSettle();
+      final pinField = tester.widget<TextField>(find.byType(TextField).first);
+      expect(pinField.controller?.text ?? '', isEmpty);
+    });
+  });
+
+  group('ManaVillageSearchField: initialPin', () {
+    testWidgets('prefills the PIN box on open without picking or searching',
+        (tester) async {
+      final built = _serviceWith(_defaultResponder);
+      ManaVillage? picked;
+      var callCount = 0;
+
+      await tester.pumpWidget(_hosted(
+        built.service,
+        (v) {
+          picked = v;
+          callCount++;
+        },
+        initialPin: '532221',
+      ));
+      await tester.pumpAndSettle();
+
+      final pinField = tester.widget<TextField>(find.byType(TextField).first);
+      expect(pinField.controller?.text, '532221',
+          reason: 'the PIN box must start filled from initialPin');
+      // A convenience for typing, not a pick: nothing has been searched (the
+      // name box is still empty, so searchByPin's own guard never runs) and
+      // onPicked must not have fired on its own.
+      expect(built.requests, isEmpty,
+          reason: 'prefilling the box must not fire a search on its own');
+      expect(picked, isNull);
+      expect(callCount, 0);
+    });
+
+    testWidgets('with no initialPin, the PIN box opens empty as before',
+        (tester) async {
+      final built = _serviceWith(_defaultResponder);
+      await tester.pumpWidget(_hosted(built.service, (_) {}));
+      await tester.pumpAndSettle();
+
       final pinField = tester.widget<TextField>(find.byType(TextField).first);
       expect(pinField.controller?.text ?? '', isEmpty);
     });

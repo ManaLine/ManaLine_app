@@ -612,11 +612,17 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
   // village, or vice versa, was refused). That half-typed state cannot occur
   // any more: the PIN comes from the picked village's own directory row
   // (_villagePinCode, set in _onVillagePicked), so a village pick and a
-  // valid PIN arrive together or not at all — nothing left to gate on.
+  // valid PIN arrive together or not at all. What replaces the old
+  // all-or-nothing check is simpler: a village must be picked at all.
+  // createNewReturningId's villageId parameter is non-nullable
+  // (customer_state.dart), and _createNew below force-unwraps _villageId —
+  // without this check that unwrap crashes on every customer added before a
+  // village is chosen, which is the normal in-progress state of this form.
   bool get _canCreateNew =>
       _fullName.text.trim().length >= 2 &&
       _fatherHusband.text.trim().length >= 2 &&
       _gender != null &&
+      _villageId != null &&
       // Filled or empty, never half-typed.
       (_mobile.text.trim().isEmpty || _mobile.text.trim().length == 10) &&
       (_aadhaar.text.trim().isEmpty || _aadhaar.text.trim().length == 12);

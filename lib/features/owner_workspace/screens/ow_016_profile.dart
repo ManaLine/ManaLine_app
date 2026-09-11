@@ -173,7 +173,7 @@ class _OwnerProfileScreenState extends ConsumerState<OwnerProfileScreen> {
   Future<void> _editAddress() async {
     final result = await showDialog<_AddressEditResult>(
       context: context,
-      builder: (_) => const _AddressEditDialog(),
+      builder: (_) => _AddressEditDialog(initialPinCode: _address?['pin_code'] as String?),
     );
     if (result == null) return;
 
@@ -483,7 +483,8 @@ class _AddressEditResult {
 /// Address edit dialog — same real search + "add if not found" pattern
 /// already established across LR-004/OW-000/OW-004/CW-006/IW-005.
 class _AddressEditDialog extends ConsumerStatefulWidget {
-  const _AddressEditDialog();
+  final String? initialPinCode;
+  const _AddressEditDialog({this.initialPinCode});
   @override
   ConsumerState<_AddressEditDialog> createState() => _AddressEditDialogState();
 }
@@ -564,6 +565,7 @@ class _AddressEditDialogState extends ConsumerState<_AddressEditDialog> {
               ManaVillageSearchField(
                 label: ref.t('search_village_town_field'),
                 onPicked: _onVillagePicked,
+                initialPin: widget.initialPinCode,
               ),
               if (_selectedVillage != null) ...[
                 const SizedBox(height: 6),

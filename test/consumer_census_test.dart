@@ -65,15 +65,16 @@ const _census = <String, int>{
   // sheet says it exists for) moved to ManaVillageSearchField too, whose PIN
   // mode has its own inline add-panel rather than opening this sheet, and
   // the address editors (CW-006, IW-005, OW-014, OW-016) followed the same
-  // path. Checked: none of the ten calls manaShowAddVillageSheet any more.
-  // ORPHANED, not deleted — Task 4 still had to extend it for a cascade mode
-  // that does not exist as a caller yet (state/district/mandal pre-fill,
-  // typed PIN), because the wiring of an "add" affordance into
-  // ManaVillageSearchField's cascade branch is blocked on a stale-response
-  // race in village_search_field.dart being fixed separately. Flagged, not
-  // fixed here: this file is currently dead code with one caller (itself)
-  // until that wiring lands.
-  'manaShowAddVillageSheet': 1,
+  // path.
+  // Back to 2: ManaVillageSearchField's cascade branch (state -> district ->
+  // name) now calls this sheet too, once the stale-response race in
+  // village_search_field.dart was fixed. Checked: the new call passes
+  // cascadeState/cascadeDistrict (locked from the cascade selection) and
+  // initialName (the already-typed query), asks for mandal and a PIN — the
+  // cascade collects neither — and treats the returned village exactly like
+  // a tapped search result, emitting it through onPicked. PIN mode is
+  // unchanged and still does not call this sheet.
+  'manaShowAddVillageSheet': 2,
 
   // The PIN directory pickers. State narrows district narrows mandal, and a
   // screen that half-adopts it silently offers free text again.

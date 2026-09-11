@@ -9,6 +9,7 @@ import '../../design/tokens/spacing.dart';
 import '../../design/tokens/typography.dart';
 import '../location_api_service.dart';
 import '../translation_service.dart';
+import 'add_village_sheet.dart';
 import 'village_picker_field.dart';
 
 /// How a person is finding their village. PIN is the established path and
@@ -67,6 +68,15 @@ class _ManaVillageSearchFieldState
   bool _searching = false;
   ManaVillage? _picked;
 
+  // Bumped every time a new search is dispatched (debounce fired) or an
+  // earlier cascade step changes underneath it. `_search` captures the value
+  // current when IT was dispatched and checks it again after the await — see
+  // DEFECT 1 in the review: without this, a slow response for "pal" that
+  // returns after a faster one for "palak" overwrote the newer list with the
+  // stale one, because cancelling the debounce Timer only stops a search that
+  // has not started yet, not one already in flight.
+  int _searchGeneration = 0;
+
   Future<List<String>>? _statesFuture;
   Future<List<String>>? _districtsFuture;
 
@@ -82,6 +92,8 @@ class _ManaVillageSearchFieldState
 
   void _switchMode(_VillageSearchMode next) {
     if (next == _mode) return;
+    _debounce?.cancel();
+    _searchGeneration++;
     setState(() {
       _mode = next;
       _pinKey = UniqueKey();
@@ -99,6 +111,8 @@ class _ManaVillageSearchFieldState
   }
 
   void _onStateChanged(String? next) {
+    _debounce?.cancel();
+    _searchGeneration++;
     setState(() {
       _state = next;
       // Changing an earlier step clears every later one — a person who
@@ -116,6 +130,8 @@ class _ManaVillageSearchFieldState
   }
 
   void _onDistrictChanged(String? next) {
+    _debounce?.cancel();
+    _searchGeneration++;
     setState(() {
       _district = next;
       _village.clear();
@@ -141,16 +157,21 @@ class _ManaVillageSearchFieldState
     // current one. Much above it, the field reads as waiting rather than
     // searching. 400ms sits past typical inter-keystroke gaps while typing a
     // village name but well inside "feels immediate".
-    _debounce = Timer(const Duration(milliseconds: 400), _search);
+    final generation = ++_searchGeneration;
+    _debounce = Timer(
+        const Duration(milliseconds: 400), () => _search(generation));
   }
 
-  Future<void> _search() async {
+  Future<void> _search(int generation) async {
     final st = _state;
     final di = _district;
     final needle = _village.text.trim();
     if (st == null ||
         di == null ||
         needle.length < LocationApiService.minVillageLetters) {
+      // Still the newest dispatch? An earlier query's empty-input bailout must
+      // not clear a list a later query has since populated.
+      if (generation != _searchGeneration) return;
       setState(() => _results = const []);
       return;
     }
@@ -159,6 +180,11 @@ class _ManaVillageSearchFieldState
         .read(locationApiServiceProvider)
         .searchVillages(state: st, district: di, query: needle);
     if (!mounted) return;
+    // DEFECT 1: drop it if a newer search has since been dispatched. The
+    // Timer cancel in _onQueryChanged only stops a search that had not yet
+    // started; this stops one already in flight from overwriting a result
+    // for text the person has already typed past.
+    if (generation != _searchGeneration) return;
     setState(() {
       _results = found;
       _searching = false;
@@ -279,12 +305,60 @@ class _ManaVillageSearchFieldState
             _village.text.trim().length >= LocationApiService.minVillageLetters)
           Padding(
             padding: const EdgeInsets.only(top: ManaSpacing.xs),
-            child: ManaText.raw(ref.t('no_villages_found_for_search'),
-                style: ManaType.note),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText.raw(ref.t('no_villages_found_for_search'),
+                    style: ManaType.note),
+                // DEFECT 2: the government directory genuinely does not carry
+                // every village (Dommarametta is one real example), so "no
+                // match" cannot be a dead end here any more than it is in PIN
+                // mode's own ManaVillagePickerField. That widget offers its
+                // add path inline and unchanged; this is the cascade's only
+                // way to the same sheet, not a second copy of it.
+                const SizedBox(height: ManaSpacing.xs),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    onPressed: _addVillage,
+                    icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+                    label: ManaText.raw(ref.t('add_this_village')),
+                  ),
+                ),
+              ],
+            ),
           ),
         ..._results.map(_resultTile),
       ],
     ];
+  }
+
+  Future<void> _addVillage() async {
+    final state = _state;
+    final district = _district;
+    if (state == null || district == null) return;
+    final created = await manaShowAddVillageSheet(
+      context,
+      ref,
+      // Cascade mode, not PIN: state and district are already chosen and
+      // come locked from that selection. The cascade never asks for a
+      // mandal (state -> district -> name only), so it is left for the
+      // sheet to collect, and the PIN is asked there too — see
+      // manaShowAddVillageSheet's doc comment: locations.pin_code is
+      // NOT NULL, and deriving one from the district would write a
+      // fabricated postal code onto a real address.
+      cascadeState: state,
+      cascadeDistrict: district,
+      initialName: _village.text.trim(),
+    );
+    if (created == null || !mounted) return;
+    // A village returned from the sheet is a pick, exactly like one tapped
+    // from the search results — same onPicked contract either way.
+    setState(() {
+      _picked = created;
+      _results = [created];
+    });
+    widget.onPicked(created);
   }
 
   Widget _resultTile(ManaVillage v) {

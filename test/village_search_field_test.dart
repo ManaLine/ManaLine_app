@@ -1,6 +1,7 @@
 // Tests for ManaVillageSearchField (Plan 4 Task 3): the two-mode picker that
 // sits beside the existing PIN field — PIN by default, State -> District ->
 // name cascade on request.
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -72,6 +73,41 @@ List<Map<String, dynamic>> _defaultResponder(Uri url) {
     return const [];
   }
   return const [];
+}
+
+/// Same idea as [_FakeClient], but the responder is async so a test can hold
+/// a response open (via a [Completer]) and release two overlapping requests
+/// in a chosen order — the only way to exercise DEFECT 1 (a slow response
+/// overwriting a newer one), since a synchronous fake always answers in
+/// request order.
+class _DelayedClient extends http.BaseClient {
+  _DelayedClient(this._responder);
+
+  final Future<List<Map<String, dynamic>>> Function(Uri url) _responder;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final rows = await _responder(request.url);
+    final body = utf8.encode(jsonEncode(rows));
+    return http.StreamedResponse(
+      Stream.value(body),
+      200,
+      headers: const {'content-type': 'application/json'},
+      request: request,
+    );
+  }
+}
+
+LocationApiService _delayedService(
+  Future<List<Map<String, dynamic>>> Function(Uri url) responder,
+) {
+  final client = SupabaseClient(
+    'https://example.supabase.co',
+    'test-anon-key',
+    httpClient: _DelayedClient(responder),
+    authOptions: const AuthClientOptions(autoRefreshToken: false),
+  );
+  return LocationApiService(client);
 }
 
 ({LocationApiService service, List<Uri> requests}) _serviceWith(
@@ -294,6 +330,166 @@ void main() {
 
       expect(find.text('Palasa · Visakhapatnam · Andhra Pradesh - 532221'),
           findsOneWidget);
+    });
+  });
+
+  group('ManaVillageSearchField: stale search responses', () {
+    testWidgets(
+        'a slow response for an earlier query must not overwrite a later one',
+        (tester) async {
+      // 'pal' resolves to Palasa but is held open; 'palak' resolves to
+      // Palakayatirevu and is released first. If the widget applied
+      // responses in arrival order (the pre-fix behaviour) the list would
+      // then flip back to Palasa when the held 'pal' response lands —
+      // exactly the flicker DEFECT 1 describes.
+      final palGate = Completer<void>();
+      final palakGate = Completer<void>();
+      final service = _delayedService((url) async {
+        if (url.path.endsWith('/rpc/lgd_states')) return _statesRows;
+        if (url.path.endsWith('/rpc/lgd_districts')) return _districtsRows;
+        if (url.path.endsWith('/lgd_villages')) {
+          final needle = (url.queryParameters['village'] ?? '').toLowerCase();
+          if (needle.contains('palak')) {
+            await palakGate.future;
+            return const [
+              {
+                'village': 'Palakayatirevu',
+                'mandal': 'Palakonda',
+                'district': 'Visakhapatnam',
+                'state': 'Andhra Pradesh',
+                'pincode': '532440',
+              },
+            ];
+          }
+          if (needle.contains('pal')) {
+            await palGate.future;
+            return const [
+              {
+                'village': 'Palasa',
+                'mandal': 'Palasa',
+                'district': 'Visakhapatnam',
+                'state': 'Andhra Pradesh',
+                'pincode': '532221',
+              },
+            ];
+          }
+        }
+        return const [];
+      });
+
+      await tester.pumpWidget(_hosted(service, (_) {}));
+      await tester.pumpAndSettle();
+      await openCascade(tester);
+      await pickState(tester, 'Andhra Pradesh');
+      await pickDistrict(tester, 'Visakhapatnam');
+
+      // Types 'pal', lets the debounce fire and the (gated) request go out.
+      await tester.enterText(find.byType(TextField).last, 'pal');
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Types past it to 'palak' before the first response ever lands —
+      // its own debounced request also goes out and is gated separately.
+      await tester.enterText(find.byType(TextField).last, 'palak');
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // The later query's response arrives first...
+      palakGate.complete();
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Palakayatirevu'), findsOneWidget);
+
+      // ...and then the earlier, slower one finally lands. A correct widget
+      // drops it; the broken widget overwrites the list with it.
+      palGate.complete();
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Palakayatirevu'), findsOneWidget,
+          reason: 'the later query\'s result must still be showing');
+      expect(find.text('Palasa'), findsNothing,
+          reason: 'the stale response for text already typed past must be '
+              'dropped, not applied over the newer result');
+    });
+  });
+
+  group('ManaVillageSearchField: add village (cascade)', () {
+    List<Map<String, dynamic>> addFlowResponder(Uri url) {
+      if (url.path.endsWith('/rpc/lgd_states')) return _statesRows;
+      if (url.path.endsWith('/rpc/lgd_districts')) return _districtsRows;
+      // The directory has never heard of this place — same as the real
+      // Dommarametta example the review names.
+      if (url.path.endsWith('/lgd_villages')) return const [];
+      if (url.path.endsWith('/rpc/suggest_similar_villages')) return const [];
+      if (url.path.endsWith('/rpc/add_location_if_missing')) {
+        return const [
+          {
+            'location_id': 'loc-new-1',
+            'village_town_name': 'Dommarametta',
+            'pin_code': '532221',
+            'mandal': 'Palasa Mandal',
+            'district': 'Visakhapatnam',
+            'state': 'Andhra Pradesh',
+          },
+        ];
+      }
+      return const [];
+    }
+
+    testWidgets('a search finding nothing offers the add-village path',
+        (tester) async {
+      final built = _serviceWith(addFlowResponder);
+      await tester.pumpWidget(_hosted(built.service, (_) {}));
+      await tester.pumpAndSettle();
+      await openCascade(tester);
+      await pickState(tester, 'Andhra Pradesh');
+      await pickDistrict(tester, 'Visakhapatnam');
+
+      await tester.enterText(find.byType(TextField).last, 'Dommarametta');
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListTile), findsNothing,
+          reason: 'the directory genuinely does not carry this village');
+      expect(find.text('add_this_village'), findsOneWidget,
+          reason: 'no match must not be a dead end — DEFECT 2');
+    });
+
+    testWidgets('a village returned from the sheet is emitted through onPicked',
+        (tester) async {
+      final built = _serviceWith(addFlowResponder);
+      ManaVillage? last;
+      await tester.pumpWidget(_hosted(built.service, (v) => last = v));
+      await tester.pumpAndSettle();
+      await openCascade(tester);
+      await pickState(tester, 'Andhra Pradesh');
+      await pickDistrict(tester, 'Visakhapatnam');
+
+      await tester.enterText(find.byType(TextField).last, 'Dommarametta');
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('add_this_village'));
+      await tester.pumpAndSettle();
+
+      // The sheet must open in cascade mode with state/district already
+      // locked from the cascade, and the typed name carried over — not
+      // asked for again.
+      expect(find.text('Andhra Pradesh'), findsWidgets);
+      expect(find.text('Visakhapatnam'), findsWidgets);
+
+      // Sheet fields, in the order the cascade branch of the sheet renders
+      // them: name (already filled), mandal, PIN. Index 0 is the search
+      // field's own village-name TextField, still present behind the sheet.
+      await tester.enterText(find.byType(TextField).at(2), 'Palasa Mandal');
+      await tester.enterText(find.byType(TextField).at(3), '532221');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('add_this_village').last);
+      await tester.pumpAndSettle();
+
+      expect(last?.name, 'Dommarametta',
+          reason: 'a village created from the sheet must reach onPicked '
+              'exactly like a tapped search result');
     });
   });
 

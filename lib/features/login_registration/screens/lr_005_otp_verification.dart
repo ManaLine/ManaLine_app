@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
@@ -170,6 +171,19 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     });
   }
 
+  /// Registration got as far as creating the account, and only the code
+  /// failed to send.
+  ///
+  /// Told apart by personId, which is set the moment registration returns:
+  /// if it survives and there is no pending OTP, the account is real and the
+  /// send is what broke. Any other purpose arriving without an OTP is a lost
+  /// session, which is a different sentence and keeps its own.
+  bool get _accountExistsButCodeDidNot {
+    if (widget.purpose != OtpPurpose.registration) return false;
+    final auth = ref.read(authFlowProvider);
+    return auth.pendingOtpId == null && auth.personId != null;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(translationLoaderProvider);
@@ -181,6 +195,38 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // ANSWERED ON ARRIVAL, not after six wasted digits.
+              //
+              // When the OTP send fails, LR-004 still comes here -- correctly,
+              // because the account exists by then and going back would
+              // register the same person twice. But the screen then looks like
+              // an ordinary OTP screen waiting for a code that will never
+              // arrive, and the explanation used to appear only once somebody
+              // had typed six digits they never received.
+              //
+              // "Am I registered or not?" is exactly the question that made a
+              // duplicate person: two rows 2m14s apart with different mobile
+              // numbers, the second attempt deliberately using other details
+              // because the first had given no sign it worked. So the answer
+              // is put in front of them before they can ask it, and it names
+              // the MLID -- proof the account is real, and the thing they
+              // would otherwise have to register again to find out.
+              if (_accountExistsButCodeDidNot) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(ManaSpacing.md),
+                  decoration: BoxDecoration(
+                    color: ManaColors.statusWarnFaint,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ManaText.raw(
+                    ref.t('account_created_code_not_sent_note').replaceAll(
+                        '{mlid}', ref.read(authFlowProvider).mlid ?? '—'),
+                    style: ManaType.emphasis,
+                  ),
+                ),
+                const SizedBox(height: ManaSpacing.lg),
+              ],
               ManaText.raw(_promptText, textAlign: TextAlign.center),
               const SizedBox(height: ManaSpacing.xl),
               Row(

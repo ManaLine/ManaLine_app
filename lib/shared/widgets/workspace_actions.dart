@@ -126,8 +126,8 @@ class _AddMemberAction extends ConsumerWidget {
   /// a loan. Adding a borrower and lending to them is one errand.
   String get _route => switch (kind) {
         ManaMemberKind.customer => '/customer-new',
-        ManaMemberKind.agent => '/ow-search',
-        ManaMemberKind.investor => '/ow-search',
+        ManaMemberKind.agent => '/ow-search?role=agent',
+        ManaMemberKind.investor => '/ow-search?role=investor',
       };
 
   String _label(WidgetRef ref) => switch (kind) {

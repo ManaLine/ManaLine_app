@@ -95,12 +95,16 @@ class _NewLoanWorkflowScreenState extends ConsumerState<NewLoanWorkflowScreen> {
         // Same pattern Workforce Management already uses for its own add
         // paths, which is why those were taken off the dashboard too.
         actions: [
-          IconButton(
-            tooltip: ref.t('register_customer'),
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () =>
-                context.push('/ow-004?action=register', extra: widget.businessId),
-          ),
+          // The register-a-customer glyph is gone from here. This header
+          // carried FIVE controls -- register a customer, group loans, the
+          // bell, +, and search -- and three of them did the same thing: the +
+          // adds a customer on this screen, the magnifier finds one, and this
+          // one opened the add-customer sheet. Three buttons, one job, none of
+          // them labelled.
+          //
+          // The + is the one that survives, because it is the one that means
+          // the same thing on every screen in the app. Group loans stays: it
+          // is the only control here that goes somewhere else entirely.
           IconButton(
             tooltip: ref.t('group_loans'),
             icon: const Icon(Icons.groups_2_outlined),

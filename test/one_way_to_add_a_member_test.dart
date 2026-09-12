@@ -27,7 +27,17 @@ void main() {
       .toList();
 
   group('the old doors are shut', () {
-    test('nothing routes to OW-014 by member type any more', () {
+    test('no screen uses OW-014 as its way to ADD an existing member', () {
+      // SHARPENED, not loosened. Tranche B's rule was that adding somebody who
+      // already has a MANA LINE ID goes through Universal Search -- seven
+      // doors became one. That still holds.
+      //
+      // What OW-014 legitimately remains is the REGISTER-A-NEW-PERSON path for
+      // an Agent or an Investor, which Universal Search has no other way to
+      // offer: its add-new button used to open the add-customer sheet whatever
+      // screen had opened it, so searching for a non-existent agent offered to
+      // file them as a borrower. So exactly one file may reach OW-014 by type,
+      // and only from that button.
       final offenders = <String>[];
       for (final f in [
         ...owner,
@@ -35,13 +45,32 @@ void main() {
       ]) {
         final source = f.readAsStringSync();
         // The ROUTE, not the prose: these files discuss OW-014 in comments.
-        if (RegExp(r"""push\(\s*'/ow-014\?type=""").hasMatch(source)) {
-          offenders.add(f.path);
+        // push-shaped, not a bare mention: OW-014's own file discusses
+        // its route in a comment, and a comment is not a door.
+        if (!RegExp(r"""push\(\s*'/ow-014\?type=""").hasMatch(source)) {
+          continue;
         }
+        if (f.path.endsWith('ow_001_owner_home_dashboard.dart')) continue;
+        offenders.add(f.path);
       }
       expect(offenders, isEmpty,
-          reason: 'these still open OW-014 by member type instead of '
-              'Universal Search: $offenders');
+          reason: 'these open OW-014 by member type as an add path, which is '
+              'the seven-doors shape Tranche B removed: $offenders');
+    });
+
+    test('the one permitted use is the add-new button, not an add path', () {
+      // Pinned so the exemption above cannot quietly widen into "ow_001 may do
+      // whatever it likes with OW-014".
+      final search =
+          File('lib/features/owner_workspace/screens/ow_001_owner_home_dashboard.dart')
+              .readAsStringSync();
+      final addNew = search.substring(search.indexOf('Future<void> _addNewPerson('));
+      final body = addNew.substring(0, addNew.indexOf('Future<void> _search('));
+      expect(body, contains('/ow-014?type='),
+          reason: 'registering a new Agent or Investor is OW-014, and this is '
+              'the only place that may say so');
+      expect(body, contains('ManaMemberKind.agent'));
+      expect(body, contains('ManaMemberKind.investor'));
     });
 
     test('no screen still offers to add an "existing" member', () {

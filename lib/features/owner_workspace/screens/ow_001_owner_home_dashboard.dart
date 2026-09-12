@@ -30,6 +30,8 @@ import 'ow_004_customer_management.dart'
 import 'ow_003_investor_management.dart' show InvestorProfileScreen;
 import 'ow_002_workforce_management.dart' show AgentProfileScreen;
 import '../../../shared/widgets/workspace_nav.dart';
+import '../../../shared/widgets/workspace_actions.dart'
+    show ManaMemberKind;
 import '../../../shared/translation_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
@@ -453,7 +455,32 @@ class _SkeletonSection extends StatelessWidget {
 /// and visible above the keyboard while the list under it grows.
 class UniversalSearchScreen extends ConsumerStatefulWidget {
   final String businessId;
-  const UniversalSearchScreen({super.key, required this.businessId});
+
+  /// The role this search adds in, when the screen it was opened from already
+  /// answers that question.
+  ///
+  /// TWO CONTROLS, TWO JOBS. The header's + and its magnifier had both been
+  /// pointed here and so did exactly the same thing, which is what made three
+  /// buttons on OW-005 serve one purpose. They are told apart now:
+  ///
+  ///   + ........ adds a member of THIS SCREEN's kind. On Workforce that is an
+  ///              Agent, on Investor Management an Investor, everywhere else a
+  ///              Customer. It still searches first -- adding somebody always
+  ///              begins by looking for them -- it simply does not ask a
+  ///              question the screen has already answered.
+  ///
+  ///   magnifier  finds anyone and asks which role. Null here.
+  ///
+  /// This is what "add them as customer" on the Agent and Investor screens
+  /// was: the + landed on the role-choosing search, and its empty state
+  /// offered the one sheet it knew, which made customers.
+  final ManaMemberKind? fixedRole;
+
+  const UniversalSearchScreen({
+    super.key,
+    required this.businessId,
+    this.fixedRole,
+  });
 
   @override
   ConsumerState<UniversalSearchScreen> createState() =>
@@ -501,6 +528,16 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     super.dispose();
   }
 
+  /// The two enums say the same thing to different halves of the app --
+  /// ManaMemberKind is what the header knows, MemberType is what the RPC
+  /// wrapper takes. Mapped in one place so a fifth role cannot be added to one
+  /// and not the other without this failing to compile.
+  MemberType _memberTypeFor(ManaMemberKind kind) => switch (kind) {
+        ManaMemberKind.customer => MemberType.customer,
+        ManaMemberKind.agent => MemberType.agent,
+        ManaMemberKind.investor => MemberType.investor,
+      };
+
   /// Adding somebody the search found who is not in this business yet.
   ///
   /// THE DEAD END THIS REPLACES: a search that found a real person with no
@@ -521,7 +558,12 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     final personId = person.personId;
     if (personId == null || personId.isEmpty) return;
 
-    final type = await showModalBottomSheet<MemberType>(
+    // The screen may already know. Workforce adds Agents; Investor Management
+    // adds Investors; asking again would be a question with one answer.
+    final fixed = widget.fixedRole;
+    final type = fixed != null
+        ? _memberTypeFor(fixed)
+        : await showModalBottomSheet<MemberType>(
       context: context,
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
@@ -579,6 +621,31 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     // the roles on these cards are what the server says they are, and a list
     // that guesses is a list that can be wrong about who is in the business.
     await _search();
+  }
+
+  /// Registering somebody the directory has never heard of.
+  ///
+  /// Routed by the role this search is adding in, because the two paths make
+  /// genuinely different things: the sheet creates a person AND a customer of
+  /// this business, while OW-014 creates a person and attaches them as an
+  /// Agent or Investor.
+  Future<void> _addNewPerson() async {
+    final kind = widget.fixedRole;
+    if (kind == ManaMemberKind.agent || kind == ManaMemberKind.investor) {
+      await context.push('/ow-014?type=${kind!.workflowType}',
+          extra: widget.businessId);
+      if (mounted) _search();
+      return;
+    }
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ManaAddCustomerSheet(
+        businessId: widget.businessId,
+        initialQuery: _query.text.trim(),
+      ),
+    );
+    if (mounted) _search();
   }
 
   Future<void> _search() async {
@@ -865,21 +932,30 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                         //
                         // The same sheet OW-004 uses, carrying the query across
                         // so the name is not typed twice.
+                        // NOT ALWAYS A CUSTOMER. This button used to open the
+                        // add-customer sheet whatever screen had opened the
+                        // search -- so on Workforce and Investor Management,
+                        // searching for somebody who did not exist offered to
+                        // make them a Customer. That is the "showing to add
+                        // them as customer" the Owner reported, and it was one
+                        // tap from filing an agent as a borrower.
+                        //
+                        // Registering a brand new Agent or Investor is OW-014's
+                        // job and always has been: it searches by MLID or name
+                        // and registers a new person in that role when there is
+                        // no match. Customers keep the sheet, which ends with
+                        // the choice OW-014 does not have -- add them, or add
+                        // them and go straight to a loan.
                         if (_searched && !_searching) ...[
                           const SizedBox(height: ManaSpacing.lg),
                           FilledButton.tonalIcon(
-                            onPressed: () => showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              builder: (_) => ManaAddCustomerSheet(
-                                businessId: widget.businessId,
-                                initialQuery: _query.text.trim(),
-                              ),
-                            ).then((_) {
-                              if (mounted) _search();
-                            }),
+                            onPressed: _addNewPerson,
                             icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
-                            label: ManaText.raw(ref.t('add_customer')),
+                            label: ManaText.raw(ref.t(switch (widget.fixedRole) {
+                              ManaMemberKind.agent => 'add_an_agent',
+                              ManaMemberKind.investor => 'add_investor',
+                              _ => 'add_customer',
+                            })),
                           ),
                         ],
                       ],

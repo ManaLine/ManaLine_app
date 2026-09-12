@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shared/widgets/workspace_actions.dart' show ManaMemberKind;
 import 'package:go_router/go_router.dart';
 import 'design_showcase_screen.dart';
 import '../features/login_registration/state/auth_flow_state.dart';
@@ -321,9 +322,21 @@ final manaRouter = GoRouter(
       path: '/customer-new',
       builder: (c, s) => ManaAddCustomerScreen(businessId: _resolveBusinessId(s)),
     ),
+    // `role` is what tells the header's + apart from its magnifier. Absent
+    // means "ask which role"; present means the screen already answered.
+    // Anything unrecognised falls back to asking, which is the safe direction:
+    // a wrong role files an agent as a borrower, a needless question does not.
     GoRoute(
       path: '/ow-search',
-      builder: (c, s) => UniversalSearchScreen(businessId: _resolveBusinessId(s)),
+      builder: (c, s) => UniversalSearchScreen(
+        businessId: _resolveBusinessId(s),
+        fixedRole: switch (s.uri.queryParameters['role']) {
+          'customer' => ManaMemberKind.customer,
+          'agent' => ManaMemberKind.agent,
+          'investor' => ManaMemberKind.investor,
+          _ => null,
+        },
+      ),
     ),
     GoRoute(
       path: '/ow-007',

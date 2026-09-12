@@ -111,8 +111,28 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
         existing.roles.add(m.role);
       }
     }
-    return byBusinessId.values.toList();
+
+    // ORDERED BY WHAT THE PERSON IS TO EACH BUSINESS, at the Owner's
+    // instruction. This returned byBusinessId.values unsorted, which is the
+    // order the memberships happened to arrive in from the server -- so
+    // somebody who owns one business and is a customer of another could find
+    // either one on top, and the order could change between logins with
+    // nothing having changed.
+    //
+    // Ties break on business name so the list is STABLE. Rank alone would
+    // leave two businesses of equal standing free to swap places, which looks
+    // exactly like a bug to the person watching it happen.
+    final groups = byBusinessId.values.toList()
+      ..sort((a, b) {
+        final byRank =
+            manaBusinessRank(a.roles).compareTo(manaBusinessRank(b.roles));
+        if (byRank != 0) return byRank;
+        return a.businessName.toLowerCase().compareTo(b.businessName.toLowerCase());
+      });
+    return groups;
   }
+
+
 
   List<Membership> _pendingInvitations() {
     return ref.read(authFlowProvider).memberships.where((m) => m.membershipStatus == 'Pending Invitation').toList();
@@ -743,4 +763,34 @@ class _RequestJoinBusinessSheetState extends ConsumerState<_RequestJoinBusinessS
       ),
     );
   }
+}
+
+/// Where a business sits in the workspace list, by the strongest thing the
+/// person is to it. Lower sorts first.
+///
+/// An Owner who also works the round comes first: that is the business they
+/// are in every day, and it is the case the Owner named first. Then Owner
+/// alone, then Agent, then Investor, then Customer -- widening from "I run
+/// this" to "I borrow from this".
+///
+/// What this replaces was no order at all. The selector returned its map's
+/// values, so businesses appeared in whatever order the memberships arrived
+/// in from the server: somebody who owns one business and borrows from
+/// another could find either on top, and the order could change between
+/// logins with nothing having changed.
+///
+/// NOTE, deliberately left alone: LR-013's `_roleOrder` orders the ROLES
+/// INSIDE one business and reads ['Owner', 'Investor', 'Agent', 'Customer'] --
+/// Investor ahead of Agent, the opposite of this. The two answer different
+/// questions ("which business matters most" versus "which of my roles am I
+/// using right now"), so this does not silently rewrite that one. If they
+/// should agree, they should be made to agree on purpose.
+int manaBusinessRank(List<String> roles) {
+  final isOwner = roles.contains('Owner');
+  final isAgent = roles.contains('Agent');
+  if (isOwner && isAgent) return 0;
+  if (isOwner) return 1;
+  if (isAgent) return 2;
+  if (roles.contains('Investor')) return 3;
+  return 4;
 }

@@ -5,6 +5,8 @@ import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../shared/local_auth_store.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -56,6 +58,12 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
   @override
   void initState() {
     super.initState();
+    // The tie-break's data. Read once, and the sort works without it -- an
+    // empty map simply falls through to ordering by name, which is what the
+    // first frame uses anyway.
+    LocalAuthStore.readBusinessOpenTimes().then((times) {
+      if (mounted && times.isNotEmpty) setState(() => _lastOpened = times);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final personId = ref.read(authFlowProvider).personId;
       if (personId != null) {
@@ -91,6 +99,11 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
     });
   }
 
+  /// businessId -> when this device last opened it. Empty until the read
+  /// returns, which is why the sort falls back to name rather than depending
+  /// on it: the first frame must be ordered too.
+  Map<String, String> _lastOpened = const {};
+
   List<_BusinessGroup> _activeBusinessGroups() {
     final memberships = ref.read(authFlowProvider).memberships;
     // Only 'Active' membership rows count toward routing/display (BR-192/203) —
@@ -119,14 +132,23 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
     // either one on top, and the order could change between logins with
     // nothing having changed.
     //
-    // Ties break on business name so the list is STABLE. Rank alone would
-    // leave two businesses of equal standing free to swap places, which looks
-    // exactly like a bug to the person watching it happen.
+    // Ties break on the one this device opened MOST RECENTLY, then on name.
+    //
+    // Rank alone would leave businesses of equal standing free to swap places,
+    // which looks exactly like a bug to the person watching it. Name is stable
+    // but arbitrary -- three businesses somebody invests in are not
+    // meaningfully alphabetical -- so the business they were last in wins,
+    // because that is the one they are most likely to want next. Name remains
+    // the final fallback, for businesses this device has never opened and for
+    // the first frame before the stored map has been read.
     final groups = byBusinessId.values.toList()
       ..sort((a, b) {
         final byRank =
             manaBusinessRank(a.roles).compareTo(manaBusinessRank(b.roles));
         if (byRank != 0) return byRank;
+        final byRecency = manaCompareLastOpened(
+            _lastOpened[a.businessId], _lastOpened[b.businessId]);
+        if (byRecency != 0) return byRecency;
         return a.businessName.toLowerCase().compareTo(b.businessName.toLowerCase());
       });
     return groups;
@@ -793,4 +815,24 @@ int manaBusinessRank(List<String> roles) {
   if (isAgent) return 2;
   if (roles.contains('Investor')) return 3;
   return 4;
+}
+
+/// Orders two businesses by when this device last opened them, most recent
+/// first. Returns 0 when neither has been opened, so the caller falls through
+/// to its next tie-break.
+///
+/// A business this device has NEVER opened sorts after one it has. That is the
+/// point: the list is being ordered by where the person has actually been, and
+/// "never" is not recent.
+///
+/// Unparseable timestamps count as never rather than throwing. This is an
+/// ordering preference read out of device storage, and a corrupt value must
+/// cost somebody a nice-to-have, not their business list.
+int manaCompareLastOpened(String? a, String? b) {
+  final ta = a == null ? null : DateTime.tryParse(a);
+  final tb = b == null ? null : DateTime.tryParse(b);
+  if (ta == null && tb == null) return 0;
+  if (ta == null) return 1;
+  if (tb == null) return -1;
+  return tb.compareTo(ta);
 }

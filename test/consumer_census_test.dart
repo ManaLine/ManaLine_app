@@ -130,7 +130,12 @@ const _census = <String, int>{
   // these is the timestamp bug class, and it will show up here as these
   // counts failing to grow alongside the codebase.
   'manaBusinessDate': 17,
-  'manaTimestamp': 9,
+  // 10 since local_auth_store.recordBusinessOpened, checked by opening it:
+  // it stamps when this device last opened a business, for the workspace
+  // list's tie-break. Honours the contract -- manaTimestamp(), not a bare
+  // DateTime.now() -- and its values are only ever compared against others
+  // written by the same call, so consistency is the whole requirement.
+  'manaTimestamp': 10,
 
   // GPS never blocks anything, and every caller depends on that contract.
   'ManaLocation': 7,

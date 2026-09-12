@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import 'mana_time.dart';
 
 /// Result of [decideDeviceFingerprint]: the value to return this call, and
 /// whether [LocalAuthStore.deviceFingerprint] still needs to persist it.
@@ -65,6 +68,13 @@ class LocalAuthStore {
   static const _kDeviceFingerprint = 'mana_device_fingerprint';
   static const _kLastMobileNumber = 'mana_last_mobile_number';
 
+  /// businessId -> when this device last opened it, as ISO-8601.
+  ///
+  /// Ordering data, not credentials. It lives here rather than in a second
+  /// store because adding a whole storage dependency for one map is how an
+  /// app ends up with two answers to "what does this device remember".
+  static const _kBusinessLastOpened = 'mana_business_last_opened';
+
   // Web only: holds the fingerprint for the lifetime of the browser tab.
   // A fingerprint minted per session is the accepted outcome (see
   // deviceFingerprint's doc), but minting one per *login call* would insert
@@ -122,6 +132,47 @@ class LocalAuthStore {
   }
 
   static Future<String?> readLastMobileNumber() => _storage.read(key: _kLastMobileNumber);
+
+  /// Notes that this device just opened [businessId].
+  ///
+  /// The workspace list ranks by what the person IS to each business -- owner
+  /// who works the round, then owner, then agent, then investor, then
+  /// customer -- and businesses of equal standing used to tie. Ties broke on
+  /// name, which is stable but arbitrary: three businesses somebody invests in
+  /// are not meaningfully alphabetical. The one they were last in is the one
+  /// they are most likely to want next.
+  ///
+  /// Best-effort in both directions. A write that fails loses an ordering
+  /// preference, and a read that fails falls back to the name order, so
+  /// neither can keep somebody out of their own businesses.
+  static Future<void> recordBusinessOpened(String businessId) async {
+    if (businessId.isEmpty) return;
+    try {
+      final now = manaTimestamp();
+      final map = await readBusinessOpenTimes();
+      map[businessId] = now;
+      await _storage.write(key: _kBusinessLastOpened, value: jsonEncode(map));
+    } catch (_) {
+      // Ordering is a convenience; never let it break signing in.
+    }
+  }
+
+  /// businessId -> ISO-8601 of the last time this device opened it.
+  static Future<Map<String, String>> readBusinessOpenTimes() async {
+    try {
+      final raw = await _storage.read(key: _kBusinessLastOpened);
+      if (raw == null || raw.isEmpty) return <String, String>{};
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, String>{};
+      return {
+        for (final e in decoded.entries)
+          if (e.value is String) e.key.toString(): e.value as String,
+      };
+    } catch (_) {
+      // Corrupt or unreadable -- the caller falls back to ordering by name.
+      return <String, String>{};
+    }
+  }
 
   /// Native: generated once, persisted, reused on every /auth/login call
   /// from this device forever (LR-007 and LR-009 both need the same value).
@@ -181,4 +232,11 @@ class LocalAuthStore {
   /// to sign in and the remembered number would otherwise pre-fill theirs.
   static Future<void> clearLastMobileNumber() =>
       _storage.delete(key: _kLastMobileNumber);
+
+  /// Forgets which businesses this device has opened.
+  ///
+  /// Goes with "Change User": the next person's list must not be ordered by
+  /// where the last person had been.
+  static Future<void> clearBusinessOpenTimes() =>
+      _storage.delete(key: _kBusinessLastOpened);
 }

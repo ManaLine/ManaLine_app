@@ -71,4 +71,46 @@ void main() {
       expect(first, [4, 0, 3, 1, 2]);
     });
   });
+
+  group('ties break on where the person was last', () {
+    // Rank alone leaves businesses of equal standing free to swap places.
+    // Name is stable but arbitrary -- three businesses somebody invests in are
+    // not meaningfully alphabetical -- so the one they were last in wins.
+    const older = '2026-09-01T10:00:00';
+    const newer = '2026-09-12T10:00:00';
+
+    test('the most recently opened comes first', () {
+      expect(manaCompareLastOpened(newer, older), lessThan(0));
+      expect(manaCompareLastOpened(older, newer), greaterThan(0));
+    });
+
+    test('a business never opened sorts after one that was', () {
+      // "Never" is not recent. The list is ordered by where the person has
+      // actually been.
+      expect(manaCompareLastOpened(null, older), greaterThan(0));
+      expect(manaCompareLastOpened(older, null), lessThan(0));
+    });
+
+    test('two never-opened businesses do not tie-break here', () {
+      // 0 means "I cannot separate these", so the caller falls through to its
+      // next rule -- name. Returning anything else would silently override it.
+      expect(manaCompareLastOpened(null, null), 0);
+    });
+
+    test('a corrupt timestamp counts as never, and does not throw', () {
+      // This is an ordering preference read out of device storage. A bad value
+      // must cost somebody a nice-to-have, not their business list.
+      expect(manaCompareLastOpened('not-a-date', null), 0);
+      expect(manaCompareLastOpened('not-a-date', older), greaterThan(0));
+      expect(manaCompareLastOpened(older, 'not-a-date'), lessThan(0));
+    });
+
+    test('rank still outranks recency', () {
+      // Opening an investor business yesterday must not lift it above the
+      // business you own. Recency only separates equals.
+      expect(manaBusinessRank(['Investor']),
+          greaterThan(manaBusinessRank(['Owner', 'Agent'])),
+          reason: 'recency is a tie-break, not a re-ranking');
+    });
+  });
 }

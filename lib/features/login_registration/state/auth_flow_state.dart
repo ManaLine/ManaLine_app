@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/stored_file.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/mana_token_store.dart';
+import '../../../shared/local_auth_store.dart';
 import '../../../shared/widgets/language_selector.dart';
 
 /// In-memory state carried across the LR-001..LR-013 flow.
@@ -267,6 +268,10 @@ class AuthFlowNotifier extends Notifier<AuthFlowState> {
   /// LR-012 selection (or its single-business auto-collapse).
   void selectBusiness(String businessId) {
     state = state.copyWith(selectedBusinessId: businessId);
+    // Remembered for the workspace list's tie-break: businesses of equal
+    // standing sort by the one this device opened most recently. Fire and
+    // forget -- ordering is a convenience and must never hold up a selection.
+    unawaited(LocalAuthStore.recordBusinessOpened(businessId));
     // Remembered here, where the choice is actually made.
     //
     // It used to be recorded only by router.dart's _resolveBusinessId, inside

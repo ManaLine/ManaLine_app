@@ -642,6 +642,10 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
                       // which is the only credential a different person has.
                       await LocalAuthStore.clearPin();
                       await LocalAuthStore.clearLastMobileNumber();
+                      // And where that person had been. The next person's
+                      // workspace list must not be ordered by the last
+                      // person's habits.
+                      await LocalAuthStore.clearBusinessOpenTimes();
                       if (!mounted) return;
                       ref.read(authFlowProvider.notifier).reset();
                       context.go('/lr-007');

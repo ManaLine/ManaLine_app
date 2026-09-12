@@ -33,7 +33,12 @@ BEGIN
       mobile_number, aadhaar_number, registration_source, customer_type,
       profile_status
     ) VALUES (
-      v_mlid, 'MLPI', '1', 'Karri Siri Manikanta Reddy', 'Not Provided',
+      -- EMPTY, not 'Not Provided'. This column is NOT NULL and the bootstrap
+      -- has no father's name to give it, but a sentence about a missing fact
+      -- is not a value: it reached Universal Search and was drawn in the line
+      -- that identifies a person, beside real names. '' says the same thing
+      -- and the screens that join these fields already drop empty segments.
+      v_mlid, 'MLPI', '1', 'Karri Siri Manikanta Reddy', '',
       '9493509919', '288942496232', 'System', 'New',
       'Incomplete' -- father_husband_name wasn't provided — flagged, edit later if needed
     )

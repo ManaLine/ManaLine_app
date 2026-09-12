@@ -42,9 +42,26 @@ class ManaCustomerRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final flagged = customer.membershipStatus != 'Active';
-    final second = leadWithFatherHusbandName
-        ? '${customer.fatherHusbandName} · ${customer.village} · LRI ${customer.lineRepaymentIndex}'
-        : '${customer.village} · ${customer.mlid} · LRI ${customer.lineRepaymentIndex}';
+    // Joined from the parts that EXIST, rather than interpolated whole.
+    //
+    // A missing father's name used to leave the line starting with " · ", and
+    // a missing village left two separators together in the middle -- which
+    // reads as a rendering fault rather than as an absent fact. Every other
+    // screen that joins these fields already drops empty segments; this one
+    // interpolated them directly and was the odd one out.
+    final second = (leadWithFatherHusbandName
+            ? <String>[
+                customer.fatherHusbandName,
+                customer.village,
+                'LRI ${customer.lineRepaymentIndex}',
+              ]
+            : <String>[
+                customer.village,
+                customer.mlid,
+                'LRI ${customer.lineRepaymentIndex}',
+              ])
+        .where((part) => part.trim().isNotEmpty)
+        .join(' · ');
 
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),

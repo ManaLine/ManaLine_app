@@ -67,17 +67,16 @@ class InvestorApiService {
     //
     // Mirrors app.membership_is_active, which is the authority. Computed here
     // from rows already fetched rather than one RPC per investor.
-    bool hasLiveMoney(Map<String, dynamic> r) {
-      final list = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
-      return list.any((i) =>
-          i['deleted_at'] == null &&
-          i['status'] == 'Active' &&
-          ((i['principal_amount'] as num?) ?? 0) > 0);
-    }
+    //
+    // See [manaInvestorBelongsInRoster] -- lifted out of this method so the
+    // rule can be tested directly instead of through a faked PostgREST.
+    bool belongsInRoster(Map<String, dynamic> r) =>
+        manaInvestorBelongsInRoster(
+            ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>());
 
     return [
       ...pending,
-      ...investors.where(hasLiveMoney).map((r) {
+      ...investors.where(belongsInRoster).map((r) {
         final person = r['persons'] as Map<String, dynamic>;
         final investments = ((r['investments'] as List?) ?? const []).cast<Map<String, dynamic>>();
         final balance =
@@ -930,3 +929,37 @@ final investorProfileProvider =
     AsyncNotifierProvider.family<InvestorProfileNotifier, InvestorProfile, String>(
   InvestorProfileNotifier.new,
 );
+
+/// Whether an investor belongs in their business's roster.
+///
+/// NEVER INVESTED IS NOT THE SAME AS FULLY WITHDRAWN, and the difference could
+/// not exist until recently. The old rule -- "an investor is in this business
+/// while they have money in it" -- was written when the ONLY way to become one
+/// was to invest: approving a membership_request created the investors row and
+/// the first investment together, so zero live money could only ever mean
+/// "withdrew everything". Then the Owner was given a way to ADD an investor
+/// directly, which produces the one state the filter was never asked about: a
+/// real member, holding nothing yet.
+///
+/// Found on a handset. tadi srinivasa reddy, an Active Investor of Sri
+/// Vigneswara Finance with an investors row and no investments, was absent
+/// from the roster he had just been added to. The Owner saw "Request sent", he
+/// accepted, and the list stayed empty with no error anywhere -- because
+/// nothing had failed. Both halves of RLS were verified to pass before this
+/// was found, which is the only reason it was not written off as a permissions
+/// problem.
+///
+/// The two are told apart by whether an investment has EVER existed, not by
+/// the balance they share:
+///
+///   no investment rows at all -> newly added, show them
+///   rows exist but none live  -> fully withdrawn, hide them (unchanged)
+///
+/// Soft-deleted rows do not count as having invested: deleting somebody's only
+/// investment should return them to "added, nothing yet" rather than hide them.
+bool manaInvestorBelongsInRoster(List<Map<String, dynamic>> investments) {
+  final real = investments.where((i) => i['deleted_at'] == null);
+  if (real.isEmpty) return true;
+  return real.any((i) =>
+      i['status'] == 'Active' && ((i['principal_amount'] as num?) ?? 0) > 0);
+}

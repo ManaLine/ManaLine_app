@@ -19,6 +19,8 @@ import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
 import '../state/bulk_onboarding_service.dart';
+import '../state/cheti_state.dart';
+import 'ow_019_cheti_management.dart';
 import 'ow_investor_entry_sheets.dart';
 import 'ow_member_picker.dart';
 
@@ -1995,8 +1997,41 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
     }
   }
 
+  /// Chetis the business is already paying into.
+  ///
+  /// Deliberately NOT a sheet page. Every other page here exists because the
+  /// thing it imports comes in hundreds -- 200 customers, 52 weeks. A book has
+  /// two or three chetis, and asking somebody to build a spreadsheet for three
+  /// rows is the same mistake the one-at-a-time door was built to undo.
+  ///
+  /// OW-019 already takes an opening position (opening_instalments_paid,
+  /// opening_amount_paid, availed_pre_migration) and
+  /// app.record_cheti_payment ADDS that opening count to payments recorded
+  /// afterwards, so stating it and then collecting does not double count.
+  /// What was missing was any mention of chetis on the migration path at all:
+  /// an Owner finishing the wizard had no reason to think of them, and a
+  /// missed cheti is money leaving the till every week that the app cannot
+  /// see.
+  int? _chetiCount;
+  bool _chetisAsked = false;
+
+  Future<void> _refreshChetis() async {
+    if (_chetisAsked) return;
+    _chetisAsked = true;
+    try {
+      final list = await ref
+          .read(chetiApiServiceProvider)
+          .fetchChetis(businessId: widget.businessId);
+      if (mounted) setState(() => _chetiCount = list.length);
+    } catch (_) {
+      // Must not stop an Owner finishing. The row stays at "—", which reads
+      // as not-yet-entered rather than as zero.
+    }
+  }
+
   Widget _finishSection() {
     _refreshGapsOnce();
+    unawaited(_refreshChetis());
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2010,6 +2045,25 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
         _checklistRow('Attendance days recorded', _attendanceRecorded?.recorded),
         _checklistRow('Opening snapshot saved', _snapshot == null ? null : 1),
         _checklistRow('Weeks imported', (_weeklyResult?['weeks'] as num?)?.toInt()),
+        _checklistRow('Chetis recorded',
+            (_chetiCount ?? 0) == 0 ? null : _chetiCount),
+        const SizedBox(height: ManaSpacing.sm),
+        ManaText.raw(ref.t('pre_existing_cheti_note'), style: ManaType.fine),
+        const SizedBox(height: ManaSpacing.sm),
+        OutlinedButton.icon(
+          onPressed: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    ChetiManagementScreen(businessId: widget.businessId),
+              ),
+            );
+            _chetisAsked = false;
+            unawaited(_refreshChetis());
+          },
+          icon: const Icon(Icons.savings_outlined),
+          label: ManaText.raw(ref.t('chetis_you_are_already_paying')),
+        ),
         if (_planGaps.isNotEmpty) ...[
           const SizedBox(height: ManaSpacing.lg),
           ManaText.raw(

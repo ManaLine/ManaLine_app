@@ -26,6 +26,12 @@ void main() {
     'lib/features/owner_workspace/screens/ow_one_by_one_migration.dart',
     'lib/features/owner_workspace/screens/ow_village_book.dart',
     'lib/features/owner_workspace/screens/ow_village_customers.dart',
+    // The two screens that signpost it. ow_018 is where an Owner migrating a
+    // book actually stands, and the wizard's Finish page is the last moment
+    // anything can be added -- both gained cheti labels, and a raw key on
+    // either is the same failure as one inside the door itself.
+    'lib/features/owner_workspace/screens/ow_018_business_migration.dart',
+    'lib/features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart',
   ];
 
   test('no screen in the one-by-one door asks for a key that does not exist', () {

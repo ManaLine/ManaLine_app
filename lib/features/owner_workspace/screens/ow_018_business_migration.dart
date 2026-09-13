@@ -1,3 +1,4 @@
+import 'ow_019_cheti_management.dart';
 import 'ow_one_by_one_migration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -142,6 +143,20 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
       ),
     );
     if (mounted) await _load();
+  }
+
+  /// A cheti that was already running when the book came across.
+  ///
+  /// This is a signpost, not a feature -- OW-019 already takes the opening
+  /// position. It is here because the Owner migrating a book is on this
+  /// screen, and a cheti left out is money going out every week that the app
+  /// never sees.
+  Future<void> _openChetis() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChetiManagementScreen(businessId: widget.businessId),
+      ),
+    );
   }
 
   /// The reasons a started business gets unlocked again.
@@ -354,6 +369,31 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                             onPressed: _openOneByOne,
                             icon: const Icon(Icons.person_outline),
                             label: ManaText.raw(ref.t('enter_one_by_one')),
+                          ),
+                          const SizedBox(height: ManaSpacing.lg),
+                          // The chetis an Owner is already paying into.
+                          //
+                          // OW-019 has always been able to take one: chetis
+                          // carries opening_instalments_paid,
+                          // opening_amount_paid and availed_pre_migration, the
+                          // create form collects all three, and
+                          // app.record_cheti_payment ADDS the opening count to
+                          // the payments recorded since, so stating a position
+                          // and then collecting does not double count.
+                          //
+                          // What was missing is any reason to go there. An
+                          // Owner bringing a book across is on THIS screen,
+                          // and nothing on it mentions chetis -- so two
+                          // running chetis quietly never arrive, and the first
+                          // sign is a BF figure that does not match the till.
+                          ManaText.raw(ref.t('pre_existing_cheti_note'),
+                              style: ManaType.fine),
+                          const SizedBox(height: ManaSpacing.sm),
+                          OutlinedButton.icon(
+                            onPressed: _openChetis,
+                            icon: const Icon(Icons.savings_outlined),
+                            label: ManaText.raw(
+                                ref.t('chetis_you_are_already_paying')),
                           ),
                           const SizedBox(height: ManaSpacing.md),
                         ],

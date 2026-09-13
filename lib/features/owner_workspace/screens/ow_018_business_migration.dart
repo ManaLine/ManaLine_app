@@ -123,8 +123,30 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     await _load();
   }
 
+  /// The reasons a started business gets unlocked again.
+  ///
+  /// A free-text box on its own produced "correction" and "mistake", which
+  /// audits to nothing -- and this reason is the ONLY record of why a locked
+  /// migration was reopened. Each of these is something the migration actually
+  /// captures: investors, agents, customers with their loans, BF and line
+  /// balance.
+  ///
+  /// 'other' keeps the typed box. A list that cannot say "none of these"
+  /// pushes people into picking the nearest wrong answer, which is worse for
+  /// an audit trail than free text.
+  static const _reopenReasonKeys = <String>[
+    'reopen_reason_missed_entry',
+    'reopen_reason_wrong_amount',
+    'reopen_reason_investor_principal',
+    'reopen_reason_agent',
+    'reopen_reason_started_early',
+    'reopen_reason_duplicate',
+    'reopen_reason_other',
+  ];
+
   Future<void> _reopen() async {
     final controller = TextEditingController();
+    String? chosenKey;
     final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -140,13 +162,37 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                 style: ManaType.note,
               ),
               const SizedBox(height: ManaSpacing.md),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLines: 2,
-                decoration: InputDecoration(labelText: ref.t('reason_required_field')),
-                onChanged: (_) => setLocal(() {}),
+              DropdownButtonFormField<String>(
+                initialValue: chosenKey,
+                isExpanded: true,
+                decoration:
+                    InputDecoration(labelText: ref.t('reopen_reason_label')),
+                items: [
+                  for (final key in _reopenReasonKeys)
+                    DropdownMenuItem(
+                      value: key,
+                      // isExpanded above plus this: a Row with an unflexible
+                      // child is the overflow shape, and these sentences are
+                      // longer in Telugu than the box is wide.
+                      child: ManaText.raw(ref.t(key),
+                          maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (v) => setLocal(() => chosenKey = v),
               ),
+              // Only for Other. Showing it always would put an empty box under
+              // a chosen reason and invite somebody to answer twice.
+              if (chosenKey == 'reopen_reason_other') ...[
+                const SizedBox(height: ManaSpacing.md),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  maxLines: 2,
+                  decoration:
+                      InputDecoration(labelText: ref.t('reason_required_field')),
+                  onChanged: (_) => setLocal(() {}),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -154,9 +200,20 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                 onPressed: () => Navigator.pop(dialogContext),
                 child: ManaText.raw(ref.t('cancel'))),
             FilledButton(
-              onPressed: controller.text.trim().isEmpty
+              // A chosen reason is enough; Other needs its text as well.
+              onPressed: chosenKey == null ||
+                      (chosenKey == 'reopen_reason_other' &&
+                          controller.text.trim().isEmpty)
                   ? null
-                  : () => Navigator.pop(dialogContext, controller.text.trim()),
+                  : () => Navigator.pop(
+                        dialogContext,
+                        chosenKey == 'reopen_reason_other'
+                            ? controller.text.trim()
+                            // The ENGLISH sentence, not the key: the audit log
+                            // is read by people, and a row saying
+                            // 'reopen_reason_agent' tells them nothing.
+                            : ref.t(chosenKey!),
+                      ),
               child: ManaText.raw(ref.t('reopen')),
             ),
           ],

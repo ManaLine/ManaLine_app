@@ -178,6 +178,29 @@ const _ow012TeluguTranslations = <String, Map<String, String>>{
   'review': {'English': 'Review', 'Telugu': 'సమీక్షించండి'},
 };
 
+/// Moves the business-detail view forward [index] tabs.
+///
+/// The five-label strip is gone: the screen shows ONE centred section heading
+/// with a chevron each side, so there is no Tab widget to tap and no label for
+/// a tab that is not currently showing. Stepping is the only way there, and it
+/// exercises the control an Owner actually uses.
+///
+/// Scoped to the AppBar because chevron_right is also a row affordance further
+/// down the page -- an unscoped finder would tap a list row and report green
+/// from the tab it never left, which is exactly the failure the old
+/// ensureVisible comment was written about.
+Future<void> stepToTab(WidgetTester tester, int index) async {
+  final forward = find.descendant(
+    of: find.byType(AppBar),
+    matching: find.byIcon(Icons.chevron_right),
+  );
+  for (var step = 0; step < index; step++) {
+    expect(forward, findsOneWidget, reason: 'no way forward from tab $step');
+    await tester.tap(forward);
+    await tester.pumpAndSettle();
+  }
+}
+
 void main() {
   List<Override> listOverrides() => [businessListProvider.overrideWith(_SeededBusinessListNotifier.new)];
   List<Override> detailOverrides() => [
@@ -192,7 +215,11 @@ void main() {
     // Proof it actually opened. Every test below calls this and then only
     // checks layout -- and the LIST also lays out fine, so without this a
     // tap that missed would report green for a detail nobody reached.
-    expect(find.byType(TabBar), findsWidgets,
+    // TabBarView, not TabBar: the five-label strip was replaced by a single
+    // centred heading with a chevron each side, so there is no TabBar and no
+    // Tab widget on this screen any more. The view that holds the tabs is
+    // what proves the detail opened.
+    expect(find.byType(TabBarView), findsWidgets,
         reason: 'the business detail did not open');
   }
 
@@ -227,6 +254,11 @@ void main() {
         overrides: detailOverrides(),
       );
       await openDetail(tester);
+      // Operating Areas is tab 1 now -- Members is first. Without this step
+      // these two would lay out MEMBERS and pass, which is the "reported green
+      // for a detail nobody reached" failure openDetail's own comment warns
+      // about.
+      await stepToTab(tester, 1);
       expectNoLayoutFault(tester, 'OW-012 operating areas at ${scale}x');
     });
 
@@ -240,6 +272,7 @@ void main() {
         overrides: detailOverrides(),
       );
       await openDetail(tester);
+      await stepToTab(tester, 1);
       expectNoLayoutFault(tester, 'OW-012 operating areas at ${scale}x in Telugu');
     });
 
@@ -259,14 +292,7 @@ void main() {
             overrides: detailOverrides(),
           );
           await openDetail(tester);
-          // ensureVisible first: the TabBar scrolls, so a later tab sits
-          // off-screen and a tap with warnIfMissed off lands on nothing
-          // in silence -- which is how these walks reported every tab
-          // clean while never leaving the first one.
-          await tester.ensureVisible(find.byType(Tab).at(i));
-          await tester.pumpAndSettle();
-          await tester.tap(find.byType(Tab).at(i), warnIfMissed: false);
-          await tester.pumpAndSettle();
+          await stepToTab(tester, i);
           expectNoLayoutFault(tester, 'OW-012 detail tab $i at ${scale}x$tag');
         });
       }
@@ -304,46 +330,33 @@ void main() {
     expectNoLayoutFault(tester, 'OW-012 create business at 2.0x in Telugu');
   });
 
+  // Indices follow BusinessDetailTab, which the Owner reordered:
+  // members, operatingAreas, accountPeriods, agreements, lendingRules.
+  // They were (Agreements 1, Members 2, Account Periods 3) under the old
+  // order, so leaving them alone would have walked the wrong tabs while
+  // still reporting green.
   for (final tab in [
-    ('Agreements', 1),
-    ('Members', 2),
-    ('Account Periods', 3),
+    ('Account Periods', 2),
+    ('Agreements', 3),
+    ('Lending Rules', 4),
   ]) {
-    testWidgets('OW-012 ${tab.$1} tab survives text scale 2.0x', (tester) async {
-      await pumpManaScreen(
-        tester,
-        const BusinessManagementScreen(),
-        textScale: 2.0,
-        overrides: detailOverrides(),
-      );
-      await openDetail(tester);
-      final tabText = find.text(tab.$1);
-      await tester.ensureVisible(tabText);
-      await tester.pumpAndSettle();
-      await tester.tap(tabText);
-      await tester.pumpAndSettle();
-      expectNoLayoutFault(tester, 'OW-012 ${tab.$1} at 2.0x');
-    });
-
-    testWidgets('OW-012 ${tab.$1} tab survives text scale 2.0x in Telugu', (tester) async {
-      await pumpManaScreen(
-        tester,
-        const BusinessManagementScreen(),
-        textScale: 2.0,
-        language: ManaLanguage.telugu,
-        translations: _ow012TeluguTranslations,
-        overrides: detailOverrides(),
-      );
-      await openDetail(tester);
-      // TabBar labels are translated too, so find by index via ensureVisible
-      // on the TabBar itself rather than the (now-Telugu) English label text.
-      final tabBar = find.byType(Tab).at(tab.$2);
-      await tester.ensureVisible(tabBar);
-      await tester.pumpAndSettle();
-      await tester.tap(tabBar);
-      await tester.pumpAndSettle();
-      expectNoLayoutFault(tester, 'OW-012 ${tab.$1} at 2.0x in Telugu');
-    });
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets('OW-012 ${tab.$1} tab survives text scale 2.0x$tag',
+          (tester) async {
+        await pumpManaScreen(
+          tester,
+          const BusinessManagementScreen(),
+          textScale: 2.0,
+          language: lang,
+          translations: lang == ManaLanguage.telugu ? _ow012TeluguTranslations : null,
+          overrides: detailOverrides(),
+        );
+        await openDetail(tester);
+        await stepToTab(tester, tab.$2);
+        expectNoLayoutFault(tester, 'OW-012 ${tab.$1} at 2.0x$tag');
+      });
+    }
   }
 
   testWidgets('OW-012 shows the businesses', (tester) async {
@@ -381,6 +394,7 @@ void main() {
           overrides: detailOverrides(),
         );
         await openDetail(tester);
+        await stepToTab(tester, 1); // the area menu lives on Operating Areas
 
         // Below the fold from 1.3x, so it is not built until scrolled to --
         // and the first version of this test returned early when it could not

@@ -574,18 +574,34 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
               ),
             ),
           ],
-          bottom: TabBar(
-            isScrollable: true,
-            onTap: (i) => ref
-                .read(businessDetailProvider(widget.businessId).notifier)
-                .setTab(BusinessDetailTab.values[i]),
-            tabs: [
-              Tab(text: ref.t('operating_areas')),
-              Tab(text: ref.t('agreements')),
-              Tab(text: ref.t('members')),
-              Tab(text: ref.t('account_periods')),
-              Tab(text: ref.t('lending_rules')),
-            ],
+          // ONE HEADING, CENTRED, instead of five labels in a scrolling strip.
+          //
+          // isScrollable meant the strip itself scrolled sideways, so the tabs
+          // past the second were off the edge with nothing saying they were
+          // there -- the Owner had to discover them by dragging a row of text
+          // that did not look draggable. Now the screen names the section it
+          // is showing and puts a chevron on each side, so the fact that there
+          // is more sideways is visible rather than inferred.
+          //
+          // The TabBar itself is GONE, not restyled. Swiping still works
+          // because TabBarView owns that gesture, not the bar, and the
+          // DefaultTabController and its positional mapping to
+          // BusinessDetailTab are untouched -- but nothing here is a TabBar
+          // any more, and anything looking for Tab widgets will not find them.
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(44),
+            child: _TabHeading(
+              labels: [
+                ref.t('members'),
+                ref.t('operating_areas'),
+                ref.t('account_periods'),
+                ref.t('agreements'),
+                ref.t('lending_rules'),
+              ],
+              onChanged: (i) => ref
+                  .read(businessDetailProvider(widget.businessId).notifier)
+                  .setTab(BusinessDetailTab.values[i]),
+            ),
           ),
         ),
         body: state.loading && detail == null
@@ -597,10 +613,10 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
                   )
             : TabBarView(
                 children: [
-                  _OperatingAreasTab(businessId: widget.businessId),
-                  _AgreementsTab(businessId: widget.businessId),
                   _MembersTab(businessId: widget.businessId),
+                  _OperatingAreasTab(businessId: widget.businessId),
                   _AccountPeriodsTab(businessId: widget.businessId),
+                  _AgreementsTab(businessId: widget.businessId),
                   _LendingRulesTab(businessId: widget.businessId),
                 ],
               ),
@@ -1468,12 +1484,39 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
   // Aadhaar or a name, shows the village that tells two people of one name
   // apart, and asks which of the three roles before adding.
 
+  /// Name or village. Name first, because looking somebody up is the commoner
+  /// errand; village is for planning a round.
+  bool _byVillage = false;
+
+  /// Sorted copy, never the provider's list in place.
+  ///
+  /// An empty village sorts LAST rather than first. A member with no current
+  /// address on file is a real state, and burying the addressed majority under
+  /// the unaddressed few would make the sort useless for the round it exists
+  /// for. Name is the tie-break within a village, so a village's people read
+  /// alphabetically too.
+  List<MemberSummary> _sorted(List<MemberSummary> members) {
+    final list = [...members];
+    list.sort((a, b) {
+      if (_byVillage) {
+        final av = a.village.trim().toLowerCase();
+        final bv = b.village.trim().toLowerCase();
+        if (av.isEmpty != bv.isEmpty) return av.isEmpty ? 1 : -1;
+        final byVillage = av.compareTo(bv);
+        if (byVillage != 0) return byVillage;
+      }
+      return a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase());
+    });
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(businessDetailProvider(widget.businessId));
-    final pendingInvitations = state.members.where((m) => m.membershipStatus == 'Pending Invitation').toList();
-    final pendingAcceptance = state.members.where((m) => m.membershipStatus == 'Pending Acceptance').toList();
-    final active = state.members.where((m) => m.membershipStatus == 'Active').toList();
+    final members = _sorted(state.members);
+    final pendingInvitations = members.where((m) => m.membershipStatus == 'Pending Invitation').toList();
+    final pendingAcceptance = members.where((m) => m.membershipStatus == 'Pending Acceptance').toList();
+    final active = members.where((m) => m.membershipStatus == 'Active').toList();
 
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -1487,6 +1530,29 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
                   context.push('/ow-search', extra: widget.businessId),
               icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
               label: ManaText.raw(ref.t('add_a_member')),
+            ),
+          ],
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        Row(
+          children: [
+            ManaText.raw(ref.t('sort_by'), style: ManaType.note),
+            const SizedBox(width: ManaSpacing.sm),
+            // Two choices, both visible. A dropdown would hide the one not
+            // chosen behind a tap, and there are only ever two.
+            Expanded(
+              child: SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(
+                      value: false, label: ManaText.raw(ref.t('sort_by_name'))),
+                  ButtonSegment(
+                      value: true, label: ManaText.raw(ref.t('sort_by_village'))),
+                ],
+                selected: {_byVillage},
+                showSelectedIcon: false,
+                onSelectionChanged: (v) =>
+                    setState(() => _byVillage = v.first),
+              ),
             ),
           ],
         ),
@@ -1551,7 +1617,17 @@ class _MemberRow extends ConsumerWidget {
       child: ListTile(
         leading: const ManaVerificationRing(isVerified: true, size: 36),
         title: ManaText.raw(member.fullName),
-        subtitle: ManaText.raw(member.role),
+        // Role and village, joined from the parts that exist. The village is
+        // what the Village sort orders by, and a sort you cannot see the key
+        // of looks like it did nothing.
+        subtitle: ManaText.raw(
+          [
+            member.role,
+            if (member.village.isNotEmpty) member.village,
+          ].join(' · '),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: member.role == 'Owner'
             ? ManaStatusPill(label: member.membershipStatus, status: _statusKind)
             : Row(
@@ -1730,6 +1806,120 @@ class _AccountPeriodsTab extends ConsumerWidget {
                 ),
               )),
       ],
+    );
+  }
+}
+
+/// The name of the section on screen, with an arrow on each side saying there
+/// are more.
+///
+/// Replaces a scrollable TabBar whose later tabs sat off the right edge with
+/// nothing indicating they existed. This draws one label at a time and keeps
+/// the TabController driving it, so swiping still works and the index -> enum
+/// mapping is untouched.
+class _TabHeading extends StatefulWidget {
+  final List<String> labels;
+  final ValueChanged<int> onChanged;
+  const _TabHeading({required this.labels, required this.onChanged});
+
+  @override
+  State<_TabHeading> createState() => _TabHeadingState();
+}
+
+class _TabHeadingState extends State<_TabHeading> {
+  TabController? _controller;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = DefaultTabController.of(context);
+    if (identical(controller, _controller)) return;
+    _controller?.removeListener(_onTab);
+    _controller = controller..addListener(_onTab);
+  }
+
+  void _onTab() {
+    if (!mounted) return;
+    setState(() {});
+    // indexIsChanging is true mid-animation; the provider wants the settled
+    // index, and reporting both would record a tab nobody stopped on.
+    if (!_controller!.indexIsChanging) widget.onChanged(_controller!.index);
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onTab);
+    super.dispose();
+  }
+
+  void _step(int by) {
+    final c = _controller;
+    if (c == null) return;
+    final next = c.index + by;
+    if (next < 0 || next >= widget.labels.length) return;
+    c.animateTo(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final index = _controller?.index ?? 0;
+    final atStart = index == 0;
+    final atEnd = index == widget.labels.length - 1;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: ManaSpacing.xs),
+      child: Row(
+        children: [
+          // Tappable as well as visible. The arrows are the affordance, but
+          // somebody who has noticed them will try pressing them.
+          IconButton(
+            onPressed: atStart ? null : () => _step(-1),
+            icon: const Icon(Icons.chevron_left),
+            tooltip: atStart ? null : widget.labels[index - 1],
+          ),
+          // Flexible between two fixed-width buttons -- the shape that does
+          // not overflow when a Telugu section name is longer than the gap.
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ManaText.raw(
+                  widget.labels[index],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: ManaType.cardTitle,
+                ),
+                const SizedBox(height: 4),
+                // Which of five, at a glance. A person who cannot see the
+                // labels either side still knows how much is left.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < widget.labels.length; i++)
+                      Container(
+                        width: 6,
+                        height: 6,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == index
+                              ? ManaColors.brand
+                              : ManaColors.textDisabled,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: atEnd ? null : () => _step(1),
+            icon: const Icon(Icons.chevron_right),
+            tooltip: atEnd ? null : widget.labels[index + 1],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -90,6 +90,22 @@ List<ManaDrawerSection> _ownerDrawerSections(
         ),
       ],
     ),
+    // EVERYONE, in one list. Agents, investors and customers each have their
+    // own screen above; nothing showed the whole book's people together, so
+    // "who is in this business" could only be answered three screens at a
+    // time. Opens Business Management on its Members tab -- the roster that
+    // already exists, rather than a second one to keep in step with it.
+    ManaDrawerSection(
+      icon: Icons.groups_outlined,
+      labelKey: 'members',
+      actions: [
+        ManaDrawerAction(
+          labelKey: 'members',
+          onTap: () =>
+              context.push('/ow-012?tab=members', extra: businessId),
+        ),
+      ],
+    ),
     // --- Everything below was the header's overflow (kebab) menu ---------
     //
     // That menu is gone. It duplicated the drawer's job — two different
@@ -157,15 +173,9 @@ class _OwnerHomeDashboardScreenState
       ref.read(ownerDashboardProvider.notifier).load(widget.businessId);
 
 
-  /// Add somebody to the business, and carry straight on to a loan if that is
-  /// what was asked for.
-  Future<void> _addCustomer(BuildContext context) async {
-    final customerId =
-        await context.push<String?>('/customer-new', extra: widget.businessId);
-    if (customerId == null || !context.mounted) return;
-    if (!mounted) return;
-    context.push('/ow-005?customerId=$customerId', extra: widget.businessId);
-  }
+  // _addCustomer went with the + above. The add-then-lend flow it opened is
+  // NOT lost: /customer-new still ends with that choice, and the header + on
+  // every customer screen still routes there. Home simply is not one of them.
 
   @override
   Widget build(BuildContext context) {
@@ -201,19 +211,18 @@ class _OwnerHomeDashboardScreenState
         // which reads both directions live via app.my_inbox_actions and works
         // the same in every workspace.
         const ManaNotificationBell(),
-        // The same + that every other Owner screen's header carries. This
-        // screen builds its own actions because its header is the coloured
-        // ManaHeaderBlock rather than a ManaAppBar, so the route-based
-        // installation does not reach it -- but the person using it must not
-        // be able to tell.
-        // Adds a customer, like every other + in the app. Recording an
-        // expense moved to the drawer.
-        ManaHeaderAction(
-          icon: Icons.add,
-          bold: true,
-          label: ref.t('add_a_customer'),
-          onPressed: () => _addCustomer(context),
-        ),
+        // NO + ON HOME, deliberately, and this is the one screen where that
+        // is right.
+        //
+        // The + means "add a member of THIS SCREEN's kind" -- an Agent on
+        // Workforce, an Investor on Investor Management, a Customer on a
+        // customer screen. Home has no kind. A + here would have to ask which
+        // role, which is exactly what the magnifier beside it already does, so
+        // the two would be one button drawn twice.
+        //
+        // Removing it rather than renaming it keeps + meaning one thing
+        // everywhere it appears. On Home the magnifier is the way in: it finds
+        // anyone and asks.
         ManaHeaderAction(
           icon: Icons.search,
           label: 'Universal Search',
@@ -1456,6 +1465,9 @@ class _QuickActionsState extends ConsumerState<_QuickActions> {
             'filter=Pending%20Acceptance'
           ),
           (Icons.savings_outlined, ref.t('investor_management'), '/ow-003', null),
+          // After the investor entries, per the Owner: the whole book's people
+          // in one place, sortable by name or by village.
+          (Icons.groups_outlined, ref.t('members'), '/ow-012', 'tab=members'),
           // BUG FIXED this pass: investment_withdrawal_requests had a
           // real INSERT path with no reachable Owner review screen at
           // all — requests sat Pending forever.

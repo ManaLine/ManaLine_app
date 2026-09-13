@@ -585,17 +585,49 @@ class BusinessManagementApiService {
     if (role != null) query = query.eq('role', role);
     if (status != null) query = query.eq('membership_status', status);
     final rows = await query;
-    return (rows as List)
-        .map((r) => MemberSummary(
-              membershipId: r['membership_id'] as String,
-              personId: (r['person_id'] as int).toString(),
-              // Same shape, same reason as fetchMembershipRequests below.
-              fullName: titleCaseName(
-                  (r['persons'] as Map<String, dynamic>?)?['full_name'] as String? ?? ''),
-              role: r['role'] as String,
-              membershipStatus: r['membership_status'] as String,
-            ))
-        .toList();
+    final list = (rows as List).cast<Map<String, dynamic>>();
+
+    // Villages in a SECOND query rather than a nested embed.
+    //
+    // business_members -> persons -> person_addresses -> locations is two
+    // levels deep, and this file already carries the scar of the first level:
+    // business_members has two FKs to persons, so the embed above has to name
+    // one or PostgREST answers PGRST201 on every call. Two plain queries
+    // cannot be ambiguous -- the same reasoning Universal Search records for
+    // its own customers lookup.
+    //
+    // The locations embed names its FK too. person_addresses has exactly one
+    // FK to locations today; naming it costs nothing and does not depend on
+    // that staying true.
+    final personIds = [for (final r in list) r['person_id'] as int];
+    final villageByPerson = <String, String>{};
+    if (personIds.isNotEmpty) {
+      final addressRows = await _db
+          .from('person_addresses')
+          .select('person_id, locations!fk_person_addresses_village(village_town_name)')
+          .inFilter('person_id', personIds)
+          .eq('is_current', true);
+      for (final a in (addressRows as List).cast<Map<String, dynamic>>()) {
+        final village = (a['locations'] as Map<String, dynamic>?)?['village_town_name']
+            as String?;
+        if (village == null || village.trim().isEmpty) continue;
+        villageByPerson[(a['person_id'] as int).toString()] = village.trim();
+      }
+    }
+
+    return list.map((r) {
+      final personId = (r['person_id'] as int).toString();
+      return MemberSummary(
+        membershipId: r['membership_id'] as String,
+        personId: personId,
+        // Same shape, same reason as fetchMembershipRequests below.
+        fullName: titleCaseName(
+            (r['persons'] as Map<String, dynamic>?)?['full_name'] as String? ?? ''),
+        role: r['role'] as String,
+        membershipStatus: r['membership_status'] as String,
+        village: villageByPerson[personId] ?? '',
+      );
+    }).toList();
   }
 
   Future<void> addExistingMember({
@@ -1148,12 +1180,19 @@ class MemberSummary {
   final String fullName;
   final String role; // 'Agent' | 'Investor' | 'Customer'
   final String membershipStatus;
+
+  /// Their current village, for sorting the roster by where people are rather
+  /// than only by name. Empty when no current address is on file -- which is
+  /// a real state, not an error, and sorts last rather than being hidden.
+  final String village;
+
   MemberSummary({
     required this.membershipId,
     required this.personId,
     required this.fullName,
     required this.role,
     required this.membershipStatus,
+    this.village = '',
   });
 }
 
@@ -1313,7 +1352,17 @@ final createBusinessFormProvider = NotifierProvider<CreateBusinessFormNotifier, 
 // Periods tabs), keyed per business via a Family notifier.
 // ============================================================================
 
-enum BusinessDetailTab { operatingAreas, agreements, members, accountPeriods, lendingRules }
+/// DECLARATION ORDER IS THE TAB ORDER, and that is load-bearing.
+///
+/// ow_012 maps between the two positionally in both directions --
+/// `BusinessDetailTab.values.indexOf(initialTab)` to open on a tab, and
+/// `BusinessDetailTab.values[i]` to record the one just tapped. Reordering the
+/// TabBar without reordering this enum would silently record the wrong tab.
+///
+/// Ordered as the Owner asked: who is in the business first, then where it
+/// works, then its periods, then its paperwork, then its rules -- widening
+/// from people to policy.
+enum BusinessDetailTab { members, operatingAreas, accountPeriods, agreements, lendingRules }
 
 class BusinessDetailState {
   final BusinessDetail? detail;
@@ -1334,7 +1383,7 @@ class BusinessDetailState {
     this.members = const [],
     this.membershipRequests = const [],
     this.accountPeriods = const [],
-    this.activeTab = BusinessDetailTab.operatingAreas,
+    this.activeTab = BusinessDetailTab.members,
     this.loading = false,
     this.submitting = false,
     this.error,

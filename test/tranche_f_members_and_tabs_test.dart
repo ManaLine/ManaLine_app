@@ -70,8 +70,30 @@ void main() {
       // they existed.
       expect(ow012, isNot(contains('isScrollable: true')),
           reason: 'the scrolling label strip is back');
-      expect(ow012, contains('Icons.chevron_left'));
-      expect(ow012, contains('Icons.chevron_right'));
+      // The heading moved out of this file and into a shared widget when the
+      // one-by-one migration door needed the same control. Asserting on
+      // ow012's own source would now pass for the wrong reason -- it would go
+      // green if the header were deleted entirely -- so this checks the two
+      // halves that actually matter: this screen still uses it, and it still
+      // draws an arrow on each side.
+      expect(ow012, contains('ManaTabHeading('));
+      final heading =
+          File('lib/shared/widgets/mana_tab_heading.dart').readAsStringSync();
+      expect(heading, contains('Icons.chevron_left'));
+      expect(heading, contains('Icons.chevron_right'));
+    });
+
+    test('the migration door uses the same heading, not a copy of it', () {
+      // Two copies of a paging header is how two screens end up disagreeing
+      // about what an arrow means. The door dropped a SegmentedButton for
+      // this precisely because three segments could not hold
+      // "Customers & Loans" on a real handset.
+      final door = File(
+              'lib/features/owner_workspace/screens/ow_one_by_one_migration.dart')
+          .readAsStringSync();
+      expect(door, contains('ManaTabHeading('));
+      expect(door, isNot(contains('SegmentedButton<ManaEntryStage>')),
+          reason: 'the segmented stage picker is back');
     });
   });
 

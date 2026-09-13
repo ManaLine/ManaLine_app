@@ -12,6 +12,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/bulk_onboarding_service.dart';
 import '../state/village_book_summary.dart';
+import '../../../shared/widgets/mana_tab_heading.dart';
 import 'ow_investor_entry_sheets.dart';
 import 'ow_village_book.dart';
 import 'ow_village_customers.dart';
@@ -139,31 +140,29 @@ class OneByOneMigrationScreen extends ConsumerStatefulWidget {
 class _OneByOneMigrationScreenState
     extends ConsumerState<OneByOneMigrationScreen> {
   late ManaEntryStage _stage = widget.initialStage;
-  late final PageController _pages = PageController();
 
   List<ManaMemberRef> _people = const [];
   bool _loading = true;
-  int _index = 0;
 
   /// The day the old book stops. An investment cannot sensibly be dated after
   /// the handover, and the sheet enforces that when it is known.
   DateTime? _cutoff;
 
-  /// MLIDs entered in this sitting, so a page can say so rather than looking
+  /// MLIDs entered in this sitting, so a row can say so rather than looking
   /// identical before and after. Not persistence -- reopening re-reads the
   /// server, and the server is the authority on what is already in the book.
   final Set<String> _done = <String>{};
+
+  /// The one row currently open for entry, or null with the list closed.
+  ///
+  /// One at a time on purpose: two forms open at once on a 360dp screen means
+  /// neither is readable, and the Owner is doing one person's entry.
+  String? _openMlid;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadStage());
-  }
-
-  @override
-  void dispose() {
-    _pages.dispose();
-    super.dispose();
   }
 
   Future<void> _loadStage() async {
@@ -198,14 +197,19 @@ class _OneByOneMigrationScreenState
               ? people
               : people.where((p) => p.mlid == widget.onlyMlid).toList();
       _loading = false;
-      _index = 0;
+      // A single-person door has nothing to choose, so its one row opens
+      // itself rather than asking for a tap that has only one answer.
+      _openMlid = widget.onlyMlid;
     });
-    if (_pages.hasClients) _pages.jumpToPage(0);
   }
 
-  Future<void> _switchStage(ManaEntryStage next) async {
+  Future<void> _switchStage(int index) async {
+    final next = ManaEntryStage.values[index];
     if (next == _stage) return;
-    setState(() => _stage = next);
+    setState(() {
+      _stage = next;
+      _openMlid = null;
+    });
     await _loadStage();
   }
 
@@ -217,10 +221,7 @@ class _OneByOneMigrationScreenState
     //
     // Returned INSTEAD of this screen rather than nested inside it: the
     // customer form lives on its own Scaffold, and placing it in this one's
-    // body would stack two app bars. Without this branch the customer case
-    // fell through to _personPage, whose customers arm is an empty SizedBox --
-    // the door would have opened on a blank page, which is exactly the failure
-    // the "walk the path a fix makes reachable" rule is about.
+    // body would stack two app bars.
     if (single && _stage == ManaEntryStage.customers) {
       return _SingleCustomerEntry(
         businessId: widget.businessId,
@@ -228,57 +229,51 @@ class _OneByOneMigrationScreenState
       );
     }
 
-    return Scaffold(
+    final body = Scaffold(
       appBar: ManaAppBar(title: ref.t('enter_one_by_one')),
       body: SafeArea(
         child: Column(
           children: [
+            // THE STAGE PICKER IS THE ARROW HEADING, NOT A SEGMENTED BUTTON.
+            //
+            // Three segments could not hold "Customers & Loans" -- it
+            // ellipsised to "Customer..." on a real handset -- and the same
+            // header already names one section at a time on OW-012. Shared
+            // rather than copied, so an arrow means the same thing in both.
+            //
             // Hidden for a single entry: there is one person and one stage,
             // and offering to move between three would invite somebody to
             // wander off the errand they came for.
-            if (!single) _stagePicker(),
-            if (_stage == ManaEntryStage.customers && widget.onlyMlid == null)
-              Expanded(
-                child: VillageBookList(businessId: widget.businessId),
-              )
-            else if (_loading)
-              const Expanded(child: Center(child: CircularProgressIndicator()))
-            else if (_people.isEmpty)
-              Expanded(child: _emptyStage())
-            else ...[
-              Expanded(
-                child: PageView.builder(
-                  controller: _pages,
-                  itemCount: _people.length,
-                  onPageChanged: (i) => setState(() => _index = i),
-                  itemBuilder: (context, i) => _personPage(_people[i]),
-                ),
+            if (!single)
+              ManaTabHeading(
+                labels: [
+                  for (final stage in ManaEntryStage.values)
+                    ref.t(stage.labelKey),
+                ],
+                onChanged: _switchStage,
               ),
-              if (!single) _position(),
-            ],
+            Expanded(
+              child: _stage == ManaEntryStage.customers
+                  ? VillageBookList(businessId: widget.businessId)
+                  : _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _people.isEmpty
+                          ? _emptyStage()
+                          : _peopleList(),
+            ),
           ],
         ),
       ),
     );
-  }
 
-  Widget _stagePicker() => Padding(
-        padding: const EdgeInsets.fromLTRB(
-            ManaSpacing.lg, ManaSpacing.md, ManaSpacing.lg, ManaSpacing.sm),
-        child: SegmentedButton<ManaEntryStage>(
-          segments: [
-            for (final stage in ManaEntryStage.values)
-              ButtonSegment(
-                value: stage,
-                label: ManaText.raw(ref.t(stage.labelKey),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-              ),
-          ],
-          selected: {_stage},
-          showSelectedIcon: false,
-          onSelectionChanged: (v) => _switchStage(v.first),
-        ),
-      );
+    // A single entry has no stages to move between, so it needs no controller.
+    if (single) return body;
+    return DefaultTabController(
+      length: ManaEntryStage.values.length,
+      initialIndex: ManaEntryStage.values.indexOf(widget.initialStage),
+      child: body,
+    );
+  }
 
   Widget _emptyStage() => Padding(
         padding: const EdgeInsets.all(ManaSpacing.xxl),
@@ -293,48 +288,69 @@ class _OneByOneMigrationScreenState
         ),
       );
 
-  Widget _position() => Padding(
-        padding: const EdgeInsets.only(bottom: ManaSpacing.md),
-        child: ManaText.raw(
-          ref
-              .t('person_of_total')
-              .replaceAll('{n}', '${_index + 1}')
-              .replaceAll('{total}', '${_people.length}'),
-          style: ManaType.note,
-        ),
+  /// Everybody in this stage, in one list, with one row open at a time.
+  ///
+  /// This replaced a PageView of one person per page. Swiping meant an Owner
+  /// could not see who was left, could not reach the fourth person without
+  /// passing the second and third, and had no way to tell a stage of one from
+  /// a stage of twenty except a "1 of 1" counter under it -- which is why the
+  /// counter existed and why it goes with the swiping.
+  Widget _peopleList() => ListView.builder(
+        padding: const EdgeInsets.all(ManaSpacing.lg),
+        itemCount: _people.length,
+        itemBuilder: (context, i) => _personRow(_people[i]),
       );
 
-  /// One person, one page: who they are, then what this stage asks of them.
-  Widget _personPage(ManaMemberRef who) => ListView(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
+  Widget _personRow(ManaMemberRef who) {
+    final open = _openMlid == who.mlid;
+    final done = _done.contains(who.mlid);
+    return Card(
+      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw(who.fullName, style: ManaType.sheetTitle),
-          const SizedBox(height: ManaSpacing.xs),
-          ManaText.raw(
-            [
-              who.mlid,
-              if ((who.village ?? '').isNotEmpty) who.village!,
-            ].join(' · '),
-            style: ManaType.note,
+          ListTile(
+            title: ManaText.raw(who.fullName),
+            subtitle: ManaText.raw(
+              [
+                who.mlid,
+                if ((who.village ?? '').isNotEmpty) who.village!,
+              ].join(' - '),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: ManaType.note,
+            ),
+            trailing: done
+                ? Icon(Icons.check_circle,
+                    size: 20, color: ManaColors.statusGood)
+                : Icon(open ? Icons.expand_less : Icons.expand_more),
+            onTap: widget.onlyMlid != null
+                ? null
+                : () => setState(() => _openMlid = open ? null : who.mlid),
           ),
-          const SizedBox(height: ManaSpacing.lg),
-          if (_done.contains(who.mlid))
-            ManaText.raw(ref.t('entered_in_this_sitting'),
-                style: TextStyle(color: ManaColors.statusGood, fontSize: 13))
-          else
-            switch (_stage) {
-              ManaEntryStage.investors => _investorAction(who),
-              ManaEntryStage.agents => _AgentShortEntry(
-                    businessId: widget.businessId,
-                    mlid: who.mlid,
-                  ),
-              // The customer stage is not a list of people at all -- see
-              // _customerStage, which groups the book by village. This branch
-              // is unreachable, because that stage never builds person pages.
-              ManaEntryStage.customers => const SizedBox.shrink(),
-            },
+          if (open)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.lg),
+              child: done
+                  ? ManaText.raw(ref.t('entered_in_this_sitting'),
+                      style:
+                          TextStyle(color: ManaColors.statusGood, fontSize: 13))
+                  : switch (_stage) {
+                      ManaEntryStage.investors => _investorAction(who),
+                      ManaEntryStage.agents => _AgentShortEntry(
+                          businessId: widget.businessId,
+                          mlid: who.mlid,
+                        ),
+                      // The customer stage is a village book, not a list of
+                      // people, so it never builds these rows.
+                      ManaEntryStage.customers => const SizedBox.shrink(),
+                    },
+            ),
         ],
-      );
+      ),
+    );
+  }
 
   /// The investor stage, which is mostly a host for a sheet that already
   /// exists. InvestmentSheet collects amount, ROI, interest type, date and

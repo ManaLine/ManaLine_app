@@ -46,9 +46,7 @@ class VillageCustomersScreen extends ConsumerStatefulWidget {
 
 class _VillageCustomersScreenState
     extends ConsumerState<VillageCustomersScreen> {
-  late final PageController _pages = PageController();
   late List<ManaLoanPosition> _positions = widget.positions;
-  int _index = 0;
 
   /// MLIDs saved in this sitting, so a page says so rather than looking
   /// identical before and after.
@@ -56,7 +54,7 @@ class _VillageCustomersScreenState
 
   @override
   void dispose() {
-    _pages.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -128,37 +126,109 @@ class _VillageCustomersScreenState
     await _reload();
   }
 
+  /// What the Owner has typed into the header search, lower-cased.
+  ///
+  /// A village of fifteen is a list you read; a village of sixty is a list you
+  /// scroll past the person you wanted. Name and MLID both, because an Owner
+  /// looking somebody up has whichever of the two they happen to remember.
+  String _query = '';
+  bool _searching = false;
+  final _search = TextEditingController();
+
+  List<_Customer> get _matching {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return _customers;
+    return _customers
+        .where((c) =>
+            c.fullName.toLowerCase().contains(q) ||
+            c.mlid.toLowerCase().contains(q))
+        .toList();
+  }
+
+  /// The one row open for entry, or null with the list closed.
+  String? _openMlid;
+
   @override
   Widget build(BuildContext context) {
-    final customers = _customers;
+    final all = _customers;
+    final customers = _matching;
 
     return Scaffold(
-      appBar: ManaAppBar(title: widget.title),
+      appBar: ManaAppBar(
+        title: widget.title,
+        // The search lives in the header's right edge, where every other
+        // screen in this app puts one, and only appears once there is a list
+        // to search. A magnifier over an empty village is a control that
+        // cannot do anything.
+        actions: all.isEmpty
+            ? const []
+            : [
+                IconButton(
+                  icon: Icon(_searching ? Icons.close : Icons.search),
+                  onPressed: () => setState(() {
+                    _searching = !_searching;
+                    if (!_searching) {
+                      _search.clear();
+                      _query = '';
+                    }
+                  }),
+                ),
+              ],
+      ),
       body: SafeArea(
-        child: customers.isEmpty
+        child: all.isEmpty
             ? Center(
                 child: ManaText.raw(ref.t('nobody_in_this_stage_yet'),
                     style: ManaType.secondary),
               )
             : Column(
                 children: [
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pages,
-                      itemCount: customers.length,
-                      onPageChanged: (i) => setState(() => _index = i),
-                      itemBuilder: (context, i) => _page(customers[i]),
+                  if (_searching)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(ManaSpacing.lg,
+                          ManaSpacing.sm, ManaSpacing.lg, 0),
+                      child: TextField(
+                        controller: _search,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search),
+                          labelText: ref.t('search_by_name_or_mlid'),
+                        ),
+                        onChanged: (v) => setState(() => _query = v),
+                      ),
+                    ),
+                  // The count is the reconfirmation the Owner asked for: a
+                  // village they believe holds eighteen people should say
+                  // eighteen. While a search is narrowing it, it says how many
+                  // of how many, so a filtered list is never mistaken for the
+                  // whole village.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(ManaSpacing.lg,
+                        ManaSpacing.sm, ManaSpacing.lg, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: ManaText.raw(
+                        customers.length == all.length
+                            ? ref
+                                .t('customers_count_note')
+                                .replaceAll('{count}', '${all.length}')
+                            : '${customers.length} / ${all.length}',
+                        style: ManaType.note,
+                      ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: ManaSpacing.md),
-                    child: ManaText.raw(
-                      ref
-                          .t('person_of_total')
-                          .replaceAll('{n}', '${_index + 1}')
-                          .replaceAll('{total}', '${customers.length}'),
-                      style: ManaType.note,
-                    ),
+                  Expanded(
+                    child: customers.isEmpty
+                        ? Center(
+                            child: ManaText.raw(
+                                ref.t('no_matching_customer_note'),
+                                style: ManaType.secondary),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(ManaSpacing.lg),
+                            itemCount: customers.length,
+                            itemBuilder: (context, i) => _row(customers[i]),
+                          ),
                   ),
                 ],
               ),
@@ -166,54 +236,79 @@ class _VillageCustomersScreenState
     );
   }
 
-  Widget _page(_Customer who) => ListView(
-        padding: const EdgeInsets.all(ManaSpacing.lg),
+  /// One customer, closed until tapped.
+  ///
+  /// This replaced a PageView of one customer per page. In a village of
+  /// twenty, reaching the last person meant swiping past nineteen, and the
+  /// only thing saying how many there were was a "1 of 20" counter beneath.
+  /// A list answers both questions by existing.
+  Widget _row(_Customer who) {
+    final open = _openMlid == who.mlid;
+    final saved = _savedNow.contains(who.mlid);
+    return Card(
+      margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ManaText.raw(who.fullName, style: ManaType.sheetTitle),
-          const SizedBox(height: ManaSpacing.xs),
-          ManaText.raw(who.mlid, style: ManaType.note),
-          const SizedBox(height: ManaSpacing.lg),
-
-          // What this person already carries. Shown before the button, because
-          // the question an Owner asks at this page is "have I done them yet".
-          if (who.loans.isNotEmpty) ...[
-            ManaText.raw(
-              ref
-                  .t('loans_already_entered')
-                  .replaceAll('{count}', '${who.loans.length}'),
+          ListTile(
+            title: ManaText.raw(who.fullName),
+            subtitle: ManaText.raw(
+              who.loans.isEmpty
+                  ? who.mlid
+                  : '${who.mlid} - ${ref.t('loans_already_entered').replaceAll('{count}', '${who.loans.length}')}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: ManaType.note,
             ),
-            const SizedBox(height: ManaSpacing.xs),
-            for (final loan in who.loans)
-              Card(
-                child: ListTile(
-                  dense: true,
-                  title: ManaAmount.compact(loan.balance,
-                      semanticLabel: ref.t('remaining_balance')),
-                  subtitle: ManaText.raw(
-                    loan.lastCollection == null
-                        ? ref.t('no_collections_yet')
-                        : manaDisplayDate(loan.lastCollection),
-                    style: ManaType.note,
-                  ),
-                ),
-              ),
-            const SizedBox(height: ManaSpacing.md),
-          ],
-
-          if (_savedNow.contains(who.mlid)) ...[
-            ManaText.raw(ref.t('entered_in_this_sitting'),
-                style: TextStyle(color: ManaColors.statusGood, fontSize: 13)),
-            const SizedBox(height: ManaSpacing.sm),
-          ],
-
-          FilledButton.icon(
-            onPressed: () => _addLoan(who),
-            icon: const Icon(Icons.add, size: 18),
-            label: ManaText.raw(ref.t('add_loan')),
+            trailing: saved
+                ? Icon(Icons.check_circle,
+                    size: 20, color: ManaColors.statusGood)
+                : Icon(open ? Icons.expand_less : Icons.expand_more),
+            onTap: () => setState(() => _openMlid = open ? null : who.mlid),
           ),
+          if (open)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // What this person already carries, before the button:
+                  // the question an Owner asks on opening a row is "have I
+                  // done them yet".
+                  for (final loan in who.loans)
+                    Card(
+                      margin: const EdgeInsets.only(bottom: ManaSpacing.xs),
+                      child: ListTile(
+                        dense: true,
+                        title: ManaAmount.compact(loan.balance,
+                            semanticLabel: ref.t('remaining_balance')),
+                        subtitle: ManaText.raw(
+                          loan.lastCollection == null
+                              ? ref.t('no_collections_yet')
+                              : manaDisplayDate(loan.lastCollection),
+                          style: ManaType.note,
+                        ),
+                      ),
+                    ),
+                  if (saved) ...[
+                    ManaText.raw(ref.t('entered_in_this_sitting'),
+                        style: TextStyle(
+                            color: ManaColors.statusGood, fontSize: 13)),
+                    const SizedBox(height: ManaSpacing.sm),
+                  ],
+                  FilledButton.icon(
+                    onPressed: () => _addLoan(who),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: ManaText.raw(ref.t('add_loan')),
+                  ),
+                ],
+              ),
+            ),
         ],
-      );
+      ),
+    );
+  }
 }
 
 class _Customer {

@@ -87,7 +87,11 @@ class _VillageBookListState extends ConsumerState<VillageBookList> {
       return Padding(
         padding: const EdgeInsets.all(ManaSpacing.xxl),
         child: Center(
-          child: ManaText.raw(ref.t('nothing_entered_for_this_village_yet'),
+          // NOT "nothing entered for this village": there is no village on
+          // screen at this point. This is the whole book coming back empty,
+          // which on a business with no customers yet is the correct answer
+          // and not an error -- so it says which of the two it means.
+          child: ManaText.raw(ref.t('nobody_in_this_stage_yet'),
               textAlign: TextAlign.center, style: ManaType.secondary),
         ),
       );

@@ -6,6 +6,8 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
+import '../../../design/components/mana_amount.dart';
+import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/bulk_onboarding_service.dart';
@@ -305,8 +307,10 @@ class _OneByOneMigrationScreenState
           else
             switch (_stage) {
               ManaEntryStage.investors => _investorAction(who),
-              // Tasks 3 and 4.
-              ManaEntryStage.agents => const SizedBox.shrink(),
+              ManaEntryStage.agents => _AgentShortEntry(
+                    businessId: widget.businessId,
+                    mlid: who.mlid,
+                  ),
               // The customer stage is not a list of people at all -- see
               // _customerStage, which groups the book by village. This branch
               // is unreachable, because that stage never builds person pages.
@@ -352,5 +356,182 @@ class _OneByOneMigrationScreenState
     // skipped counts as done: the server found it already in the book, which
     // is the normal result of going through somebody twice.
     setState(() => _done.add(who.mlid));
+  }
+}
+
+/// The agent stage: one number, or nothing at all.
+///
+/// Everything else about an agent's past is settled before the book comes
+/// across -- that is why attendance was taken OUT of this door rather than
+/// built into it. A short is the exception: money the agent owes the business
+/// on the day it changes hands, and still live afterwards.
+///
+/// It loads its own figure rather than being handed one, because it is the
+/// only thing on this page and the stage's member list carries names, not
+/// money. Reloading after a write is what makes the "outstanding since" line
+/// and the Mark Recovered button agree with the server instead of with what
+/// was just typed.
+class _AgentShortEntry extends ConsumerStatefulWidget {
+  final String businessId;
+  final String mlid;
+  const _AgentShortEntry({required this.businessId, required this.mlid});
+
+  @override
+  ConsumerState<_AgentShortEntry> createState() => _AgentShortEntryState();
+}
+
+class _AgentShortEntryState extends ConsumerState<_AgentShortEntry> {
+  final _amount = TextEditingController();
+  ManaAgentShort? _short;
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final s = await NetworkErrorHandler.run(context, () async {
+      return ref.read(bulkOnboardingServiceProvider).agentOpeningShort(
+            businessId: widget.businessId,
+            mlid: widget.mlid,
+          );
+    });
+    if (!mounted) return;
+    setState(() {
+      _short = s;
+      _loading = false;
+      // Prefill only while it is still owed. Showing a recovered figure in an
+      // editable box invites somebody to save it again and reopen a debt that
+      // was settled -- declare() deliberately clears cleared_on.
+      if (s != null && s.isOutstanding) _amount.text = '${s.amount}';
+    });
+  }
+
+  Future<void> _save() async {
+    final agentId = _short?.agentId;
+    if (agentId == null) return;
+    final typed = int.tryParse(_amount.text.trim());
+    // An empty box is not zero. Zero is a deliberate "nothing owed", typed or
+    // pressed; an empty box is somebody who has not answered yet.
+    if (typed == null) return;
+    setState(() => _saving = true);
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref
+          .read(bulkOnboardingServiceProvider)
+          .declareAgentOpeningShort(agentId: agentId, amount: typed);
+      return true;
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok == null) return;
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: ManaText.raw(typed == 0
+          ? ref.t('no_short_to_record')
+          : ref.t('short_recorded').replaceFirst('{amount}', manaRupees(typed))),
+    ));
+  }
+
+  Future<void> _markRecovered() async {
+    final agentId = _short?.agentId;
+    if (agentId == null) return;
+    setState(() => _saving = true);
+    final ok = await NetworkErrorHandler.run(context, () async {
+      await ref
+          .read(bulkOnboardingServiceProvider)
+          .clearAgentOpeningShort(agentId: agentId);
+      return true;
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok == null) return;
+    _amount.clear();
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: ManaText.raw(ref.t('short_marked_recovered'))),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(ManaSpacing.lg),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final s = _short;
+    if (s == null) {
+      // A member listed under Agent with no agents row. Says so rather than
+      // drawing a box that cannot save.
+      return ManaText.raw(ref.t('person_not_in_this_stage'),
+          style: ManaType.note);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ManaText.raw(ref.t('agent_opening_short'), style: ManaType.strong),
+        const SizedBox(height: ManaSpacing.xs),
+        ManaText.raw(ref.t('agent_opening_short_note'), style: ManaType.fine),
+        const SizedBox(height: ManaSpacing.md),
+        if (s.isOutstanding && s.declaredOn != null) ...[
+          ManaText.raw(
+            ref
+                .t('short_outstanding_since')
+                .replaceFirst('{date}', manaDisplayDate(s.declaredOn!)),
+            style: TextStyle(color: ManaColors.statusWarn, fontSize: 13),
+          ),
+          const SizedBox(height: ManaSpacing.sm),
+        ] else if (s.clearedOn != null) ...[
+          ManaText.raw(
+            ref
+                .t('short_recovered_on')
+                .replaceFirst('{date}', manaDisplayDate(s.clearedOn!)),
+            style: TextStyle(color: ManaColors.statusGood, fontSize: 13),
+          ),
+          const SizedBox(height: ManaSpacing.sm),
+        ],
+        TextField(
+          controller: _amount,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: ref.t('amount_owed'),
+            prefixText: '₹ ',
+          ),
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                onPressed: _saving ? null : _save,
+                child: ManaText.raw(ref.t('save_short')),
+              ),
+            ),
+            if (s.isOutstanding) ...[
+              const SizedBox(width: ManaSpacing.sm),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _saving ? null : _markRecovered,
+                  child: ManaText.raw(ref.t('mark_short_recovered')),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
   }
 }

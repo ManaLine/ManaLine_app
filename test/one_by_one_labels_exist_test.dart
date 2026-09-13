@@ -13,6 +13,17 @@ import 'package:flutter_test/flutter_test.dart';
 /// The door is new and large: three stages, a village book, a loan form and
 /// five problem messages. Checking them by opening the app means noticing one
 /// raw key among dozens of correct ones.
+
+/// `ref.t('key')`, ALLOWING the formatter to have split it.
+///
+/// It splits a long call so that `ref` ends one line and `.t('key')` begins
+/// the next, and the first version of this pattern required the dot to touch
+/// the `ref`. Two keys on the agent stage were therefore invisible to
+/// it -- they happened to be present, so nothing broke, but the guard was
+/// quietly checking less than it claimed. Whitespace is allowed around both
+/// the dot and the parenthesis now.
+final _tCall = RegExp(r"""ref\s*\.\s*t\(\s*'([a-z0-9_]+)'\s*\)""");
+
 void main() {
   final migrations = Directory('supabase/migrations')
       .listSync()
@@ -38,7 +49,7 @@ void main() {
     final missing = <String>[];
     for (final path in screens) {
       final source = File(path).readAsStringSync();
-      for (final m in RegExp(r"""ref\.t\('([a-z0-9_]+)'\)""").allMatches(source)) {
+      for (final m in _tCall.allMatches(source)) {
         final key = m.group(1)!;
         // The INSERT lists them as ('key', 'English', 'Telugu').
         if (!migrations.contains("('$key',")) missing.add('$path: $key');
@@ -52,11 +63,11 @@ void main() {
     // A guard that checks nothing reads exactly like one that passes.
     var found = 0;
     for (final path in screens) {
-      found += RegExp(r"""ref\.t\('([a-z0-9_]+)'\)""")
+      found += _tCall
           .allMatches(File(path).readAsStringSync())
           .length;
     }
-    expect(found, greaterThan(15),
+    expect(found, greaterThan(25),
         reason: 'only $found keys found across the door; the pattern has '
             'stopped matching');
   });

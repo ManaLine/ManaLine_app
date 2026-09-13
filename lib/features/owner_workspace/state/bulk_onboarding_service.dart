@@ -570,6 +570,61 @@ class BulkOnboardingService {
   }) =>
       _prefillRows(businessId, role);
 
+  /// What this agent was carrying when the book came across, if anything.
+  ///
+  /// Keyed by MLID rather than agent_id because the Owner never sees a UUID
+  /// and the one-by-one door only ever holds an MLID. Resolved here, once,
+  /// so the screen never has to.
+  ///
+  /// `persons!inner` and `business_members!inner` both hang off `agents`,
+  /// which has exactly ONE foreign key to each -- so neither embed is
+  /// ambiguous. Nesting persons UNDER business_members would be
+  /// (see ambiguous_embed_guard_test), which is why it is not done that way.
+  Future<ManaAgentShort?> agentOpeningShort({
+    required String businessId,
+    required String mlid,
+  }) async {
+    final rows = await _db
+        .from('agents')
+        .select('agent_id, opening_short_declared_amount, '
+            'opening_short_declared_on, opening_short_cleared_on, '
+            'persons!inner(mlid), business_members!inner(business_id)')
+        .eq('persons.mlid', mlid)
+        .eq('business_members.business_id', businessId)
+        .limit(1);
+    final list = rows as List;
+    if (list.isEmpty) return null;
+    final r = Map<String, dynamic>.from(list.first as Map);
+    return ManaAgentShort(
+      agentId: r['agent_id'] as String,
+      amount: (r['opening_short_declared_amount'] as num?)?.toInt(),
+      declaredOn: DateTime.tryParse(
+          (r['opening_short_declared_on'] as String?) ?? ''),
+      clearedOn: DateTime.tryParse(
+          (r['opening_short_cleared_on'] as String?) ?? ''),
+    );
+  }
+
+  /// Declares it. Zero withdraws a figure entered by mistake.
+  ///
+  /// Through the RPC rather than a client UPDATE: the server is what refuses a
+  /// negative, rounds to whole rupees, and keeps "declared" and "recovered" as
+  /// two separate records instead of letting one overwrite the other.
+  Future<int> declareAgentOpeningShort({
+    required String agentId,
+    required int amount,
+  }) async {
+    final res = await _db.schema('app').rpc('declare_agent_opening_short',
+        params: {'p_agent_id': agentId, 'p_amount': amount});
+    return (res as num?)?.toInt() ?? 0;
+  }
+
+  Future<void> clearAgentOpeningShort({required String agentId}) async {
+    await _db
+        .schema('app')
+        .rpc('clear_agent_opening_short', params: {'p_agent_id': agentId});
+  }
+
   Future<ImportOutcome> submitInvestments({
     required String businessId,
     required List<Map<String, dynamic>> rows,
@@ -2125,6 +2180,26 @@ class ManaMemberRef {
         mlid.toLowerCase().contains(q) ||
         (village ?? '').toLowerCase().contains(q);
   }
+}
+
+/// An agent's declared opening short, and whether it is still owed.
+///
+/// [amount] is null when nothing was ever declared, which is NOT the same as
+/// a declared zero -- one means the Owner has not said, the other means they
+/// said there is nothing. [clearedOn] non-null means it was recovered.
+class ManaAgentShort {
+  final String agentId;
+  final int? amount;
+  final DateTime? declaredOn;
+  final DateTime? clearedOn;
+  const ManaAgentShort({
+    required this.agentId,
+    this.amount,
+    this.declaredOn,
+    this.clearedOn,
+  });
+
+  bool get isOutstanding => (amount ?? 0) > 0 && clearedOn == null;
 }
 
 /// A (PIN, Village) pair named by the identity sheet.

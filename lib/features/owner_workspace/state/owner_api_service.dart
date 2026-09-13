@@ -919,6 +919,8 @@ class OwnerApiService {
       otherApprovedExpenses: (r['other_approved_expenses'] as num?)?.toInt() ?? 0,
       advances: (r['advances'] as num?)?.toInt() ?? 0,
       shortsOutstanding: (r['shorts_outstanding'] as num?)?.toInt() ?? 0,
+      openingShortOutstanding:
+          (r['opening_short_outstanding'] as num?)?.toInt() ?? 0,
       shortsDeducted: (r['shorts_deducted'] as num?)?.toInt() ?? 0,
       payableSalary: (r['payable_salary'] as num?)?.toInt() ?? 0,
     );
@@ -1343,6 +1345,14 @@ class AgentSalaryBreakdown {
   /// Everything the agent still owes from shorts, whether or not it is
   /// being taken this cycle. Always recorded, always owed (BR-066).
   final int shortsOutstanding;
+  /// The part of [shortsOutstanding] that was carried in from the old book,
+  /// declared once at migration rather than arising from a settlement.
+  ///
+  /// Reported separately because an Owner explaining a deduction has to be
+  /// able to say which part is this cycle's and which part is an old debt —
+  /// and because this one does not fall out of the window on its own. It keeps
+  /// being counted until the Owner records it as recovered.
+  final int openingShortOutstanding;
   /// The portion actually coming off THIS cycle — zero unless the Owner
   /// chose to deduct (CALC BR-068 correction 2).
   final int shortsDeducted;
@@ -1357,6 +1367,7 @@ class AgentSalaryBreakdown {
     required this.otherApprovedExpenses,
     required this.advances,
     required this.shortsOutstanding,
+    required this.openingShortOutstanding,
     required this.shortsDeducted,
     required this.payableSalary,
   });

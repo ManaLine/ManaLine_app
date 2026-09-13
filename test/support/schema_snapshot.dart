@@ -144,6 +144,7 @@ const manaAppFunctions = <String>{
   'admin_lookup_business', 'admin_lookup_collection', 'admin_lookup_loan',
   'admin_lookup_person', 'agent_covers_customer', 'agent_covers_loan',
   'agent_expected_closing', 'agent_payable_salary', 'agent_permission',
+  'clear_agent_opening_short', 'declare_agent_opening_short',
   'agent_update_customer_address', 'agent_update_customer_phone',
   'amend_collection', 'anonymise_person', 'apply_investment_compounding',
   'attach_person_to_business',

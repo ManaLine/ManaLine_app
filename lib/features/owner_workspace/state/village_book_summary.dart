@@ -38,7 +38,14 @@ class ManaLoanPosition {
   /// becomes a different village.
   final bool inOperatingArea;
 
+  /// Empty when this customer has no live loan yet -- the RPC returns them as
+  /// a row so their village can show a head count and the Owner has a way in
+  /// to enter them. Nine such people were invisible in the first real book
+  /// this was run against.
   final String loanId;
+
+  /// Whether there is a loan here at all.
+  bool get hasLoan => loanId.isNotEmpty;
 
   /// What is still owed. remaining_balance IS repayment minus collections --
   /// app.migrate_loan says so itself: `v_collected := v_repay - v_remain`.
@@ -64,8 +71,13 @@ class ManaLoanPosition {
   /// A collection ON the cutoff day counts as running. "Not recovered in six
   /// months" means nothing since that day, and an off-by-one here moves real
   /// money into the column an Owner reads as dead.
+  ///
+  /// A customer with NO loan is never struck. Their lastCollection is null by
+  /// definition, so without this they would be named among the people who have
+  /// stopped paying -- for a loan that does not exist. They have not stopped
+  /// paying anything; nobody has typed their loan in yet.
   bool isStruck(DateTime cutoff) =>
-      lastCollection == null || lastCollection!.isBefore(cutoff);
+      hasLoan && (lastCollection == null || lastCollection!.isBefore(cutoff));
 }
 
 /// A person with at least one struck loan, named so they can be chased.

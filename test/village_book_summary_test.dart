@@ -21,6 +21,7 @@ ManaLoanPosition _loan({
   String name = 'Ravi',
   int balance = 1000,
   DateTime? lastCollection,
+  String loanId = 'loan',
 }) =>
     ManaLoanPosition(
       personId: mlid,
@@ -28,7 +29,7 @@ ManaLoanPosition _loan({
       fullName: name,
       village: village,
       inOperatingArea: inArea,
-      loanId: '$mlid-loan',
+      loanId: loanId.isEmpty ? '' : '$mlid-$loanId',
       balance: balance,
       lastCollection: lastCollection,
     );
@@ -179,6 +180,37 @@ void main() {
     test('the offered spans are the ones the Owner asked for', () {
       expect(kManaStruckMonthOptions, [3, 6, 9, 12, 24, 36]);
       expect(kManaStruckDefaultMonths, 6);
+    });
+  });
+
+  group('a customer with no loan yet', () {
+    test('is counted in the village but owes nothing', () {
+      // The RPC returns them so their village shows a head count and the Owner
+      // has a way IN to enter them. Nine such people were invisible in the
+      // first real book this ran against.
+      final s = manaVillageSummaries([
+        _loan(mlid: 'A', balance: 4000, lastCollection: DateTime(2026, 9, 1)),
+        _loan(mlid: 'B', balance: 0, loanId: ''),
+      ], cutoff: DateTime(2026, 3, 13))
+          .single;
+
+      expect(s.customerCount, 2, reason: 'they are in the village');
+      expect(s.totalBalance, 4000);
+    });
+
+    test('is never named among the struck', () {
+      // Their lastCollection is null by definition. Without the hasLoan guard
+      // they would be listed as somebody who stopped paying -- for a loan that
+      // does not exist.
+      final s = manaVillageSummaries([
+        _loan(mlid: 'B', balance: 0, loanId: ''),
+      ], cutoff: DateTime(2026, 3, 13))
+          .single;
+
+      expect(s.struckCustomers, isEmpty,
+          reason: 'nobody has stopped paying a loan nobody has entered');
+      expect(s.struckBalance, 0);
+      expect(s.runningBalance, 0);
     });
   });
 }

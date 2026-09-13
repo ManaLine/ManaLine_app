@@ -10,6 +10,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/bulk_onboarding_service.dart';
 import 'ow_investor_entry_sheets.dart';
+import 'ow_village_book.dart';
 
 /// Entering a pre-existing book ONE PERSON AT A TIME, beside the bulk wizard.
 ///
@@ -53,14 +54,18 @@ enum ManaEntryStage {
       };
 }
 
-/// Above this many people in a stage, one-by-one is the wrong tool and the
-/// screen says so rather than letting somebody start the walk.
-///
-/// Not a hard block: the Owner knows their book and may have a reason. But 200
-/// customers is 200 screens, each replaying its instalments one
-/// record_collection at a time, and finding that out on screen 40 is worse
-/// than being told on screen 0.
-const int kManaOneByOneComfortable = 25;
+// THE "USE THE WIZARD INSTEAD" NOTICE IS GONE, and deleting it rather than
+// rewording it is the point.
+//
+// It told an Owner with 200 customers that the Bulk Onboarding Wizard would be
+// faster. The Owner then said what I had not known: their users mostly have no
+// laptop, so the wizard's spreadsheet is a door that does not open for them. A
+// notice recommending the impossible is worse than no notice -- it reads as
+// "you are doing this the wrong way" while offering nothing to do instead.
+//
+// The village grouping below is the real answer to the same problem. 200
+// customers is not a 200-screen wall; it is a dozen villages of about
+// seventeen, one sitting each.
 
 /// Submits ONE investor through the bulk path.
 ///
@@ -213,12 +218,15 @@ class _OneByOneMigrationScreenState
             // and offering to move between three would invite somebody to
             // wander off the errand they came for.
             if (!single) _stagePicker(),
-            if (_loading)
+            if (_stage == ManaEntryStage.customers && widget.onlyMlid == null)
+              Expanded(
+                child: VillageBookList(businessId: widget.businessId),
+              )
+            else if (_loading)
               const Expanded(child: Center(child: CircularProgressIndicator()))
             else if (_people.isEmpty)
               Expanded(child: _emptyStage())
             else ...[
-              if (!single) _tooManyNotice(),
               Expanded(
                 child: PageView.builder(
                   controller: _pages,
@@ -252,29 +260,6 @@ class _OneByOneMigrationScreenState
           onSelectionChanged: (v) => _switchStage(v.first),
         ),
       );
-
-  /// Said on screen 0, not discovered on screen 40.
-  Widget _tooManyNotice() {
-    if (_people.length <= kManaOneByOneComfortable) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.sm),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(ManaSpacing.md),
-        decoration: BoxDecoration(
-          color: ManaColors.statusWarnFaint,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: ManaText.raw(
-          ref
-              .t('many_people_use_the_wizard_note')
-              .replaceAll('{count}', '${_people.length}'),
-          style: ManaType.note,
-        ),
-      ),
-    );
-  }
 
   Widget _emptyStage() => Padding(
         padding: const EdgeInsets.all(ManaSpacing.xxl),
@@ -322,6 +307,9 @@ class _OneByOneMigrationScreenState
               ManaEntryStage.investors => _investorAction(who),
               // Tasks 3 and 4.
               ManaEntryStage.agents => const SizedBox.shrink(),
+              // The customer stage is not a list of people at all -- see
+              // _customerStage, which groups the book by village. This branch
+              // is unreachable, because that stage never builds person pages.
               ManaEntryStage.customers => const SizedBox.shrink(),
             },
         ],

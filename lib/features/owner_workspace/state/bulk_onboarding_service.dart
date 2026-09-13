@@ -5,6 +5,10 @@ import 'package:excel/excel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'village_book_summary.dart';
+import '../../../shared/network_error_handler.dart' show kManaQueryTimeout;
+import '../../../shared/text_utils.dart' show titleCaseName;
+
 import '../../../shared/mana_file_share.dart';
 import '../../../shared/xlsx_fallback_reader.dart';
 import 'collection_mode_state.dart';
@@ -518,6 +522,43 @@ class BulkOnboardingService {
   /// The spreadsheet paths below still exist for a business with more
   /// investors than a person wants to tap in one at a time; the wizard no
   /// longer uses them.
+  /// Every live loan in this business, with the village it sits in and the day
+  /// it was last collected against.
+  ///
+  /// One row PER LOAN, not per customer: struck is decided at loan level, and
+  /// a real book already has a person paying one loan while holding another --
+  /// 50 loans across 49 customers in the first book this was run against.
+  ///
+  /// The last-collection figure is why this is an RPC rather than a query from
+  /// here. Computing it on the phone means pulling every collection row the
+  /// business has ever recorded; a book collected daily is tens of thousands
+  /// of rows over a village connection to produce one screen of totals.
+  Future<List<ManaLoanPosition>> customerPositions(String businessId) async {
+    final rows = await _db
+        .schema('app')
+        .rpc('migration_customer_positions', params: {
+          'p_business_id': businessId,
+        })
+        .timeout(kManaQueryTimeout);
+    return [
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        ManaLoanPosition(
+          personId: r['person_id'].toString(),
+          mlid: (r['mlid'] as String?) ?? '',
+          fullName: titleCaseName((r['full_name'] as String?) ?? ''),
+          // Null when the person has no current address. A real state, and not
+          // a reason to drop the loan -- it lands in the out-of-area group.
+          village: (r['village'] as String?)?.trim() ?? '',
+          inOperatingArea: r['in_operating_area'] as bool? ?? false,
+          loanId: (r['loan_id'] as String?) ?? '',
+          balance: (r['balance'] as num?)?.round() ?? 0,
+          lastCollection: r['last_collection'] == null
+              ? null
+              : DateTime.parse(r['last_collection'] as String),
+        ),
+    ];
+  }
+
   Future<List<ManaMemberRef>> membersInRole({
     required String businessId,
     required String role,

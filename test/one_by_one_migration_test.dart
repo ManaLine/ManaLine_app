@@ -103,4 +103,58 @@ void main() {
           isTrue);
     });
   });
+
+  group('agents', () {
+    test('a date range becomes one attendance row per day', () {
+      // Attendance is one row per agent PER DAY. A laptop-free Owner cannot
+      // tap six months of that, and the wizard's spreadsheet is the thing they
+      // do not have. So the range is typed once and expanded here.
+      final rows = manaAttendanceRows(
+        mlid: 'MLAI1',
+        from: DateTime(2026, 6, 1),
+        to: DateTime(2026, 6, 5),
+      );
+
+      expect(rows, hasLength(5), reason: 'inclusive of both ends');
+      expect(rows.first['mlid'], 'MLAI1');
+      expect(rows.first['business_date'], '2026-06-01');
+      expect(rows.last['business_date'], '2026-06-05');
+    });
+
+    test('a single day is one row, not zero', () {
+      // An off-by-one here would silently drop the day somebody typed twice.
+      final rows = manaAttendanceRows(
+        mlid: 'MLAI1',
+        from: DateTime(2026, 6, 1),
+        to: DateTime(2026, 6, 1),
+      );
+      expect(rows, hasLength(1));
+    });
+
+    test('a backwards range records nothing rather than guessing', () {
+      // Swapping the dates silently would record a range the Owner did not
+      // type. Nothing is the honest answer; the form refuses to submit.
+      expect(
+          manaAttendanceRows(
+              mlid: 'MLAI1',
+              from: DateTime(2026, 6, 5),
+              to: DateTime(2026, 6, 1)),
+          isEmpty);
+    });
+
+    test('an allowance rides along only when given', () {
+      // The column is optional in the wizard's own parser; sending an empty
+      // one would write a zero allowance the Owner never stated.
+      final without = manaAttendanceRows(
+          mlid: 'MLAI1', from: DateTime(2026, 6, 1), to: DateTime(2026, 6, 1));
+      expect(without.single.containsKey('allowance_amount'), isFalse);
+
+      final with_ = manaAttendanceRows(
+          mlid: 'MLAI1',
+          from: DateTime(2026, 6, 1),
+          to: DateTime(2026, 6, 1),
+          allowance: '50');
+      expect(with_.single['allowance_amount'], '50');
+    });
+  });
 }

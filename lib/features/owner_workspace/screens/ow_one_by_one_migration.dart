@@ -77,6 +77,53 @@ Future<ImportOutcome> saveInvestorRow({
 }) =>
     service.submitInvestments(businessId: businessId, rows: [row]);
 
+/// Expands a worked-from/worked-to range into the attendance rows
+/// `recordAttendance` takes: one per agent per day.
+///
+/// WHY A RANGE AT ALL. Attendance is stored one row per agent per day, and the
+/// wizard collects it as a spreadsheet column. An Owner with no laptop cannot
+/// produce that spreadsheet and cannot tap six months of days either -- two
+/// agents over half a year is roughly three hundred entries. The range is the
+/// sentence they would say out loud ("both of them worked all of June"), typed
+/// once.
+///
+/// Inclusive of BOTH ends: "1st to 5th" is five days in every book this app is
+/// for, and an exclusive end would quietly drop the day somebody typed.
+///
+/// A backwards range yields nothing rather than being swapped. Reversing it
+/// silently would record a range the Owner did not type, and the form refuses
+/// to submit an empty result, so the mistake is visible instead of guessed at.
+///
+/// KNOWN LIMIT, deliberately not invented around: this records EVERY day in
+/// the range. A book where an agent took days off cannot express that here,
+/// and what counts as a non-working day is the Owner's rule to state, not
+/// this function's to assume. Re-entering is safe -- the RPC skips a day the
+/// agent already has -- so a corrected range can be typed over the top.
+List<Map<String, dynamic>> manaAttendanceRows({
+  required String mlid,
+  required DateTime from,
+  required DateTime to,
+  String? allowance,
+}) {
+  if (to.isBefore(from)) return const [];
+  final rows = <Map<String, dynamic>>[];
+  var day = DateTime(from.year, from.month, from.day);
+  final last = DateTime(to.year, to.month, to.day);
+  while (!day.isAfter(last)) {
+    rows.add({
+      'mlid': mlid,
+      'business_date':
+          '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+      // Only when stated. Sending an empty one would write a zero allowance
+      // the Owner never typed.
+      if (allowance != null && allowance.trim().isNotEmpty)
+        'allowance_amount': allowance.trim(),
+    });
+    day = day.add(const Duration(days: 1));
+  }
+  return rows;
+}
+
 /// Whether an entry actually went wrong.
 ///
 /// SKIPPED IS NOT A FAILURE. Re-entering somebody is the normal way to finish

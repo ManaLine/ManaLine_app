@@ -1,3 +1,4 @@
+import 'ow_one_by_one_migration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,6 +122,26 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
   Future<void> _openBulkOnboarding() async {
     await context.push('/ow-bulk-onboarding', extra: widget.businessId);
     await _load();
+  }
+
+  /// The second door, BESIDE the wizard rather than instead of it.
+  ///
+  /// The wizard is seven pages of grids and a spreadsheet -- right for two
+  /// hundred customers, wrong for three investors, and wrong for the one
+  /// person the wizard missed, because finishing that entry means walking all
+  /// seven pages again.
+  ///
+  /// Which door suits is decided PER STAGE, not per business. A real book has
+  /// 200 customers, 2 agents and 3 investors: the wizard is the only sane way
+  /// to do the customers, and building a spreadsheet for the other five people
+  /// is not.
+  Future<void> _openOneByOne() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OneByOneMigrationScreen(businessId: widget.businessId),
+      ),
+    );
+    if (mounted) await _load();
   }
 
   /// The reasons a started business gets unlocked again.
@@ -327,6 +348,12 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                             onPressed: _openBulkOnboarding,
                             icon: const Icon(Icons.upload_file_outlined),
                             label: ManaText.raw(ref.t('bulk_onboarding_wizard')),
+                          ),
+                          const SizedBox(height: ManaSpacing.sm),
+                          OutlinedButton.icon(
+                            onPressed: _openOneByOne,
+                            icon: const Icon(Icons.person_outline),
+                            label: ManaText.raw(ref.t('enter_one_by_one')),
                           ),
                           const SizedBox(height: ManaSpacing.md),
                         ],

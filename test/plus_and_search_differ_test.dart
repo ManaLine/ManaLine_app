@@ -48,9 +48,18 @@ void main() {
   });
 
   group('the route carries it through', () {
+    // Sliced to the NEXT GoRoute rather than to an exact indentation string.
+    // The first version anchored on a literal containing leading spaces and
+    // broke the moment the file was reformatted around it. A guard that fails
+    // on whitespace teaches people to ignore guards.
+    String routeBlock() {
+      final from = router.indexOf("path: '/ow-search'");
+      final next = router.indexOf('GoRoute(', from);
+      return router.substring(from, next == -1 ? router.length : next);
+    }
+
     test('all three roles are understood', () {
-      final route = router.substring(router.indexOf("path: '/ow-search'"));
-      final block = route.substring(0, route.indexOf('),\n    GoRoute'));
+      final block = routeBlock();
       for (final role in ['customer', 'agent', 'investor']) {
         expect(block, contains("'$role' =>"), reason: '$role is not routed');
       }
@@ -59,9 +68,7 @@ void main() {
     test('an unrecognised role asks rather than guessing', () {
       // The safe direction: a wrong role files an agent as a borrower, a
       // needless question does not.
-      final route = router.substring(router.indexOf("path: '/ow-search'"));
-      expect(route.substring(0, route.indexOf('),\n    GoRoute')),
-          contains('_ => null'),
+      expect(routeBlock(), contains('_ => null'),
           reason: 'an unknown role must fall back to asking, not to a default '
               'kind of person');
     });

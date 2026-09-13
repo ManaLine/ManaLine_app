@@ -103,10 +103,21 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
   /// them having to delete and retype the last digit.
   Timer? _retryTimer;
 
+  /// Who this device last belonged to, for the greeting before there is a
+  /// session to read one from. Null until the read returns, and the greeting
+  /// simply shows nothing until then -- which is what it did all the time
+  /// before this.
+  String? _rememberedName;
+
   @override
   void initState() {
     super.initState();
     _pinController.addListener(_onPinChanged);
+    LocalAuthStore.readLastPersonName().then((name) {
+      if (mounted && name != null && name.trim().isNotEmpty) {
+        setState(() => _rememberedName = name);
+      }
+    });
     _bootstrap();
   }
 
@@ -508,6 +519,32 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
     return Scaffold(
       appBar: ManaAppBar(onBack: _handleBack),
       body: SafeArea(
+        child: Column(
+          children: [
+            // PINNED. The brand was the first thing inside the scroll view, so
+            // it slid away -- and on a phone with the keyboard up it was the
+            // half-clipped thing at the top of the screenshot.
+            //
+            // The scroll itself STAYS, and the comment below says why: this
+            // was a fixed Column with a Spacer, Kannada made the footer labels
+            // longer, the flex went negative and it overflowed. Overflow is
+            // this codebase's most-shipped bug class. So the header is lifted
+            // OUT of the scroll rather than the scroll being removed -- the
+            // logo stops moving and the form can still grow in any language at
+            // any text size.
+            const Padding(
+              padding: EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.md,
+                  ManaSpacing.lg, ManaSpacing.sm),
+              child: ManaBrandMark(logoSize: 44, horizontal: true),
+            ),
+            Expanded(child: _scrollingForm(lang)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _scrollingForm(ManaLanguage lang) {
         // Scrollable, and the Column sizes to its content instead of using
         // Spacer to push the footer down.
         //
@@ -518,17 +555,14 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
         // Spacer's flex space went negative and the layout overflowed. A login
         // screen must be reachable in every language on every device, so it
         // scrolls rather than trying to fit.
-        child: SingleChildScrollView(
+    return SingleChildScrollView(
           padding: const EdgeInsets.all(ManaSpacing.lg),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: ManaSpacing.lg),
-              // Logo, name and tagline sit above the avatar: on the first
-              // screen after choosing a workspace, the app has to say what it
-              // is before it says who you are.
-              const ManaBrandMark(logoSize: 52),
-              const SizedBox(height: ManaSpacing.lg),
+              const SizedBox(height: ManaSpacing.md),
+              // The brand mark moved OUT of here and is pinned above this
+              // scroll view; what remains starts with who you are.
               const ManaVerificationRing(isVerified: true, size: 64),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
@@ -545,13 +579,30 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               // plausible: this is the screen that decides who somebody is.
               Consumer(
                 builder: (context, ref, _) {
+                  // The session first, then what this device remembers.
+                  //
+                  // personDisplayNameProvider needs a personId, and there is
+                  // none until somebody has authenticated -- so on the screen
+                  // that asks them to authenticate it resolved to nothing, and
+                  // "Welcome Back" sat over a remembered phone number with no
+                  // name beside it. The name only appeared once Login had been
+                  // pressed, which is exactly when it stops being useful.
+                  //
+                  // Looking it up from the typed number would tell ANYONE who
+                  // types a number whose account it is. The device may greet
+                  // the person it already knows; it may not answer questions
+                  // about strangers. So this falls back to the name stored at
+                  // the last successful login on THIS device, and Change User
+                  // clears it along with the number.
                   final name =
-                      ref.watch(personDisplayNameProvider).valueOrNull ?? '';
-                  if (name.isEmpty) return const SizedBox.shrink();
+                      ref.watch(personDisplayNameProvider).valueOrNull?.trim() ??
+                          '';
+                  final shown = name.isNotEmpty ? name : (_rememberedName ?? '');
+                  if (shown.isEmpty) return const SizedBox.shrink();
                   return Padding(
                     padding: const EdgeInsets.only(top: ManaSpacing.xs),
                     child: ManaText.raw(
-                      titleCaseName(name),
+                      titleCaseName(shown),
                       maxLines: 2,
                       textAlign: TextAlign.center,
                       style: ManaType.strong,
@@ -668,9 +719,6 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               const ManaVersionFooter(),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
-
 }

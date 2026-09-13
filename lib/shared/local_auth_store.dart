@@ -68,6 +68,16 @@ class LocalAuthStore {
   static const _kDeviceFingerprint = 'mana_device_fingerprint';
   static const _kLastMobileNumber = 'mana_last_mobile_number';
 
+  /// The display name of whoever last signed in ON THIS DEVICE.
+  ///
+  /// Stored rather than looked up, and that is the whole point. The login
+  /// screen greets somebody before they have authenticated, so there is no
+  /// session to read a name from -- and resolving one from the typed phone
+  /// number would tell ANYONE who types a number whose account it is. The
+  /// device may greet the person it already knows; it may not answer
+  /// questions about strangers.
+  static const _kLastPersonName = 'mana_last_person_name';
+
   /// businessId -> when this device last opened it, as ISO-8601.
   ///
   /// Ordering data, not credentials. It lives here rather than in a second
@@ -132,6 +142,25 @@ class LocalAuthStore {
   }
 
   static Future<String?> readLastMobileNumber() => _storage.read(key: _kLastMobileNumber);
+
+  /// Remembers who this device belongs to, for the greeting only.
+  static Future<void> saveLastPersonName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    try {
+      await _storage.write(key: _kLastPersonName, value: trimmed);
+    } catch (_) {
+      // A greeting is a courtesy; never let it break signing in.
+    }
+  }
+
+  static Future<String?> readLastPersonName() async {
+    try {
+      return await _storage.read(key: _kLastPersonName);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Notes that this device just opened [businessId].
   ///
@@ -230,8 +259,13 @@ class LocalAuthStore {
   /// BR-201 step-down drops the unlock material but the phone still belongs
   /// to the same person, whereas "Change User" means someone else is about
   /// to sign in and the remembered number would otherwise pre-fill theirs.
-  static Future<void> clearLastMobileNumber() =>
-      _storage.delete(key: _kLastMobileNumber);
+  static Future<void> clearLastMobileNumber() async {
+    await _storage.delete(key: _kLastMobileNumber);
+    // The name goes with the number. "Change User" means somebody else is
+    // about to sign in, and greeting them by the last person's name would be
+    // worse than greeting them by nothing.
+    await _storage.delete(key: _kLastPersonName);
+  }
 
   /// Forgets which businesses this device has opened.
   ///

@@ -510,8 +510,19 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   /// everyone. searchIdentity returns persons-level rows whose customerId is
   /// '' by design; without the lookup below, "open Customer" could only ever
   /// mean "open Customer Management".
-  List<({CustomerSummary person, List<String> roles, String? customerId})> _found =
-      const [];
+  /// Active roles, the roles still WAITING to be accepted, and the customer
+  /// row behind a Customer membership.
+  ///
+  /// Pending is its own list rather than a flag on the role, because the two
+  /// are drawn as different things: an active role is a door you can open, a
+  /// pending one is a sentence saying what was asked and that nobody has
+  /// answered.
+  List<({
+    CustomerSummary person,
+    List<String> roles,
+    List<String> pendingRoles,
+    String? customerId
+  })> _found = const [];
 
   @override
   void initState() {
@@ -685,18 +696,35 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
           ? const <Map<String, dynamic>>[]
           : ((await Supabase.instance.client
                   .from('business_members')
-                  .select('person_id, role, membership_id')
+                  .select('person_id, role, membership_id, membership_status')
                   .eq('business_id', widget.businessId)
                   .inFilter('person_id', ids)) as List)
               .cast<Map<String, dynamic>>();
       final rolesByPerson = <String, List<String>>{};
+      final pendingByPerson = <String, List<String>>{};
       // membership_id -> person_id, so the customers rows below can be put
       // back against the person they belong to.
       final personByMembership = <String, String>{};
       for (final row in roleRows) {
         final personId = row['person_id'].toString();
-        rolesByPerson.putIfAbsent(personId, () => []).add(row['role'] as String);
-        if (row['role'] == 'Customer' && row['membership_id'] != null) {
+        final role = row['role'] as String;
+        // THE STATUS WAS NOT EVEN SELECTED, so every row became a live role --
+        // a pending invitation and a removed membership both drew the same
+        // tappable chevron as somebody who had accepted. Labels read out of
+        // membership_status_enum, not guessed.
+        final status = row['membership_status'] as String? ?? '';
+        if (status == 'Pending Invitation' ||
+            status == 'Pending Acceptance' ||
+            status == 'Pending Approval') {
+          pendingByPerson.putIfAbsent(personId, () => []).add(role);
+          continue;
+        }
+        // Removed, Suspended and Temporarily Disabled are not memberships.
+        // Drawing one as a role is the app saying somebody has reach into a
+        // book they were taken off.
+        if (status != 'Active') continue;
+        rolesByPerson.putIfAbsent(personId, () => []).add(role);
+        if (role == 'Customer' && row['membership_id'] != null) {
           personByMembership[row['membership_id'] as String] = personId;
         }
       }
@@ -731,6 +759,7 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
             (
               person: person,
               roles: rolesByPerson[person.personId] ?? const [],
+              pendingRoles: pendingByPerson[person.personId] ?? const [],
               customerId: customerByPerson[person.personId],
             ),
         ];
@@ -990,7 +1019,26 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                                   match.person.fatherHusbandName,
                               ].join(' · ')),
                             ),
-                            if (match.roles.isEmpty)
+                            // What was ASKED and not yet answered. Not a
+                            // tappable row: there is nothing to open, and a
+                            // chevron here is what made a sent request look
+                            // like a member.
+                            for (final role in match.pendingRoles)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                    ManaSpacing.lg,
+                                    0,
+                                    ManaSpacing.lg,
+                                    ManaSpacing.md),
+                                child: ManaText.raw(
+                                    ref
+                                        .t('request_sent_as')
+                                        .replaceAll('{role}', ref.t(role.toLowerCase())),
+                                    style: TextStyle(
+                                        color: ManaColors.statusWarn,
+                                        fontSize: 13)),
+                              ),
+                            if (match.roles.isEmpty && match.pendingRoles.isEmpty)
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(
                                     ManaSpacing.lg,
@@ -1026,13 +1074,12 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                                       ),
                                   ],
                                 ),
-                              )
-                            else
-                              // A person can hold more than one role in the
-                              // same business (e.g. an Owner who is also an
-                              // Agent) — one tappable row per role rather
-                              // than guessing.
-                              ...match.roles.map((role) {
+                              ),
+                            // A person can hold more than one role in the
+                            // same business (e.g. an Owner who is also an
+                            // Agent) — one tappable row per role rather
+                            // than guessing.
+                            ...match.roles.map((role) {
                                 final busy = _opening ==
                                     '${match.person.personId}:$role';
                                 return ListTile(

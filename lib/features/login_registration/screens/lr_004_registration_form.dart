@@ -628,29 +628,19 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 contentPadding: EdgeInsets.zero,
               ),
 
-              // Visible checklist — replaces "button is silently disabled,
-              // guess why" with an explicit list of what's left.
-              if (_missingRequirements.isNotEmpty) ...[
-                const SizedBox(height: ManaSpacing.lg),
-                Container(
-                  padding: const EdgeInsets.all(ManaSpacing.md),
-                  decoration: BoxDecoration(
-                    color: ManaColors.statusWarnFaint,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ManaText.raw(ref.t('still_needed_to_register'),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      const SizedBox(height: 4),
-                      ..._missingRequirements.map(
-                        (m) => ManaText.raw('• $m', style: ManaType.small),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              // The "still needed to register" checklist is gone, at the
+              // Owner's instruction: the button simply stays disabled until
+              // every required field is filled.
+              //
+              // WHAT THAT COSTS, written down rather than discovered later:
+              // the block it replaces existed to answer "the button is
+              // disabled, guess why". The form's own asterisks are now the
+              // only thing saying which fields are required, and nothing
+              // names the one that is still empty. _missingRequirements is
+              // KEPT and still gates _canSubmit, so if that question ever
+              // comes back the answer is already computed -- as per-field
+              // error text, which is where it belongs, rather than a warning
+              // block stacked under the form.
               const SizedBox(height: ManaSpacing.lg),
               Align(
                 alignment: Alignment.center,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,7 @@ import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/widgets/language_selector.dart';
 import '../../../shared/local_auth_store.dart';
+import '../../../shared/person_identity.dart';
 import '../state/auth_flow_state.dart';
 import '../state/auth_api_service.dart';
 import '../../../shared/network_error_handler.dart';
@@ -223,6 +225,20 @@ class _FirstLoginScreenState extends ConsumerState<FirstLoginScreen> {
           token: result!.token!,
           pinExists: pinExists,
         );
+
+    // Remembered for the greeting on the next launch.
+    //
+    // The login screen says "Welcome Back" before anybody has authenticated,
+    // so there is no session to read a name from -- which is why it greeted a
+    // remembered NUMBER with no name beside it. Resolving one from the typed
+    // phone number would tell anyone who types a number whose account it is,
+    // so the device remembers the person it already knows instead, exactly as
+    // it already remembers their number. Read here because this is the first
+    // moment a session exists. Fire and forget: a courtesy must never hold up
+    // a login.
+    unawaited(ref
+        .read(personDisplayNameProvider.future)
+        .then(LocalAuthStore.saveLastPersonName));
 
     // Upload the registration-time live photo now, if one is pending —
     // this is the earliest point a real session/JWT exists (registration

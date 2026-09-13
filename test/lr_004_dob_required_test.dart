@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/login_registration/screens/lr_004_registration_form.dart';
@@ -41,19 +43,32 @@ const _translations = <String, Map<String, String>>{
 };
 
 void main() {
-  testWidgets('a blank form lists Date of Birth as still required', (tester) async {
-    await pumpManaScreen(
-      tester,
-      const RegistrationFormScreen(),
-      translations: _translations,
-      // The form body is a lazy ListView and the "still needed" panel sits
-      // well below the fold, so on a phone-sized surface it is never built
-      // and find.text sees nothing. A tall surface builds the whole form.
-      surfaceSize: const Size(360, 3000),
-    );
+  // THESE USED TO READ THE "STILL NEEDED TO REGISTER" PANEL, which has been
+  // removed at the Owner's instruction -- the button simply stays disabled
+  // until the form is complete. The requirement itself did NOT go with the
+  // panel, and that is the regression worth guarding: a checklist is one way
+  // of showing a rule, not the rule.
+  //
+  // Asserted at source, because _missingRequirements is private and its
+  // consequence (a disabled button) cannot tell WHICH field is missing.
+  final form = File(
+          'lib/features/login_registration/screens/lr_004_registration_form.dart')
+      .readAsStringSync();
+  final requirements = form.substring(
+      form.indexOf('List<String> get _missingRequirements'),
+      form.indexOf('bool get _canSubmit'));
 
-    // Rendered as a bullet in the "still needed" panel.
-    expect(find.text('• Date of Birth'), findsOneWidget);
+  test('the register button is gated on the requirements, not on nothing', () {
+    // The panel went; the gate must not. If _canSubmit ever stops consulting
+    // the list, an incomplete registration becomes submittable in silence.
+    expect(form, contains('bool get _canSubmit => _missingRequirements.isEmpty'),
+        reason: 'removing the checklist must not have removed the gate');
+  });
+
+  test('Date of Birth is still required', () {
+    expect(requirements, contains('_dob == null'),
+        reason: 'DOB dropped out of the requirements along with the panel '
+            'that used to display it');
   });
 
   testWidgets('the form shows a Date of Birth field', (tester) async {
@@ -81,18 +96,19 @@ void main() {
       surfaceSize: const Size(360, 3000),
     );
 
-    // If DOB were optional it would not appear alongside these in the
-    // outstanding list; this is the regression that matters.
+    // If DOB were optional it would not sit alongside these; this is the
+    // regression that matters.
     //
     // "Full Name" became "Surname" + "Name" when the field was split so the
     // app could tell which part is the house name — see the identity spec.
-    for (final required in <String>[
-      '• Surname',
-      '• Name',
-      '• Gender',
-      '• Date of Birth',
+    for (final rule in <String>[
+      '_surname.text',
+      '_givenName.text',
+      '_gender == null',
+      '_dob == null',
     ]) {
-      expect(find.text(required), findsOneWidget, reason: '$required missing from the list');
+      expect(requirements, contains(rule),
+          reason: '$rule is no longer a registration requirement');
     }
   });
 
@@ -127,7 +143,14 @@ void main() {
     // The canonical name must match the Aadhaar card and is what every match
     // key is built from, so it stays Latin. The app never converts it — the
     // Telugu spelling has its own field.
-    expect(find.textContaining('English letters'), findsOneWidget);
+    //
+    // The rule used to be visible as a bullet; with the panel gone, what can
+    // still be checked on screen is that the form has NOT accepted it as
+    // submittable.
+    final submit = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Register').first);
+    expect(submit.onPressed, isNull,
+        reason: 'a Telugu canonical name must leave registration blocked');
   });
 
   testWidgets('the composed name is shown back before saving', (tester) async {

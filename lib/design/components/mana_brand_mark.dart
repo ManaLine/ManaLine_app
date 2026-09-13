@@ -27,14 +27,48 @@ class ManaBrandMark extends StatelessWidget {
   /// Larger name for a screen the brand is the point of.
   final bool prominent;
 
+  /// Logo on the LEFT with the name and tagline centred beside it, rather
+  /// than stacked above them.
+  ///
+  /// For a header that is pinned above a scrolling form: stacked, the mark is
+  /// tall enough that pinning it would eat the screen a login form needs.
+  /// Laid out sideways it costs one row and the logo stops sliding away.
+  final bool horizontal;
+
   const ManaBrandMark({
     super.key,
     this.logoSize = 56,
     this.prominent = false,
+    this.horizontal = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (horizontal) {
+      return Row(
+        children: [
+          if (logoSize > 0) ...[
+            Image.asset(
+              'assets/images/logo.png',
+              height: logoSize,
+              width: logoSize,
+              cacheWidth: (logoSize * 3).round(),
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+            const SizedBox(width: ManaSpacing.sm),
+          ],
+          // Expanded, and the words inside it centre themselves. A Row with a
+          // fixed-size image beside an unflexible Column is this codebase's
+          // recurring overflow shape -- the image takes its natural width
+          // first and the text has nowhere to go. The flexible child absorbs
+          // instead, and the name and tagline stay centred in what is left.
+          Expanded(child: _words(centred: true)),
+          // Balances the logo so the words are centred on the SCREEN rather
+          // than on the space beside the logo.
+          if (logoSize > 0) SizedBox(width: logoSize + ManaSpacing.sm),
+        ],
+      );
+    }
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -53,30 +87,44 @@ class ManaBrandMark extends StatelessWidget {
           ),
           const SizedBox(height: ManaSpacing.sm),
         ],
-        ManaText.raw(
-          kManaAppName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: prominent ? 26 : 20,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.5,
-            color: ManaColors.brandDeep,
-          ),
-        ),
-        const SizedBox(height: 2),
-        ManaText.raw(
-          kManaTagline,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: prominent ? 13 : 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 2.0,
-            color: ManaColors.textSecondary,
-          ),
-        ),
+        _words(centred: false),
       ],
     );
   }
+
+  /// The name over its tagline, shared by both layouts so they cannot drift.
+  Widget _words({required bool centred}) => Column(
+        mainAxisSize: MainAxisSize.min,
+        // Centred in both layouts. The parameter is kept because the caller
+        // reads better for having said which it wanted, not because the two
+        // branches differ today.
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ManaText.raw(
+            kManaAppName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: prominent ? 26 : 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+              color: ManaColors.brandDeep,
+            ),
+          ),
+          const SizedBox(height: 2),
+          ManaText.raw(
+            kManaTagline,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: prominent ? 13 : 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2.0,
+              color: ManaColors.textSecondary,
+            ),
+          ),
+        ],
+      );
 }

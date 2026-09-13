@@ -98,9 +98,24 @@ class ManaTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: ManaColors.accent,
-          foregroundColor: ManaColors.textPrimary, // 8.0:1 on accent
+          foregroundColor: ManaColors.textPrimary, // 8.48:1 on accent
           disabledBackgroundColor: ManaColors.surfaceSunken,
           disabledForegroundColor: ManaColors.textDisabled,
+          // A DEFINED EDGE, for the one place this app is actually used.
+          //
+          // Measured: the dark ink on this amber is 8.48:1, the most readable
+          // pair in the palette and better than white-on-blue at 7.19 -- that
+          // is not an accident, it is why hi-vis clothing is this colour. What
+          // is weak is the amber against the WHITE PAGE behind it: 1.76:1. In
+          // bright sun reflected glare adds a constant to every pixel and
+          // compresses all contrast toward 1, so the label survives and the
+          // button's SHAPE dissolves. An Owner in a field loses where to press,
+          // not what it says.
+          //
+          // statusWarn is 3.37:1 against the fill -- enough to hold the outline
+          // when the fill itself has washed out, without turning a primary
+          // action into something that reads as a warning.
+          side: BorderSide(color: ManaColors.statusWarn, width: 1.2),
           textStyle: textTheme.labelLarge,
           padding: const EdgeInsets.symmetric(
             horizontal: ManaSpacing.lg, vertical: ManaSpacing.md,

@@ -9,6 +9,7 @@ import '../../../design/tokens/typography.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/bulk_onboarding_service.dart';
+import 'ow_investor_entry_sheets.dart';
 
 /// Entering a pre-existing book ONE PERSON AT A TIME, beside the bulk wizard.
 ///
@@ -61,6 +62,30 @@ enum ManaEntryStage {
 /// than being told on screen 0.
 const int kManaOneByOneComfortable = 25;
 
+/// Submits ONE investor through the bulk path.
+///
+/// A list of one, deliberately. app.bulk_import_investments is where the
+/// investor money rules live -- ROI as rupees per hundred per month, the
+/// interest type, the profit share -- and calling it with a single row means
+/// this door cannot drift from what the wizard's grid means by an investment.
+/// A second code path for "just one person" is how two answers to the same
+/// question get shipped.
+Future<ImportOutcome> saveInvestorRow({
+  required BulkOnboardingService service,
+  required String businessId,
+  required Map<String, dynamic> row,
+}) =>
+    service.submitInvestments(businessId: businessId, rows: [row]);
+
+/// Whether an entry actually went wrong.
+///
+/// SKIPPED IS NOT A FAILURE. Re-entering somebody is the normal way to finish
+/// a partly-done import -- the server saw the row was already in the book and
+/// left it alone. Reading that as an error would send an Owner looking for a
+/// bug that is the book already being correct, and would make the obvious
+/// recovery (go through them again) look broken.
+bool manaEntryFailed(ImportOutcome outcome) => outcome.errors.isNotEmpty;
+
 class OneByOneMigrationScreen extends ConsumerStatefulWidget {
   final String businessId;
 
@@ -94,6 +119,15 @@ class _OneByOneMigrationScreenState
   bool _loading = true;
   int _index = 0;
 
+  /// The day the old book stops. An investment cannot sensibly be dated after
+  /// the handover, and the sheet enforces that when it is known.
+  DateTime? _cutoff;
+
+  /// MLIDs entered in this sitting, so a page can say so rather than looking
+  /// identical before and after. Not persistence -- reopening re-reads the
+  /// server, and the server is the authority on what is already in the book.
+  final Set<String> _done = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -108,6 +142,19 @@ class _OneByOneMigrationScreenState
 
   Future<void> _loadStage() async {
     setState(() => _loading = true);
+    // Read before the members, and NOT through NetworkErrorHandler: a missing
+    // cut-off is not worth a SnackBar. The sheet treats null as "no handover
+    // date known" and simply does not bound the date, which is the behaviour
+    // the wizard has when no plan has been saved either.
+    try {
+      final plan = await ref
+          .read(bulkOnboardingServiceProvider)
+          .migrationPlan(widget.businessId);
+      _cutoff = plan?.cutoff;
+    } catch (_) {
+      _cutoff = null;
+    }
+    if (!mounted) return;
     final people = await NetworkErrorHandler.run(context, () async {
       return ref.read(bulkOnboardingServiceProvider).membersInRole(
             businessId: widget.businessId,
@@ -236,8 +283,7 @@ class _OneByOneMigrationScreenState
         ),
       );
 
-  /// One person, one page. The stage bodies arrive in Tasks 2, 3 and 4; until
-  /// then this is the identity header they all share.
+  /// One person, one page: who they are, then what this stage asks of them.
   Widget _personPage(ManaMemberRef who) => ListView(
         padding: const EdgeInsets.all(ManaSpacing.lg),
         children: [
@@ -251,6 +297,55 @@ class _OneByOneMigrationScreenState
             style: ManaType.note,
           ),
           const SizedBox(height: ManaSpacing.lg),
+          if (_done.contains(who.mlid))
+            ManaText.raw(ref.t('entered_in_this_sitting'),
+                style: TextStyle(color: ManaColors.statusGood, fontSize: 13))
+          else
+            switch (_stage) {
+              ManaEntryStage.investors => _investorAction(who),
+              // Tasks 3 and 4.
+              ManaEntryStage.agents => const SizedBox.shrink(),
+              ManaEntryStage.customers => const SizedBox.shrink(),
+            },
         ],
       );
+
+  /// The investor stage, which is mostly a host for a sheet that already
+  /// exists. InvestmentSheet collects amount, ROI, interest type, date and
+  /// profit share for one person and pops exactly the row map
+  /// submitInvestments takes -- writing a second investor form would be
+  /// building a disagreement.
+  Widget _investorAction(ManaMemberRef who) => FilledButton.icon(
+        onPressed: () => _enterInvestment(who),
+        icon: const Icon(Icons.add, size: 18),
+        label: ManaText.raw(ref.t('add_this_persons_entry')),
+      );
+
+  Future<void> _enterInvestment(ManaMemberRef who) async {
+    final row = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => InvestmentSheet(who: who, cutoff: _cutoff),
+    );
+    if (row == null || !mounted) return;
+
+    final outcome = await NetworkErrorHandler.run(context, () async {
+      return saveInvestorRow(
+        service: ref.read(bulkOnboardingServiceProvider),
+        businessId: widget.businessId,
+        row: row,
+      );
+    });
+    if (outcome == null || !mounted) return;
+
+    if (manaEntryFailed(outcome)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: ManaText.raw(outcome.errors.first.message),
+      ));
+      return;
+    }
+    // skipped counts as done: the server found it already in the book, which
+    // is the normal result of going through somebody twice.
+    setState(() => _done.add(who.mlid));
+  }
 }

@@ -1,5 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_one_by_one_migration.dart';
+import 'package:mana_line/features/owner_workspace/state/bulk_onboarding_service.dart';
+
+/// Records what the screen hands the service, without a SupabaseClient.
+///
+/// `implements` plus noSuchMethod rather than `extends`: the real class takes a
+/// client this test has no business constructing, and it has 33 async members
+/// of which these tests care about two.
+class _RecordingBulkService implements BulkOnboardingService {
+  final List<List<Map<String, dynamic>>> investmentBatches = [];
+
+  @override
+  Future<ImportOutcome> submitInvestments({
+    required String businessId,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    investmentBatches.add(rows);
+    return ImportOutcome(imported: rows.length, skipped: 0, errors: const []);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// Entering a pre-existing book one person at a time.
 ///
@@ -45,6 +67,40 @@ void main() {
       expect(ManaEntryStage.investors.role, 'Investor');
       expect(ManaEntryStage.agents.role, 'Agent');
       expect(ManaEntryStage.customers.role, 'Customer');
+    });
+  });
+
+  group('investors', () {
+    test('one investor is submitted as a one-row batch', () async {
+      // The point of the whole design: the single-person path is the BULK path
+      // with a list of one. app.bulk_import_investments is where the investor
+      // money rules live, so calling it with one row means this door cannot
+      // disagree with the wizard about what an investment is.
+      final service = _RecordingBulkService();
+
+      await saveInvestorRow(
+        service: service,
+        businessId: 'b1',
+        row: const {'mlid': 'MLTI1', 'invested_amount': 50000},
+      );
+
+      expect(service.investmentBatches, hasLength(1));
+      expect(service.investmentBatches.single, hasLength(1),
+          reason: 'one person is one row, not a grid of one');
+      expect(service.investmentBatches.single.single['mlid'], 'MLTI1');
+    });
+
+    test('an already-entered investment reports skipped, not failed', () async {
+      // Re-entering somebody is the normal way to finish a partly-done import.
+      // Reading skipped as a failure would send an Owner looking for a bug
+      // that is actually the book already being correct.
+      const outcome = ImportOutcome(imported: 0, skipped: 1, errors: []);
+      expect(manaEntryFailed(outcome), isFalse);
+      expect(manaEntryFailed(const ImportOutcome(
+              imported: 0,
+              skipped: 0,
+              errors: [ImportRowError(row: 1, message: 'bad date')])),
+          isTrue);
     });
   });
 }

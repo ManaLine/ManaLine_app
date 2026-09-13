@@ -10,6 +10,7 @@ import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/bulk_onboarding_service.dart';
 import '../state/village_book_summary.dart';
+import 'ow_village_customers.dart';
 
 /// A pre-existing book, village by village.
 ///
@@ -102,6 +103,14 @@ class _VillageBookListState extends ConsumerState<VillageBookList> {
             summary: summary,
             businessId: widget.businessId,
             onChanged: _load,
+            // The rows this card was built from, handed on rather than
+            // re-queried: a second round trip on a village connection to
+            // redraw what is already on screen is latency for nothing.
+            positions: _positions
+                .where((p) =>
+                    p.village == summary.village &&
+                    p.inOperatingArea == summary.inOperatingArea)
+                .toList(),
           ),
           const SizedBox(height: ManaSpacing.sm),
         ],
@@ -160,11 +169,13 @@ class _VillageCard extends ConsumerWidget {
   final ManaVillageSummary summary;
   final String businessId;
   final VoidCallback onChanged;
+  final List<ManaLoanPosition> positions;
 
   const _VillageCard({
     required this.summary,
     required this.businessId,
     required this.onChanged,
+    required this.positions,
   });
 
   @override
@@ -176,7 +187,25 @@ class _VillageCard extends ConsumerWidget {
         : ref.t('not_in_any_operating_area');
 
     return Card(
-      child: Padding(
+      child: InkWell(
+        // The whole card opens the village. The figures on it are what an
+        // Owner reads before deciding to go in, so making only a small chevron
+        // tappable would put the target somewhere other than where they are
+        // already looking.
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => VillageCustomersScreen(
+                businessId: businessId,
+                title: title,
+                positions: positions,
+              ),
+            ),
+          );
+          // Entering a loan changes every figure on this card.
+          onChanged();
+        },
+        child: Padding(
         padding: const EdgeInsets.all(ManaSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,6 +256,7 @@ class _VillageCard extends ConsumerWidget {
                         '{count}', '${summary.struckCustomers.length}')),
           ],
         ),
+      ),
       ),
     );
   }

@@ -254,6 +254,17 @@ class _VillageCard extends ConsumerWidget {
                     ? null
                     : ref.t('struck_customers_note').replaceAll(
                         '{count}', '${summary.struckCustomers.length}')),
+            // Says when the figure above is a GUESS. Worked out from loan due
+            // dates because nothing has been collected against them in the app
+            // yet -- which is the normal state of a book just typed in. A
+            // struck total from collection history is a fact; this one is an
+            // estimate, and they lead to the same doorstep.
+            if (summary.struckIsEstimated) ...[
+              const SizedBox(height: 2),
+              ManaText.raw(ref.t('struck_is_estimated_note'),
+                  style: TextStyle(
+                      color: ManaColors.textSecondary, fontSize: 11)),
+            ],
           ],
         ),
       ),

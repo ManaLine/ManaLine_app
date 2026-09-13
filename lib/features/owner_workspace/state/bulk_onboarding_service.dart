@@ -555,6 +555,11 @@ class BulkOnboardingService {
           lastCollection: r['last_collection'] == null
               ? null
               : DateTime.parse(r['last_collection'] as String),
+          // The loan's own due date, which stands in when nothing has been
+          // collected -- see ManaLoanPosition.isStruck.
+          expectedEnd: r['expected_end'] == null
+              ? null
+              : DateTime.parse(r['expected_end'] as String),
         ),
     ];
   }

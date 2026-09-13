@@ -22,6 +22,7 @@ ManaLoanPosition _loan({
   int balance = 1000,
   DateTime? lastCollection,
   String loanId = 'loan',
+  DateTime? expectedEnd,
 }) =>
     ManaLoanPosition(
       personId: mlid,
@@ -32,6 +33,7 @@ ManaLoanPosition _loan({
       loanId: loanId.isEmpty ? '' : '$mlid-$loanId',
       balance: balance,
       lastCollection: lastCollection,
+      expectedEnd: expectedEnd,
     );
 
 void main() {
@@ -111,6 +113,7 @@ void main() {
           loanId: 'MLPI1-second',
           balance: 6000,
           lastCollection: DateTime(2024, 1, 1),
+          expectedEnd: null,
         ),
       ], cutoff: cutoff)
           .single;
@@ -211,6 +214,77 @@ void main() {
           reason: 'nobody has stopped paying a loan nobody has entered');
       expect(s.struckBalance, 0);
       expect(s.runningBalance, 0);
+    });
+  });
+
+  group('a migrated loan with no collections at all', () {
+    // app.migrate_loan writes the instalment schedule but NO collections -- it
+    // will not fabricate money into day_ledger on days it never arrived. So
+    // every loan typed in balance-only has a null last-collection, and the
+    // plain rule "nothing since the cutoff" would call an entire freshly
+    // entered book dead.
+    //
+    // The Owner's answer: infer activity from the loan's own dates. The
+    // yardstick is its OWN term, not a fixed window -- a monthly loan eighteen
+    // months into a two-year term is healthy, and a fixed six months would
+    // have called it struck.
+
+    test('a loan past its due date is struck', () {
+      // 12 weeks given 18 months ago: due 15 months ago, still carrying a
+      // balance. Nobody has to guess -- it should have finished.
+      final s = manaVillageSummaries([
+        _loan(balance: 5000, lastCollection: null,
+            expectedEnd: DateTime(2025, 6, 1)),
+      ], cutoff: cutoff).single;
+      expect(s.struckBalance, 5000);
+    });
+
+    test('a loan still inside its term is running', () {
+      // THE CASE A FIXED WINDOW GETS WRONG. 24 months given 18 months ago:
+      // due six months from now, three-quarters paid, perfectly healthy.
+      final s = manaVillageSummaries([
+        _loan(balance: 5000, lastCollection: null,
+            expectedEnd: DateTime(2027, 3, 1)),
+      ], cutoff: cutoff).single;
+      expect(s.runningBalance, 5000);
+      expect(s.struckBalance, 0);
+    });
+
+    test('a real collection always beats the estimate', () {
+      // Once anything is collected in the app the guess stops mattering. Here
+      // the loan is long overdue by its terms but was paid last week.
+      final s = manaVillageSummaries([
+        _loan(balance: 5000,
+            lastCollection: DateTime(2026, 9, 8),
+            expectedEnd: DateTime(2024, 1, 1)),
+      ], cutoff: cutoff).single;
+      expect(s.runningBalance, 5000, reason: 'they paid; the estimate is moot');
+    });
+
+    test('no collections and no due date is struck, not invisible', () {
+      // installment_amount missing or zero, so the server returned no date
+      // rather than dividing by zero. Nothing is known -- and an unknown loan
+      // belongs in front of the Owner, not quietly in Running.
+      final s = manaVillageSummaries([
+        _loan(balance: 5000, lastCollection: null, expectedEnd: null),
+      ], cutoff: cutoff).single;
+      expect(s.struckBalance, 5000);
+    });
+
+    test('a village says when its struck figure is an estimate', () {
+      // A struck total from loan terms is a good guess; one from collections
+      // is a fact. Reading a guess as a fact is how somebody knocks on the
+      // wrong door.
+      final estimated = manaVillageSummaries([
+        _loan(balance: 5000, lastCollection: null,
+            expectedEnd: DateTime(2025, 6, 1)),
+      ], cutoff: cutoff).single;
+      expect(estimated.struckIsEstimated, isTrue);
+
+      final known = manaVillageSummaries([
+        _loan(balance: 5000, lastCollection: DateTime(2024, 1, 1)),
+      ], cutoff: cutoff).single;
+      expect(known.struckIsEstimated, isFalse);
     });
   });
 }

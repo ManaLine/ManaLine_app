@@ -16,6 +16,7 @@ import '../../../shared/business_name_checker.dart';
 import '../../../shared/photo_compression.dart';
 import '../../../shared/translation_service.dart';
 import '../state/business_management_state.dart';
+import '../../login_registration/state/auth_flow_state.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/owner_api_service.dart' show AgentSummary;
 import 'ow_018_business_migration.dart';
@@ -1598,6 +1599,40 @@ class _MemberRow extends ConsumerWidget {
       };
 
   Future<void> _changeStatus(BuildContext context, WidgetRef ref, String status) async {
+    // WARN, DO NOT BLOCK, when the Owner is removing their own Agent role.
+    //
+    // It is authorised and it is legitimate: business_members_owner_all lets
+    // the Owner change any membership in their own business, and somebody who
+    // hires two agents and stops collecting themselves is an ordinary
+    // business. Forbidding it would be the app deciding how a book is run.
+    //
+    // What it must not do is let the Owner find out the next time they open a
+    // collection round. An Owner is created with BOTH memberships precisely
+    // because the owner of a village book usually works it themselves, so
+    // removing the agent half changes what they can do tomorrow.
+    if (status == 'Removed' && member.role == 'Agent') {
+      final me = ref.read(authFlowProvider).personId;
+      if (me != null && me == member.personId) {
+        final go = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: ManaText.raw(ref.t('remove')),
+            content: ManaText.raw(ref.t('owner_agent_removal_warning')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: ManaText.raw(ref.t('cancel')),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: ManaText.raw(ref.t('remove')),
+              ),
+            ],
+          ),
+        );
+        if (go != true || !context.mounted) return;
+      }
+    }
     await NetworkErrorHandler.run(context, () async {
       return ref.read(businessDetailProvider(businessId).notifier).updateMembershipStatus(
             membershipId: member.membershipId,

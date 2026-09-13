@@ -52,8 +52,23 @@ class ManaLoanPosition {
   final int balance;
 
   /// The last day anything was collected against this loan. Null when nothing
-  /// ever has been, which is struck by any cutoff.
+  /// ever has been -- which is the NORMAL state of a freshly migrated loan,
+  /// because app.migrate_loan writes the instalment schedule and no
+  /// collections. It will not fabricate money into day_ledger on days it never
+  /// arrived.
   final DateTime? lastCollection;
+
+  /// When this loan was due to finish, from its own terms.
+  ///
+  /// The yardstick for a loan with no collection history. The Owner's rule,
+  /// refined: comparing the GIVEN date against a fixed six months is right for
+  /// a twelve-week loan and wrong for a twenty-four-month one -- a monthly loan
+  /// eighteen months into a two-year term is healthy, and a fixed window would
+  /// call it dead. Its own term is the honest measure.
+  ///
+  /// Null when the instalment is missing or zero: the server returns no date
+  /// rather than dividing by zero and dressing the result up as one.
+  final DateTime? expectedEnd;
 
   const ManaLoanPosition({
     required this.personId,
@@ -64,7 +79,12 @@ class ManaLoanPosition {
     required this.loanId,
     required this.balance,
     required this.lastCollection,
+    this.expectedEnd,
   });
+
+  /// True when nothing has ever been collected, so any verdict about this loan
+  /// is inferred from its dates rather than read from its history.
+  bool get isEstimated => hasLoan && lastCollection == null;
 
   /// Nothing since the cutoff, or nothing ever.
   ///
@@ -76,8 +96,23 @@ class ManaLoanPosition {
   /// definition, so without this they would be named among the people who have
   /// stopped paying -- for a loan that does not exist. They have not stopped
   /// paying anything; nobody has typed their loan in yet.
-  bool isStruck(DateTime cutoff) =>
-      hasLoan && (lastCollection == null || lastCollection!.isBefore(cutoff));
+  /// A REAL COLLECTION ALWAYS WINS. Once anything has been collected in the
+  /// app the estimate stops mattering, which is what makes this self-correcting
+  /// -- the first collection an Owner records replaces the guess for good.
+  ///
+  /// With no collections, the loan's own due date stands in: past it and still
+  /// carrying a balance means it should have finished and has not. A loan
+  /// younger than the cutoff is provably running rather than guessed so --
+  /// it cannot have gone six months unpaid when it has existed for two.
+  ///
+  /// No collections AND no due date is struck. Nothing is known, and an unknown
+  /// loan belongs in front of the Owner rather than quietly in Running.
+  bool isStruck(DateTime cutoff) {
+    if (!hasLoan) return false;
+    if (lastCollection != null) return lastCollection!.isBefore(cutoff);
+    if (expectedEnd == null) return true;
+    return expectedEnd!.isBefore(DateTime.now());
+  }
 }
 
 /// A person with at least one struck loan, named so they can be chased.
@@ -113,6 +148,14 @@ class ManaVillageSummary {
   /// figure an Owner cannot act on is a figure they will ignore.
   final List<ManaStruckCustomer> struckCustomers;
 
+  /// True when any struck loan here was judged by its due date rather than by
+  /// its collection history.
+  ///
+  /// A struck total from loan terms is a good estimate; one from collections is
+  /// a fact. The screen has to be able to say which, because reading an
+  /// estimate as a fact is how somebody knocks on the wrong door.
+  final bool struckIsEstimated;
+
   const ManaVillageSummary({
     required this.village,
     required this.inOperatingArea,
@@ -121,6 +164,7 @@ class ManaVillageSummary {
     required this.runningBalance,
     required this.struckBalance,
     required this.struckCustomers,
+    required this.struckIsEstimated,
   });
 }
 
@@ -173,6 +217,7 @@ List<ManaVillageSummary> manaVillageSummaries(
       runningBalance: total - struckTotal,
       struckBalance: struckTotal,
       struckCustomers: byPerson.values.toList(),
+      struckIsEstimated: struck.any((l) => l.isEstimated),
     );
 
     // The invariant, checked where it is computed rather than trusted.

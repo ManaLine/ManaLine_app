@@ -77,52 +77,22 @@ Future<ImportOutcome> saveInvestorRow({
 }) =>
     service.submitInvestments(businessId: businessId, rows: [row]);
 
-/// Expands a worked-from/worked-to range into the attendance rows
-/// `recordAttendance` takes: one per agent per day.
-///
-/// WHY A RANGE AT ALL. Attendance is stored one row per agent per day, and the
-/// wizard collects it as a spreadsheet column. An Owner with no laptop cannot
-/// produce that spreadsheet and cannot tap six months of days either -- two
-/// agents over half a year is roughly three hundred entries. The range is the
-/// sentence they would say out loud ("both of them worked all of June"), typed
-/// once.
-///
-/// Inclusive of BOTH ends: "1st to 5th" is five days in every book this app is
-/// for, and an exclusive end would quietly drop the day somebody typed.
-///
-/// A backwards range yields nothing rather than being swapped. Reversing it
-/// silently would record a range the Owner did not type, and the form refuses
-/// to submit an empty result, so the mistake is visible instead of guessed at.
-///
-/// KNOWN LIMIT, deliberately not invented around: this records EVERY day in
-/// the range. A book where an agent took days off cannot express that here,
-/// and what counts as a non-working day is the Owner's rule to state, not
-/// this function's to assume. Re-entering is safe -- the RPC skips a day the
-/// agent already has -- so a corrected range can be typed over the top.
-List<Map<String, dynamic>> manaAttendanceRows({
-  required String mlid,
-  required DateTime from,
-  required DateTime to,
-  String? allowance,
-}) {
-  if (to.isBefore(from)) return const [];
-  final rows = <Map<String, dynamic>>[];
-  var day = DateTime(from.year, from.month, from.day);
-  final last = DateTime(to.year, to.month, to.day);
-  while (!day.isAfter(last)) {
-    rows.add({
-      'mlid': mlid,
-      'business_date':
-          '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
-      // Only when stated. Sending an empty one would write a zero allowance
-      // the Owner never typed.
-      if (allowance != null && allowance.trim().isNotEmpty)
-        'allowance_amount': allowance.trim(),
-    });
-    day = day.add(const Duration(days: 1));
-  }
-  return rows;
-}
+// ATTENDANCE IS NOT PART OF MIGRATING A BOOK, and the range expansion that
+// used to sit here is gone with it.
+//
+// I built it on the reasoning that attendance is one row per agent per day,
+// the wizard collects it as a spreadsheet, and an Owner with no laptop could
+// therefore never enter it. That reasoning was sound and the premise was
+// wrong: the Owner does not WANT it entered. By the time a book is handed to
+// the app the agents' salaries and sadar are already settled, and those
+// settlements were the Owner's own entries in the old book. Replaying months
+// of attendance would be importing history nobody will ever read to recompute
+// a figure that is already paid.
+//
+// What DOES have to come across is an agent still holding a short at the
+// handover -- money the agent owes the business on the day the book changes
+// hands. That is an opening position, not a history, and it is the one agent
+// figure that is still live.
 
 /// Whether an entry actually went wrong.
 ///

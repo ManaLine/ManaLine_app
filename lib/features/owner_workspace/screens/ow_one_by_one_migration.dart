@@ -403,6 +403,14 @@ class _AgentShortEntryState extends ConsumerState<_AgentShortEntry> {
   bool _loading = true;
   bool _saving = false;
 
+  /// Whether the read actually reached the server.
+  ///
+  /// NetworkErrorHandler.run returns null on failure, and so does a lookup
+  /// that found nobody. Collapsing the two would tell an Owner with no signal
+  /// that this person is not an agent -- a statement about their book, made
+  /// from a statement about their phone.
+  bool _reachedServer = false;
+
   @override
   void initState() {
     super.initState();
@@ -425,6 +433,7 @@ class _AgentShortEntryState extends ConsumerState<_AgentShortEntry> {
     if (!mounted) return;
     setState(() {
       _short = s;
+      _reachedServer = s != null;
       _loading = false;
       // Prefill only while it is still owed. Showing a recovered figure in an
       // editable box invites somebody to save it again and reopen a debt that
@@ -437,9 +446,19 @@ class _AgentShortEntryState extends ConsumerState<_AgentShortEntry> {
     final agentId = _short?.agentId;
     if (agentId == null) return;
     final typed = int.tryParse(_amount.text.trim());
-    // An empty box is not zero. Zero is a deliberate "nothing owed", typed or
-    // pressed; an empty box is somebody who has not answered yet.
-    if (typed == null) return;
+    // An empty box is not zero. Zero is a deliberate "nothing owed"; an empty
+    // box is somebody who has not answered yet.
+    //
+    // It must SAY so. Returning quietly made the button look broken -- the
+    // Owner presses Save, nothing moves, and there is no way to tell that from
+    // a failed write. This is the same silent no-op that had two Karri
+    // Priyanka rows created two minutes apart.
+    if (typed == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: ManaText.raw(ref.t('enter_amount_owed'))),
+      );
+      return;
+    }
     setState(() => _saving = true);
     final ok = await NetworkErrorHandler.run(context, () async {
       await ref
@@ -490,6 +509,18 @@ class _AgentShortEntryState extends ConsumerState<_AgentShortEntry> {
     }
     final s = _short;
     if (s == null) {
+      if (!_reachedServer) {
+        // The handler has already said what went wrong. Offering the read
+        // again is the only useful thing left on screen.
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: ManaText.raw(ref.t('retry')),
+          ),
+        );
+      }
       // A member listed under Agent with no agents row. Says so rather than
       // drawing a box that cannot save.
       return ManaText.raw(ref.t('person_not_in_this_stage'),

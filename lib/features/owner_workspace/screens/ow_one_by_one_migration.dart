@@ -11,8 +11,10 @@ import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/bulk_onboarding_service.dart';
+import '../state/village_book_summary.dart';
 import 'ow_investor_entry_sheets.dart';
 import 'ow_village_book.dart';
+import 'ow_village_customers.dart';
 
 /// Entering a pre-existing book ONE PERSON AT A TIME, beside the bulk wizard.
 ///
@@ -210,6 +212,21 @@ class _OneByOneMigrationScreenState
   @override
   Widget build(BuildContext context) {
     final single = widget.onlyMlid != null;
+
+    // ONE customer, reached from a member row.
+    //
+    // Returned INSTEAD of this screen rather than nested inside it: the
+    // customer form lives on its own Scaffold, and placing it in this one's
+    // body would stack two app bars. Without this branch the customer case
+    // fell through to _personPage, whose customers arm is an empty SizedBox --
+    // the door would have opened on a blank page, which is exactly the failure
+    // the "walk the path a fix makes reachable" rule is about.
+    if (single && _stage == ManaEntryStage.customers) {
+      return _SingleCustomerEntry(
+        businessId: widget.businessId,
+        mlid: widget.onlyMlid!,
+      );
+    }
 
     return Scaffold(
       appBar: ManaAppBar(title: ref.t('enter_one_by_one')),
@@ -532,6 +549,76 @@ class _AgentShortEntryState extends ConsumerState<_AgentShortEntry> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// The loan form for exactly one customer, found by MLID.
+///
+/// Reads the same positions the village book reads and keeps the one row that
+/// matches, rather than adding a second server call that takes an MLID: the
+/// RPC already returns every customer with their village and their live loan,
+/// and a book being migrated is hundreds of rows, not hundreds of thousands.
+class _SingleCustomerEntry extends ConsumerStatefulWidget {
+  final String businessId;
+  final String mlid;
+  const _SingleCustomerEntry({required this.businessId, required this.mlid});
+
+  @override
+  ConsumerState<_SingleCustomerEntry> createState() =>
+      _SingleCustomerEntryState();
+}
+
+class _SingleCustomerEntryState extends ConsumerState<_SingleCustomerEntry> {
+  List<ManaLoanPosition>? _mine;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final rows = await NetworkErrorHandler.run(context, () async {
+      return ref
+          .read(bulkOnboardingServiceProvider)
+          .customerPositions(widget.businessId);
+    });
+    if (!mounted) return;
+    setState(() {
+      _mine = rows?.where((r) => r.mlid == widget.mlid).toList();
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: ManaAppBar(title: ref.t('enter_one_by_one')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    final mine = _mine;
+    if (mine == null || mine.isEmpty) {
+      // Not a customer of this book, or the book has no row for them. Says so
+      // rather than drawing a form that would have nowhere to save.
+      return Scaffold(
+        appBar: ManaAppBar(title: ref.t('enter_one_by_one')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(ManaSpacing.xl),
+            child: ManaText.raw(ref.t('person_not_in_this_stage'),
+                textAlign: TextAlign.center, style: ManaType.note),
+          ),
+        ),
+      );
+    }
+    return VillageCustomersScreen(
+      businessId: widget.businessId,
+      title: mine.first.fullName,
+      positions: mine,
     );
   }
 }

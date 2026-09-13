@@ -581,7 +581,7 @@ class BusinessManagementApiService {
     // (person_id AND invited_by_person_id) — an unqualified persons!inner
     // embed is ambiguous and PostgREST throws PGRST201 ("more than one
     // relationship was found") rather than guessing, on every single call.
-    var query = _db.from('business_members').select('membership_id, person_id, role, membership_status, persons!business_members_person_id_fkey(full_name)').eq('business_id', businessId);
+    var query = _db.from('business_members').select('membership_id, person_id, role, membership_status, persons!business_members_person_id_fkey(full_name, mlid)').eq('business_id', businessId);
     if (role != null) query = query.eq('role', role);
     if (status != null) query = query.eq('membership_status', status);
     final rows = await query;
@@ -623,6 +623,7 @@ class BusinessManagementApiService {
         // Same shape, same reason as fetchMembershipRequests below.
         fullName: titleCaseName(
             (r['persons'] as Map<String, dynamic>?)?['full_name'] as String? ?? ''),
+        mlid: (r['persons'] as Map<String, dynamic>?)?['mlid'] as String? ?? '',
         role: r['role'] as String,
         membershipStatus: r['membership_status'] as String,
         village: villageByPerson[personId] ?? '',
@@ -1178,6 +1179,11 @@ class MemberSummary {
   final String membershipId;
   final String personId;
   final String fullName;
+
+  /// The MLID, which is the only handle the one-by-one migration door takes.
+  /// Carried on the existing persons embed rather than a second query -- the
+  /// row was already being read for the name.
+  final String mlid;
   final String role; // 'Agent' | 'Investor' | 'Customer'
   final String membershipStatus;
 
@@ -1190,6 +1196,7 @@ class MemberSummary {
     required this.membershipId,
     required this.personId,
     required this.fullName,
+    this.mlid = '',
     required this.role,
     required this.membershipStatus,
     this.village = '',

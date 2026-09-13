@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_one_by_one_migration.dart';
 import 'package:mana_line/features/owner_workspace/state/bulk_onboarding_service.dart';
+import 'package:mana_line/features/owner_workspace/state/village_book_summary.dart';
+
+import 'support/mana_harness.dart';
 
 /// Records what the screen hands the service, without a SupabaseClient.
 ///
@@ -9,6 +12,23 @@ import 'package:mana_line/features/owner_workspace/state/bulk_onboarding_service
 /// of which these tests care about two.
 class _RecordingBulkService implements BulkOnboardingService {
   final List<List<Map<String, dynamic>>> investmentBatches = [];
+
+  /// What the positions RPC will answer with. Empty by default.
+  List<ManaLoanPosition> positions = const [];
+
+  @override
+  Future<List<ManaLoanPosition>> customerPositions(String businessId) async =>
+      positions;
+
+  @override
+  Future<MigrationPlan?> migrationPlan(String businessId) async => null;
+
+  @override
+  Future<List<ManaMemberRef>> membersInRole({
+    required String businessId,
+    required String role,
+  }) async =>
+      const [];
 
   @override
   Future<ImportOutcome> submitInvestments({
@@ -104,4 +124,63 @@ void main() {
     });
   });
 
+  group('the missed-entry door', () {
+    // THE BUG THIS GROUP EXISTS FOR: onlyMlid had been on this screen since it
+    // was written and nothing in the app ever passed one. The moment a member
+    // row started passing it, the customer case went somewhere that had never
+    // run -- _personPage, whose customers arm is an empty SizedBox, because
+    // the customers stage normally renders a village book instead of person
+    // pages. A door locked for months has nothing tested behind it.
+    testWidgets('one customer does not open on a blank page', (tester) async {
+      final service = _RecordingBulkService()
+        ..positions = [
+          const ManaLoanPosition(
+            personId: '9001',
+            mlid: 'MLPC1',
+            fullName: 'Karri Priyanka',
+            village: 'Peddapuram',
+            inOperatingArea: true,
+            loanId: '',
+            balance: 0,
+            lastCollection: null,
+          ),
+        ];
+
+      await pumpManaScreen(
+        tester,
+        const OneByOneMigrationScreen(
+          businessId: 'b1',
+          initialStage: ManaEntryStage.customers,
+          onlyMlid: 'MLPC1',
+        ),
+        overrides: [
+          bulkOnboardingServiceProvider.overrideWithValue(service),
+        ],
+      );
+
+      // The person is on screen. Before this branch existed the body was an
+      // empty SizedBox and this found nothing.
+      expect(find.text('Karri Priyanka'), findsWidgets);
+    });
+
+    testWidgets('a customer this book has no row for says so', (tester) async {
+      // The other half: an MLID that is not a customer here must not render a
+      // loan form with nowhere to save.
+      final service = _RecordingBulkService();
+
+      await pumpManaScreen(
+        tester,
+        const OneByOneMigrationScreen(
+          businessId: 'b1',
+          initialStage: ManaEntryStage.customers,
+          onlyMlid: 'MLPC-NOT-HERE',
+        ),
+        overrides: [
+          bulkOnboardingServiceProvider.overrideWithValue(service),
+        ],
+      );
+
+      expect(find.text('person_not_in_this_stage'), findsOneWidget);
+    });
+  });
 }

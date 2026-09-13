@@ -25,6 +25,7 @@ import '../../../design/components/mana_info_hint.dart';
 import '../../../shared/widgets/village_picker_field.dart';
 import '../../../shared/widgets/village_search_field.dart';
 import '../../../shared/location_api_service.dart';
+import 'ow_one_by_one_migration.dart';
 
 // A failed load previously left every one of this screen's tabs looking
 // like a legitimate empty state ("No Operating Areas yet.", "No active
@@ -1518,6 +1519,10 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
     final pendingInvitations = members.where((m) => m.membershipStatus == 'Pending Invitation').toList();
     final pendingAcceptance = members.where((m) => m.membershipStatus == 'Pending Acceptance').toList();
     final active = members.where((m) => m.membershipStatus == 'Active').toList();
+    // Unknown counts as locked. The missed-entry door is only meaningful
+    // while a migration is open, and offering it on a business whose detail
+    // has not loaded would put a dead link in front of the Owner.
+    final migrationOpen = state.detail?.migrationLocked == false;
 
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -1568,19 +1573,19 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         // deciding it belongs in the inbox.
         if (pendingInvitations.isNotEmpty) ...[
           ManaText.raw(ref.t('pending_invitations_header'), style: ManaType.strong),
-          ...pendingInvitations.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
+          ...pendingInvitations.map((m) => _MemberRow(businessId: widget.businessId, member: m, migrationOpen: migrationOpen)),
           const SizedBox(height: ManaSpacing.lg),
         ],
         if (pendingAcceptance.isNotEmpty) ...[
           ManaText.raw(ref.t('pending_acceptance_status'), style: ManaType.strong),
-          ...pendingAcceptance.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
+          ...pendingAcceptance.map((m) => _MemberRow(businessId: widget.businessId, member: m, migrationOpen: migrationOpen)),
           const SizedBox(height: ManaSpacing.lg),
         ],
         ManaText.raw(ref.t('active_members'), style: ManaType.strong),
         if (active.isEmpty)
           ManaText.raw(ref.t('no_active_members_yet'), style: ManaType.secondary)
         else
-          ...active.map((m) => _MemberRow(businessId: widget.businessId, member: m)),
+          ...active.map((m) => _MemberRow(businessId: widget.businessId, member: m, migrationOpen: migrationOpen)),
       ],
     );
   }
@@ -1589,7 +1594,47 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
 class _MemberRow extends ConsumerWidget {
   final String businessId;
   final MemberSummary member;
-  const _MemberRow({required this.businessId, required this.member});
+
+  /// Whether this book is still being migrated. The missed-entry door is
+  /// offered only while it is: once the migration is locked there is no
+  /// pre-existing entry left to add, and the menu item would be a dead link.
+  final bool migrationOpen;
+  const _MemberRow({
+    required this.businessId,
+    required this.member,
+    this.migrationOpen = false,
+  });
+
+  /// Which stage of the one-by-one door this person belongs to.
+  ///
+  /// Null for an Owner and for anyone whose MLID did not come back, because
+  /// the door is keyed by MLID and has nothing to open without one.
+  ManaEntryStage? get _entryStage {
+    if (!migrationOpen || member.mlid.isEmpty) return null;
+    return switch (member.role) {
+      'Agent' => ManaEntryStage.agents,
+      'Investor' => ManaEntryStage.investors,
+      'Customer' => ManaEntryStage.customers,
+      _ => null,
+    };
+  }
+
+  /// The door that was built and never opened.
+  ///
+  /// OneByOneMigrationScreen has taken an `onlyMlid` since it was written --
+  /// the whole point being that finishing ONE person's entry should not mean
+  /// walking the wizard's seven pages again -- and nothing in the app passed
+  /// one. This is the caller. A member roster is where an Owner notices
+  /// somebody was missed, so it is where the way to fix it belongs.
+  void _openEntry(BuildContext context, ManaEntryStage stage) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => OneByOneMigrationScreen(
+        businessId: businessId,
+        initialStage: stage,
+        onlyMlid: member.mlid,
+      ),
+    ));
+  }
 
   ManaStatus get _statusKind => switch (member.membershipStatus) {
         'Active' => ManaStatus.good,
@@ -1670,8 +1715,19 @@ class _MemberRow extends ConsumerWidget {
                 children: [
                   ManaStatusPill(label: member.membershipStatus, status: _statusKind),
                   PopupMenuButton<String>(
-                    onSelected: (status) => _changeStatus(context, ref, status),
+                    onSelected: (value) {
+                      final stage = _entryStage;
+                      if (value == 'entry' && stage != null) {
+                        _openEntry(context, stage);
+                        return;
+                      }
+                      _changeStatus(context, ref, value);
+                    },
                     itemBuilder: (_) => [
+                      if (_entryStage != null)
+                        PopupMenuItem(
+                            value: 'entry',
+                            child: ManaText.raw(ref.t('add_this_persons_entry'))),
                       PopupMenuItem(value: 'Active', child: ManaText.raw(ref.t('reactivate'))),
                       PopupMenuItem(value: 'Suspended', child: ManaText.raw(ref.t('suspend'))),
                       PopupMenuItem(value: 'Removed', child: ManaText.raw(ref.t('remove'))),

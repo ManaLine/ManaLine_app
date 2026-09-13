@@ -1535,7 +1535,7 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
               onPressed: () =>
                   context.push('/ow-search', extra: widget.businessId),
               icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
-              label: ManaText.raw(ref.t('add_a_member')),
+              label: ManaText.raw(ref.t('add_a_user')),
             ),
           ],
         ),

@@ -992,7 +992,12 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                             label: ManaText.raw(ref.t(switch (widget.fixedRole) {
                               ManaMemberKind.agent => 'add_an_agent',
                               ManaMemberKind.investor => 'add_investor',
-                              _ => 'add_customer',
+                              // No role fixed: this is the global search, and
+                              // the person being looked for could be any of
+                              // the three. It used to say "Add Customer",
+                              // which is the app answering a question the
+                              // Owner has not been asked yet.
+                              _ => 'add_a_user',
                             })),
                           ),
                         ],

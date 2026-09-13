@@ -292,11 +292,14 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     if (ok == true) await _load();
   }
 
-  Future<void> _addLoan() async {
-    final added = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => _MigrateLoanScreen(businessId: widget.businessId)),
-    );
-    if (added == true) await _load();
+  /// The global search, with no role fixed.
+  ///
+  /// No `role=` query parameter on purpose: absent means "ask which role",
+  /// and asking is the safe direction. A wrong role files an agent as a
+  /// borrower; a needless question does not.
+  Future<void> _addUser() async {
+    await context.push('/ow-search', extra: widget.businessId);
+    if (mounted) await _load();
   }
 
   @override
@@ -304,15 +307,27 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
     final s = _summary;
     return Scaffold(
       appBar: ManaAppBar(title: ref.t('pre_existing_business')),
-      // "Add a Customer" rather than "Add Existing Loan": the form takes the
-      // person and their loan together, and the person is the part an Owner
-      // is thinking about when they open this screen. Branch behaviour,
-      // main's translation wiring.
+      // ADD A USER, not a customer.
+      //
+      // This button used to open the migrate-loan form directly, which named
+      // the role before the Owner had chosen it: a book being brought across
+      // has investors and agents in it too, and the only thing on this screen
+      // offering to add anybody said "Customer". It goes to the global search
+      // now, which finds the person first and then asks which of the three
+      // they are -- the same route the + and the magnifier already take.
+      //
+      // THIS ORPHANS _MigrateLoanScreen (below, ~700 lines), which was the
+      // only caller. Left in place rather than deleted in a renaming change:
+      // it did something the new route does NOT, namely take a new person and
+      // their loan in ONE form. Through the search that is two errands -- add
+      // the person, then add their loan from the village book. Flagged for a
+      // decision rather than removed quietly, because deleting it is a choice
+      // about how an Owner works, not tidying.
       floatingActionButton: (s != null && !s.migrationLocked)
           ? FloatingActionButton.extended(
-              onPressed: _addLoan,
+              onPressed: _addUser,
               icon: const Icon(Icons.person_add_alt_1),
-              label: ManaText.raw(ref.t('add_a_customer')),
+              label: ManaText.raw(ref.t('add_a_user')),
             )
           : null,
       body: SafeArea(

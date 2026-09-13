@@ -243,6 +243,14 @@ class _VillageCard extends ConsumerWidget {
             _figure(ref, 'total_balance', summary.totalBalance, null),
             _figure(ref, 'running_amount', summary.runningBalance,
                 ManaColors.statusGood),
+            // struck_amount now READS "On Hold". The key keeps its name --
+            // renaming a live key means a new row, a new migration and every
+            // call site, for no behaviour -- but the word an Owner sees is
+            // deliberately not "Struck". Struck is a judgement about the
+            // person; this figure is a fact about the money, and on an
+            // un-migrated book it may be an ESTIMATE from the loan's own
+            // dates rather than anything collected. Same for the Dart
+            // identifiers below.
             _figure(ref, 'struck_amount', summary.struckBalance,
                 ManaColors.statusBad,
                 // Named rather than counted: a figure an Owner cannot act on

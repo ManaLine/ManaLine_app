@@ -374,7 +374,15 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                             style: ManaType.fine,
                           ),
                           const SizedBox(height: ManaSpacing.sm),
-                          TextButton.icon(
+                          // Outlined, like the three buttons under it.
+                          //
+                          // It was a bare TextButton sitting between two
+                          // OutlinedButtons, so the one control on this screen
+                          // that opens a seven-page wizard read as less of a
+                          // button than the ones that do smaller things. Being
+                          // the second choice is what the sentence above it
+                          // says; it does not also need to look unpressable.
+                          OutlinedButton.icon(
                             onPressed: _openBulkOnboarding,
                             icon: const Icon(Icons.upload_file_outlined),
                             label: ManaText.raw(ref.t('bulk_onboarding_wizard')),

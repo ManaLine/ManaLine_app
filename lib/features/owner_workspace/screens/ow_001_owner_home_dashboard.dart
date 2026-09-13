@@ -949,9 +949,16 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
               )
             : _found.isEmpty
                 ? Padding(
-                    padding: const EdgeInsets.all(ManaSpacing.xxl),
+                    // TOP, not centre. The answer to a search belongs where
+                    // the eye already is -- just under the box that was typed
+                    // into. Centred, "No identity found." sat half a screen
+                    // below the query with nothing in between, which reads as
+                    // the page still loading rather than as the answer.
+                    padding: const EdgeInsets.fromLTRB(ManaSpacing.xxl,
+                        ManaSpacing.lg, ManaSpacing.xxl, ManaSpacing.xxl),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         ManaText.raw(
                           // Before a search has run this is an instruction, not

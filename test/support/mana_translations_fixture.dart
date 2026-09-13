@@ -1886,6 +1886,17 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'no_groups_yet': {'English': r'No groups yet', 'Telugu': r'ఇంకా గ్రూపులు లేవు'},
   'no_groups_yet_detail': {'English': r'A group is formed from customers who already have a loan — it groups them for collection only, and does not merge their money. Create the loans first, then come back and group them.', 'Telugu': r'ఇప్పటికే రుణం ఉన్న కస్టమర్ల నుండి గ్రూప్ ఏర్పడుతుంది — ఇది వసూలు కోసం మాత్రమే వారిని కలుపుతుంది, వారి డబ్బును కలపదు. ముందుగా రుణాలు సృష్టించి, తర్వాత వాటిని గ్రూప్ చేయండి.'},
   'members_count_note': {'English': r'{count} members', 'Telugu': r'{count} సభ్యులు'},
+  // The members roster's own controls. Missing until now, so every English
+  // layout test measured the RAW KEY -- 'sort_by_village' is narrower than
+  // 'Village (A–Z)' and far narrower than its Telugu, which is the language
+  // that actually overflows. Note the EN DASH: it is what the rows carry, and
+  // a hyphen here would measure the wrong string and fail any test matching
+  // on the text.
+  'sort_by': {'English': 'Sort by', 'Telugu': 'క్రమబద్ధీకరించు'},
+  'sort_by_name': {'English': 'Name (A–Z)', 'Telugu': 'పేరు (A–Z)'},
+  'sort_by_village': {'English': 'Village (A–Z)', 'Telugu': 'గ్రామం (A–Z)'},
+  'add_a_user': {'English': 'Add a User', 'Telugu': 'వినియోగదారుని జోడించండి'},
+  'no_village_on_file': {'English': 'No village on file', 'Telugu': 'గ్రామం నమోదు కాలేదు'},
   'group_name_field': {'English': r'Group Name', 'Telugu': r'గ్రూప్ పేరు'},
   'search_existing_loans_field': {'English': r'Search Existing Loans', 'Telugu': r'ఇప్పటికే ఉన్న రుణాలను శోధించండి'},
   'search_loans_to_add_note': {'English': r'Search for individual loans to add as group members.', 'Telugu': r'గ్రూప్ సభ్యులుగా జోడించడానికి వ్యక్తిగత రుణాలను శోధించండి.'},

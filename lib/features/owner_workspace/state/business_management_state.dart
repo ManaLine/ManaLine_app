@@ -1154,7 +1154,21 @@ class OperatingAreaSummary {
   bool get isUnassigned => assignedAgents.isEmpty;
 
   /// "Ravi, Suresh" — every agent working this round.
-  String get assignedAgentsLabel => assignedAgents.map((a) => a.fullName).join(', ');
+  /// The assigned agents, NUMBERED, one per line.
+  ///
+  /// Comma-joined they ran together -- "Karri Bhaskara Reddy, Karri Siri
+  /// Manikanta Reddy" wrapped mid-name on a 360dp screen, and two people whose
+  /// names share a surname read as one long name with a comma in it. Numbering
+  /// also answers how many there are without counting commas.
+  ///
+  /// A single agent gets no number: "1. Karri Bhaskara Reddy" implies a
+  /// second.
+  String get assignedAgentsLabel => assignedAgents.length == 1
+      ? assignedAgents.single.fullName
+      : [
+          for (var i = 0; i < assignedAgents.length; i++)
+            '${i + 1}. ${assignedAgents[i].fullName}',
+        ].join('\n');
 
   /// "Srikalahasti, Uranduru" — the villages this round actually covers.
   String get villagesLabel => villages.map((v) => v.villageTownName).join(', ');

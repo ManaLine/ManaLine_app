@@ -74,6 +74,27 @@ final _member1 = MemberSummary(
   fullName: 'Chalasani Ramana',
   role: 'Agent',
   membershipStatus: 'Active',
+  village: 'Srikalahasti',
+);
+
+/// A second village, so the grouping has more than one card to draw, and a
+/// member with NO village, because that group is named and sorted last rather
+/// than hidden -- dropping them would quietly shorten the book.
+final _member2 = MemberSummary(
+  membershipId: 'm2',
+  personId: 'p2',
+  fullName: 'Kovvuri Sai Ramakrishna Reddy',
+  role: 'Customer',
+  membershipStatus: 'Active',
+  village: 'Uranduru Colony',
+);
+
+final _member3 = MemberSummary(
+  membershipId: 'm3',
+  personId: 'p3',
+  fullName: 'Tadi Srinivasa Reddy',
+  role: 'Investor',
+  membershipStatus: 'Active',
 );
 
 final _membershipRequest1 = MembershipRequestSummary(
@@ -107,7 +128,7 @@ class _SeededBusinessDetailNotifier extends BusinessDetailNotifier {
         ),
         operatingAreas: [_area1, _area2],
         agreements: [_agreement1],
-        members: [_member1],
+        members: [_member1, _member2, _member3],
         membershipRequests: [_membershipRequest1],
         accountPeriods: [_accountPeriod1],
       );
@@ -142,6 +163,12 @@ const _ow012TeluguTranslations = <String, Map<String, String>>{
   'operating_areas': {'English': 'Operating Areas', 'Telugu': 'పని ప్రాంతాలు'},
   'agreements': {'English': 'Agreements', 'Telugu': 'ఒప్పందాలు'},
   'members': {'English': 'Members', 'Telugu': 'సభ్యులు'},
+  'sort_by': {'English': 'Sort by', 'Telugu': 'క్రమబద్ధీకరించు'},
+  'sort_by_name': {'English': 'Name (A–Z)', 'Telugu': 'పేరు (A–Z)'},
+  'sort_by_village': {'English': 'Village (A–Z)', 'Telugu': 'గ్రామం (A–Z)'},
+  'add_a_user': {'English': 'Add a User', 'Telugu': 'వినియోగదారుని జోడించండి'},
+  'members_count_note': {'English': '{count} members', 'Telugu': '{count} సభ్యులు'},
+  'no_village_on_file': {'English': 'No village on file', 'Telugu': 'గ్రామం నమోదు కాలేదు'},
   'account_periods': {'English': 'Account Periods', 'Telugu': 'ఖాతా వ్యవధులు'},
   'operating_area_intro_note': {
     'English': 'An operating area is one round, covering as many villages as the round actually walks. Name it, add its first village here, then attach the rest from the area itself.',
@@ -275,6 +302,61 @@ void main() {
       await stepToTab(tester, 1);
       expectNoLayoutFault(tester, 'OW-012 operating areas at ${scale}x in Telugu');
     });
+
+    // MEMBERS, SORTED BY VILLAGE, which the loop below never reaches.
+    //
+    // It starts at 1 because openDetail already lands on Members -- but it
+    // lands on it sorted by NAME, and the village sort draws a different
+    // screen entirely: village cards with counts that open to show who is in
+    // them. That shape, plus a button and a dropdown sharing one row, is the
+    // exact arrangement this project has shipped overflowing four times.
+    for (final lang in [ManaLanguage.english, ManaLanguage.telugu]) {
+      final tag = lang == ManaLanguage.telugu ? ' in Telugu' : '';
+      testWidgets(
+          'OW-012 members by village survives text scale ${scale}x$tag',
+          (tester) async {
+        await pumpManaScreen(
+          tester,
+          const BusinessManagementScreen(),
+          textScale: scale,
+          language: lang,
+          translations:
+              lang == ManaLanguage.telugu ? _ow012TeluguTranslations : null,
+          overrides: detailOverrides(),
+        );
+        await openDetail(tester);
+        expectNoLayoutFault(tester, 'OW-012 members by name at ${scale}x$tag');
+
+        // The sort is a dropdown now, not a segmented pair: the two of them
+        // side by side left no room for the button beside them.
+        final sort = find.byType(DropdownButtonFormField<bool>);
+        expect(sort, findsOneWidget,
+            reason: 'the members sort control has changed shape');
+        await tester.tap(sort);
+        await tester.pumpAndSettle();
+        // EN DASH, which is what the rows carry. A hyphen here finds nothing
+        // and the failure reads as a broken dropdown rather than a wrong
+        // string in the test.
+        await tester.tap(find
+            .text(lang == ManaLanguage.telugu
+                ? 'గ్రామం (A–Z)'
+                : 'Village (A–Z)')
+            .last);
+        await tester.pumpAndSettle();
+        expectNoLayoutFault(
+            tester, 'OW-012 members by village at ${scale}x$tag');
+
+        // And opened, because a closed village card proves nothing about the
+        // rows inside it.
+        final card = find.byIcon(Icons.place_outlined);
+        if (card.evaluate().isNotEmpty) {
+          await tester.tap(card.first);
+          await tester.pumpAndSettle();
+          expectNoLayoutFault(
+              tester, 'OW-012 village opened at ${scale}x$tag');
+        }
+      });
+    }
 
     // The detail has five tabs and TabBarView lays out only the visible one,
     // so the two tests above covered Operating Areas and nothing else. The

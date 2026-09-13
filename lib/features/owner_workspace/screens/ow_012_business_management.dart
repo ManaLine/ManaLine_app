@@ -1491,6 +1491,64 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
   /// errand; village is for planning a round.
   bool _byVillage = false;
 
+  /// The village currently open, or null with them all closed.
+  ///
+  /// Only meaningful while [_byVillage] is on, and cleared when the sort
+  /// changes so switching back does not leave a village open under a list
+  /// that is no longer grouped.
+  String? _openVillage;
+
+  /// Active members grouped under their village, A to Z.
+  ///
+  /// The no-village group is LAST and named rather than hidden. Somebody with
+  /// no current address on file is a real state, and dropping them from a
+  /// village-sorted roster would quietly shorten the book.
+  List<Widget> _villageGroups(List<MemberSummary> members, bool migrationOpen) {
+    final byVillage = <String, List<MemberSummary>>{};
+    for (final m in members) {
+      byVillage.putIfAbsent(m.village.trim(), () => []).add(m);
+    }
+    final names = byVillage.keys.toList()
+      ..sort((a, b) {
+        if (a.isEmpty != b.isEmpty) return a.isEmpty ? 1 : -1;
+        return a.toLowerCase().compareTo(b.toLowerCase());
+      });
+
+    return [
+      for (final name in names) ...[
+        Card(
+          margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.place_outlined),
+                title: ManaText.raw(
+                    name.isEmpty ? ref.t('no_village_on_file') : name),
+                subtitle: ManaText.raw(
+                  ref
+                      .t('members_count_note')
+                      .replaceAll('{count}', '${byVillage[name]!.length}'),
+                  style: ManaType.note,
+                ),
+                trailing: Icon(_openVillage == name
+                    ? Icons.expand_less
+                    : Icons.expand_more),
+                onTap: () => setState(
+                    () => _openVillage = _openVillage == name ? null : name),
+              ),
+              if (_openVillage == name)
+                ...byVillage[name]!.map((m) => _MemberRow(
+                      businessId: widget.businessId,
+                      member: m,
+                      migrationOpen: migrationOpen,
+                    )),
+            ],
+          ),
+        ),
+      ],
+    ];
+  }
+
   /// Sorted copy, never the provider's list in place.
   ///
   /// An empty village sorts LAST rather than first. A member with no current
@@ -1528,37 +1586,51 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        Wrap(
-          spacing: ManaSpacing.sm,
-          runSpacing: ManaSpacing.sm,
-          children: [
-            OutlinedButton.icon(
-              onPressed: () =>
-                  context.push('/ow-search', extra: widget.businessId),
-              icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
-              label: ManaText.raw(ref.t('add_a_user')),
-            ),
-          ],
-        ),
-        const SizedBox(height: ManaSpacing.md),
+        // The button and the sort on ONE line.
+        //
+        // They were stacked, which cost a whole row of a 360dp screen to a
+        // control with two options. The sort is a dropdown now rather than a
+        // segmented pair for the same reason: "Village (A-Z)" and
+        // "Name (A-Z)" side by side left no room for the button beside them.
+        //
+        // Flexible, not fixed: a Telugu label is longer than its English, and
+        // a fixed-width child beside a flexible one is the overflow this
+        // project has shipped four times.
         Row(
           children: [
-            ManaText.raw(ref.t('sort_by'), style: ManaType.note),
+            Flexible(
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    context.push('/ow-search', extra: widget.businessId),
+                icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+                label: ManaText.raw(ref.t('add_a_user'),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ),
             const SizedBox(width: ManaSpacing.sm),
-            // Two choices, both visible. A dropdown would hide the one not
-            // chosen behind a tap, and there are only ever two.
-            Expanded(
-              child: SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(
-                      value: false, label: ManaText.raw(ref.t('sort_by_name'))),
-                  ButtonSegment(
-                      value: true, label: ManaText.raw(ref.t('sort_by_village'))),
+            Flexible(
+              child: DropdownButtonFormField<bool>(
+                initialValue: _byVillage,
+                isExpanded: true,
+                isDense: true,
+                decoration: InputDecoration(
+                  labelText: ref.t('sort_by'),
+                  isDense: true,
+                ),
+                items: [
+                  DropdownMenuItem(
+                      value: false,
+                      child: ManaText.raw(ref.t('sort_by_name'),
+                          maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  DropdownMenuItem(
+                      value: true,
+                      child: ManaText.raw(ref.t('sort_by_village'),
+                          maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ],
-                selected: {_byVillage},
-                showSelectedIcon: false,
-                onSelectionChanged: (v) =>
-                    setState(() => _byVillage = v.first),
+                onChanged: (v) => setState(() {
+                  _byVillage = v ?? false;
+                  _openVillage = null;
+                }),
               ),
             ),
           ],
@@ -1585,6 +1657,15 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         ManaText.raw(ref.t('active_members'), style: ManaType.strong),
         if (active.isEmpty)
           ManaText.raw(ref.t('no_active_members_yet'), style: ManaType.secondary)
+        else if (_byVillage)
+          // SORTED BY VILLAGE MEANS THE VILLAGES ARE THE LIST.
+          //
+          // It used to mean the people were still the list, merely ordered by
+          // where they live -- which on a book of two hundred is two hundred
+          // rows with the village repeated down the side, and no answer to
+          // "how many are in Someswaram". The villages come first now, each
+          // with its count, and open to show who is in them.
+          ..._villageGroups(active, migrationOpen)
         else
           ...active.map((m) => _MemberRow(businessId: widget.businessId, member: m, migrationOpen: migrationOpen)),
       ],

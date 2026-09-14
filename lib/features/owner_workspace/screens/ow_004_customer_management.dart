@@ -434,11 +434,27 @@ class ManaAddCustomerSheet extends ConsumerStatefulWidget {
   /// global search, which otherwise dead-ends on "No Identity Found".
   final String? initialQuery;
 
+  /// Called the moment a person exists, with both ids, BEFORE the sheet pops.
+  ///
+  /// ADDITIVE ON PURPOSE. The sheet signals which button was pressed by what
+  /// it pops -- the customerId for "Add & Issue Loan", null for "Add Only" --
+  /// and null is also what cancelling gives. That ambiguity is fine for the
+  /// four callers that only want to know whether to open a loan screen, and
+  /// useless for a caller that needs to do something to the person regardless
+  /// of which button ended the sheet.
+  ///
+  /// Changing the pop to carry a richer result would have rewritten the
+  /// contract that /customer-new forwards as its own route result, and every
+  /// caller with it. This adds a way to hear about the person without
+  /// disturbing any of that.
+  final void Function(String customerId, int personId)? onCreated;
+
   const ManaAddCustomerSheet({
     super.key,
     required this.businessId,
     this.existingOnly = false,
     this.initialQuery,
+      this.onCreated,
   });
 
   @override
@@ -696,6 +712,27 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
     return true;
   }
 
+  /// Tells the caller who was just created, if it asked to be told.
+  ///
+  /// The person_id is read back from the row rather than guessed:
+  /// app.register_new_customer returns the customer_id alone, and the two ids
+  /// are not interchangeable. One small select on a path that runs once per
+  /// new person.
+  Future<void> _announceCreated(String customerId) async {
+    final cb = widget.onCreated;
+    if (cb == null) return;
+    try {
+      final personId = await ref
+          .read(customerListProvider.notifier)
+          .personIdForCustomer(customerId);
+      if (personId != null) cb(customerId, personId);
+    } catch (_) {
+      // Never block the add on the announcement. The customer exists either
+      // way; the caller simply does not get told, which is the state every
+      // other caller is in.
+    }
+  }
+
   Future<void> _createNew({bool thenLoan = false}) async {
     setState(() => _submitting = true);
     if (await _wouldDuplicate()) {
@@ -722,6 +759,8 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
     if (!mounted) return;
     setState(() => _submitting = false);
     if (id == null || !mounted) return;
+    await _announceCreated(id);
+    if (!mounted) return;
     Navigator.of(context).pop(thenLoan ? id : null);
   }
 

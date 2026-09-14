@@ -10,6 +10,21 @@ import '../../../shared/mana_time.dart';
 /// Function" story for the exact same underlying auth-register/auth-otp-*
 /// operations OW-014 also needs — same architectural decision record
 /// applies here unchanged, just triggered from a different screen.
+/// What became of one role in a multi-role add.
+///
+/// The distinction it exists to carry: an Agent or Investor is ASKED and sits
+/// at Pending Invitation until they answer; a Customer is in immediately.
+/// Reporting both as "added" would tell an Owner an agent is on their book
+/// when that agent has not replied, and they would find out by wondering why
+/// nothing was collected.
+class ManaRoleOutcome {
+  final String role;
+  final String status;
+  const ManaRoleOutcome({required this.role, required this.status});
+
+  bool get isWaiting => status != 'Active';
+}
+
 enum MemberType { customer, agent, investor }
 
 extension MemberTypeLabel on MemberType {
@@ -140,6 +155,44 @@ class GlobalWorkflowApiService {
   /// so this went from a rarely used path to the main one.
   ///
   /// An RPC because it is up to four writes that must all happen or none.
+  /// Adds one person in SEVERAL roles at once, all or nothing.
+  ///
+  /// A person is often two things -- an agent who also borrows, an investor
+  /// who is also a customer -- and business_members has always allowed it:
+  /// UNIQUE (person_id, business_id, role), one row per role. What was missing
+  /// was a way to say it in one action.
+  ///
+  /// Not a loop over attachNewPersonToBusiness from here. Two client calls are
+  /// two transactions, and a failure on the second leaves somebody an Agent
+  /// but not a Customer with nothing on screen saying so. The server function
+  /// delegates to the single-role one per role inside its own transaction, so
+  /// the rules live in one place and the set arrives whole or not at all.
+  ///
+  /// Returns one entry per role in the order the server settled on, each
+  /// carrying its membership_status -- because Customer lands Active and the
+  /// other two land Pending Invitation, and the caller has to say which.
+  Future<List<ManaRoleOutcome>> attachNewPersonInRoles({
+    required String businessId,
+    required String personId,
+    required List<MemberType> types,
+  }) async {
+    final res = await _db.schema('app').rpc(
+      'attach_person_to_business_roles',
+      params: {
+        'p_business_id': businessId,
+        'p_person_id': int.parse(personId),
+        'p_roles': [for (final t in types) t.role],
+      },
+    );
+    return [
+      for (final row in (res as List))
+        ManaRoleOutcome(
+          role: (row as Map)['role'] as String,
+          status: row['membership_status'] as String,
+        ),
+    ];
+  }
+
   Future<String> attachNewPersonToBusiness({
     required String businessId,
     required String personId,

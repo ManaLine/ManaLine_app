@@ -23,7 +23,7 @@ import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
 import '../state/global_workflow_state.dart'
-    show MemberType, MemberTypeLabel, globalWorkflowApiServiceProvider;
+    show MemberType, MemberTypeLabel, ManaRoleOutcome, globalWorkflowApiServiceProvider;
 import '../state/investor_state.dart' show investorApiServiceProvider, InvestorSummary;
 import 'ow_004_customer_management.dart'
     show CustomerProfileScreen, ManaAddCustomerSheet;
@@ -574,6 +574,94 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   /// one of the three, and writes the membership, the role-side row and (for
   /// an Agent) the permissions together, which is what a membership with no
   /// agents row taught this project to insist on.
+  /// Which roles this person holds here. One, or several, or none chosen.
+  ///
+  /// MULTI-SELECT, because a person is routinely two things at once -- an
+  /// agent who also borrows, an investor who is also a customer -- and
+  /// business_members has always allowed it. Asking one at a time meant
+  /// walking the whole search twice for one person.
+  ///
+  /// Returns null when the Owner backs out, which is not the same as choosing
+  /// nothing; the Add button is simply disabled until something is ticked.
+  Future<List<MemberType>?> _askRoles() => showModalBottomSheet<List<MemberType>>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) {
+          final chosen = <MemberType>{};
+          return StatefulBuilder(
+            builder: (context, setSheetState) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.sm),
+                    child: ManaText.raw(ref.t('select_role'),
+                        style: ManaType.cardTitle),
+                  ),
+                  // Named, not iconed. Three unlabelled glyphs competing for
+                  // one corner is what the add actions on Customer Management
+                  // were before they became rows carrying their names.
+                  for (final option in MemberType.values)
+                    CheckboxListTile(
+                      value: chosen.contains(option),
+                      title: ManaText.raw(ref.t(option.name)),
+                      // Said on the row itself, not only in the confirmation
+                      // afterwards: an Owner ticking Agent is choosing to send
+                      // a request, and that is worth knowing BEFORE pressing
+                      // Add rather than after.
+                      subtitle: option.needsAcceptance
+                          ? ManaText.raw(ref.t('role_must_accept_note'),
+                              style: ManaType.note)
+                          : null,
+                      onChanged: (on) => setSheetState(() {
+                        if (on == true) {
+                          chosen.add(option);
+                        } else {
+                          chosen.remove(option);
+                        }
+                      }),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.all(ManaSpacing.lg),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: chosen.isEmpty
+                            ? null
+                            : () => Navigator.pop(sheetContext, chosen.toList()),
+                        child: ManaText.raw(ref.t('add_to_this_business')),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+  /// What to say once the server has answered.
+  ///
+  /// Names the two outcomes separately. An Agent or Investor is ASKED and sits
+  /// at Pending Invitation until they answer; a Customer is in immediately.
+  /// One word for both would tell the Owner an agent is on their book when
+  /// that agent has not replied, and they would find out by wondering why
+  /// nothing was collected.
+  String _outcomeMessage(List<ManaRoleOutcome> outcomes) {
+    final waiting = outcomes.where((o) => o.isWaiting).map((o) => o.role);
+    final joined = outcomes.where((o) => !o.isWaiting).map((o) => o.role);
+    final parts = <String>[
+      if (joined.isNotEmpty)
+        ref.t('added_as_roles_note').replaceAll('{roles}', joined.join(', ')),
+      if (waiting.isNotEmpty)
+        ref.t('request_sent_as_roles_note')
+            .replaceAll('{roles}', waiting.join(', ')),
+    ];
+    return parts.join(' ');
+  }
+
   Future<void> _addToBusiness(CustomerSummary person) async {
     final personId = person.personId;
     if (personId == null || personId.isEmpty) return;
@@ -581,61 +669,25 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     // The screen may already know. Workforce adds Agents; Investor Management
     // adds Investors; asking again would be a question with one answer.
     final fixed = widget.fixedRole;
-    final type = fixed != null
-        ? _memberTypeFor(fixed)
-        : await showModalBottomSheet<MemberType>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.sm),
-              child: ManaText.raw(ref.t('select_role'),
-                  style: ManaType.cardTitle),
-            ),
-            // Named, not iconed. Three unlabelled glyphs competing for one
-            // corner is what the add actions on Customer Management were
-            // before they became rows carrying their names.
-            for (final option in MemberType.values)
-              ListTile(
-                title: ManaText.raw(ref.t(option.name)),
-                onTap: () => Navigator.pop(sheetContext, option),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (type == null || !mounted) return;
+    final types =
+        fixed != null ? [_memberTypeFor(fixed)] : await _askRoles();
+    if (types == null || types.isEmpty || !mounted) return;
 
     setState(() => _adding = personId);
-    final ok = await NetworkErrorHandler.run(context, () async {
-      await ref.read(globalWorkflowApiServiceProvider).attachNewPersonToBusiness(
+    final outcomes = await NetworkErrorHandler.run(context, () async {
+      return ref.read(globalWorkflowApiServiceProvider).attachNewPersonInRoles(
             businessId: widget.businessId,
             personId: personId,
-            type: type,
+            types: types,
           );
-      return true;
     });
     if (!mounted) return;
     setState(() => _adding = null);
-    if (ok != true) return;
+    if (outcomes == null) return;
 
-    // WHICH of the two things happened, said plainly.
-    //
-    // An Agent and an Investor are ASKED -- they land on Pending Invitation
-    // and are not working for this business until they accept. A Customer is
-    // in straight away. One word for both would tell the Owner an Agent is
-    // on their book when that Agent has not answered yet, and the Owner would
-    // find out by wondering why nothing was collected.
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: ManaText.raw(type.needsAcceptance
-          ? ref.t('request_sent_note')
-          : ref.t('added_to_business_note')),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: ManaText.raw(_outcomeMessage(outcomes))),
+    );
 
     // Re-run the search rather than adding the role to the list in memory:
     // the roles on these cards are what the server says they are, and a list
@@ -650,29 +702,94 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
   /// this business, while OW-014 creates a person and attaches them as an
   /// Agent or Investor.
   Future<void> _addNewPerson() async {
-    final kind = widget.fixedRole;
-    if (kind == ManaMemberKind.agent || kind == ManaMemberKind.investor) {
-      await context.push('/ow-014?type=${kind!.workflowType}',
-          extra: widget.businessId);
-      if (mounted) _search();
+    final fixed = widget.fixedRole;
+
+    // WHICH ROLES, ASKED BEFORE ANYTHING IS CREATED.
+    //
+    // This branch used to make a Customer whatever was intended, because the
+    // screen that knows the role answers with fixedRole and the GLOBAL search
+    // has no fixedRole -- so it fell through to the customer sheet. Renaming
+    // the button to "Add a User" made the label honest and left the behaviour
+    // exactly as wrong, which is worse: a label that promises a question it
+    // never asks. Filing an intended agent as a borrower is the specific
+    // mistake this whole search exists to prevent.
+    final types = fixed != null ? [_memberTypeFor(fixed)] : await _askRoles();
+    if (types == null || types.isEmpty || !mounted) return;
+
+    // Registering a brand new person happens through ONE of two doors, and
+    // which one depends on whether they are a Customer here. The customer
+    // sheet creates a person AND their customer row; OW-014 creates a person
+    // and attaches them as an Agent or Investor. Neither can create the other
+    // side, so whichever runs first creates the person and the rest of the
+    // roles are attached afterwards by person_id.
+    if (!types.contains(MemberType.customer)) {
+      final first = types.first;
+      await context.push(
+          '/ow-014?type=${_workflowTypeFor(first)}', extra: widget.businessId);
+      if (!mounted) return;
+      // The remaining roles cannot be applied from here: OW-014 does not hand
+      // back the person it made, and guessing which search result is theirs in
+      // a village where several people share a name is how the wrong record
+      // gets a membership. Searching again and adding is two taps and is
+      // never wrong.
+      if (types.length > 1) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: ManaText.raw(ref.t('search_again_for_other_roles_note')),
+        ));
+      }
+      _search();
       return;
     }
+
     // The sheet pops the new customerId when "Add & Issue Loan" was pressed
-    // and null when it was "Add Only". Dropping it read as the button doing
-    // nothing -- see _openAddCustomer on OW-004 for the same defect.
+    // and null when it was "Add Only" -- and null is also what cancelling
+    // gives. onCreated fires on creation regardless, which is the only way to
+    // learn the person_id on the "Add Only" path.
+    int? createdPersonId;
     final customerId = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       builder: (_) => ManaAddCustomerSheet(
         businessId: widget.businessId,
         initialQuery: _query.text.trim(),
+        onCreated: (_, personId) => createdPersonId = personId,
       ),
     );
     if (!mounted) return;
+
+    // Everything except Customer, which the sheet has already done.
+    final rest =
+        types.where((t) => t != MemberType.customer).toList(growable: false);
+    if (createdPersonId != null && rest.isNotEmpty) {
+      final outcomes = await NetworkErrorHandler.run(context, () async {
+        return ref.read(globalWorkflowApiServiceProvider).attachNewPersonInRoles(
+              businessId: widget.businessId,
+              personId: '$createdPersonId',
+              types: rest,
+            );
+      });
+      if (!mounted) return;
+      if (outcomes != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: ManaText.raw(_outcomeMessage(outcomes))),
+        );
+      }
+    }
+
     _search();
     if (customerId == null || !mounted) return;
     context.push('/ow-005?customerId=$customerId', extra: widget.businessId);
   }
+
+  /// OW-014's `type` query parameter for a role it can register.
+  ///
+  /// Customer is not one of them -- that screen registers Agents and
+  /// Investors, and the customer sheet is the other door.
+  String _workflowTypeFor(MemberType type) => switch (type) {
+        MemberType.agent => ManaMemberKind.agent.workflowType,
+        MemberType.investor => ManaMemberKind.investor.workflowType,
+        MemberType.customer => ManaMemberKind.customer.workflowType,
+      };
 
   Future<void> _search() async {
     final query = _query.text.trim();

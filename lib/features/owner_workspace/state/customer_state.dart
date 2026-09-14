@@ -318,7 +318,7 @@ class CustomerApiService {
   }
 
   Future<CustomerProfile> fetchCustomerProfile({required String customerId}) async {
-    final row = await _db
+    final row = await Supabase.instance.client
         .from('customers')
         .select('''
           customer_id, customer_status, occupation, customer_since, membership_id,
@@ -932,6 +932,21 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
         .limit(1);
     final list = (rows as List).cast<Map<String, dynamic>>();
     return list.isEmpty ? null : list.first['customer_id'] as String;
+  }
+
+  /// The person behind a customer row.
+  ///
+  /// app.register_new_customer hands back the customer_id alone, and the two
+  /// ids are not interchangeable -- attaching further roles needs the person,
+  /// because business_members is keyed by person_id. One select on a path that
+  /// runs once per newly created person.
+  Future<int?> personIdForCustomer(String customerId) async {
+    final row = await Supabase.instance.client
+        .from('customers')
+        .select('person_id')
+        .eq('customer_id', customerId)
+        .maybeSingle();
+    return (row?['person_id'] as num?)?.toInt();
   }
 
   /// [createNew] but hands back the new customer_id.

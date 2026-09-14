@@ -1,0 +1,1632 @@
+﻿S.No,In-use English,Changes in English,In-use Telugu,Changes in Telugu,Section,Times used,Translation keys
+1, (before migration),, (మైగ్రేషన్‌కు ముందు),,A,1,before_migration_suffix
+2, — locked,, — లాక్ చేయబడింది,,A,1,bf_locked_suffix
+3,1. Select Role,,1. పాత్రను ఎంచుకోండి,,A,1,step_1_select_role
+4,4. Send Request,,4. అభ్యర్థన పంపండి,,A,1,step_4_send_request
+5,Aadhaar Number,,ఆధార్ నంబర్,,A,2,aadhaar_number aadhaar_number_field
+6,About,,గురించి,,A,1,about
+7,Accept,,అంగీకరించండి,,A,1,accept
+8,Account,,ఖాతా,,A,1,account
+9,Account Cycle Duration,,ఖాతా చక్రం వ్యవధి,,A,2,account_cycle_duration account_cycle_duration_field
+10,Account Cycle Unit,,ఖాతా చక్రం యూనిట్,,A,1,account_cycle_unit_field
+11,Account Holder: {name},,ఖాతాదారు: {name},,A,1,account_holder_note
+12,Account Periods,,ఖాతా వ్యవధులు,,A,1,account_periods
+13,Account Review,,ఖాతా సమీక్ష,,A,1,account_review
+14,Account Summary,,ఖాతా సారాంశం,,A,1,account_summary
+15,Accrued,,సమకూరినది,,A,1,accrued
+16,Accrued This Year,,ఈ సంవత్సరం సమకూరినది,,A,1,accrued_this_year
+17,Active,,యాక్టివ్,,A,1,active
+18,Active Investments,,యాక్టివ్ పెట్టుబడులు,,A,1,active_investments
+19,Active Loans,,యాక్టివ్ రుణాలు,,A,1,active_loans
+20,Active Members,,యాక్టివ్ సభ్యులు,,A,1,active_members
+21,Add,,జోడించండి,,A,1,add
+22,Add a Customer,,కస్టమర్‌ను జోడించండి,,A,2,add a customer add_a_customer
+23,Add a Member,,సభ్యుడిని జోడించండి,,A,1,add_a_member
+24,Add a User,,వినియోగదారుని జోడించండి,,A,1,add_a_user
+25,Add Agent,,ఏజెంట్ జోడించండి,,A,1,add_agent
+26,Add an Agent,,ఒక ఏజెంట్‌ను జోడించండి,,A,1,add_an_agent
+27,Add Area,,ప్రాంతం జోడించండి,,A,1,add_area
+28,Add BF,,BF జోడించండి,,A,1,add_bf
+29,Add Business Photo,,వ్యాపార ఫోటో జోడించండి,,A,1,add_business_photo
+30,Add Cheeti,,చీటీ జోడించండి,,A,1,add_cheti
+31,Add Customer,,కస్టమర్ జోడించండి,,A,1,add_customer
+32,Add Existing Agent,,ఇప్పటికే ఉన్న ఏజెంట్‌ను జోడించండి,,A,1,add_existing_agent
+33,Add Existing Customer,,ఇప్పటికే ఉన్న కస్టమర్‌ను జోడించండి,,A,1,add_existing_customer
+34,Add Existing Investor,,ఇప్పటికే ఉన్న పెట్టుబడిదారుని జోడించండి,,A,1,add_existing_investor
+35,Add Existing Loan,,ఇప్పటికే ఉన్న రుణం జోడించండి,,A,1,add_existing_loan
+36,Add Existing Member,,ఇప్పటికే ఉన్న సభ్యుడిని జోడించండి,,A,1,add_existing_member
+37,Add Expense,,ఖర్చు జోడించండి,,A,1,add_expense
+38,Add Investor,,పెట్టుబడిదారుని జోడించండి,,A,1,add_investor
+39,Add Loan,,రుణం జోడించండి,,A,1,add_loan
+40,Add New Village,,కొత్త గ్రామం జోడించండి,,A,1,add_new_village
+41,Add Only,,జోడించండి మాత్రమే,,A,1,add_only
+42,Add Payment,,చెల్లింపు జోడించండి,,A,1,add_payment
+43,Add Profile Photo,,ప్రొఫైల్ ఫోటో జోడించండి,,A,1,add_profile_photo
+44,Add Remark,,వ్యాఖ్య జోడించండి,,A,1,add_remark
+45,Add Remarks,,వ్యాఖ్యలు జోడించండి,,A,1,add_remarks
+46,Add This Village,,ఈ గ్రామాన్ని జోడించండి,,A,1,add_this_village
+47,Add Village,,గ్రామం జోడించండి,,A,1,add_village
+48,Added as {roles}.,,{roles}గా జోడించబడింది.,,A,1,added_as_roles_note
+49,Added to Principal,,అసలుకు జోడించబడింది,,A,1,added_to_principal
+50,Address,,చిరునామా,,A,2,address address_field
+51,Adjustments,,సర్దుబాట్లు,,A,1,adjustments
+52,Admin Login,,అడ్మిన్ లాగిన్,,A,1,admin_login
+53,Admin Panel,,అడ్మిన్ ప్యానెల్,,A,1,admin_panel
+54,Advance,,అడ్వాన్స్,,A,1,advance
+55,Advances Deducted,,తీసివేసిన అడ్వాన్సులు,,A,1,advances_deducted
+56,Agent,,ఏజెంట్,,A,1,agent
+57,Agent Dashboard,,ఏజెంట్ డాష్‌బోర్డ్,,A,1,agent_dashboard
+58,Agent Remarks,,ఏజెంట్ వ్యాఖ్యలు,,A,1,agent_remarks
+59,Agent Salary Deduction,,ఏజెంట్ జీతం మినహాయింపు,,A,1,agent_salary_deduction
+60,Agent Summary,,ఏజెంట్ సారాంశం,,A,1,agent_summary
+61,Agent: {names},,ఏజెంట్: {names},,A,1,agent_colon_note
+62,Agent: {name},,ఏజెంట్: {name},,A,1,agent_note
+63,Agents,,ఏజెంట్లు,,A,2,agents entry_stage_agents
+64,Agents: {names},,ఏజెంట్లు: {names},,A,2,agents_colon_note agents_label_note
+65,Agreement Snapshot,,ఒప్పంద స్నాప్‌షాట్,,A,1,agreement_snapshot
+66,Agreement Text,,ఒప్పంద వచనం,,A,1,agreement_text_field
+67,Agreement Type,,ఒప్పంద రకం,,A,1,agreement_type_field
+68,Agreements,,ఒప్పందాలు,,A,1,agreements
+69,All,,అన్నీ,,A,1,all
+70,All Dates,,అన్ని తేదీలు,,A,1,all_dates
+71,All Villages,,అన్ని గ్రామాలు,,A,1,all_villages
+72,Allow,,అనుమతించండి,,A,1,allow
+73,Allowance: {amount},,భత్యం: {amount},,A,1,allowance_note
+74,Already collected,,ఇప్పటికే వసూలు చేసినది,,A,1,already_collected
+75,Already Collected Today,,ఈరోజు ఇప్పటికే వసూలైంది,,A,1,already_collected_today
+76,Already Paid,,ఇప్పటికే చెల్లించినది,,A,1,already_paid
+77,Already registered?,,ఇప్పటికే నమోదు అయ్యారా?,,A,1,already_registered_q
+78,Already Running,,ఇప్పటికే నడుస్తున్నది,,A,1,pre_existing_loan
+79,Amount,,మొత్తం,,A,1,amount
+80,Amount *,,మొత్తం *,,A,1,amount_required_field
+81,Amount Availed *,,పొందిన మొత్తం *,,A,1,amount_availed_field
+82,Amount Given,,ఇచ్చిన మొత్తం,,A,1,amount_given
+83,Amount Given (locked),,ఇచ్చిన మొత్తం (లాక్ చేయబడింది),,A,1,amount_given_locked
+84,Amount Owed,,బాకీ ఉన్న మొత్తం,,A,1,amount_owed
+85,an earlier date,,ఒక ముందు తేదీ,,A,1,an_earlier_date
+86,Appearance,,రూపం,,A,1,appearance
+87,Append-only,,జోడించడం మాత్రమే,,A,1,append_only
+88,Applied To,,వర్తించినది,,A,1,applied_to
+89,Applied to: {target},,వర్తించినది: {target},,A,1,applied_to_note
+90,Apply,,వర్తింపజేయండి,,A,1,apply
+91,Apply Penalty,,జరిమానా వేయండి,,A,1,apply_penalty
+92,Approve,,ఆమోదించండి,,A,1,approve
+93,Approve Account Period?,,ఖాతా వ్యవధిని ఆమోదించాలా?,,A,1,approve_account_period_question
+94,April,,ఏప్రిల్,,A,1,april
+95,Archive,,ఆర్కైవ్,,A,1,archive
+96,Archive Customer,,కస్టమర్‌ను ఆర్కైవ్ చేయండి,,A,1,archive_customer
+97,Area Name,,ప్రాంతం పేరు,,A,1,area_name_field
+98,Area Options,,ప్రాంతం ఎంపికలు,,A,1,area_options
+99,Area Type *,,ప్రాంత రకం *,,A,1,area_type_field
+100,Area Work Session,,ప్రాంత పని సెషన్,,A,1,area_work_session
+101,Areas,,ప్రాంతాలు,,A,1,areas
+102,Assign Agent,,ఏజెంట్ కేటాయించండి,,A,1,assign_agent
+103,Assigned,,కేటాయించబడింది,,A,1,assigned
+104,Assigned Agent,,కేటాయించిన ఏజెంట్,,A,1,assigned_agent
+105,Assigned Route,,కేటాయించిన మార్గం,,A,1,assigned_route
+106,At Confirm,,నిర్ధారణ వద్ద,,A,1,at_confirm
+107,Attention Required,,శ్రద్ధ అవసరం,,A,1,attention_required
+108,Audit,,ఆడిట్,,A,1,audit
+109,August,,ఆగస్టు,,A,1,august
+110,Available Actions,,అందుబాటులో ఉన్న చర్యలు,,A,1,available_actions
+111,Available Balance,,అందుబాటులో ఉన్న నిల్వ,,A,1,available_balance
+112,Availed,,పొందినది,,A,1,availed
+113,Availed On,,పొందిన తేదీ,,A,1,availed_on
+114,Availed {date},,{date}న పొందారు,,A,1,availed_on_note
+115,Awaiting Owner/Agent confirmation.,,యజమాని/ఏజెంట్ నిర్ధారణ కోసం వేచి ఉంది.,,A,1,awaiting_owner_agent_confirmation
+116,Back,,వెనుకకు,,A,1,back
+117,Back to Dashboard,,డాష్‌బోర్డ్‌కు తిరిగి,,A,1,back_to_dashboard
+118,Back To Home,,,,A,1,web_route_unavailable_back
+119,Backup,,బ్యాకప్,,A,1,backup
+120,Balance,,బ్యాలెన్స్,,A,1,balance
+121,Balance Before Today,,నేటికి ముందు నిల్వ,,A,1,balance_before_today
+122,Balanced,,సరిపోయింది,,A,1,balanced
+123,Bank,,బ్యాంక్,,A,1,bank
+124,Bank Balance,,బ్యాంక్ నిల్వ,,A,1,bank_balance
+125,Bank Collection,,బ్యాంక్ వసూలు,,A,1,bank_collection
+126,Bank Transfer,,బ్యాంక్ బదిలీ,,A,1,bank_transfer
+127,BF Cash Panel,,BF నగదు ప్యానెల్,,A,1,bf_cash_panel
+128,BF Cash Transfer,,BF నగదు బదిలీ,,A,1,bf_cash_transfer
+129,BF Given,,బీఎఫ్ ఇచ్చారు,,A,1,bf_given
+130,BF Given To,,బీఎఫ్ ఇచ్చినది,,A,1,bf_given_to
+131,BF Received,,BF అందింది,,A,1,bf_received
+132,Brought Forward (BF),,నిల్వ (BF),,A,1,brought_forward
+133,Bulk Onboarding,,బల్క్ ఆన్‌బోర్డింగ్,,A,1,bulk_onboarding
+134,Bulk Onboarding Wizard,,బల్క్ ఆన్‌బోర్డింగ్ విజార్డ్,,A,1,bulk_onboarding_wizard
+135,Business Access,,వ్యాపార యాక్సెస్,,A,1,business_access
+136,Business Address,,వ్యాపార చిరునామా,,A,1,business_address_field
+137,Business Cash,,వ్యాపార నగదు,,A,1,business_cash
+138,Business Cash Total,,మొత్తం వ్యాపార నగదు,,A,1,business_cash_total
+139,Business Date,,వ్యాపార తేదీ,,A,1,business_date
+140,Business Day Closed,,వ్యాపార దినం మూసివేయబడింది,,A,1,business_day_closed
+141,Business Detail,,వ్యాపార వివరాలు,,A,1,business_detail
+142,Business Email,,వ్యాపార ఇమెయిల్,,A,1,business_email_field
+143,Business Linked,,"1) వ్యాపారానికి లింక్ చేయబడింది
+2) వ్యాపారం లింక్ చేయబడింది",,A,2,business_linked check_business_linked
+144,Business Management,,వ్యాపార నిర్వహణ,,A,1,business_management
+145,Business Memberships,,వ్యాపార సభ్యత్వాలు,,A,1,business_memberships
+146,Business Name,,వ్యాపార పేరు,,A,1,business_name
+147,Business Name *,,వ్యాపార పేరు *,,A,1,business_name_field
+148,Business Phone,,వ్యాపార ఫోన్,,A,1,business_phone_field
+149,Business profit,,వ్యాపార లాభం,,A,1,business_profit
+150,Business Status,,వ్యాపార స్థితి,,A,1,business_status
+151,Business Transfer,,వ్యాపార బదిలీ,,A,1,business_transfer
+152,Business Type,,వ్యాపార రకం,,A,1,business_type_field
+153,Business-Day-Accounts,,వ్యాపార-దిన-ఖాతాలు,,A,1,business_day_accounts
+154,Businesses Owned,,స్వంత వ్యాపారాలు,,A,1,businesses_owned
+155,Can Add Remarks,,వ్యాఖ్యలు జోడించగలరు,,A,1,perm_can_add_remarks
+156,Can Apply Penalty,,జరిమానా విధించగలరు,,A,1,perm_can_apply_penalty
+157,Can Collect Payments,,చెల్లింపులు వసూలు చేయగలరు,,A,1,perm_can_collect_payments
+158,Can Create Drafts,,డ్రాఫ్ట్‌లు సృష్టించగలరు,,A,1,perm_can_create_drafts
+159,Can Delete Records,,రికార్డులు తొలగించగలరు,,A,1,perm_can_delete_records
+160,Can Export Reports,,నివేదికలు ఎగుమతి చేయగలరు,,A,1,perm_can_export_reports
+161,Can Issue Loans,,రుణాలు జారీ చేయగలరు,,A,1,perm_can_issue_loans
+162,Can Record Expenses,,ఖర్చులు నమోదు చేయగలరు,,A,1,perm_can_record_expenses
+163,Can Register Customers,,కస్టమర్లను నమోదు చేయగలరు,,A,1,perm_can_create_customer
+164,Can Submit Settlement,,సెటిల్‌మెంట్ సమర్పించగలరు,,A,1,perm_can_perform_day_settlement
+165,Can Upload Documents,,పత్రాలు అప్‌లోడ్ చేయగలరు,,A,1,perm_can_upload_documents
+166,Can View Customers,,కస్టమర్లను చూడగలరు,,A,1,perm_can_view_customers
+167,Can View Reports,,నివేదికలు చూడగలరు,,A,1,perm_can_view_reports
+168,Cancel,,రద్దు చేయండి,,A,1,cancel
+169,Cancelled,,రద్దు చేయబడింది,,A,1,cancelled
+170,Carried Forward,,తదుపరికి నిల్వ,,A,1,carried_forward
+171,Cash,,నగదు,,A,1,cash
+172,Cash Collected,,వసూలు చేసిన నగదు,,A,1,cash_collected
+173,Cash Verification,,నగదు ధృవీకరణ,,A,1,cash_verification
+174,Categories,,వర్గాలు,,A,1,categories
+175,Change Area,,ప్రాంతం మార్చండి,,A,1,change_area
+176,Change Opening BF,,ప్రారంభ BF మార్చండి,,A,1,change_opening_bf
+177,Change Photo,,ఫోటో మార్చండి,,A,1,change_photo
+178,Change Profile Photo,,ప్రొఫైల్ ఫోటో మార్చండి,,A,1,change_profile_photo
+179,Change User,,వినియోగదారుని మార్చండి,,A,1,change_user
+180,Check Again,,మళ్లీ చూడండి,,A,1,check_again
+181,Check Status,,స్థితి తనిఖీ చేయండి,,A,1,check_status
+182,Check This Loan,,ఈ రుణాన్ని సరిచూడండి,,A,1,check_this_loan
+183,Cheeti,,చీటీ,,A,1,cheti
+184,Cheeti Amount Availed,,చీటీ మొత్తం పొందారు,,A,1,cheti_amount_availed
+185,Cheeti Instalment Paid,,చీటీ వాయిదా చెల్లింపు,,A,1,cheti_instalment_paid
+186,Cheeti Name *,,చీటీ పేరు *,,A,1,cheti_name_field
+187,Cheeti Paid,,"1) చీటీ చెల్లించినది
+2) చీటీ చెల్లింపు",,A,2,cheti_paid cheti_paid_label
+188,Cheeti Received,,"1) చీటీ అందుకున్నది
+2) చీటీ అందినది",,A,2,cheti_received cheti_received_label
+189,Cheque,,చెక్కు,,A,1,cheque
+190,Cheque Balance,,చెక్ నిల్వ,,A,1,cheque_balance
+191,Cheque Collection,,చెక్ వసూలు,,A,1,cheque_collection
+192,Choose a date,,తేదీని ఎంచుకోండి,,A,1,choose_a_date
+193,Choose File,,ఫైల్ ఎంచుకోండి,,A,1,choose_file
+194,Choose Workspace,,వర్క్‌స్పేస్ ఎంచుకోండి,,A,1,choose_workspace
+195,Clear,,క్లియర్ చేయండి,,A,1,clear_selection
+196,Clear All,,అన్నీ తీసివేయండి,,A,1,clear_all
+197,Clear All Notifications?,,అన్ని నోటిఫికేషన్‌లు క్లియర్ చేయాలా?,,A,1,clear_all_notifications_question
+198,Close,,మూసివేయండి,,A,1,close
+199,Close (Write-Off),,మూసివేయండి (రైట్-ఆఫ్),,A,1,close_write_off
+200,Close Again,,మళ్లీ మూసివేయండి,,A,1,close_again
+201,Close Business Day?,,వ్యాపార దినం మూసివేయాలా?,,A,1,close_business_day_question
+202,Close Loan,,రుణం మూసివేయండి,,A,1,close_loan
+203,Closed,,మూసివేయబడింది,,A,1,closed
+204,Closing,,ముగింపు,,A,2,closing day_closing
+205,Closing Balance,,ముగింపు నిల్వ,,A,1,closing_balance_label
+206,Closing Cash,,ముగింపు నగదు,,A,1,closing_cash
+207,Collect,,వసూలు,,A,1,collect
+208,Collect Payment,,చెల్లింపు వసూలు చేయండి,,A,1,collect_payment
+209,Collect {amount},,{amount} వసూలు చేయండి,,A,1,collect_amount
+210,Collected,,వసూలైంది,,A,1,collected
+211,Collected Amount *,,వసూలైన మొత్తం *,,A,1,collected_amount_field
+212,Collection Agent,,వసూలు ఏజెంట్,,A,1,collection_agent
+213,Collection From,,వసూలు నుండి,,A,1,collection_from
+214,Collection History,,వసూలు చరిత్ర,,A,1,collection_history
+215,Collection {percent}%,,వసూలు {percent}%,,A,1,collection_percent
+216,Collections,,వసూళ్లు,,A,2,collection_mode collections
+217,Coming Soon,,త్వరలో వస్తుంది,,A,1,coming_soon
+218,Compensation,,వేతనం,,A,1,compensation
+219,Compensation History,,వేతన చరిత్ర,,A,1,compensation_history
+220,Compensation Structure,,వేతన నిర్మాణం,,A,1,compensation_structure
+221,Complete Profile,,ప్రొఫైల్ పూర్తి చేయండి,,A,1,complete_profile
+222,Completed,,పూర్తయింది,,A,1,completed
+223,Completed Installments,,పూర్తయిన వాయిదాలు,,A,1,completed_installments
+224,Configure Cycle,,చక్రం కాన్ఫిగర్ చేయండి,,A,1,configure_cycle
+225,Confirm,,నిర్ధారించండి,,A,2,confirm confirm_label
+226,Confirm Close,,మూసివేతను నిర్ధారించండి,,A,1,confirm_close
+227,Confirm Close Loan,,రుణం మూసివేతను నిర్ధారించండి,,A,1,confirm_close_loan
+228,Confirm Loan,,రుణాన్ని నిర్ధారించండి,,A,1,confirm_loan
+229,Confirm Password,,పాస్‌వర్డ్ నిర్ధారించండి,,A,1,confirm_password
+230,Confirm Request,,అభ్యర్థనను నిర్ధారించండి,,A,1,confirm_request
+231,Confirm Suspension,,సస్పెన్షన్ నిర్ధారించండి,,A,1,confirm_suspension
+232,Confirm Write-Off,,రైట్-ఆఫ్ నిర్ధారించండి,,A,1,confirm_write_off
+233,Confirm: {action},,నిర్ధారించండి: {action},,A,1,confirm_action_title
+234,Confirm: {status},,నిర్ధారించండి: {status},,A,1,confirm_status_change_title
+235,Contact & Identity,,సంప్రదింపు & గుర్తింపు,,A,1,contact_and_identity
+236,Contact Owner,,యజమానిని సంప్రదించండి,,A,1,contact_owner
+237,Continue,,కొనసాగించండి,,A,2,continue_button continue_label
+238,Continue Draft,,ముసాయిదా కొనసాగించండి,,A,1,continue_draft
+239,Correct,,సరిచేయండి,,A,1,correct_entry
+240,Correct and Resubmit,,సరిచేసి మళ్లీ సమర్పించండి,,A,1,correct_and_resubmit
+241,Corrected Aadhaar Number,,సరిచేసిన ఆధార్ నంబర్,,A,1,corrected_aadhaar_number
+242,Correction,,సరిదిద్దుబాటు,,A,1,correction
+243,Corrections,,సరిదిద్దుబాట్లు,,A,1,corrections
+244,Could Not Read,,చదవలేకపోయింది,,A,1,could_not_read
+245,Create Agreement,,ఒప్పందం సృష్టించండి,,A,1,create_agreement
+246,Create Business,,వ్యాపారం సృష్టించండి,,A,1,create_business
+247,Create Business Agreement,,వ్యాపార ఒప్పందం సృష్టించండి,,A,1,create_business_agreement
+248,Create Customer,,కస్టమర్ సృష్టించండి,,A,1,create_customer
+249,Create Group,,గ్రూప్ సృష్టించండి,,A,1,create_group
+250,Create Inside App,,యాప్ లోపల సృష్టించండి,,A,1,create_inside_app
+251,Create Loan,,రుణం సృష్టించండి,,A,1,create_loan
+252,Create New Business,,కొత్త వ్యాపారాన్ని సృష్టించండి,,A,1,create_new_business
+253,Create PIN,,పిన్ సృష్టించండి,,A,1,create_pin
+254,Create Your Account,,మీ ఖాతాను సృష్టించండి,,A,1,create_your_account
+255,Created {when},,{when}న సృష్టించబడింది,,A,1,created_note
+256,Current Agent,,ప్రస్తుత ఏజెంట్,,A,1,current_agent
+257,Current Operating Areas,,ప్రస్తుత పని ప్రాంతాలు,,A,1,current_operating_areas
+258,Current Route,,ప్రస్తుత మార్గం,,A,1,current_route
+259,Current Status,,ప్రస్తుత స్థితి,,A,1,current_status
+260,Custom (Owner Defined),,కస్టమ్ (యజమాని నిర్ణయించారు),,A,1,custom_owner_defined
+261,Customer,,కస్టమర్,,A,1,customer
+262,Customer *,,కస్టమర్ *,,A,1,customer_required_field
+263,Customer Active,,"1) కస్టమర్ యాక్టివ్
+2) కస్టమర్ యాక్టివ్‌గా ఉన్నారు",,A,2,check_customer_active customer_active
+264,Customer Dashboard,,కస్టమర్ డాష్‌బోర్డ్,,A,1,customer_dashboard
+265,Customer Exists,,కస్టమర్ ఉన్నారు,,A,2,check_customer_exists customer_exists
+266,Customer List,,కస్టమర్ జాబితా,,A,1,customer_list
+267,Customer Not Available,,కస్టమర్ అందుబాటులో లేరు,,A,1,customer_not_available
+268,Customer Not Home,,కస్టమర్ ఇంట్లో లేరు,,A,1,customer_not_home
+269,Customer Pending Settlement,,కస్టమర్ పెండింగ్ సెటిల్‌మెంట్,,A,1,customer_pending_settlement
+270,Customer Refused,,కస్టమర్ తిరస్కరించారు,,A,1,customer_refused
+271,Customer Since,,కస్టమర్ అయిన తేదీ,,A,1,customer_since
+272,Customer: {name},,కస్టమర్: {name},,A,2,customer_label_note customer_note
+273,Customers,,కస్టమర్లు,,A,2,customer_management customers
+274,Customers & Loans,,కస్టమర్లు & రుణాలు,,A,2,entry_stage_customers group_customers_loans
+275,Customers and Investors,,కస్టమర్లు మరియు పెట్టుబడిదారులు,,A,1,customers_and_investors
+276,Customers Assigned,,కేటాయించిన కస్టమర్లు,,A,1,customers_assigned
+277,Customers Due,,బకాయి కస్టమర్లు,,A,1,customers_due
+278,Customers Remaining,,మిగిలిన కస్టమర్లు,,A,1,customers_remaining
+279,Customers Visited,,సందర్శించిన కస్టమర్లు,,A,1,customers_visited
+280,Daily,,ప్రతిరోజూ,,A,1,daily
+281,Daily Allowance,,రోజువారీ భత్యం,,A,1,daily_allowance
+282,Daily Allowance (optional),,రోజువారీ భత్యం (ఐచ్ఛికం),,A,1,daily_allowance_optional
+283,Daily Record Book,,రోజువారీ రికార్డు పుస్తకం,,A,1,daily_record_book
+284,Daily Work,,రోజువారీ పని,,A,1,group_daily_work
+285,Dashboard,,డాష్‌బోర్డ్,,A,1,dashboard
+286,Date,,తేదీ,,A,1,date
+287,Date Range,,తేదీ పరిధి,,A,1,date_range
+288,Day Closure,,దిన ముగింపు,,A,1,day_closure
+289,Day Closure Details,,దిన ముగింపు వివరాలు,,A,1,day_closure_details
+290,Day Net,,రోజు నికర,,A,1,day_net
+291,Day Reopened,,దినం తిరిగి తెరవబడింది,,A,1,day_reopened
+292,Days,,రోజులు,,A,1,days
+293,December,,డిసెంబర్,,A,1,december
+294,Decision,,నిర్ణయం,,A,1,decision
+295,Declare,,ప్రకటించండి,,A,1,declare
+296,Declare Opening BF,,ప్రారంభ BF ప్రకటించండి,,A,1,declare_opening_bf
+297,Declare Profit Share,,లాభ వాటా ప్రకటించండి,,A,1,declare_profit_share
+298,Declared on {date},,{date}న ప్రకటించబడింది,,A,1,bf_declared_on_note
+299,Declared: {amount},,ప్రకటించినది: {amount},,A,1,declared_note
+300,Decline,,తిరస్కరించండి,,A,1,decline
+301,Defaulted,,డిఫాల్ట్ అయింది,,A,1,defaulted
+302,Delete,,తొలగించండి,,A,1,delete
+303,Delete Forever,,శాశ్వతంగా తొలగించండి,,A,1,delete_forever
+304,Delete Group,,గ్రూప్ తొలగించండి,,A,1,delete_group
+305,Delete Investment,,పెట్టుబడి తొలగించండి,,A,1,delete_investment
+306,Delete Investment?,,పెట్టుబడిని తొలగించాలా?,,A,1,delete_investment_confirm_title
+307,Deleting,,తొలగించడం,,A,1,group_deleting
+308,Deposit From,,జమ చేసినవారు,,A,1,deposit_from
+309,Deposits,,జమలు,,A,1,deposits
+310,Deposits (Investor),,జమలు (పెట్టుబడిదారు),,A,1,deposits_investor
+311,Description,,,,A,1,description
+312,Details,,వివరాలు,,A,1,details
+313,Didn't Collect,,వసూలు కాలేదు,,A,1,no_collection
+314,Difference,,తేడా,,A,1,difference
+315,Difference Details,,తేడా వివరాలు,,A,1,difference_details
+316,Difference Found,,తేడా కనుగొనబడింది,,A,1,difference_found
+317,Disable,,నిలిపివేయండి,,A,1,disable
+318,Disabled,,నిలిపివేయబడింది,,A,1,disabled
+319,Discard,,విస్మరించండి,,A,1,discard
+320,Discard Draft,,ముసాయిదా విస్మరించండి,,A,1,discard_draft
+321,Distribute Profit Share,,లాభ వాటా పంపిణీ చేయండి,,A,1,distribute_profit_share
+322,Distribution History,,పంపిణీ చరిత్ర,,A,1,distribution_history
+323,Distributions,,పంపిణీలు,,A,1,distributions
+324,District *,,జిల్లా *,,A,1,district_field
+325,Dividend this period,,ఈ కాలపు డివిడెండ్,,A,1,dividend_this_period_field
+326,Document Type,,పత్రం రకం,,A,1,document_type
+327,Document URL,,పత్రం URL,,A,1,document_url_field
+328,Documents,,పత్రాలు,,A,1,documents
+329,Done,,పూర్తయింది,,A,1,done
+330,Door No,,ఇంటి నంబర్,,A,1,door_no_field
+331,Download Corrected File,,సరిచేసిన ఫైల్ డౌన్‌లోడ్ చేయండి,,A,1,download_corrected_file
+332,Download Statement,,స్టేట్‌మెంట్ డౌన్‌లోడ్ చేయండి,,A,1,download_statement
+333,Draft,,ముసాయిదా,,A,1,draft
+334,Draft submitted.,,ముసాయిదా సమర్పించబడింది.,,A,1,draft_submitted_note
+335,Draft Transactions,,డ్రాఫ్ట్ లావాదేవీలు,,A,1,draft_transactions
+336,Due Today,,ఈరోజు చెల్లించాలి,,A,1,due_today
+337,Due {amount},,{amount} బకాయి,,A,1,due_note
+338,Duration,,వ్యవధి,,A,1,duration
+339,Duration (installments) *,,వ్యవధి (వాయిదాలు) *,,A,1,duration_installments_field
+340,Earlier,,ఇంతకుముందు,,A,1,earlier
+341,Edit,,మార్చండి,,A,1,edit
+342,Edit Address,,చిరునామా మార్చండి,,A,1,edit_address
+343,Edit Allowed Fields,,అనుమతించిన ఫీల్డ్‌లు మార్చండి,,A,1,edit_allowed_fields
+344,Edit Cycle,,చక్రం మార్చండి,,A,1,edit_cycle
+345,Edit Investment,,పెట్టుబడి మార్చండి,,A,1,edit_investment
+346,Edit Phone,,ఫోన్ మార్చండి,,A,1,edit_phone
+347,Effective Date,,అమలు తేదీ,,A,1,effective_date
+348,Effective Date (YYYY-MM-DD),,అమలు తేదీ (YYYY-MM-DD),,A,1,effective_date_ymd_field
+349,Effective {date},,{date} నుండి అమలులో,,A,1,effective_note
+350,Eligibility Check,,అర్హత తనిఖీ,,A,1,eligibility_check
+351,EMI,,ఈఎంఐ,,A,1,emi
+352,Enable biometric login?,,బయోమెట్రిక్ లాగిన్ ప్రారంభించాలా?,,A,1,enable_biometric_q
+353,Enter Another,,మరొకటి నమోదు చేయండి,,A,1,save_and_enter_another
+354,Enter Collection,,వసూలు నమోదు చేయండి,,A,1,enter_collection
+355,Enter MLID,,MLID నమోదు చేయండి,,A,1,enter_mlid
+356,Enter PIN,,పిన్ నమోదు చేయండి,,A,1,enter_pin
+357,Entered.,,నమోదైంది.,,A,1,entered_in_this_sitting
+358,Est. Collection,,అంచనా వసూలు,,A,1,est_collection
+359,Every rupee counts,,ప్రతి రూపాయి ముఖ్యం,,A,1,every_rupee_counts
+360,Excess,,అధికం,,A,1,excess
+361,Excess Disposition *,,అధిక మొత్తం వినియోగం *,,A,1,excess_disposition_field
+362,Excess Ledger-Unresolved,,అధికం లెడ్జర్-పరిష్కరించని,,A,1,excess_ledger_unresolved
+363,Existing Customer,,ఇప్పటికే ఉన్న కస్టమర్,,A,2,existing customer existing_customer
+364,Existing Customers,,ఇప్పటికే ఉన్న కస్టమర్లు,,A,1,existing_customers
+365,Existing Customers Only,,ఇప్పటికే ఉన్న ఖాతాదారులకు మాత్రమే,,A,1,existing_customers_only
+366,Existing MLID: {mlid},,ఇప్పటికే ఉన్న MLID: {mlid},,A,1,existing_mlid_note
+367,Exit,,నిష్క్రమించండి,,A,1,exit
+368,Exit App,,యాప్‌ను మూసివేయండి,,A,1,exit app
+369,Expected Bank,,ఆశించిన బ్యాంక్,,A,1,expected_bank
+370,Expected Cash,,ఆశించిన నగదు,,A,1,expected_cash
+371,Expected Cheque,,ఆశించిన చెక్,,A,1,expected_cheque
+372,Expected Closing Balance,,ఆశించిన ముగింపు నిల్వ,,A,1,expected_closing_balance
+373,Expected UPI,,ఆశించిన UPI,,A,1,expected_upi
+374,Expense,,ఖర్చు,,A,1,expense
+375,Expense Paid,,చెల్లించిన ఖర్చు,,A,1,expense_paid
+376,Expenses,,ఖర్చులు,,A,1,expenses
+377,Export to Excel,,ఎక్సెల్‌కు ఎగుమతి చేయండి,,A,1,export_to_excel
+378,Extend By,,పొడిగించండి,,A,1,extend_by
+379,Extension approved.,,పొడిగింపు ఆమోదించబడింది.,,A,1,extension_approved
+380,Extension rejected.,,పొడిగింపు తిరస్కరించబడింది.,,A,1,extension_rejected
+381,Extension Requested,,పొడిగింపు అభ్యర్థించారు,,A,1,extension_requested
+382,Face Value,,ముఖ విలువ,,A,1,face_value
+383,Face Value *,,ముఖ విలువ *,,A,1,face_value_field
+384,February,,ఫిబ్రవరి,,A,1,february
+385,Female,,స్త్రీ,,A,1,female
+386,Festival,,పండుగ,,A,1,festival
+387,Filter by status,,స్థితి ద్వారా వడపోత,,A,1,filter_by_status
+388,Filters,,ఫిల్టర్లు,,A,1,filters
+389,Final profit,,తుది లాభం,,A,1,final_profit
+390,Final Review,,తుది సమీక్ష,,A,1,final_review
+391,Financial Year,,ఆర్థిక సంవత్సరం,,A,1,financial_year
+392,Find a Business,,వ్యాపారాన్ని కనుగొనండి,,A,1,find_a_business
+393,Find Person,,వ్యక్తిని కనుగొనండి,,A,1,find_person
+394,Finish,,ముగించండి,,A,1,finish
+395,Finish Migration,,మైగ్రేషన్ ముగించండి,,A,1,finish_migration
+396,Finish Migration?,,మైగ్రేషన్ ముగించాలా?,,A,1,finish_migration_question
+397,First Business Setup,,మొదటి వ్యాపార ఏర్పాటు,,A,1,first_business_setup
+398,Fixed Salary,,స్థిర జీతం,,A,1,fixed_salary
+399,Flat Amount,,నిర్ణీత మొత్తం,,A,1,flat_amount
+400,Forgot Password,,పాస్‌వర్డ్ మర్చిపోయారు,,A,1,forgot_password_title
+401,Forgot Password?,,పాస్‌వర్డ్ మర్చిపోయారా?,,A,2,forgot_password forgot_password_question
+402,Forgot PIN,,పిన్ మర్చిపోయారు,,A,1,forgot_pin_title
+403,Forgot PIN?,,పిన్ మర్చిపోయారా?,,A,1,forgot_pin
+404,Frequency,,తరచుదనం,,A,2,frequency frequency_field
+405,From {name},,{name} నుండి,,A,1,from_agent_note
+406,Full Name,,పూర్తి పేరు,,A,1,full_name
+407,Full Name *,,పూర్తి పేరు *,,A,1,full_name_field
+408,Future Effective Information,,భవిష్యత్ ప్రభావ సమాచారం,,A,1,future_effective_information
+409,Gender,,లింగం,,A,1,gender
+410,Get Started,,ప్రారంభించండి,,A,1,login_or_register_title
+411,Get Template,,టెంప్లేట్ పొందండి,,A,1,get_template
+412,Get The App,,,,A,1,web_route_unavailable_action
+413,Given To Agents,,ఏజెంట్లకు ఇచ్చినది,,A,1,transfers_out
+414,Go Back,,వెనుకకు వెళ్లండి,,A,1,go_back
+415,Grace,,గ్రేస్,,A,1,grace
+416,Grace Ended,,గ్రేస్ ముగిసింది,,A,1,grace_expired
+417,Grace Period,,గ్రేస్ పీరియడ్,,A,2,grace_period grace_period_label
+418,Grace Period (Days),,గ్రేస్ పీరియడ్ (రోజులు),,A,2,grace_period_days_header grace_period_days_label
+419,Grace Status,,గ్రేస్ స్థితి,,A,1,grace_status
+420,Group Balance,,గ్రూప్ నిల్వ,,A,1,group_balance
+421,Group Detail,,గ్రూప్ వివరాలు,,A,1,group_detail
+422,Group EMI,,గ్రూప్ EMI,,A,1,group_emi
+423,Group Loan Management,,సమూహ రుణ నిర్వహణ,,A,1,group_loan_management
+424,Group Loans,,సమూహ రుణాలు,,A,1,group_loans
+425,Group Name,,గ్రూప్ పేరు,,A,1,group_name_field
+426,Guarantor,,పూచీకత్తుదారు,,A,1,guarantor
+427,Guarantor Name *,,పూచీకత్తుదారు పేరు *,,A,1,guarantor_name_field
+428,Hand Over Balance,,అప్పగించే నిల్వ,,A,1,hand_over_balance
+429,Held By Agents,,ఏజెంట్ల వద్ద ఉన్నది,,A,1,held_by_agents
+430,Highest First,,ఎక్కువ మొదట,,A,1,highest_first
+431,History,,చరిత్ర,,A,1,history
+432,Home,,హోమ్,,A,1,home
+433,House Locked,,ఇల్లు లాక్ చేయబడింది,,A,1,house_locked
+434,Identity Documents,,గుర్తింపు పత్రాలు,,A,1,identity_documents
+435,Identity Found,,గుర్తింపు కనుగొనబడింది,,A,1,identity_found
+436,Ignore,,పట్టించుకోవద్దు,,A,1,ignore
+437,Ignore (Import),,పట్టించుకోవద్దు (దిగుమతి),,A,1,ignore_import
+438,Ignore All (Import),,అన్నీ పట్టించుకోవద్దు (దిగుమతి),,A,1,ignore_all
+439,Import,,దిగుమతి,,A,1,import_label
+440,Import Details,,వివరాలు దిగుమతి చేయండి,,A,1,import_details
+441,Import EMI History,,EMI చరిత్ర దిగుమతి చేయండి,,A,1,import_emi_history
+442,Import Identities,,గుర్తింపులు దిగుమతి చేయండి,,A,1,import_identities
+443,Import Records,,రికార్డులు దిగుమతి చేయండి,,A,1,import_records
+444,In Grace Period,,గ్రేస్ పీరియడ్‌లో ఉంది,,A,1,in_grace_period
+445,In Session,,సెషన్‌లో,,A,1,in_session
+446,Inactive,,నిష్క్రియం,,A,1,inactive
+447,Incomplete Profile,,అసంపూర్ణ ప్రొఫైల్,,A,1,incomplete_profile
+448,Installment,,వాయిదా,,A,2,installment installment_label
+449,Installment Amount,,వాయిదా మొత్తం,,A,1,installment_amount
+450,Installment Amount *,,వాయిదా మొత్తం *,,A,2,installment_amount_field installment_amount_required_field
+451,Installment Due,,వాయిదా బకాయి,,A,1,installment_due
+452,Instalment *,,వాయిదా *,,A,1,instalment_required_field
+453,Instalment Amount *,,వాయిదా మొత్తం *,,A,1,instalment_amount_field
+454,Instalments,,వాయిదాలు,,A,1,instalments
+455,Instalments Already Paid,,ఇప్పటికే చెల్లించిన వాయిదాలు,,A,1,instalments_already_paid_field
+456,Interest,,వడ్డీ,,A,2,interest interest_field
+457,Interest *,,వడ్డీ *,,A,1,interest_required_field
+458,Interest Accrued,,పోగుపడిన వడ్డీ,,A,1,interest_accrued
+459,Interest Due,,రావలసిన వడ్డీ,,A,1,interest_due
+460,Interest Ledger,,వడ్డీ లెడ్జర్,,A,1,interest_ledger
+461,Interest Method,,వడ్డీ పద్ధతి,,A,1,interest_method
+462,Interest Only,,వడ్డీ మాత్రమే,,A,1,interest_only
+463,Interest Payable,,చెల్లించవలసిన వడ్డీ,,A,1,interest_payable
+464,Interest Portion *,,వడ్డీ భాగం *,,A,1,interest_portion_field
+465,Interest Type,,వడ్డీ రకం,,A,1,interest_type
+466,Invested,,పెట్టుబడి పెట్టినది,,A,1,invested
+467,Investment Balance,,పెట్టుబడి నిల్వ,,A,1,investment_balance
+468,Investment Detail,,పెట్టుబడి వివరాలు,,A,1,investment_detail
+469,Investment Options,,పెట్టుబడి ఎంపికలు,,A,1,investment_options
+470,Investments,,పెట్టుబడులు,,A,1,investments
+471,Investor,,పెట్టుబడిదారు,,A,1,investor
+472,Investor Dashboard,,పెట్టుబడిదారు డాష్‌బోర్డ్,,A,1,investor_dashboard
+473,Investor Dep.,,పెట్టుబడిదారు జమ,,A,1,investor_dep
+474,Investor Management,,పెట్టుబడిదారుల నిర్వహణ,,A,1,investor_management
+475,Investor Requests,,పెట్టుబడిదారు అభ్యర్థనలు,,A,1,investor_requests
+476,Investor W/D,,పెట్టుబడిదారు ఉపసంహరణ,,A,1,investor_wd
+477,Investors,,పెట్టుబడిదారులు,,A,2,entry_stage_investors investors
+478,Invitations to You,,మీకు ఆహ్వానాలు,,A,1,invitations_to_you
+479,Issued {date},,{date}న ఇవ్వబడింది,,A,1,loan_issued_on_note
+480,January,,జనవరి,,A,1,january
+481,Joined Date,,చేరిన తేదీ,,A,2,joined_date joined_date_label
+482,July,,జూలై,,A,1,july
+483,June,,జూన్,,A,1,june
+484,Last Login,,చివరి లాగిన్,,A,1,last_login
+485,Last Sync,,చివరి సింక్,,A,1,last_sync
+486,Last Transaction,,చివరి లావాదేవీ,,A,1,last_transaction
+487,Last {count} Days,,గత {count} రోజులు,,A,1,last_n_days
+488,Last {n} months,,గత {n} నెలలు,,A,1,last_n_months
+489,Lending Rules,,రుణ నియమాలు,,A,1,lending_rules
+490,Line Repayment Index,,లైన్ రీపేమెంట్ ఇండెక్స్,,A,1,line_repayment_index
+491,Live Activity,,ప్రత్యక్ష కార్యకలాపం,,A,1,live_activity
+492,Live Business Activity,,ప్రత్యక్ష వ్యాపార కార్యకలాపం,,A,1,live_business_activity
+493,Live Closing Balance,,ప్రస్తుత ముగింపు నిల్వ,,A,1,closing_balance
+494,Live Collected,,ప్రత్యక్ష వసూలు,,A,1,live_collected
+495,Live Photo,,లైవ్ ఫోటో,,A,1,live_photo
+496,Loading...,,లోడ్ అవుతోంది...,,A,1,loading_ellipsis
+497,Loan Amount,,రుణ మొత్తం,,A,1,loan_amount
+498,Loan closed.,,రుణం మూసివేయబడింది.,,A,1,loan_closed_note
+499,Loan Count,,రుణాల సంఖ్య,,A,1,loan_count
+500,Loan Detail,,రుణ వివరాలు,,A,1,loan_detail
+501,Loan Details,,రుణ వివరాలు,,A,1,loan_details
+502,Loan Dist.,,రుణ పంపిణీ,,A,1,loan_dist
+503,Loan Distribution,,రుణ పంపిణీ,,A,2,loan_distribution loan_distribution_screen
+504,Loan Given By,,రుణం ఇచ్చినవారు,,A,1,loan_given_by
+505,Loan Information,,రుణ సమాచారం,,A,1,loan_information
+506,Loan Number,,రుణ నంబర్,,A,1,loan_number
+507,Loan Requests,,రుణ అభ్యర్థనలు,,A,1,loan_requests
+508,Loan To,,రుణం ఇచ్చినది,,A,1,loan_to
+509,Loan {number},,రుణం {number},,A,1,loan_number_note
+510,Loans,,రుణాలు,,A,1,loans
+511,Loans Given,,ఇచ్చిన రుణాలు,,A,1,loans_given
+512,Loans Issued,,జారీ చేసిన రుణాలు,,A,1,loans_issued
+513,Location,,ప్రదేశం,,A,1,location
+514,Lock Account,,ఖాతా లాక్ చేయండి,,A,1,lock_account
+515,Locked,,లాక్ చేయబడింది,,A,1,locked
+516,Login,,లాగిన్,,A,2,login login_button
+517,Login with Password,,పాస్‌వర్డ్‌తో లాగిన్ చేయండి,,A,1,login_with_password
+518,Login With PIN,,పిన్‌తో లాగిన్ చేయండి,,A,1,login_with_pin
+519,Logout,,లాగ్ అవుట్,,A,1,logout
+520,Look Up,,వెతకండి,,A,1,look_up
+521,Lowest First,,తక్కువ మొదట,,A,1,lowest_first
+522,Make a Payment,,చెల్లింపు చేయండి,,A,1,make_a_payment
+523,Male,,పురుషుడు,,A,1,male
+524,MANA LINE,,మన లైన్,,A,1,app_name
+525,Manage Agents,,ఏజెంట్లను నిర్వహించండి,,A,1,manage_agents
+526,Mandal *,,మండలం *,,A,1,mandal_field
+527,Mandal / District,,మండలం / జిల్లా,,A,1,mandal_district_field
+528,March,,మార్చి,,A,1,march
+529,Mark All Read,,అన్నీ చదివినట్లు గుర్తించండి,,A,1,mark_all_read
+530,Mark Paid,,చెల్లించినట్లు గుర్తించండి,,A,1,mark_paid
+531,Mark Profile Complete,,ప్రొఫైల్ పూర్తయినట్లు గుర్తించండి,,A,1,mark_profile_complete
+532,Mark Read,,చదివినట్లు గుర్తించండి,,A,1,mark_read
+533,Mark Recovered,,తిరిగి వచ్చినట్లు గుర్తించండి,,A,1,mark_short_recovered
+534,Marked as recovered.,,తిరిగి వచ్చినట్లు గుర్తించబడింది.,,A,1,short_marked_recovered
+535,May,,మే,,A,1,may
+536,Medical Emergency,,వైద్య అత్యవసరం,,A,1,medical_emergency
+537,Member Completes These,,సభ్యుడు వీటిని పూర్తి చేస్తారు,,A,1,member_completes_these
+538,Members,,సభ్యులు,,A,1,members
+539,Membership Status,,సభ్యత్వ స్థితి,,A,1,membership_status
+540,Merge (Skip),,విలీనం (దాటవేయి),,A,1,merge_skip
+541,Merge All (Skip),,అన్నీ విలీనం (దాటవేయి),,A,1,merge_all
+542,Migration Closed,,మైగ్రేషన్ మూసివేయబడింది,,A,1,migration_closed
+543,Migration Open,,మైగ్రేషన్ తెరిచి ఉంది,,A,1,migration_open
+544,Minimum Information,,కనీస సమాచారం,,A,1,minimum_information
+545,Mixed,,మిశ్రమ,,A,1,mixed
+546,Mixed Payment,,మిశ్రమ చెల్లింపు,,A,1,mixed_payment
+547,MLID,,MLID,,A,1,mlid_field
+548,MLID: {mlid},,MLID: {mlid},,A,1,mlid_colon_note
+549,Mobile Number,,మొబైల్ నంబర్,,A,2,mobile_number mobile_number_field
+550,Mobile Number (optional),,మొబైల్ నంబర్ (ఐచ్ఛికం),,A,1,mobile_number_optional_field
+551,Mobile Number *,,మొబైల్ నంబర్ *,,A,1,mobile_number_required_field
+552,Money & Records,,డబ్బు & రికార్డులు,,A,1,group_money_records
+553,Money Received,,అందిన డబ్బు,,A,1,money_received
+554,Money Spent,,ఖర్చు చేసిన డబ్బు,,A,1,money_spent
+555,Monthly,,నెలవారీ,,A,1,monthly
+556,Monthly Closing,,నెలవారీ ముగింపు,,A,1,monthly_closing
+557,Months,,నెలలు,,A,1,months
+558,More Options,,మరిన్ని ఎంపికలు,,A,1,more_options
+559,My Account,,నా ఖాతా,,A,1,my_account
+560,My Compensation,,నా వేతనం,,A,1,my_compensation
+561,My Investments,,నా పెట్టుబడులు,,A,1,my_investments
+562,My Loans,,నా రుణాలు,,A,1,my_loans
+563,My Profile,,నా ప్రొఫైల్,,A,1,my_profile
+564,My Statements,,నా స్టేట్‌మెంట్‌లు,,A,1,my_statements
+565,My Summary,,నా సారాంశం,,A,1,my_summary
+566,My Work,,నా పని,,A,1,my_work
+567,Name,,పేరు,,A,1,village_search_by_state_district
+568,Name (A–Z),,పేరు (A–Z),,A,1,sort_by_name
+569,Name *,,పేరు *,,A,1,name_field
+570,Natural Disaster,,ప్రకృతి వైపరీత్యం,,A,1,natural_disaster
+571,Need Guarantor?,,పూచీకత్తుదారు అవసరమా?,,A,2,need_guarantor need_guarantor_question
+572,Needs Your Approval,,మీ ఆమోదం కావాలి,,A,1,needs_your_approval
+573,Net Cash Movement,,నికర నగదు కదలిక,,A,1,net_cash_movement
+574,Net position,,నికర స్థితి,,A,1,net_position
+575,Never,,ఎప్పుడూ లేదు,,A,1,never
+576,New Balance: {amount},,కొత్త బ్యాలెన్స్: {amount},,A,1,new_balance
+577,New Loan,,కొత్త రుణం,,A,1,new_loan
+578,New MLID: {mlid},,కొత్త MLID: {mlid},,A,1,new_mlid_note
+579,New Password *,,కొత్త పాస్‌వర్డ్ *,,A,1,new_password_field
+580,New Penalty Amount,,కొత్త జరిమానా మొత్తం,,A,1,new_penalty_amount
+581,New Person,,కొత్త వ్యక్తి,,A,2,new person new_person
+582,Next Installment,,తదుపరి వాయిదా,,A,1,next_installment
+583,Next Payment Due,,తదుపరి చెల్లింపు గడువు,,A,1,next_payment_due
+584,Next Step,,తదుపరి దశ,,A,1,next_step
+585,No,,కాదు,,A,1,no
+586,No agent assigned,,ఏ ఏజెంట్ కేటాయించలేదు,,A,1,no_agent_assigned
+587,No Business Linked,,ఏ వ్యాపారం లింక్ చేయబడలేదు,,A,1,no_business_linked
+588,No businesses found.,,వ్యాపారాలు కనుగొనబడలేదు.,,A,1,no_businesses_found
+589,No collections yet.,,ఇంకా వసూళ్లు లేవు.,,A,1,no_collections_yet
+590,No Duplicate Loan,,నకిలీ రుణం లేదు,,A,2,check_no_duplicate_loan no_duplicate_loan
+591,No entries yet.,,ఇంకా ఎంట్రీలు లేవు.,,A,1,no_entries_yet
+592,No groups yet,,ఇంకా గ్రూపులు లేవు,,A,1,no_groups_yet
+593,No Guarantor,,పూచీకత్తుదారు లేరు,,A,1,no_guarantor
+594,No history yet.,,ఇంకా చరిత్ర లేదు.,,A,1,no_history_yet
+595,No identity found.,,గుర్తింపు కనుగొనబడలేదు.,,A,1,no_identity_found
+596,No Loans Yet,,ఇంకా రుణాలు లేవు,,A,1,no_loans_yet
+597,No loans yet.,,ఇంకా రుణాలు లేవు.,,A,1,no_loans_yet_period
+598,No notifications yet.,,ఇంకా నోటిఫికేషన్‌లు లేవు.,,A,1,no_notifications_yet
+599,No notifications.,,నోటిఫికేషన్‌లు లేవు.,,A,1,no_notifications
+600,No Owner Restrictions,,"1) యజమాని పరిమితులు లేవు
+2) యజమాని ఆంక్షలు లేవు",,A,2,check_no_owner_restrictions no_owner_restrictions
+601,No payments yet.,,ఇంకా చెల్లింపులు లేవు.,,A,1,no_payments_yet
+602,No Pending Approval,,పెండింగ్ ఆమోదం లేదు,,A,2,check_no_pending_approval no_pending_approval
+603,No remarks yet.,,ఇంకా వ్యాఖ్యలు లేవు.,,A,1,no_remarks_yet
+604,No schedule available.,,షెడ్యూల్ అందుబాటులో లేదు.,,A,1,no_schedule_available
+605,No Short/Excess adjustments.,,తక్కువ/అధిక సర్దుబాట్లు లేవు.,,A,1,no_short_excess_adjustments
+606,No transactions yet.,,ఇంకా లావాదేవీలు లేవు.,,A,1,no_transactions_yet
+607,"No, I'm new",,"లేదు, నేను కొత్తవాడిని",,A,1,no_im_new
+608,Nobody due today.,,ఈరోజు ఎవరూ బకాయి లేరు.,,A,1,nobody_due_today
+609,None,,ఏదీ లేదు,,A,1,none
+610,Normal,,సాధారణం,,A,1,normal
+611,Not Blocked,,"1) నిరోధించబడలేదు
+2) బ్లాక్ చేయబడలేదు",,A,2,check_not_blocked not_blocked
+612,Not collected since,,నుండి వసూలు కాలేదు,,A,1,not_recovered_since
+613,Not Now,,ఇప్పుడు కాదు,,A,1,not_now
+614,Not Verified,,ధృవీకరించలేదు,,A,1,not_verified
+615,Not Visible,,కనిపించదు,,A,1,not_visible
+616,Note (Optional),,గమనిక (ఐచ్ఛికం),,A,1,note_optional
+617,Note (optional),,గమనిక (ఐచ్ఛికం),,A,1,note_optional_field
+618,Nothing Collected,,ఏమీ వసూలు కాలేదు,,A,1,nothing_collected
+619,Nothing distributed yet.,,ఇంకా ఏమీ పంపిణీ చేయలేదు.,,A,1,nothing_distributed_yet
+620,Nothing Owed,,ఏమీ బాకీ లేదు,,A,1,no_short_to_record
+621,Nothing yet today.,,ఈరోజు ఇంకా ఏమీ లేదు.,,A,1,nothing_yet_today
+622,Notifications,,నోటిఫికేషన్‌లు,,A,1,notifications
+623,November,,నవంబర్,,A,1,november
+624,Occupation,,వృత్తి,,A,1,occupation
+625,October,,అక్టోబర్,,A,1,october
+626,Offered to You,,మీకు ఆఫర్ చేయబడింది,,A,1,offered_to_you
+627,Old MLID: {mlid},,పాత MLID: {mlid},,A,1,old_mlid_note
+628,On Hold,,నిలిపివేయబడినది,,A,1,struck_amount
+629,Open,,"1) తెరిచి ఉంది
+2) తెరవండి",,A,3,open open_label open_status
+630,Opening (BF),,ప్రారంభ (BF),,A,1,opening_bf
+631,Opening Balance,,ప్రారంభ నిల్వ,,A,1,opening_balance
+632,Opening Balance (BF),,ప్రారంభ నిల్వ (BF),,A,1,opening_balance_bf
+633,Operating Areas,,పని ప్రాంతాలు,,A,1,operating_areas
+634,Order,,క్రమం,,A,1,sort_order
+635,Original Principal Amount,,అసలు మూల మొత్తం,,A,1,original_principal_amount
+636,Original Start Date,,అసలు ప్రారంభ తేదీ,,A,1,original_start_date
+637,Other,,ఇతర,,A,2,other reopen_reason_other
+638,Other Business Memberships,,ఇతర వ్యాపార సభ్యత్వాలు,,A,1,other_business_memberships
+639,Outstanding,,బాకీ,,A,1,outstanding
+640,Outstanding Amount,,బాకీ మొత్తం,,A,1,outstanding_amount
+641,Outstanding Balance,,బాకీ నిల్వ,,A,1,outstanding_balance
+642,Outstanding Rules,,"1) బాకీ నిబంధనలు
+2) బాకీ నియమాలు",,A,2,check_outstanding_rules outstanding_rules
+643,Outstanding since {date},,{date} నుండి బాకీ ఉంది,,A,1,short_outstanding_since
+644,Overall Difference: {amount},,మొత్తం తేడా: {amount},,A,1,overall_difference_note
+645,Overview,,అవలోకనం,,A,1,overview
+646,Owner,,యజమాని,,A,1,owner
+647,Owner BF,,యజమాని BF,,A,1,owner_bf
+648,"Owner BF, Current",,"యజమాని BF, ప్రస్తుతం",,A,1,owner_bf_current
+649,Owner Captured,,యజమాని తీసుకున్నవి,,A,1,owner_captured
+650,Owner Verified,,యజమాని ధృవీకరించారు,,A,1,owner_verified
+651,Paid,,చెల్లించబడింది,,A,1,paid
+652,Paid By,,చెల్లించినవారు,,A,1,paid_by
+653,Paid in,,చెల్లించినది,,A,1,paid_in
+654,Paid: {amount},,చెల్లించినది: {amount},,A,1,paid_short_note
+655,Partial,,పాక్షికం,,A,1,partial
+656,Password,,పాస్‌వర్డ్,,A,1,password
+657,Password *,,పాస్‌వర్డ్ *,,A,1,password_field
+658,Password / PIN,,పాస్‌వర్డ్ / పిన్,,A,1,password_pin
+659,Pay,,చెల్లించు,,A,1,pay
+660,Pay Out,,చెల్లించండి,,A,1,pay_out
+661,Pay Out Withdrawal,,ఉపసంహరణ చెల్లించండి,,A,1,pay_out_withdrawal
+662,Pay Via UPI,,UPI ద్వారా చెల్లించండి,,A,1,pay_via_upi
+663,Payer,,చెల్లింపుదారు,,A,1,payer
+664,Payment,,చెల్లింపు,,A,1,payment
+665,Payment Amount,,చెల్లింపు మొత్తం,,A,1,payment_amount
+666,Payment Amount *,,చెల్లింపు మొత్తం *,,A,1,payment_amount_field
+667,Payment Confirmed,,చెల్లింపు నిర్ధారించబడింది,,A,1,payment_confirmed
+668,Payment History,,చెల్లింపు చరిత్ర,,A,1,payment_history
+669,Payment Submitted,,చెల్లింపు సమర్పించబడింది,,A,1,payment_submitted
+670,Penalty,,జరిమానా,,A,1,penalty
+671,Penalty Amount,,జరిమానా మొత్తం,,A,1,penalty_amount
+672,Penalty Collected,,జరిమానా వసూలు చేయబడింది,,A,1,penalty_collected
+673,Penalty Eligible,,జరిమానాకు అర్హత,,A,1,penalty_eligible
+674,Penalty Entries,,జరిమానా ఎంట్రీలు,,A,1,penalty_entries
+675,Penalty Option,,జరిమానా ఎంపిక,,A,1,penalty_option
+676,Penalty Outstanding,,బాకీ ఉన్న జరిమానా,,A,1,penalty_outstanding_field
+677,Penalty Status,,జరిమానా స్థితి,,A,1,penalty_status
+678,Pending,,పెండింగ్,,A,2,pending pending_label
+679,Pending Acceptance,,పెండింగ్ అంగీకారం,,A,1,pending_acceptance_status
+680,Pending Collections,,పెండింగ్ వసూళ్లు,,A,1,pending_collections
+681,Pending Customer Requests,,పెండింగ్ కస్టమర్ అభ్యర్థనలు,,A,1,pending_customer_requests
+682,Pending Customers,,పెండింగ్ కస్టమర్లు,,A,1,pending_customers
+683,Pending Drafts,,పెండింగ్ డ్రాఫ్ట్‌లు,,A,1,pending_drafts
+684,Pending Extension Requests,,పెండింగ్ పొడిగింపు అభ్యర్థనలు,,A,1,pending_extension_requests
+685,Pending Invitation,,పెండింగ్ ఆహ్వానం,,A,2,pending_invitation pending_invitation_status
+686,Pending Invitations,,పెండింగ్ ఆహ్వానాలు,,A,1,pending_invitations_header
+687,Pending Loan Requests,,పెండింగ్ రుణ అభ్యర్థనలు,,A,1,pending_loan_requests
+688,Pending Messages,,పెండింగ్ సందేశాలు,,A,1,pending_messages
+689,Pending Online Payments,,పెండింగ్ ఆన్‌లైన్ చెల్లింపులు,,A,1,pending_online_payments
+690,Pending Requests,,"1) పెండింగ్‌లో ఉన్న అభ్యర్థనలు
+2) పెండింగ్ అభ్యర్థనలు",,A,2,pending_requests pending_requests_header
+691,Pending Route Changes,,పెండింగ్ మార్గం మార్పులు,,A,1,pending_route_changes
+692,Pending Salary,,పెండింగ్ జీతం,,A,1,pending_salary
+693,Pending Settlement,,పెండింగ్ సెటిల్‌మెంట్,,A,1,pending_settlement
+694,Pending Withdrawal Requests,,పెండింగ్ ఉపసంహరణ అభ్యర్థనలు,,A,1,pending_withdrawal_requests
+695,Permission Profile,,అనుమతి ప్రొఫైల్,,A,1,permission_profile
+696,Permissions,,అనుమతులు,,A,1,permissions
+697,Phone,,ఫోన్,,A,2,phone phone_field
+698,Phone Number,,ఫోన్ నంబర్,,A,2,phone_number phone_number_plain_field
+699,Physical Cash,,భౌతిక నగదు,,A,1,physical_cash
+700,Physical Cash (₹),,భౌతిక నగదు (₹),,A,1,physical_cash_field
+701,Physical Cash Declared,,ప్రకటించిన భౌతిక నగదు,,A,1,physical_cash_declared
+702,Pick,,ఎంచుకోండి,,A,1,pick
+703,PIN,,పిన్,,A,1,village_search_by_pin
+704,PIN Code,,పిన్ కోడ్,,A,3,pin_code pin_code_field pin_code_plain_field
+705,PIN Code *,,పిన్ కోడ్ *,,A,1,pin_code_required_field
+706,Plans,,ప్లాన్‌లు,,A,1,plans
+707,Platform Admin,,ప్లాట్‌ఫారమ్ అడ్మిన్,,A,1,platform_admin
+708,Pre-Existing Agent,,ముందుగా ఉన్న ఏజెంట్,,A,1,pre_existing_agent
+709,Pre-Existing Business,,ముందుగా ఉన్న వ్యాపారం,,A,2,pre-existing business pre_existing_business
+710,Pre-Existing Customer,,ముందుగా ఉన్న కస్టమర్,,A,1,pre_existing_customer
+711,Pre-Existing Investor,,ముందుగా ఉన్న పెట్టుబడిదారు,,A,1,pre_existing_investor
+712,Pre-Existing Records,,ముందుగా ఉన్న రికార్డులు,,A,1,group_pre_existing_records
+713,Preferred Repayment Frequency,,ఇష్టపడే తిరిగి చెల్లింపు తరచుదనం,,A,1,preferred_repayment_frequency
+714,Principal + Interest,,అసలు + వడ్డీ,,A,1,principal_plus_interest
+715,Principal Amount,,అసలు మొత్తం,,A,1,principal_amount
+716,Principal Full,,అసలు పూర్తిగా,,A,1,principal_full
+717,Principal Partial,,అసలు పాక్షికం,,A,1,principal_partial
+718,Principal Portion *,,అసలు భాగం *,,A,1,principal_portion_field
+719,Processing Fee,,ప్రాసెసింగ్ ఫీజు,,A,2,processing_fee processing_fee_field
+720,Profile,,ప్రొఫైల్,,A,1,profile
+721,Profile Photo,,ప్రొఫైల్ ఫోటో,,A,1,profile_photo
+722,Profit Share,,లాభ వాటా,,A,1,profit_share
+723,Profit Share %,,లాభ వాటా %,,A,1,profit_share_percent
+724,Profit Share Distribution,,లాభ వాటా పంపిణీ,,A,1,profit_share_distribution
+725,Proof Document,,రుజువు పత్రం,,A,1,proof_document
+726,Proposed Investment,,ప్రతిపాదిత పెట్టుబడి,,A,1,proposed_investment
+727,Proposed Investment Amount,,ప్రతిపాదిత పెట్టుబడి మొత్తం,,A,1,proposed_investment_amount_field
+728,Proposed: ₹{amount},,ప్రతిపాదించినది: ₹{amount},,A,1,proposed_amount_note
+729,Purpose,,ప్రయోజనం,,A,1,purpose
+730,Purpose (optional),,ప్రయోజనం (ఐచ్ఛికం),,A,1,purpose_optional_field
+731,Quick Actions,,త్వరిత చర్యలు,,A,1,quick_actions
+732,Range,,పరిధి,,A,1,range
+733,Reactivate,,తిరిగి యాక్టివేట్ చేయండి,,A,1,reactivate
+734,Read,,చదవండి,,A,1,read_terms
+735,Reason,,కారణం,,A,1,reason_field
+736,Reason (required),,కారణం (తప్పనిసరి),,A,1,reason_required_field
+737,Reason *,,కారణం *,,A,1,reason_required
+738,Reason for reopening,,తిరిగి తెరవడానికి కారణం,,A,1,reopen_reason_label
+739,Reason: {reason},,కారణం: {reason},,A,1,reason_note
+740,Recalculate,,తిరిగి లెక్కించండి,,A,1,recalculate
+741,Receipt,,రసీదు,,A,1,receipt
+742,Receipt #{number},,రసీదు #{number},,A,1,receipt_number
+743,Receipt: {number},,రసీదు: {number},,A,1,receipt_note
+744,Received From Agents,,ఏజెంట్ల నుండి అందినది,,A,1,transfers_in
+745,Recent Deletes,,ఇటీవలి తొలగింపులు,,A,1,recent_deletes
+746,Record Availing,,పొందడం నమోదు చేయండి,,A,1,record_availing
+747,Record Investment,,పెట్టుబడి నమోదు చేయండి,,A,1,record_investment
+748,Record Payment,,చెల్లింపు నమోదు చేయండి,,A,1,record_payment
+749,Recorded on {date}.,,{date}న నమోదు చేయబడింది.,,A,1,recorded_on_note
+750,Recovered on {date},,{date}న తిరిగి వచ్చింది,,A,1,short_recovered_on
+751,Reduce to Amount,,మొత్తానికి తగ్గించండి,,A,1,reduce_to_amount
+752,Reference,,సూచన,,A,1,reference
+753,Refund,,రీఫండ్,,A,1,refund
+754,Refused Payment,,చెల్లింపు నిరాకరించారు,,A,1,refused_payment
+755,Register,,నమోదు చేయండి,,A,2,register register_button
+756,Register Agent,,ఏజెంట్ నమోదు చేయండి,,A,1,register_agent
+757,Register Customer,,కస్టమర్‌ను నమోదు చేయండి,,A,1,register_customer
+758,Register New Agent,,కొత్త ఏజెంట్ నమోదు చేయండి,,A,1,register_new_agent
+759,Reject,,తిరస్కరించండి,,A,1,reject
+760,Reject Investor Request,,పెట్టుబడిదారు అభ్యర్థనను తిరస్కరించండి,,A,1,reject_investor_request
+761,Reject Loan Request,,రుణ అభ్యర్థనను తిరస్కరించండి,,A,1,reject_loan_request
+762,Reject Withdrawal Request,,ఉపసంహరణ అభ్యర్థనను తిరస్కరించండి,,A,1,reject_withdrawal_request
+763,Relationship,,సంబంధం,,A,2,relationship relationship_field
+764,Remaining Balance,,"1) మిగిలిన బ్యాలెన్స్
+2) మిగిలిన నిల్వ",,A,2,remaining_balance remaining_balance_label
+765,Remaining Installments,,మిగిలిన వాయిదాలు,,A,1,remaining_installments
+766,Remaining {percent}%,,మిగిలిన {percent}%,,A,1,remaining_percent
+767,Remarks,,వ్యాఖ్యలు,,A,3,remarks remarks_field remarks_tab
+768,Remarks (Optional),,వ్యాఖ్యలు (ఐచ్ఛికం),,A,1,remarks_optional
+769,Remarks (optional),,వ్యాఖ్యలు (ఐచ్ఛికం),,A,1,remarks_optional_field
+770,Remarks saved.,,వ్యాఖ్యలు సేవ్ చేయబడ్డాయి.,,A,1,remarks_saved_note
+771,Remarks: {remarks},,వ్యాఖ్యలు: {remarks},,A,1,remarks_colon_note
+772,Remove,,తీసివేయండి,,A,1,remove
+773,Remove Area,,ప్రాంతం తీసివేయండి,,A,2,remove_area remove_area_tooltip
+774,Remove Operating Area?,,పని ప్రాంతాన్ని తీసివేయాలా?,,A,1,remove_operating_area_question
+775,Remove This Customer?,,ఈ ఖాతాదారుని తొలగించాలా?,,A,1,remove_customer_question
+776,Remove Village?,,గ్రామాన్ని తీసివేయాలా?,,A,1,remove_village_question
+777,Removed,,తీసివేయబడింది,,A,1,removed
+778,Rename,,పేరు మార్చండి,,A,1,rename
+779,Rename Area,,ప్రాంతం పేరు మార్చండి,,A,1,rename_area
+780,Rename Group,,గ్రూప్ పేరు మార్చండి,,A,1,rename_group
+781,Reopen,,తిరిగి తెరవండి,,A,1,reopen
+782,Reopen Closed Day,,మూసివేసిన దినాన్ని తిరిగి తెరవండి,,A,1,reopen_closed_day
+783,Reopen Migration,,మైగ్రేషన్ తిరిగి తెరవండి,,A,1,reopen_migration
+784,Repayment Amount,,తిరిగి చెల్లింపు మొత్తం,,A,1,repayment_amount
+785,Repayment Amount *,,"1) తిరిగి చెల్లించాల్సిన మొత్తం *
+2) తిరిగి చెల్లింపు మొత్తం *",,A,2,repayment_amount_field repayment_amount_required_field
+786,Repayment Frequency,,తిరిగి చెల్లింపు తరచుదనం,,A,1,repayment_frequency_field
+787,Repayment Schedule,,తిరిగి చెల్లింపు షెడ్యూల్,,A,1,repayment_schedule
+788,Repayment Type,,తిరిగి చెల్లింపు రకం,,A,3,repayment_type repayment_type_field repayment_type_field_plain
+789,Report Hub,,నివేదిక కేంద్రం,,A,1,report_hub
+790,Reports,,నివేదికలు,,A,1,reports
+791,Request Business Membership,,వ్యాపార సభ్యత్వం అభ్యర్థించండి,,A,1,request_business_membership
+792,Request Custom Amount,,కస్టమ్ మొత్తం అభ్యర్థించండి,,A,1,request_custom_amount
+793,Request Extension,,పొడిగింపు అభ్యర్థించండి,,A,1,request_extension
+794,Request New Loan,,కొత్త రుణం అభ్యర్థించండి,,A,1,request_new_loan
+795,Request Queue (Investors),,అభ్యర్థన క్యూ (పెట్టుబడిదారులు),,A,1,request_queue_investors
+796,Request Withdrawal,,ఉపసంహరణ అభ్యర్థించండి,,A,2,request_withdrawal request_withdrawal_title
+797,Requested Amount,,అభ్యర్థించిన మొత్తం,,A,1,requested_amount
+798,Requested Amount *,,అభ్యర్థించిన మొత్తం *,,A,1,requested_amount_field
+799,Requested Extension,,గడువు పొడిగింపు కోరారు,,A,1,requested_extension
+800,Requested Later Visit,,తర్వాత సందర్శన కోరారు,,A,1,requested_later_visit
+801,Requested {date},,{date}న అభ్యర్థించారు,,A,1,requested_on_note
+802,Requested: {amount} ({type}),,అభ్యర్థించినది: {amount} ({type}),,A,1,requested_amount_type_note
+803,Required,,తప్పనిసరి,,A,1,required_label
+804,Resend OTP,,OTP మళ్లీ పంపండి,,A,1,resend_otp
+805,Reset Password,,పాస్‌వర్డ్ రీసెట్ చేయండి,,A,1,reset_password
+806,Resolve,,పరిష్కరించండి,,A,1,resolve
+807,Restore,,పునరుద్ధరించండి,,A,1,restore
+808,Retake Photo,,మళ్ళీ ఫోటో తీయండి,,A,1,retake_photo
+809,Retry,,మళ్ళీ ప్రయత్నించండి,,A,1,retry
+810,Return,,తిరిగి పంపండి,,A,1,return_label
+811,Return Account,,ఖాతాను తిరిగి పంపండి,,A,1,return_account
+812,Returning This Session,,ఈ సెషన్‌లో తిరిగి వస్తున్నది,,A,1,returning_this_session
+813,Review,,సమీక్షించండి,,A,1,review
+814,Review Summary,,సారాంశాన్ని సమీక్షించండి,,A,1,review_summary
+815,ROI,,ROI,,A,1,roi
+816,ROI Rate,,ROI రేటు,,A,1,roi_rate
+817,"ROI, Yearly Equivalent",,"ROI, వార్షిక సమానం",,A,1,roi_yearly_equivalent
+818,Row {row}: {message},,వరుస {row}: {message},,A,1,row_error_note
+819,Row {row}: {reason},,వరుస {row}: {reason},,A,1,row_duplicate_note
+820,Running,,నడుస్తున్నది,,A,1,running_amount
+821,Salary Cycle,,జీతం చక్రం,,A,2,salary_cycle salary_cycle_field
+822,Salary History,,జీతం చరిత్ర,,A,1,salary_history
+823,Save,,సేవ్ చేయండి,,A,1,save
+824,Save & Select,,సేవ్ చేసి ఎంచుకోండి,,A,1,save_and_select
+825,Save Availing,,పొందడం సేవ్ చేయండి,,A,1,save_availing
+826,Save Business,,వ్యాపారం సేవ్ చేయండి,,A,1,save_business
+827,Save Cheeti,,చీటీ సేవ్ చేయండి,,A,1,save_cheti
+828,Save Existing Loan,,ఇప్పటికే ఉన్న రుణం సేవ్ చేయండి,,A,1,save_existing_loan
+829,Save Payment,,చెల్లింపు సేవ్ చేయండి,,A,1,save_payment
+830,Save Permissions,,అనుమతులు సేవ్ చేయండి,,A,1,save_permissions
+831,Save Short,,లోటును సేవ్ చేయండి,,A,1,save_short
+832,Save This Loan,,ఈ రుణాన్ని సేవ్ చేయండి,,A,1,save_this_loan
+833,Save Visit,,సందర్శన సేవ్ చేయండి,,A,1,save_visit
+834,Search,,శోధించండి,,A,1,search
+835,Search Again,,మళ్ళీ శోధించండి,,A,1,search_again
+836,Search Existing Loans,,ఇప్పటికే ఉన్న రుణాలను శోధించండి,,A,1,search_existing_loans_field
+837,Search Existing MLID,,ఇప్పటికే ఉన్న MLID శోధించండి,,A,1,search_existing_mlid
+838,Search This List,,ఈ జాబితాలో వెతకండి,,A,1,search_this_round
+839,Search Transactions,,లావాదేవీలను వెతకండి,,A,1,search_transactions
+840,Search Village/Town,,"1) గ్రామం/పట్టణం వెతకండి
+2) గ్రామం/పట్టణం శోధించండి",,A,2,search_village_town search_village_town_plain_field
+841,Search Village/Town *,,గ్రామం/పట్టణం శోధించండి *,,A,1,search_village_town_field
+842,See All,,అన్నీ చూడండి,,A,1,see_all
+843,Select,,ఎంచుకోండి,,A,1,select
+844,Select All,,అన్నీ ఎంచుకోండి,,A,1,select_all
+845,Select Business,,వ్యాపారాన్ని ఎంచుకోండి,,A,1,select_business
+846,Select Customer,,కస్టమర్‌ను ఎంచుకోండి,,A,1,select_customer
+847,Select Member Type,,సభ్య రకాన్ని ఎంచుకోండి,,A,1,select_member_type
+848,Select Operating Area(s),,పని ప్రాంతం(లు) ఎంచుకోండి,,A,1,select_operating_areas
+849,Select Role,,పాత్రను ఎంచుకోండి,,A,1,select_role
+850,Select Village,,గ్రామం ఎంచుకోండి,,A,1,select_village
+851,Selected Investment,,ఎంచుకున్న పెట్టుబడి,,A,1,selected_investment
+852,Selected Loan,,ఎంచుకున్న రుణం,,A,1,selected_loan
+853,Selected: {label},,ఎంచుకున్నది: {label},,A,1,selected_note
+854,Send,,పంపండి,,A,1,send
+855,Send BF Cash,,BF నగదు పంపండి,,A,1,send_bf_cash
+856,Send Offer,,ఆఫర్ పంపండి,,A,1,send_offer
+857,Send OTP,,OTP పంపండి,,A,1,send_otp
+858,September,,సెప్టెంబర్,,A,1,september
+859,Session Timed Out,,సెషన్ గడువు ముగిసింది,,A,1,session_timed_out
+860,Settings,,సెట్టింగ్‌లు,,A,1,settings
+861,Settlement,,సెటిల్‌మెంట్,,A,1,settlement
+862,Settlement Details,,సెటిల్‌మెంట్ వివరాలు,,A,1,settlement_details
+863,Settlement Excess,,సెటిల్‌మెంట్ అధికం,,A,1,settlement_excess
+864,Settlement Short,,సెటిల్‌మెంట్ తక్కువ,,A,1,settlement_short
+865,Settlement Summary,,సెటిల్‌మెంట్ సారాంశం,,A,1,settlement_summary
+866,Share File,,ఫైల్ షేర్ చేయండి,,A,1,share_file
+867,Shifted Village,,గ్రామం మారింది,,A,1,shifted_village
+868,Short,,తక్కువ,,A,1,short
+869,Short Carried In,,తీసుకువచ్చిన లోటు,,A,1,agent_opening_short
+870,Short recorded: {amount},,లోటు నమోదైంది: {amount},,A,1,short_recorded
+871,Shorts Deducted,,తీసివేసిన లోటులు,,A,1,shorts_deducted
+872,Show,,చూపించు,,A,1,show
+873,Simple,,సాధారణ,,A,1,simple
+874,Skip for Now,,ప్రస్తుతానికి దాటవేయండి,,A,1,skip_for_now
+875,Skipped,,దాటవేయబడింది,,A,1,skipped
+876,Skipped Customers,,దాటవేసిన కస్టమర్లు,,A,1,skipped_customers
+877,Someone Else Paid,,వేరొకరు చెల్లించారు,,A,1,someone_else_paid
+878,Sort by,,క్రమబద్ధీకరించు,,A,1,sort_by
+879,Sorted By,,క్రమం,,A,1,sorted_by
+880,Spreadsheet,,స్ప్రెడ్‌షీట్,,A,1,spreadsheet
+881,Start Business Session,,వ్యాపార సెషన్ ప్రారంభించండి,,A,1,start_business_session
+882,Start Date,,ప్రారంభ తేదీ,,A,1,start_date
+883,Start New Case,,కొత్త కేసు ప్రారంభించండి,,A,1,start_new_case
+884,Start New Loan,,కొత్త రుణం ప్రారంభించండి,,A,1,start_new_loan
+885,State *,,రాష్ట్రం *,,A,1,state_field
+886,Statement,,స్టేట్‌మెంట్,,A,1,statement
+887,Statement Period,,స్టేట్‌మెంట్ కాలం,,A,1,statement_period
+888,Status,,స్థితి,,A,1,status
+889,Step 1,,దశ 1,,A,1,step_1
+890,Step 2,,దశ 2,,A,1,step_2
+891,Step 3,,దశ 3,,A,1,step_3
+892,Still owed,,ఇంకా బాకీ,,A,1,still_owed
+893,Submission Time (HH:MM),,సమర్పణ సమయం (HH:MM),,A,1,submission_time_field
+894,Submit,,సమర్పించండి,,A,2,submit submit_label
+895,Submit Request,,అభ్యర్థన సమర్పించండి,,A,1,submit_request
+896,Submit Settlement,,సెటిల్‌మెంట్ సమర్పించండి,,A,1,submit_settlement
+897,Subscription,,సబ్‌స్క్రిప్షన్,,A,1,subscription
+898,Summary,,సారాంశం,,A,2,summary summary_tab
+899,Support: support@manaline.app,,మద్దతు: support@manaline.app,,A,1,support_email_note
+900,Supporting Remarks,,సహాయక వ్యాఖ్యలు,,A,1,supporting_remarks_field
+901,Suspend,,సస్పెండ్ చేయండి,,A,1,suspend
+902,Suspend Customer,,కస్టమర్‌ను సస్పెండ్ చేయండి,,A,1,suspend_customer
+903,Suspended,,సస్పెండ్ చేయబడింది,,A,1,suspended
+904,Switch Business,,వ్యాపారం మార్చండి,,A,1,switch_business
+905,Switch Camera,,కెమెరా మార్చండి,,A,1,switch_camera
+906,Switch Role,,పాత్ర మార్చండి,,A,1,switch_role
+907,Switch Workspace,,వర్క్‌స్పేస్ మార్చండి,,A,1,switch_workspace
+908,System Expected (Computed),,సిస్టమ్ ఆశించినది (లెక్కించబడింది),,A,1,system_expected_computed
+909,Take a Photo,,ఫోటో తీయండి,,A,1,take_photo
+910,Tap To Open,,తెరవడానికి నొక్కండి,,A,1,tap_to_open
+911,Target Customer ID,,లక్ష్య కస్టమర్ ఐడి,,A,1,target_customer_id
+912,Temporarily Disabled,,తాత్కాలికంగా నిలిపివేయబడింది,,A,1,temporarily_disabled
+913,Terms & Conditions,,నిబంధనలు & షరతులు,,A,1,terms_and_conditions
+914,Their MLID,,వారి MLID,,A,1,their_mlid_field
+915,Time,,సమయం,,A,1,time
+916,Timeline,,కాలక్రమం,,A,1,timeline
+917,To {name},,{name}కు,,A,1,to_agent_note
+918,Today Summary,,నేటి సారాంశం,,A,1,today_summary
+919,Today's Business Summary,,నేటి వ్యాపార సారాంశం,,A,1,todays_business_summary
+920,Today's Collection Total,,నేటి వసూలు మొత్తం,,A,1,todays_collection_total
+921,Today's Collections,,నేటి వసూళ్లు,,A,2,todays_collections todays_collections_label
+922,Today's Collections Total,,నేటి మొత్తం వసూళ్లు,,A,1,todays_collections_total
+923,Today's Difference,,నేటి తేడా,,A,1,todays_difference
+924,Today's Due,,నేటి బకాయి,,A,1,todays_due
+925,Today's Expenses,,నేటి ఖర్చులు,,A,1,todays_expenses
+926,Today's Investments,,నేటి పెట్టుబడులు,,A,1,todays_investments
+927,Today's Loan Distribution,,నేటి రుణ పంపిణీ,,A,1,todays_loan_distribution
+928,Today's Loans,,నేటి రుణాలు,,A,1,todays_loans
+929,Today's Outstanding,,నేటి బాకీ,,A,1,todays_outstanding
+930,Today's Route,,నేటి మార్గం,,A,1,todays_route
+931,Today's Target,,నేటి లక్ష్యం,,A,1,todays_target
+932,Today's Withdrawals,,నేటి ఉపసంహరణలు,,A,1,todays_withdrawals
+933,Total,,మొత్తం,,A,1,total
+934,Total Amount,,మొత్తం సొమ్ము,,A,1,total_amount
+935,Total Balance,,మొత్తం బ్యాలెన్స్,,A,1,total_balance
+936,Total Collections,,మొత్తం వసూళ్లు,,A,1,total_collections
+937,Total Due,,మొత్తం బకాయి,,A,1,total_due
+938,Total Expenses,,మొత్తం ఖర్చులు,,A,1,total_expenses
+939,Total Instalments *,,మొత్తం వాయిదాలు *,,A,1,total_instalments_field
+940,Total Interest,,మొత్తం వడ్డీ,,A,1,total_interest
+941,Total Interest Earned,,మొత్తం సంపాదించిన వడ్డీ,,A,1,total_interest_earned
+942,Total Investment Balance,,మొత్తం పెట్టుబడి నిల్వ,,A,1,total_investment_balance
+943,Total Issued,,మొత్తం జారీ చేసినది,,A,1,total_issued
+944,Total Loans Given,,మొత్తం ఇచ్చిన రుణాలు,,A,1,total_loans_given
+945,Total Loans Issued,,మొత్తం జారీ చేసిన రుణాలు,,A,1,total_loans_issued
+946,Total Outstanding,,మొత్తం బాకీ,,A,1,total_outstanding
+947,Total Processing Fee,,మొత్తం ప్రాసెసింగ్ ఫీజు,,A,1,total_processing_fee
+948,Total Profit Amount,,మొత్తం లాభం మొత్తం,,A,1,total_profit_amount
+949,Total: {amount},,మొత్తం: {amount},,A,1,total_note
+950,Town,,పట్టణం,,A,1,town
+951,Transaction History,,లావాదేవీల చరిత్ర,,A,1,transaction_history
+952,Transfer Agent,,ఏజెంట్ బదిలీ చేయండి,,A,1,transfer_agent
+953,Transfer This Business?,,ఈ వ్యాపారాన్ని బదిలీ చేయాలా?,,A,1,transfer_this_business_question
+954,Transfer To Agent,,ఏజెంట్‌కు బదిలీ చేయండి,,A,1,transfer_to_agent
+955,Trash,,ట్రాష్,,A,1,trash
+956,Type,,రకం,,A,1,type_field
+957,Type: {type},,రకం: {type},,A,1,type_note
+958,Unit,,యూనిట్,,A,1,unit
+959,Universal Search,,యూనివర్సల్ శోధన,,A,1,universal_search
+960,Unread,,చదవనివి,,A,1,unread
+961,Unread ({count}),,చదవనివి ({count}),,A,1,unread_count_note
+962,until submitted,,సమర్పించే వరకు,,A,1,until_submitted
+963,Until {date},,{date} వరకు,,A,1,until_date
+964,Update,,అప్‌డేట్ చేయండి,,A,1,update
+965,Update Contact Info,,సంప్రదింపు వివరాలు నవీకరించండి,,A,1,update_contact_info
+966,Update {amount},,{amount} నవీకరించండి,,A,1,update_amount
+967,UPI,,UPI,,A,1,upi
+968,UPI Balance,,UPI నిల్వ,,A,1,upi_balance
+969,UPI Collected,,వసూలు చేసిన UPI,,A,1,upi_collected
+970,Upload a Photo,,ఫోటో అప్‌లోడ్ చేయండి,,A,1,upload_photo
+971,Upload Document,,పత్రం అప్‌లోడ్ చేయండి,,A,1,upload_document
+972,Upload PDF,,PDF అప్‌లోడ్ చేయండి,,A,1,upload_pdf
+973,Use My Location,,నా స్థానాన్ని ఉపయోగించండి,,A,1,use_my_location
+974,Use Your Location?,,మీ స్థానాన్ని ఉపయోగించాలా?,,A,1,use_your_location_question
+975,Username *,,యూజర్‌నేమ్ *,,A,1,username_field
+976,Verified,,ధృవీకరించబడింది,,A,1,verified
+977,Verify,,ధృవీకరించండి,,A,2,verify verify_button
+978,Verify Password,,పాస్‌వర్డ్ ధృవీకరించండి,,A,1,verify_password
+979,View,,చూడండి,,A,1,view
+980,View Documents,,పత్రాలు చూడండి,,A,1,view_documents
+981,View Live Photo,,లైవ్ ఫోటో చూడండి,,A,1,view_live_photo
+982,View Loan,,రుణం చూడండి,,A,1,view_loan
+983,View Statement,,స్టేట్‌మెంట్ చూడండి,,A,1,view_statement
+984,View Transactions,,లావాదేవీలు చూడండి,,A,1,view_transactions
+985,Village,,గ్రామం,,A,1,village
+986,Village (A–Z),,గ్రామం (A–Z),,A,1,sort_by_village
+987,Village *,,గ్రామం *,,A,1,village_required_field
+988,Village Book,,గ్రామ పుస్తకం,,A,1,village_book
+989,Village Name,,గ్రామం పేరు,,A,1,village_name_field
+990,Village/Town Name *,,గ్రామం/పట్టణం పేరు *,,A,1,village_town_name_field
+991,Villages,,గ్రామాలు,,A,1,villages
+992,Visibility,,కనిపించే విధానం,,A,1,group_visibility
+993,Visit Outcome,,సందర్శన ఫలితం,,A,1,visit_outcome
+994,Visit Reason *,,సందర్శన కారణం *,,A,1,visit_reason_field
+995,Visit {percent}%,,సందర్శన {percent}%,,A,1,visit_percent
+996,Waiting On Owner,,యజమాని కోసం వేచి ఉన్నాం,,A,1,waiting_on_owner
+997,Waive Fully,,పూర్తిగా మాఫీ చేయండి,,A,1,waive_fully
+998,Waive/Reduce,,మాఫీ/తగ్గించండి,,A,1,waive_reduce
+999,Waived/Reduced,,మాఫీ/తగ్గించబడింది,,A,1,waived_reduced
+1000,Warnings (May Proceed),,హెచ్చరికలు (కొనసాగవచ్చు),,A,1,warnings_may_proceed
+1001,Weekly,,వారానికొకసారి,,A,1,weekly
+1002,Weeks,,వారాలు,,A,1,weeks
+1003,Welcome,,స్వాగతం,,A,1,welcome
+1004,Welcome Back,,మళ్ళీ స్వాగతం,,A,1,welcome_back
+1005,What This Records,,ఇది ఏమి నమోదు చేస్తుంది,,A,1,what_this_records
+1006,What Was Done,,ఏమి చేయబడింది,,A,1,what_was_done
+1007,Who Paid (Optional),,ఎవరు చెల్లించారు (ఐచ్ఛికం),,A,1,who_paid_optional
+1008,Who works {village}?,,{village}లో ఎవరు పని చేస్తారు?,,A,1,who_works_village_note
+1009,Will Be Suspended,,సస్పెండ్ చేయబడుతుంది,,A,1,will_be_suspended
+1010,Withdraw,,ఉపసంహరించండి,,A,1,withdraw
+1011,Withdrawal History,,ఉపసంహరణ చరిత్ర,,A,1,withdrawal_history
+1012,Withdrawal Requests,,ఉపసంహరణ అభ్యర్థనలు,,A,2,withdrawal_requests withdrawal_requests_title
+1013,Withdrawal To,,ఉపసంహరణ ఇచ్చినది,,A,1,withdrawal_to
+1014,Withdrawal Type,,ఉపసంహరణ రకం,,A,1,withdrawal_type
+1015,Withdrawals,,ఉపసంహరణలు,,A,1,withdrawals
+1016,Withdrawals (Investor),,ఉపసంహరణలు (పెట్టుబడిదారు),,A,1,withdrawals_investor
+1017,Workforce,,శ్రామికులు,,A,1,workforce
+1018,Workforce Management,,శ్రామిక నిర్వహణ,,A,1,workforce_management
+1019,Working This Round,,ఈ రౌండ్‌లో పనిచేస్తున్నవారు,,A,1,working_this_round
+1020,Workspace Information,,వర్క్‌స్పేస్ సమాచారం,,A,1,workspace_information
+1021,Yearly Compound,,వార్షిక చక్రవడ్డీ,,A,1,yearly_compound
+1022,Yearly Equivalent,,వార్షిక సమానం,,A,1,yearly_equivalent
+1023,Yes,,అవును,,A,1,yes
+1024,"Yes, Enable",,"అవును, ప్రారంభించండి",,A,1,yes_enable
+1025,"Yes, I'm registered",,"అవును, నేను నమోదు అయ్యాను",,A,1,yes_im_registered
+1026,You Collected,,మీరు వసూలు చేసినది,,A,1,you_collected
+1027,Your Business Today,,ఈ రోజు మీ వ్యాపారం,,A,1,your_business_today
+1028,{amount} submitted {date},,{amount} {date}న సమర్పించారు,,A,1,amount_submitted_note
+1029,{area} was removed.,,{area} తీసివేయబడింది.,,A,1,area_removed_note
+1030,{count} Agents,,{count} ఏజెంట్లు,,A,1,agents_count_note
+1031,{count} already entered,,{count} ఇప్పటికే నమోదైంది,,A,1,loans_already_entered
+1032,{count} Areas,,{count} ప్రాంతాలు,,A,1,areas_count_note
+1033,{count} Customers,,{count} కస్టమర్లు,,A,1,customers_count_note
+1034,{count} customers,,{count} కస్టమర్లు,,A,2,customers_in_village struck_customers_note
+1035,{count} Days,,{count} రోజులు,,A,1,days_count
+1036,{count} entries,,{count} నమోదులు,,A,1,entries_count
+1037,{count} installments,,{count} వాయిదాలు,,A,2,duration_installments_note duration_note
+1038,{count} Investors,,{count} పెట్టుబడిదారులు,,A,1,investors_count_note
+1039,{count} item(s),,{count} అంశం(లు),,A,1,items_count_note
+1040,{count} item(s) outstanding,,{count} అంశం(లు) బాకీ ఉన్నాయి,,A,1,items_outstanding_note
+1041,{count} loans imported.,,{count} రుణాలు దిగుమతి చేయబడ్డాయి.,,A,1,loans_imported_note
+1042,{count} members,,{count} సభ్యులు,,A,1,members_count_note
+1043,{count} recorded instalment,,{count} నమోదైన వాయిదా,,A,1,recorded_instalment_note
+1044,{count} recorded instalments,,{count} నమోదైన వాయిదాలు,,A,1,recorded_instalments_note
+1045,{count} Selected,,{count} ఎంచుకోబడ్డాయి,,A,1,n_selected
+1046,{cycle} Account,,{cycle} ఖాతా,,A,1,cycle_account_note
+1047,{days} days left,,{days} రోజులు మిగిలి ఉన్నాయి,,A,1,days_left_note
+1048,{n} of {total},,{total}లో {n},,A,1,person_of_total
+1049,{paid} of {total},,{total}లో {paid},,A,1,instalments_x_of_y
+1050,— OR —,,— లేదా —,,A,1,or_separator
+1051, (+ {amount} interest on unpaid gap),, (+ చెల్లించని వ్యవధిపై {amount} వడ్డీ),,B,1,paid_interest_extra
+1052, — {count} instalments still to pay,, — ఇంకా {count} వాయిదాలు చెల్లించాలి,,B,1,instalments_still_to_pay_suffix
+1053,"""{query}"" not found — add it",,"""{query}"" కనుగొనబడలేదు — దాన్ని జోడించండి",,B,1,village_not_found_add_it
+1054,% of Overdue Installment,,బకాయి వాయిదాలో %,,B,1,percent_overdue_installment
+1055,% of Remaining Balance,,మిగిలిన నిల్వలో %,,B,1,percent_remaining_balance
+1056,A duplicate entry needs correcting,,నకిలీ నమోదును సరిచేయాలి,,B,1,reopen_reason_duplicate
+1057,Aadhaar / ID Reference,,ఆధార్ / ఐడి సూచన,,B,1,aadhaar_id_reference
+1058,Accept Privacy Policy *,,గోప్యతా విధానం అంగీకరించండి *,,B,1,accept_privacy_policy
+1059,Accept Terms & Conditions *,,నిబంధనలు & షరతులు అంగీకరించండి *,,B,1,accept_terms_conditions
+1060,Access Not Yet Granted,,యాక్సెస్ ఇంకా మంజూరు కాలేదు,,B,1,access_not_yet_granted
+1061,Account cycle not yet configured,,ఖాతా చక్రం ఇంకా కాన్ఫిగర్ చేయలేదు,,B,1,account_cycle_not_configured
+1062,Accounts Handed To You,,మీకు అప్పగించిన ఖాతాలు,,B,1,accounts_handed_to_you
+1063,Accrued this year: {amount} · Total earned: {total},,ఈ సంవత్సరం పోగుపడింది: {amount} · మొత్తం సంపాదించింది: {total},,B,1,accrued_this_year_note
+1064,Accrued: {amount} · Total earned: {total},,పోగుపడింది: {amount} · మొత్తం సంపాదించింది: {total},,B,1,accrued_note
+1065,"Add ""{name}"" as a new village",,"""{name}""ని కొత్త గ్రామంగా జోడించండి",,B,1,add_village_named_note
+1066,Add & Issue Loan,,జోడించి రుణం ఇవ్వండి,,B,1,add_and_issue_loan
+1067,Add a remark (append-only),,వ్యాఖ్య జోడించండి (జోడించడం మాత్రమే),,B,2,add_a_remark_hint add_remark_append_only_field
+1068,"Add a village in {district}, {state}.",,{state}లోని {district}లో ఒక గ్రామాన్ని జోడించండి.,,B,1,add_village_for_place_note
+1069,Add a village to {area},,{area}కి గ్రామం జోడించండి,,B,1,add_village_to_note
+1070,Add Agent to Business,,వ్యాపారానికి ఏజెంట్‌ను జోడించండి,,B,1,add_agent_to_business
+1071,Add Customer to Business,,వ్యాపారానికి కస్టమర్‌ను జోడించండి,,B,1,add_customer_to_business
+1072,Add This Person's Entry,,ఈ వ్యక్తి నమోదును జోడించండి,,B,1,add_this_persons_entry
+1073,Add To This Business,,ఈ వ్యాపారానికి జోడించండి,,B,1,add_to_this_business
+1074,Added to this business.,,ఈ వ్యాపారానికి జోడించబడింది.,,B,2,added_to_business_note added_to_this_business
+1075,Address · PIN Code · Village,,చిరునామా · పిన్ కోడ్ · గ్రామం,,B,1,address_pin_village
+1076,Adjustments Recorded This Session,,ఈ సెషన్‌లో నమోదు చేసిన సర్దుబాట్లు,,B,1,adjustments_recorded_session
+1077,"Agent registered — invitation sent, status Pending Invitation.",,"ఏజెంట్ నమోదు చేయబడింది — ఆహ్వానం పంపబడింది, స్థితి పెండింగ్ ఆహ్వానం.",,B,1,agent_registered_note
+1078,Agent transferred — new agent notified.,,ఏజెంట్ బదిలీ చేయబడింది — కొత్త ఏజెంట్‌కు తెలియజేయబడింది.,,B,1,agent_transferred_note
+1079,Already Collected This Account Cycle,,ఈ ఖాతా వ్యవధిలో ఇప్పటికే వసూలు చేయబడింది,,B,1,already_collected_this_cycle
+1080,Also Available On Mobile,,,,B,1,web_home_secondary_app_title
+1081,Amount * (cannot exceed available balance),,మొత్తం * (అందుబాటులో ఉన్న నిల్వను మించకూడదు),,B,1,amount_cannot_exceed_balance
+1082,"Amount Given (System-Derived, Read-Only)",,"ఇచ్చిన మొత్తం (సిస్టమ్-నిర్ధారితం, చదవడానికి మాత్రమే)",,B,2,amount_given_derived_label amount_given_readonly_note
+1083,Amount Given * — cash you handed over,,ఇచ్చిన మొత్తం * — మీరు అప్పగించిన నగదు,,B,1,amount_given_cash_field
+1084,An Agent Says Their Opening BF Is Wrong,,ఏజెంట్ తన ఓపెనింగ్ BF తప్పు అంటున్నారు,,B,1,agent_asked_you_to_check_bf
+1085,An investor's opening principal was wrong or missing,,పెట్టుబడిదారు ప్రారంభ అసలు మొత్తం తప్పు లేదా లేదు,,B,1,reopen_reason_investor_principal
+1086,Are You Absolutely Sure?,,మీరు ఖచ్చితంగా నిర్ధారించారా?,,B,1,are_you_absolutely_sure
+1087,Area / Locality (optional),,ప్రాంతం / స్థానికత (ఐచ్ఛికం),,B,1,area_locality_optional_field
+1088,Assign to This Round,,ఈ రౌండ్‌కు కేటాయించండి,,B,1,assign_to_this_round
+1089,Assigned Out This Session,,ఈ సెషన్‌లో కేటాయించినది,,B,1,assigned_out_this_session
+1090,At least 8 characters.,,కనీసం 8 అక్షరాలు.,,B,1,password_helper_short
+1091,Back to Loan Detail,,రుణ వివరాలకు తిరిగి వెళ్లండి,,B,1,back_to_loan_detail
+1092,Back to My Loans,,నా రుణాలకు తిరిగి వెళ్లండి,,B,1,back_to_my_loans
+1093,Back to Template Selection,,టెంప్లేట్ ఎంపికకు తిరిగి,,B,1,back_to_template_selection
+1094,Balance {balance} · EMI {emi},,నిల్వ {balance} · EMI {emi},,B,1,balance_emi_note
+1095,Balance {balance} · {status},,నిల్వ {balance} · {status},,B,1,balance_status_note
+1096,BF Cash Transfer confirmed — balance updated.,,BF నగదు బదిలీ నిర్ధారించబడింది — నిల్వ నవీకరించబడింది.,,B,1,bf_transfer_confirmed_note
+1097,BF — Cash in Hand,,BF — చేతిలో నగదు,,B,1,bf_cash_in_hand
+1098,Blank fields are left unchanged.,,ఖాళీ ఫీల్డ్‌లు మార్చబడవు.,,B,1,blank_fields_unchanged_note
+1099,Bring Your Existing Book Across,,మీ ప్రస్తుత పుస్తకాన్ని తీసుకురండి,,B,1,migrate_existing_book
+1100,"Brought forward, cash in hand",,"ముందుకు తీసుకువచ్చినది, చేతిలో నగదు",,B,1,bf_semantic_label
+1101,Business name or MLBI,,వ్యాపార పేరు లేదా MLBI,,B,1,business_name_or_mlbi_field
+1102,Business was started before entry was finished,,నమోదు పూర్తి కాకముందే వ్యాపారం ప్రారంభించబడింది,,B,1,reopen_reason_started_early
+1103,Can Cancel Own Drafts,,సొంత డ్రాఫ్ట్‌లు రద్దు చేయగలరు,,B,1,perm_can_cancel_own_drafts
+1104,Can Edit Customer Contact,,కస్టమర్ సంప్రదింపు వివరాలు మార్చగలరు,,B,1,perm_can_edit_customer_contact
+1105,Can Edit Own Drafts,,సొంత డ్రాఫ్ట్‌లు మార్చగలరు,,B,1,perm_can_edit_own_drafts
+1106,Can Enter Pre-Existing Records,,ముందుగా ఉన్న రికార్డులు నమోదు చేయగలరు,,B,1,perm_can_migrate_records
+1107,Can Open Work Session,,పని సెషన్ తెరవగలరు,,B,1,perm_can_view_dashboard
+1108,Can Record Cheeti Instalments,,చీటీ వాయిదాలు నమోదు చేయగలరు,,B,1,perm_can_record_cheti
+1109,Can Transfer Cash to Another Agent,,మరో ఏజెంట్‌కు నగదు బదిలీ చేయగలరు,,B,1,perm_can_transfer_collections
+1110,Can Use Collection Mode,,వసూలు మోడ్ ఉపయోగించగలరు,,B,1,perm_can_access_collection_mode
+1111,Can View Investor Info,,ఇన్వెస్టర్ సమాచారం చూడగలరు,,B,1,perm_can_view_investor_info
+1112,Capture Live Photo *,,"1) ప్రత్యక్ష ఫోటో తీయండి *
+2) లైవ్ ఫోటో తీయండి *",,B,2,capture_live_photo capture_live_photo_field
+1113,Captured — tap to retake,,తీసుకోబడింది — మళ్లీ తీయడానికి నొక్కండి,,B,1,captured_tap_retake
+1114,Case Resolved — Slot Freed,,కేసు పరిష్కరించబడింది — స్లాట్ ఖాళీ అయింది,,B,1,case_resolved_slot_freed
+1115,Cash Carried Into This Day,,ఈ రోజుకు తెచ్చిన నగదు,,B,1,opening_cash_for_the_day
+1116,Cash in Hand (BF),,చేతిలో నగదు (BF),,B,1,cash_in_hand_bf
+1117,Cash in hand *,,చేతిలో నగదు *,,B,1,cash_in_hand_field
+1118,Cash out of BF,,BF నుండి నగదు,,B,1,cash_out_of_bf
+1119,"Change {name}'s membership status to ""{status}""?",,"{name} యొక్క సభ్యత్వ స్థితిని ""{status}""కి మార్చాలా?",,B,1,change_status_note
+1120,Cheeti — net position,,చీటీ — నికర స్థితి,,B,1,cheti_net_position
+1121,"Cheque Count (tally, not persisted)",,"చెక్ లెక్క (సరిపోల్చడానికి, నిల్వ చేయబడదు)",,B,1,cheque_count_field
+1122,Chetis You Are Already Paying,,మీరు ఇప్పటికే చెల్లిస్తున్న చీటీలు,,B,1,chetis_you_are_already_paying
+1123,Choose a state to continue.,,కొనసాగించడానికి రాష్ట్రాన్ని ఎంచుకోండి.,,B,1,choose_state_to_continue
+1124,"Choose a template, or request a custom amount.",,"ఒక టెంప్లేట్ ఎంచుకోండి, లేదా కస్టమ్ మొత్తం అభ్యర్థించండి.",,B,1,choose_template_note
+1125,"Choose Daily, Weekly or Monthly.",,"రోజువారీ, వారానికి లేదా నెలవారీ ఎంచుకోండి.",,B,1,loan_problem_unknown_frequency
+1126,Compensation not yet available,,వేతనం ఇంకా అందుబాటులో లేదు,,B,1,compensation_not_available
+1127,Computed live from member loans — never stored.,,సభ్య రుణాల నుండి ప్రత్యక్షంగా లెక్కించబడుతుంది — ఎప్పుడూ నిల్వ చేయబడదు.,,B,1,computed_live_note
+1128,Confirm & Link to Business,,నిర్ధారించి వ్యాపారానికి లింక్ చేయండి,,B,1,confirm_and_link_to_business
+1129,Confirm New Password *,,కొత్త పాస్‌వర్డ్ నిర్ధారించండి *,,B,1,confirm_new_password_field
+1130,Confirm — Close Business Day,,నిర్ధారించండి — వ్యాపార దినం మూసివేయండి,,B,1,confirm_close_business_day
+1131,Confirm — Create Loan,,నిర్ధారించండి — రుణం సృష్టించండి,,B,1,confirm_create_loan
+1132,Continue as Support Staff,,సపోర్ట్ సిబ్బందిగా కొనసాగండి,,B,1,continue_as_support_staff
+1133,Could not add village: {error},,గ్రామం జోడించలేకపోయాము: {error},,B,1,could_not_add_village_note
+1134,Could not load agents.\n{error},,ఏజెంట్లు లోడ్ కాలేదు.\n{error},,B,1,could_not_load_agents
+1135,Could Not Load Dashboard,,డాష్‌బోర్డ్ లోడ్ కాలేదు,,B,1,could_not_load_dashboard
+1136,Could Not Load Data,,డేటా లోడ్ కాలేదు,,B,1,could_not_load_data
+1137,Could not load deleted records: {error},,తొలగించిన రికార్డులను లోడ్ చేయలేకపోయాము: {error},,B,1,could_not_load_deleted_records
+1138,Could not load group.\n{error},,గ్రూప్ లోడ్ కాలేదు.\n{error},,B,1,could_not_load_group_note
+1139,Could Not Load History,,చరిత్రను లోడ్ చేయలేకపోయాం,,B,1,could_not_load_history
+1140,Could Not Load Investment Detail,,పెట్టుబడి వివరాలు లోడ్ కాలేదు,,B,1,could_not_load_investment_detail
+1141,Could Not Load Investments,,పెట్టుబడులు లోడ్ కాలేదు,,B,1,could_not_load_investments
+1142,Could not load investors.\n{error},,పెట్టుబడిదారులు లోడ్ కాలేదు.\n{error},,B,1,could_not_load_investors
+1143,Could Not Load Loan,,రుణం లోడ్ కాలేదు,,B,1,could_not_load_loan
+1144,Could not load loan requests.\n{error},,రుణ అభ్యర్థనలు లోడ్ కాలేదు.\n{error},,B,1,could_not_load_loan_requests_note
+1145,Could not load loan.\n{error},,రుణం లోడ్ కాలేదు.\n{error},,B,1,could_not_load_loan_note
+1146,Could Not Load Loans,,రుణాలు లోడ్ కాలేదు,,B,1,could_not_load_loans
+1147,Could Not Load Migration Status,,మైగ్రేషన్ స్థితి లోడ్ కాలేదు,,B,1,could_not_load_migration_status
+1148,Could Not Load Notifications,,నోటిఫికేషన్లను లోడ్ చేయలేకపోయాం,,B,1,could_not_load_notifications
+1149,Could not load profile.,,ప్రొఫైల్ లోడ్ కాలేదు.,,B,1,could_not_load_profile_plain
+1150,Could not load profile.\n{error},,ప్రొఫైల్ లోడ్ కాలేదు.\n{error},,B,1,could_not_load_profile
+1151,Could not load this profile.\n{error},,ఈ ప్రొఫైల్ లోడ్ కాలేదు.\n{error},,B,1,could_not_load_profile_note
+1152,Could not load today's route.\n{message},,నేటి మార్గం లోడ్ కాలేదు.\n{message},,B,1,could_not_load_todays_route
+1153,Could not load withdrawal requests.\n{error},,ఉపసంహరణ అభ్యర్థనలు లోడ్ కాలేదు.\n{error},,B,1,could_not_load_withdrawal_requests_note
+1154,Could not load your current usage.\n\n{error},,మీ ప్రస్తుత వినియోగం లోడ్ కాలేదు.\n\n{error},,B,1,could_not_load_usage_note
+1155,Could Not Read This Statement.,,ఈ స్టేట్‌మెంట్ చదవలేకపోయింది.,,B,1,could_not_read_statement
+1156,Create & Link to Business,,సృష్టించి వ్యాపారానికి లింక్ చేయండి,,B,1,create_and_link_to_business
+1157,Current BF Cash Balance,,ప్రస్తుత BF నగదు నిల్వ,,B,1,current_bf_cash_balance
+1158,Current BF Cash Balance: {amount},,ప్రస్తుత BF నగదు నిల్వ: {amount},,B,1,current_bf_cash_balance_note
+1159,Customer Out Of Village,,కస్టమర్ ఊరిలో లేరు,,B,1,customer_out_of_village
+1160,"Cycle: {duration} {unit}, submits {time}",,"చక్రం: {duration} {unit}, సమర్పణ {time}",,B,1,cycle_configured_note
+1161,Date of Birth — not set,,పుట్టిన తేదీ — సెట్ చేయలేదు,,B,1,dob_not_set
+1162,Date of Birth — {date},,పుట్టిన తేదీ — {date},,B,1,dob_value_note
+1163,Day Closure Cannot Start,,దిన ముగింపు ప్రారంభం కాదు,,B,1,day_closure_cannot_start
+1164,Delete (balance > ₹0),,తొలగించండి (నిల్వ > ₹0),,B,1,delete_balance_positive
+1165,Did you mean one of these?,,మీరు వీటిలో ఒకదాన్ని ఉద్దేశించారా?,,B,1,did_you_mean_note
+1166,Difference is no longer zero — recheck required.,,తేడా ఇక సున్నా కాదు — మళ్లీ తనిఖీ అవసరం.,,B,1,difference_no_longer_zero_note
+1167,Door / House No,,ఇంటి నంబర్,,B,1,door_house_no
+1168,Door / House No *,,ఇంటి నంబర్ *,,B,1,door_house_no_field
+1169,Door No / Street,,ఇంటి నంబరు / వీధి,,B,1,door_no_street_field
+1170,Edit Address — Select Village,,చిరునామా మార్చండి — గ్రామం ఎంచుకోండి,,B,1,edit_address_select_village
+1171,Enter a Valid Amount,,సరైన మొత్తం నమోదు చేయండి,,B,1,enter_a_valid_amount
+1172,Enter a whole rupee amount above zero,,సున్నా కంటే ఎక్కువ మొత్తం రూపాయలలో నమోదు చేయండి,,B,1,enter_whole_rupee_amount
+1173,Enter One by One,,ఒక్కొక్కరిగా నమోదు చేయండి,,B,1,enter_one_by_one
+1174,Expected {expected} · Actual {actual},,ఆశించినది {expected} · వాస్తవం {actual},,B,1,expected_actual_note
+1175,Father / Husband Name,,తండ్రి / భర్త పేరు,,B,1,father_husband_name
+1176,Father / Husband Name *,,తండ్రి / భర్త పేరు *,,B,1,father_husband_name_field
+1177,Fixed Salary Amount *,,స్థిర జీతం మొత్తం *,,B,1,fixed_salary_amount_field
+1178,From: {from}  To: {to},,నుండి: {from}  వరకు: {to},,B,1,from_to_date_range_note
+1179,Get MANA LINE On Your Phone,,,,B,1,web_home_agent_app_title
+1180,Go to Operating Areas,,పని ప్రాంతాలకు వెళ్లండి,,B,1,go_to_operating_areas
+1181,Grace Period (Days) *,,గ్రేస్ పీరియడ్ (రోజులు) *,,B,1,grace_period_days_field
+1182,Grace Period End Date,,గ్రేస్ పీరియడ్ ముగింపు తేదీ,,B,1,grace_period_end_date
+1183,"Guarantor is loan-scoped, not customer-scoped.",,"పూచీకత్తుదారు రుణానికి సంబంధించినది, కస్టమర్‌కు కాదు.",,B,1,guarantor_loan_scoped_note
+1184,Hand This Business to Someone,,ఈ వ్యాపారాన్ని ఎవరికైనా అప్పగించండి,,B,1,hand_business_to_someone
+1185,How It Was Paid,,ఎలా చెల్లించారు,,B,1,how_it_was_paid
+1186,I'm new — Register,,నేను కొత్త — నమోదు చేయండి,,B,1,im_new_register
+1187,I'm registered — Login,,నేను నమోదు చేసుకున్నాను — లాగిన్,,B,1,im_registered_login
+1188,Instalment Amount (EMI) *,,వాయిదా మొత్తం (EMI) *,,B,1,instalment_amount_emi_field
+1189,Interest Paid to Date,,ఇప్పటివరకు చెల్లించిన వడ్డీ,,B,1,interest_paid_to_date
+1190,Invitation sent — status Pending Invitation.,,ఆహ్వానం పంపబడింది — స్థితి పెండింగ్ ఆహ్వానం.,,B,1,invitation_sent_note
+1191,Invited you to join as {role},,{role}గా చేరమని మిమ్మల్ని ఆహ్వానించారు,,B,1,invited_you_as_note
+1192,Issued {date} · Outstanding {amount},,జారీ చేసినది {date} · బాకీ {amount},,B,1,issued_outstanding_note
+1193,Launches OW-014 Global Workflow.,,OW-014 గ్లోబల్ వర్క్‌ఫ్లో ప్రారంభిస్తుంది.,,B,1,launches_global_workflow_note
+1194,Line balance — still with customers,,లైన్ నిల్వ — ఇంకా కస్టమర్ల వద్ద,,B,1,line_balance_label
+1195,Loan saved for {name}.,,{name} కోసం రుణం సేవ్ చేయబడింది.,,B,1,loan_saved_for_note
+1196,Loan {number} created — active.,,రుణం {number} సృష్టించబడింది — యాక్టివ్.,,B,1,loan_created_note
+1197,Loans Are Still Being Collected Here,,ఇక్కడ ఇంకా వసూళ్లు జరుగుతున్నాయి,,B,1,area_still_has_loans_question
+1198,Long press to correct this entry,,ఈ నమోదును సవరించడానికి నొక్కి పట్టుకోండి,,B,1,long_press_to_correct
+1199,looks like an existing customer,,ఇప్పటికే ఉన్న కస్టమర్‌లా కనిపిస్తుంది,,B,1,looks_like_existing_customer
+1200,MANA Cheeti — coming soon — version 2,,మానా చీటీ — త్వరలో — వెర్షన్ 2,,B,1,mana_chits_coming_soon
+1201,Matches {count} × {amount}.,,{count} × {amount}తో సరిపోలుతుంది.,,B,1,opening_matches_note
+1202,Maximum resend attempts reached,,గరిష్ట పునఃపంపే ప్రయత్నాలు చేరుకున్నాయి,,B,1,max_resend_attempts
+1203,Member sets this at First Login,,సభ్యుడు మొదటి లాగిన్‌లో దీన్ని సెట్ చేస్తారు,,B,1,member_sets_at_first_login
+1204,MLID Correction Record (Read-Only),,MLID దిద్దుబాటు రికార్డు (చదవడానికి మాత్రమే),,B,1,mlid_correction_record
+1205,Mobile on file — tap to edit,,మొబైల్ ఫైల్‌లో ఉంది — మార్చడానికి నొక్కండి,,B,1,mobile_on_file_tap_edit
+1206,Mobile · DOB · Aadhaar,,మొబైల్ · పుట్టిన తేదీ · ఆధార్,,B,1,mobile_dob_aadhaar
+1207,Must be 10 digits,,10 అంకెలు ఉండాలి,,B,1,must_be_10_digits
+1208,Must be 12 digits,,12 అంకెలు ఉండాలి,,B,1,must_be_12_digits
+1209,My Profile / Memberships,,నా ప్రొఫైల్ / సభ్యత్వాలు,,B,2,my_profile_memberships my_profile_memberships_title
+1210,Name in Telugu (optional),,తెలుగులో పేరు (ఐచ్ఛికం),,B,1,name_in_telugu_optional_field
+1211,Net Change (This View),,నికర మార్పు (ఈ వీక్షణ),,B,1,net_change_this_view
+1212,Next due {amount} on {date},,"తదుపరి బకాయి {amount}, {date}న",,B,1,next_due_note
+1213,No access days granted this session.,,ఈ సెషన్‌లో యాక్సెస్ రోజులు మంజూరు కాలేదు.,,B,1,no_access_days_granted
+1214,No account periods yet,,ఇంకా ఖాతా వ్యవధులు లేవు,,B,1,no_account_periods_yet_headline
+1215,No accounts pending review.,,సమీక్షకు పెండింగ్ ఖాతాలు లేవు.,,B,1,no_accounts_pending_review
+1216,No active agents found.,,యాక్టివ్ ఏజెంట్లు కనుగొనబడలేదు.,,B,1,no_active_agents_found
+1217,No active members yet.,,ఇంకా యాక్టివ్ సభ్యులు లేరు.,,B,1,no_active_members_yet
+1218,No activity yet today.,,ఈరోజు ఇంకా కార్యకలాపం లేదు.,,B,1,no_activity_today
+1219,No address on file.,,ఫైల్‌లో చిరునామా లేదు.,,B,1,no_address_on_file
+1220,No administrative/security events this day.,,ఈ రోజు పరిపాలనా/భద్రతా సంఘటనలు లేవు.,,B,1,no_admin_security_events_this_day
+1221,No agent assigned — not being worked,,ఏ ఏజెంట్ కేటాయించలేదు — పని జరగడం లేదు,,B,1,no_agent_assigned_not_worked
+1222,No agent is assigned to an area yet,,ఇంకా ఏ ప్రాంతానికి ఏజెంట్ కేటాయించలేదు,,B,1,no_agent_assigned_area_headline
+1223,No agents match this view.,,ఈ వీక్షణకు సరిపోలే ఏజెంట్లు లేరు.,,B,1,no_agents_match_view
+1224,No agreements created yet.,,ఇంకా ఒప్పందాలు సృష్టించలేదు.,,B,1,no_agreements_yet
+1225,No areas assigned yet.,,ఇంకా ప్రాంతాలు కేటాయించలేదు.,,B,1,no_areas_assigned_yet
+1226,No assigned customers match this view.,,ఈ వీక్షణకు సరిపోలే కేటాయించిన కస్టమర్లు లేరు.,,B,1,no_assigned_customers_match
+1227,No BF Granted Yet,,ఇంకా BF మంజూరు కాలేదు,,B,1,no_bf_granted_yet
+1228,No business days recorded yet.,,ఇంకా వ్యాపార దినాలు నమోదు కాలేదు.,,B,1,no_business_days_yet
+1229,No Business Memberships found.,,వ్యాపార సభ్యత్వాలు కనుగొనబడలేదు.,,B,1,no_business_memberships_found
+1230,No Business Memberships Yet,,ఇంకా వ్యాపార సభ్యత్వాలు లేవు,,B,1,no_business_memberships_yet
+1231,No businesses matched your search.,,మీ శోధనకు వ్యాపారాలు సరిపోలలేదు.,,B,1,no_businesses_matched
+1232,No closed business-day-accounts this month yet.,,ఈ నెల ఇంకా మూసివేసిన వ్యాపార-దిన-ఖాతాలు లేవు.,,B,1,no_closed_accounts_this_month
+1233,No Collection (Visit Without Payment),,వసూలు లేదు (చెల్లింపు లేకుండా సందర్శన),,B,1,no_collection_visit_without_payment
+1234,No collections this day.,,ఈ రోజు వసూళ్లు లేవు.,,B,1,no_collections_this_day
+1235,No confirmed payments yet.,,ఇంకా నిర్ధారించిన చెల్లింపులు లేవు.,,B,1,no_confirmed_payments_yet
+1236,No corrections/adjustments this day.,,ఈ రోజు సరిదిద్దుబాట్లు/సర్దుబాట్లు లేవు.,,B,1,no_corrections_adjustments_this_day
+1237,No customers due right now.,,ప్రస్తుతం ఎవరూ బకాయి లేరు.,,B,1,no_customers_due_right_now
+1238,No customers match this view.,,ఈ వీక్షణకు సరిపోలే కస్టమర్లు లేరు.,,B,1,no_customers_match_view
+1239,No expenses this day.,,ఈ రోజు ఖర్చులు లేవు.,,B,1,no_expenses_this_day
+1240,No impact rows returned.,,ప్రభావ వరుసలు తిరిగి రాలేదు.,,B,1,no_impact_rows
+1241,No interest ledger entries yet.,,ఇంకా వడ్డీ లెడ్జర్ ఎంట్రీలు లేవు.,,B,1,no_interest_ledger_entries_yet
+1242,No Investments Recorded Yet,,ఇంకా పెట్టుబడులు నమోదు కాలేదు,,B,1,no_investments_recorded_yet
+1243,No investor deposits this day.,,ఈ రోజు పెట్టుబడిదారు జమలు లేవు.,,B,1,no_investor_deposits_this_day
+1244,No investor withdrawals this day.,,ఈ రోజు పెట్టుబడిదారు ఉపసంహరణలు లేవు.,,B,1,no_investor_withdrawals_this_day
+1245,No investors match this view.,,ఈ వీక్షణకు సరిపోలే పెట్టుబడిదారులు లేరు.,,B,1,no_investors_match_view
+1246,No loans distributed this day.,,ఈ రోజు రుణాలు పంపిణీ చేయబడలేదు.,,B,1,no_loans_distributed_this_day
+1247,No Match Found — Create New Identity,,సరిపోలిక కనుగొనబడలేదు — కొత్త గుర్తింపును సృష్టించండి,,B,1,no_match_create_new_identity
+1248,No matching customer found.,,సరిపోలే కస్టమర్ కనుగొనబడలేదు.,,B,1,no_matching_customer
+1249,No Operating Areas added yet.,,ఇంకా పని ప్రాంతాలు జోడించలేదు.,,B,1,no_operating_areas_added
+1250,No Operating Areas currently assigned.,,ప్రస్తుతం పని ప్రాంతాలు కేటాయించలేదు.,,B,1,no_operating_areas_assigned
+1251,No operating areas yet,,ఇంకా పని ప్రాంతాలు లేవు,,B,1,no_operating_areas_yet_headline
+1252,No Operating Areas yet.,,ఇంకా పని ప్రాంతాలు లేవు.,,B,1,no_operating_areas_yet
+1253,No other active agent to transfer to.,,బదిలీ చేయడానికి మరో యాక్టివ్ ఏజెంట్ లేరు.,,B,1,no_other_active_agent_note
+1254,No pending loan requests.,,పెండింగ్ రుణ అభ్యర్థనలు లేవు.,,B,1,no_pending_loan_requests
+1255,No pending withdrawal requests.,,పెండింగ్ ఉపసంహరణ అభ్యర్థనలు లేవు.,,B,1,no_pending_withdrawal_requests
+1256,No profit share declarations yet.,,ఇంకా లాభ వాటా ప్రకటనలు లేవు.,,B,1,no_profit_share_declarations_yet
+1257,No transactions in this period.,,ఈ కాలంలో లావాదేవీలు లేవు.,,B,1,statement_has_no_transactions
+1258,No Transactions Match These Filters,,ఈ ఫిల్టర్లకు సరిపోయే లావాదేవీలు లేవు,,B,1,no_transactions_match_filters
+1259,No transactions recorded yet.,,ఇంకా లావాదేవీలు నమోదు కాలేదు.,,B,1,no_transactions_recorded_yet
+1260,No transfers — {title}.,,బదిలీలు లేవు — {title}.,,B,1,no_transfers_note
+1261,No village on file,,గ్రామం నమోదు కాలేదు,,B,1,no_village_on_file
+1262,No villages found by that name.,,ఆ పేరుతో గ్రామాలు కనిపించలేదు.,,B,1,no_villages_found_for_search
+1263,No villages found for that PIN.,,ఆ పిన్ కోడ్‌కు గ్రామాలు కనుగొనబడలేదు.,,B,1,no_villages_found_for_pin
+1264,No withdrawals recorded yet.,,ఇంకా ఉపసంహరణలు నమోదు కాలేదు.,,B,1,no_withdrawals_recorded_yet
+1265,Nobody in this business holds this role yet.,,ఈ వ్యాపారంలో ఇంకా ఎవరూ ఈ పాత్రలో లేరు.,,B,1,nobody_in_this_stage_yet
+1266,Not a member of this business.,,ఈ వ్యాపారంలో సభ్యుడు కాదు.,,B,1,not_a_member_of_business
+1267,Not Available for This Business,,ఈ వ్యాపారానికి అందుబాటులో లేదు,,B,1,not_available_for_business
+1268,Not in any operating area,,ఏ ఆపరేటింగ్ ప్రాంతంలోనూ లేదు,,B,1,not_in_any_operating_area
+1269,Not on this book yet.,,ఇంకా ఈ పుస్తకంలో లేరు.,,B,1,not_on_this_book_yet
+1270,Nothing else to report.,,నివేదించడానికి మరేమీ లేదు.,,B,1,nothing_else_to_report
+1271,Nothing entered for this village yet.,,ఈ గ్రామానికి ఇంకా ఏమీ నమోదు కాలేదు.,,B,1,nothing_entered_for_this_village_yet
+1272,Nothing has been deleted.,,ఏదీ తొలగించబడలేదు.,,B,1,nothing_has_been_deleted
+1273,Nothing is waiting on you.,,మీ కోసం ఏమీ వేచి లేదు.,,B,1,nothing_waiting_note
+1274,Nothing needs attention right now.,,ప్రస్తుతం దేనికీ శ్రద్ధ అవసరం లేదు.,,B,1,nothing_needs_attention
+1275,Nothing recorded this day yet.,,ఈ రోజు ఇంకా ఏమీ నమోదు కాలేదు.,,B,1,nothing_recorded_this_day_yet
+1276,On file — tap to add another,,ఫైల్‌లో ఉంది — మరొకటి జోడించడానికి నొక్కండి,,B,1,on_file_tap_add_another
+1277,Open target not available in this build yet.,,ఈ బిల్డ్‌లో ఓపెన్ టార్గెట్ ఇంకా అందుబాటులో లేదు.,,B,1,open_target_not_available
+1278,Opening BF for This Session,,ఈ సెషన్ కోసం ప్రారంభ BF,,B,1,opening_bf_for_session
+1279,"Optional, but needed for SMS/OTP",,"ఐచ్ఛికం, కానీ SMS/OTP కోసం అవసరం",,B,1,optional_needed_for_sms
+1280,OTP Verification · Terms Acceptance,,OTP ధృవీకరణ · నిబంధనల అంగీకారం,,B,1,otp_terms_acceptance
+1281,Outstanding {outstanding} of {principal},,{principal}లో {outstanding} బాకీ,,B,1,outstanding_of_principal_note
+1282,Owed back to investors,,పెట్టుబడిదారులకు తిరిగి చెల్లించవలసినది,,B,1,owed_back_to_investors
+1283,Owner Cash In Hand,,యజమాని వద్ద నగదు,,B,1,owner_cash_in_hand
+1284,Paid: {amount} on {date},,"చెల్లించినది: {amount}, {date}న",,B,1,paid_note
+1285,Password updated — please log in,,పాస్‌వర్డ్ నవీకరించబడింది — దయచేసి లాగిన్ చేయండి,,B,1,password_updated_note
+1286,Payment Could Not Be Confirmed,,చెల్లింపు నిర్ధారించలేకపోయింది,,B,1,payment_could_not_be_confirmed
+1287,Penalty applied — customer notified.,,జరిమానా విధించబడింది — కస్టమర్‌కు తెలియజేయబడింది.,,B,1,penalty_applied_note
+1288,Pending Instalments * — how many are left,,పెండింగ్ వాయిదాలు * — ఎన్ని మిగిలాయి,,B,1,pending_instalments_field
+1289,Pending Interest Payment Requests,,పెండింగ్ వడ్డీ చెల్లింపు అభ్యర్థనలు,,B,1,pending_interest_payment_requests
+1290,Phone Call Not Answered,,ఫోన్ కాల్‌కు స్పందించలేదు,,B,1,phone_call_not_answered
+1291,Photo could not be loaded.,,ఫోటో లోడ్ కాలేదు.,,B,1,photo_unavailable
+1292,Pre-existing member created — Profile Incomplete.,,ముందుగా ఉన్న సభ్యుడు సృష్టించబడ్డారు — ప్రొఫైల్ అసంపూర్ణం.,,B,1,pre_existing_member_created_note
+1293,Previous request rejected: {reason},,మునుపటి అభ్యర్థన తిరస్కరించబడింది: {reason},,B,1,previous_request_rejected_note
+1294,Proceed to Manual Verification,,మాన్యువల్ ధృవీకరణకు కొనసాగండి,,B,1,proceed_to_manual_verification
+1295,Profit & Investor Payable,,లాభం & పెట్టుబడిదారుకు చెల్లించవలసినది,,B,1,profit_and_investor_payable
+1296,"Profit Share % (optional, tentative)",,"లాభ వాటా % (ఐచ్ఛికం, తాత్కాలికం)",,B,1,profit_share_percent_optional
+1297,Provisional until each pending account is Approved.,,ప్రతి పెండింగ్ ఖాతా ఆమోదించబడే వరకు తాత్కాలికం.,,B,1,provisional_until_approved_note
+1298,"Read-only, set by Owner.",,"చదవడానికి మాత్రమే, యజమాని నిర్ణయించారు.",,B,1,read_only_set_by_owner
+1299,Record availing — {name},,పొందడం నమోదు — {name},,B,1,record_availing_for_note
+1300,Record payment — {name},,చెల్లింపు నమోదు — {name},,B,1,record_payment_for_note
+1301,Record Short / Excess,,తక్కువ / అధికం నమోదు చేయండి,,B,1,record_short_excess
+1302,Register & Send Invitation,,నమోదు చేసి ఆహ్వానం పంపండి,,B,1,register_and_send_invitation
+1303,Registered Finance Name *,,నమోదిత ఫైనాన్స్ పేరు *,,B,1,registered_finance_name_field
+1304,"Remarks (optional, freeform — BR-097)",,"వ్యాఖ్యలు (ఐచ్ఛికం, స్వేచ్ఛా వచనం)",,B,1,remarks_optional_freeform_note
+1305,Reopened {at} — Reason: {reason},,{at} తిరిగి తెరవబడింది — కారణం: {reason},,B,1,reopened_reason_note
+1306,repeats another row in this file,,ఈ ఫైల్‌లో మరో వరుసను పునరావృతం చేస్తుంది,,B,1,duplicate_in_file
+1307,Request a New Loan,,కొత్త రుణం అభ్యర్థించండి,,B,1,request_a_new_loan
+1308,Request sent as {roles}.,,{roles}గా అభ్యర్థన పంపబడింది.,,B,1,request_sent_as_roles_note
+1309,Request sent to {mlid} as {type}.,,{mlid}కు {type}గా అభ్యర్థన పంపబడింది.,,B,1,request_sent_note
+1310,Request sent to {name}.,,{name}కు అభ్యర్థన పంపబడింది.,,B,1,request_sent_to_note
+1311,Request To Invest — {name},,పెట్టుబడి పెట్టడానికి అభ్యర్థన — {name},,B,1,request_to_invest_note
+1312,Request to Join a Business,,"1) వ్యాపారంలో చేరడానికి అభ్యర్థించండి
+2) వ్యాపారంలో చేరడానికి అభ్యర్థన",,B,2,request_join_business request_to_join_a_business
+1313,Request To Join — {name},,చేరడానికి అభ్యర్థన — {name},,B,1,request_to_join_note
+1314,Resubmission Not Available Yet,,మళ్లీ సమర్పణ ఇంకా అందుబాటులో లేదు,,B,1,resubmission_not_available
+1315,Returned — Correction Required,,తిరిగి పంపబడింది — సవరణ అవసరం,,B,1,returned_correction_required
+1316,ROI — ₹ per 100 per month,,ROI — నెలకు ప్రతి ₹100కి ₹,,B,1,roi_per_100_label
+1317,Route / Area Assignment,,మార్గం / ప్రాంత కేటాయింపు,,B,1,route_area_assignment
+1318,Route Complete — Return to Dashboard,,మార్గం పూర్తయింది — డాష్‌బోర్డ్‌కు తిరిగి వెళ్లండి,,B,1,route_complete_return_to_dashboard
+1319,Save — Creates New History Entry,,సేవ్ చేయండి — కొత్త చరిత్ర ఎంట్రీని సృష్టిస్తుంది,,B,1,save_creates_new_history_entry
+1320,Saved as {days} days,,{days} రోజులుగా సేవ్ చేయబడుతుంది,,B,1,grace_resolves_to_note
+1321,Search by Business Name or MLBI,,వ్యాపార పేరు లేదా MLBI ద్వారా శోధించండి,,B,1,search_by_business_name_mlbi
+1322,Search by MLID or Aadhaar Number,,MLID లేదా ఆధార్ నంబర్ ద్వారా శోధించండి,,B,1,search_by_mlid_aadhaar
+1323,Search by name or MLID,,పేరు లేదా MLID ద్వారా శోధించండి,,B,1,search_by_name_or_mlid
+1324,"Search by name, MLID, or phone",,"పేరు, MLID, లేదా ఫోన్ ద్వారా శోధించండి",,B,1,search_by_name_mlid_phone
+1325,Search for a Business to request Customer membership.,,కస్టమర్ సభ్యత్వం అభ్యర్థించడానికి వ్యాపారాన్ని శోధించండి.,,B,1,search_business_customer_note
+1326,Search for a Business to request Investor membership.,,పెట్టుబడిదారు సభ్యత్వం అభ్యర్థించడానికి వ్యాపారాన్ని శోధించండి.,,B,1,search_business_investor_note
+1327,Select a Loan Template,,రుణ టెంప్లేట్‌ను ఎంచుకోండి,,B,1,select_a_loan_template
+1328,Select at least one enabled area to start.,,ప్రారంభించడానికి కనీసం ఒక ప్రాంతాన్ని ఎంచుకోండి.,,B,1,select_at_least_one_area
+1329,Select Collection Agent *,,వసూలు ఏజెంట్‌ను ఎంచుకోండి *,,B,1,select_collection_agent_field
+1330,Set Up New Business,,కొత్త వ్యాపారాన్ని ఏర్పాటు చేయండి,,B,1,set_up_new_business
+1331,Settlement submitted for Owner review.,,యజమాని సమీక్ష కోసం సెటిల్‌మెంట్ సమర్పించబడింది.,,B,1,settlement_submitted_note
+1332,SP-001 — Aadhaar Dispute Case,,SP-001 — ఆధార్ వివాద కేసు,,B,1,aadhaar_dispute_case
+1333,Split sum: {amount} (must equal collected amount),,విభజన మొత్తం: {amount} (వసూలైన మొత్తానికి సమానంగా ఉండాలి),,B,1,split_sum_note
+1334,Start Pre-Existing Member Migration,,ముందుగా ఉన్న సభ్యుల మైగ్రేషన్ ప్రారంభించండి,,B,1,start_pre_existing_migration
+1335,Step 1 — Case Intake,,దశ 1 — కేసు స్వీకరణ,,B,1,step_1_case_intake
+1336,Step 3 — Suspend Original Account,,దశ 3 — అసలు ఖాతాను సస్పెండ్ చేయండి,,B,1,step_3_suspend_original
+1337,Step 4 — Original Holder Re-Verification,,దశ 4 — అసలు ఖాతాదారు తిరిగి ధృవీకరణ,,B,1,step_4_reverification
+1338,Step {current} of {total},,"1) {total}లో {current}వ దశ
+2) {total}లో దశ {current}",,B,2,step_of_note step_x_of_y
+1339,Still Needed to Register,,నమోదుకు ఇంకా అవసరం,,B,1,still_needed_to_register
+1340,Support / Admin Internal Tool,,సపోర్ట్ / అడ్మిన్ అంతర్గత సాధనం,,B,1,support_admin_internal_tool
+1341,Surname (House Name) *,,ఇంటి పేరు *,,B,1,surname_field
+1342,That village already existed — selected it.,,ఆ గ్రామం ఇప్పటికే ఉంది — దాన్ని ఎంచుకున్నారు.,,B,1,village_already_existed_note
+1343,There is no collection entry here to correct.,,ఇక్కడ సవరించడానికి వసూలు నమోదు ఏదీ లేదు.,,B,1,nothing_to_correct
+1344,They must accept before this starts,,ఇది ప్రారంభం కావడానికి ముందు వారు అంగీకరించాలి,,B,1,role_must_accept_note
+1345,To Agent ID *,,ఏజెంట్ ఐడికి *,,B,1,to_agent_id_field
+1346,To Agent Name *,,ఏజెంట్ పేరుకు *,,B,1,to_agent_name_field
+1347,Total Already Paid (₹),,ఇప్పటికే చెల్లించిన మొత్తం (₹),,B,1,total_already_paid_field
+1348,Total Collected (Last 100),,మొత్తం వసూలు (చివరి 100),,B,1,total_collected_last_100
+1349,total issued - remaining balance,,మొత్తం జారీ చేసినది - మిగిలిన నిల్వ,,B,1,already_paid_hint
+1350,Unable to load settlement figures.,,సెటిల్‌మెంట్ సంఖ్యలు లోడ్ చేయలేకపోయాము.,,B,1,unable_to_load_settlement
+1351,Use {digits}-digit PIN instead,,బదులుగా {digits}-అంకెల పిన్ ఉపయోగించండి,,B,1,use_other_pin_length
+1352,Use {n}-digit PIN instead,,{n}-అంకెల పిన్ ఉపయోగించండి,,B,1,use_alt_pin_digit
+1353,Villages shown are limited to this PIN,,చూపిన గ్రామాలు ఈ పిన్ కోడ్‌కు పరిమితం,,B,1,villages_limited_to_pin_helper
+1354,Waiting for UPI app…,,UPI యాప్ కోసం వేచి ఉంది…,,B,1,waiting_for_upi_app
+1355,Waiting for your response.,,మీ స్పందన కోసం వేచి ఉంది.,,B,1,waiting_for_your_response
+1356,Waiting to Be Accepted,,అంగీకారం కోసం వేచి ఉంది,,B,1,waiting_to_be_accepted
+1357,Waive / Reduce Penalty,,జరిమానా మాఫీ / తగ్గించండి,,B,1,waive_reduce_penalty
+1358,Wants to join {business} as {role},,{business}లో {role}గా చేరాలనుకుంటున్నారు,,B,1,wants_to_join_as_note
+1359,Wants to withdraw {amount},,{amount} ఉపసంహరించుకోవాలనుకుంటున్నారు,,B,1,wants_to_withdraw_note
+1360,Which Kind of Loan?,,ఏ రకమైన రుణం?,,B,1,which_kind_of_loan
+1361,Will be saved as:,,ఇలా సేవ్ అవుతుంది:,,B,1,will_be_saved_as
+1362,Withdrawal request submitted — pending Owner approval.,,ఉపసంహరణ అభ్యర్థన సమర్పించబడింది — యజమాని ఆమోదం కోసం పెండింగ్.,,B,1,withdrawal_submitted_note
+1363,Withdrawals Waiting On You,,మీ కోసం వేచి ఉన్న ఉపసంహరణలు,,B,1,withdrawals_waiting
+1364,You have no loans in this Business yet.,,ఈ వ్యాపారంలో మీకు ఇంకా రుణాలు లేవు.,,B,1,no_loans_in_business_note
+1365,Your business fits here.,,మీ వ్యాపారం ఇక్కడ సరిపోతుంది.,,B,1,your_business_fits_here
+1366,Your MANA LINE ID,,మీ మానా లైన్ ఐడి,,B,1,your_mana_line_id
+1367,{amount} posted to this loan.,,{amount} ఈ రుణానికి పోస్ట్ చేయబడింది.,,B,1,posted_to_loan_note
+1368,{count} customer(s) left to visit.,,{count} కస్టమర్(లు) సందర్శించాల్సి ఉంది.,,B,1,customers_left_to_visit
+1369,{count} of {total} selected,,{total}లో {count} ఎంచుకోబడ్డాయి,,B,1,n_of_m_selected
+1370,{count} pre-existing loans entered,,{count} ముందుగా ఉన్న రుణాలు నమోదు చేయబడ్డాయి,,B,1,pre_existing_loans_entered_note
+1371,{count} rows ready to import,,{count} వరుసలు దిగుమతికి సిద్ధం,,B,1,rows_ready_to_import
+1372,{count} waiting for your answer,,మీ సమాధానం కోసం {count} వేచి ఉన్నాయి,,B,1,pending_invitations_count_note
+1373,{date} · Approved by {by},,{date} · {by} ఆమోదించారు,,B,1,approved_by_note
+1374,{date} · Closed by {name},,{date} · {name} మూసివేసారు,,B,1,closed_by_note
+1375,{days} days — until {date}.,,{days} రోజులు — {date} వరకు.,,B,1,extension_resolves_to_note
+1376,{id} · {roi} · {method} · since {date},,{id} · {roi} · {method} · {date} నుండి,,B,1,investment_meta_note
+1377,"{interest} from unpaid interest, {principal} from principal.",,"చెల్లించని వడ్డీ నుండి {interest}, అసలు నుండి {principal}.",,B,1,withdrawal_split_note
+1378,{name} added to this business.,,{name} ఈ వ్యాపారానికి జోడించబడ్డారు.,,B,1,member_added_note
+1379,{percent}% of total profit for this period,,ఈ కాలానికి మొత్తం లాభంలో {percent}%,,B,1,percent_of_total_profit_note
+1380,2. Find the Business,,2. వ్యాపారాన్ని కనుగొనండి,,C,1,step_2_find_the_business
+1381,3. Confirm Business Details,,3. వ్యాపార వివరాలను నిర్ధారించండి,,C,1,step_3_confirm_business
+1382,A customer or loan from the old book was missed,,పాత పుస్తకంలోని కస్టమర్ లేదా రుణం మిస్ అయ్యింది,,C,1,reopen_reason_missed_entry
+1383,"A group is formed from customers who already have a loan — it groups them for collection only, and does not merge their money. Create the loans first, then come back and group them.",,"ఇప్పటికే రుణం ఉన్న కస్టమర్ల నుండి గ్రూప్ ఏర్పడుతుంది — ఇది వసూలు కోసం మాత్రమే వారిని కలుపుతుంది, వారి డబ్బును కలపదు. ముందుగా రుణాలు సృష్టించి, తర్వాత వాటిని గ్రూప్ చేయండి.",,C,1,no_groups_yet_detail
+1384,A loan amount or repayment figure was entered wrong,,రుణ మొత్తం లేదా తిరిగి చెల్లింపు సంఖ్య తప్పుగా నమోదైంది,,C,1,reopen_reason_wrong_amount
+1385,A loan from the old book. Enter the balance as it stands today.,,పాత పుస్తకంలోని రుణం. నేటి నాటికి ఉన్న బ్యాలెన్స్‌ను నమోదు చేయండి.,,C,1,pre_existing_loan_note
+1386,A loan may only be issued to somebody already on this book.,,ఈ పుస్తకంలో ఇప్పటికే ఉన్న వ్యక్తికి మాత్రమే రుణం ఇవ్వగలరు.,,C,1,existing_customers_only_on_note
+1387,"A loan takes its collections, schedule and penalties with it.",,"రుణంతో పాటు దాని వసూళ్లు, షెడ్యూల్ మరియు జరిమానాలు కూడా తొలగించబడతాయి.",,C,1,delete_forever_loan_note
+1388,A penalty is added to what the customer owes.,,జరిమానా ఖాతాదారు బాకీకి కలుపబడుతుంది.,,C,1,penalty_adds_to_balance_note
+1389,A village needs a PIN code so it can be found again later.,,తర్వాత మళ్లీ కనుగొనడానికి గ్రామానికి పిన్ కోడ్ అవసరం.,,C,1,village_needs_pin_note
+1390,Aadhaar Number (optional — leave blank for a temporary MLTI ID),,ఆధార్ నంబర్ (ఐచ్ఛికం — తాత్కాలిక MLTI ఐడి కోసం ఖాళీగా వదలండి),,C,1,aadhaar_optional_note
+1391,Accept the Terms & Conditions to continue.,,కొనసాగించడానికి నిబంధనలు & షరతులను అంగీకరించండి.,,C,1,accept_terms_first_note
+1392,Accepted by the member,,సభ్యుడు అంగీకరించారు,,C,1,accepted_by_member
+1393,"Account periods open when you assign an operating area to an agent. None of your {count} areas has one yet. If you work a round yourself, add yourself as an agent and assign it to you.",,"మీరు ఒక పని ప్రాంతాన్ని ఏజెంట్‌కు కేటాయించినప్పుడు ఖాతా వ్యవధులు తెరుచుకుంటాయి. మీ {count} ప్రాంతాలలో దేనికీ ఇంకా ఒకటి లేదు. మీరే ఒక రౌండ్ చేస్తుంటే, మిమ్మల్ని ఏజెంట్‌గా జోడించి దాన్ని మీకు కేటాయించండి.",,C,1,no_agent_assigned_area_detail
+1394,"Add a cheti that was already running, with the instalments paid so far — and whether it has been availed.",,ఇప్పటికే నడుస్తున్న చీటీని ఇప్పటివరకు చెల్లించిన వాయిదాలతో జోడించండి — మరియు అది తీసుకోబడిందా అనేది కూడా.,,C,1,pre_existing_cheti_note
+1395,Added up from the payment modes below.,,కింది చెల్లింపు విధానాల నుండి కూడబెట్టబడింది.,,C,1,added_up_from_modes_note
+1396,Adding an area starts working it immediately; removing one stops new collections there for today (its Account Period keeps running to its own end date).,,ప్రాంతాన్ని జోడించడం వెంటనే దానిలో పని ప్రారంభిస్తుంది; తీసివేయడం నేటికి అక్కడ కొత్త వసూళ్లను ఆపుతుంది (దాని ఖాతా వ్యవధి దాని ముగింపు తేదీ వరకు కొనసాగుతుంది).,,C,1,adding_area_note
+1397,Address updated. Previous value kept in history; Owner(s) notified.,,చిరునామా నవీకరించబడింది. మునుపటి విలువ చరిత్రలో ఉంచబడింది; యజమానులకు తెలియజేయబడింది.,,C,1,address_updated_note
+1398,Agent cannot choose areas outside those assigned here — Agent-side area selection (e.g. Collection Mode) is restricted to this set.,,ఏజెంట్ ఇక్కడ కేటాయించిన ప్రాంతాలకు వెలుపల ఎంచుకోలేరు — ఏజెంట్-సైడ్ ప్రాంత ఎంపిక (ఉదా. వసూలు మోడ్) ఈ సెట్‌కు పరిమితం.,,C,1,areas_note
+1399,Already availed the lumpsum,,ఇప్పటికే లంప్‌సమ్ పొందారు,,C,1,already_availed_lumpsum
+1400,Already counted above until the Owner approves each account.,,ప్రతి ఖాతాను యజమాని ఆమోదించే వరకు ఇది పైన లెక్కించబడి ఉంటుంది.,,C,1,returning_already_counted_note
+1401,Already part-way through? Enter the position as it stands today. Past instalments are not recreated and do not move BF — that cash left the till before this app existed.,,ఇప్పటికే సగం పూర్తయిందా? ఈ రోజు ఉన్న స్థితిని నమోదు చేయండి. గత వాయిదాలు తిరిగి సృష్టించబడవు మరియు BFను కదిలించవు — ఈ యాప్ ఉనికిలోకి రాకముందే ఆ నగదు వెళ్లిపోయింది.,,C,1,cheti_partway_note
+1402,"An account period covers one operating area. Add an area first, then assign it to an agent.",,"ఖాతా వ్యవధి ఒక పని ప్రాంతాన్ని కవర్ చేస్తుంది. ముందుగా ఒక ప్రాంతాన్ని జోడించి, తర్వాత దాన్ని ఏజెంట్‌కు కేటాయించండి.",,C,1,no_operating_areas_yet_detail
+1403,An agent sees only what is switched on here. With everything off their home screen has no actions at all.,,ఇక్కడ ఆన్ చేసినవి మాత్రమే ఏజెంట్‌కు కనిపిస్తాయి. అన్నీ ఆఫ్‌లో ఉంటే వారి హోమ్ స్క్రీన్‌లో ఎలాంటి చర్యలు ఉండవు.,,C,1,permissions_note
+1404,An agent was missed or assigned to the wrong area,,ఏజెంట్ మిస్ అయ్యారు లేదా తప్పు ప్రాంతానికి కేటాయించబడ్డారు,,C,1,reopen_reason_agent
+1405,"An operating area is one round, covering as many villages as the round actually walks. Name it, add its first village here, then attach the rest from the area itself.",,"పని ప్రాంతం అంటే ఒక రౌండ్, అది నిజంగా నడిచే గ్రామాలన్నింటినీ కవర్ చేస్తుంది. దానికి పేరు పెట్టి, ఇక్కడ మొదటి గ్రామాన్ని జోడించి, తర్వాత మిగిలినవి ఆ ప్రాంతం నుండే జోడించండి.",,C,1,operating_area_intro_note
+1406,Anyone found by search may be given a loan. New borrowers are added to this book as the loan is issued.,,శోధనలో దొరికిన ఎవరికైనా రుణం ఇవ్వవచ్చు. కొత్త వారిని రుణం ఇచ్చేటప్పుడే ఈ పుస్తకంలో చేరుస్తారు.,,C,1,existing_customers_only_off_note
+1407,Anything not shown above yet can still be added — every step in this wizard stays available from the migration screen.,,పైన ఇంకా చూపని ఏదైనా జోడించవచ్చు — ఈ విజార్డ్‌లోని ప్రతి దశ మైగ్రేషన్ స్క్రీన్ నుండి అందుబాటులో ఉంటుంది.,,C,1,bulk_done_note
+1408,Are You Sure You Want to Close MANA LINE?,,మీరు ఖచ్చితంగా మన లైన్‌ను మూసివేయాలనుకుంటున్నారా?,,C,1,are you sure you want to close mana line?
+1409,"At least 8 characters, with letters and numbers.",,"కనీసం 8 అక్షరాలు, అక్షరాలు మరియు అంకెలతో.",,C,1,password_helper
+1410,Available Balance is below ₹1.00 — withdrawal requests are disabled.,,అందుబాటులో ఉన్న నిల్వ ₹1.00 కంటే తక్కువ — ఉపసంహరణ అభ్యర్థనలు నిలిపివేయబడ్డాయి.,,C,1,balance_below_one_rupee_note
+1411,BF Cash Transfer sent — pending the other Agent's confirmation.,,BF నగదు బదిలీ పంపబడింది — మరో ఏజెంట్ నిర్ధారణ కోసం పెండింగ్‌లో ఉంది.,,C,1,bf_transfer_sent_note
+1412,"BF Cash Validation (BR-165): the collecting Agent's (or Owner's) available BF Cash must cover the loan amount — hard block, not a warning. Verified at confirm time inside the create call.",,"BF నగదు ధృవీకరణ: వసూలు చేసే ఏజెంట్ (లేదా యజమాని) వద్ద అందుబాటులో ఉన్న BF నగదు రుణ మొత్తాన్ని కవర్ చేయాలి — ఇది హెచ్చరిక కాదు, హార్డ్ బ్లాక్. నిర్ధారణ సమయంలో సృష్టి కాల్‌లో ధృవీకరించబడుతుంది.",,C,1,bf_cash_validation_note
+1413,Business Agreements are business-specific — a multi-business Owner sets these independently per MLBI; they do not carry over.,,వ్యాపార ఒప్పందాలు వ్యాపారానికే ప్రత్యేకం — బహుళ వ్యాపారాలున్న యజమాని వీటిని ప్రతి MLBIకి విడిగా సెట్ చేస్తారు; ఇవి బదిలీ కావు.,,C,1,business_agreements_note
+1414,"Capture Photo, Password, Address, PIN Code, Village, Identity Documents, OTP Verification, Terms Acceptance.",,"ఫోటో, పాస్‌వర్డ్, చిరునామా, పిన్ కోడ్, గ్రామం, గుర్తింపు పత్రాలు, OTP ధృవీకరణ, నిబంధనల అంగీకారం తీసుకోండి.",,C,1,complete_profile_note
+1415,"Chronological record: Customer Created, Loans Created, Loan Closures, Collections, Transfers, Address Changes, Agent Changes.\nNo entries yet.",,"కాలక్రమానుసార రికార్డు: కస్టమర్ సృష్టించబడింది, రుణాలు సృష్టించబడ్డాయి, రుణ ముగింపులు, వసూళ్లు, బదిలీలు, చిరునామా మార్పులు, ఏజెంట్ మార్పులు.\nఇంకా ఎంట్రీలు లేవు.",,C,1,customer_history_tab_note
+1416,Close this loan? Outstanding balance is {amount}.,,ఈ రుణాన్ని మూసివేయాలా? బాకీ నిల్వ {amount}.,,C,1,close_loan_confirm_note
+1417,"Collections, routes and closing the day all happen in the MANA LINE app. Install it and sign in with your usual mobile number to get going.",,,,C,1,web_home_agent_app_body
+1418,"Confirm this figure to proceed, or Update if it looks wrong — you will be blocked from the workspace until the Owner corrects it.",,"కొనసాగించడానికి ఈ మొత్తాన్ని నిర్ధారించండి, తప్పుగా అనిపిస్తే అప్‌డేట్ చేయండి — యజమాని సరిదిద్దే వరకు మీరు వర్క్‌స్పేస్ నుండి బ్లాక్ చేయబడతారు.",,C,1,confirm_bf_or_update_warning
+1419,Correcting receipt {receipt}. This replaces the entry; it does not add one.,,"రసీదు {receipt} సవరించబడుతోంది. ఇది ఉన్న నమోదును మారుస్తుంది, కొత్తది చేర్చదు.",,C,1,correcting_receipt
+1420,Could not build the template: {error},,టెంప్లేట్ నిర్మించలేకపోయాము: {error},,C,1,could_not_build_template_note
+1421,Could not change area — save or clear pending unsaved transactions first.,,ప్రాంతాన్ని మార్చలేకపోయింది — ముందుగా పెండింగ్‌లో ఉన్న సేవ్ చేయని లావాదేవీలను సేవ్ చేయండి లేదా క్లియర్ చేయండి.,,C,1,could_not_change_area
+1422,Could not share the file: {error},,ఫైల్ షేర్ చేయలేకపోయాము: {error},,C,1,could_not_share_file_note
+1423,Could not upload the document: {error},,పత్రాన్ని అప్‌లోడ్ చేయలేకపోయాము: {error},,C,1,could_not_upload_document_note
+1424,Count the cash box today and enter that figure. Everything before today is out of scope — the count already reflects it.\n\nThis locks when you finish migration and cannot be changed afterwards.,,ఈ రోజు నగదు పెట్టెను లెక్కించి ఆ సంఖ్యను నమోదు చేయండి. ఈ రోజుకు ముందు ఉన్నదంతా పరిధిలో లేదు — లెక్క ఇప్పటికే దాన్ని ప్రతిబింబిస్తుంది.\n\nమీరు మైగ్రేషన్ ముగించినప్పుడు ఇది లాక్ అవుతుంది మరియు తర్వాత మార్చలేరు.,,C,1,declare_opening_bf_note
+1425,Count your cash and declare it. The difference is worked out when you submit.,,మీ నగదును లెక్కించి ప్రకటించండి. మీరు సమర్పించినప్పుడు తేడా లెక్కించబడుతుంది.,,C,1,count_cash_declare_note
+1426,Create Customer reuses the OW-004 identity-search flow — TODO: wire shared sheet.,,కస్టమర్ సృష్టించడం OW-004 గుర్తింపు-శోధన ప్రవాహాన్ని తిరిగి ఉపయోగిస్తుంది — TODO: షేర్డ్ షీట్ వైర్ చేయాలి.,,C,1,create_customer_todo_note
+1427,Create the business first — step 1.,,ముందుగా వ్యాపారాన్ని సృష్టించండి — దశ 1.,,C,1,create_the_business_first
+1428,"Creates a spreadsheet of your customers, loans, collections, expenses, investments and daily ledger. Deleted records are not included.",,"మీ కస్టమర్లు, రుణాలు, వసూళ్లు, ఖర్చులు, పెట్టుబడులు మరియు రోజువారీ లెడ్జర్ యొక్క స్ప్రెడ్‌షీట్ సృష్టిస్తుంది. తొలగించిన రికార్డులు చేర్చబడవు.",,C,1,export_to_excel_note
+1429,Customer is requesting more time on this loan. Approving updates Grace Status and writes an audit entry; rejecting makes no change and is not audited.,,కస్టమర్ ఈ రుణంపై మరింత సమయం అభ్యర్థిస్తున్నారు. ఆమోదించడం గ్రేస్ స్థితిని అప్‌డేట్ చేసి ఆడిట్ ఎంట్రీ రాస్తుంది; తిరస్కరించడం ఎలాంటి మార్పు చేయదు మరియు ఆడిట్ కాదు.,,C,1,extension_note
+1430,"Customers and Investors view their records free. Requesting a loan, or requesting to invest or withdraw, is ₹99 a year for that role — and one discounted Combo covers a person who is both.",,"కస్టమర్లు మరియు పెట్టుబడిదారులు వారి రికార్డులను ఉచితంగా చూస్తారు. రుణం అభ్యర్థించడం, లేదా పెట్టుబడి/ఉపసంహరణ అభ్యర్థించడం ఆ పాత్రకు సంవత్సరానికి ₹99 — మరియు ఒక రాయితీ కాంబో రెండూ ఉన్న వ్యక్తిని కవర్ చేస్తుంది.",,C,1,customers_investors_free_note
+1431,Delete {count} records forever? This cannot be undone.,,{count} రికార్డులను శాశ్వతంగా తొలగించాలా? దీన్ని రద్దు చేయలేరు.,,C,1,delete_forever_count_note
+1432,e.g. 1.5 means ₹1.50 per ₹100 each month,,ఉదా. 1.5 అంటే ప్రతి నెలా ప్రతి ₹100కి ₹1.50,,C,1,roi_per_100_helper
+1433,Each Owner sees only their own tenancy's data for you — nothing here is shared or blended across businesses.,,ప్రతి యజమాని మీ గురించి వారి స్వంత టెనెన్సీ డేటాను మాత్రమే చూస్తారు — ఇక్కడ ఏదీ వ్యాపారాల మధ్య పంచుకోబడదు లేదా కలపబడదు.,,C,1,tenancy_isolation_note
+1434,Enter at least 3 letters of the village name.,,గ్రామం పేరులోని కనీసం 3 అక్షరాలు నమోదు చేయండి.,,C,1,enter_village_name_to_search
+1435,"Enter loans your business already had before it came onto MANA LINE. If any row is wrong, nothing is imported — fix the sheet and upload it again.",,"మానా లైన్‌కు రాకముందే మీ వ్యాపారంలో ఉన్న రుణాలను నమోదు చేయండి. ఏదైనా వరుస తప్పు అయితే, ఏదీ దిగుమతి కాదు — షీట్ సరిచేసి మళ్లీ అప్‌లోడ్ చేయండి.",,C,1,import_records_note
+1436,Enter PIN code first — villages shown are limited to this PIN,,"1) ముందుగా పిన్ కోడ్ నమోదు చేయండి — చూపిన గ్రామాలు ఈ పిన్ కోడ్‌కు పరిమితం
+2) ముందుగా పిన్ కోడ్ నమోదు చేయండి — చూపబడే గ్రామాలు ఈ పిన్‌కు పరిమితం",,C,2,pin_code_first_helper pin_code_helper
+1437,Enter the actual amount being distributed. Nothing is calculated from the Profit Share % — that figure is your own reference (BR-232).,,పంపిణీ చేస్తున్న అసలు మొత్తాన్ని నమోదు చేయండి. లాభ వాటా % నుండి ఏమీ లెక్కించబడదు — ఆ సంఖ్య మీ సొంత సూచన మాత్రమే.,,C,1,distribute_profit_share_note
+1438,"Enter the admin username. If it exists, an OTP will be sent to its linked recovery number.",,"అడ్మిన్ యూజర్‌నేమ్ నమోదు చేయండి. అది ఉంటే, దాని లింక్ చేసిన రికవరీ నంబర్‌కు OTP పంపబడుతుంది.",,C,1,admin_forgot_password_note
+1439,"Enter the amount owed, or 0 if nothing is.",,"బాకీ ఉన్న మొత్తాన్ని నమోదు చేయండి, ఏమీ లేకపోతే 0 అని నమోదు చేయండి.",,C,1,enter_amount_owed
+1440,Enter the balance as it stands today. Instalment history is not asked for here.,,నేటి నాటికి ఉన్న బ్యాలెన్స్‌ను నమోదు చేయండి. ఇక్కడ వాయిదాల చరిత్ర అడగబడదు.,,C,1,balance_only_note
+1441,Enter the instalment amount.,,వాయిదా మొత్తాన్ని నమోదు చేయండి.,,C,1,loan_problem_no_instalment
+1442,"Enter the loan as it stands today. The repayment schedule is created from today forward for whatever is still owed — past instalments are not recreated, so the customer's Line Score starts from here.",,"రుణాన్ని ఈ రోజు ఉన్నట్లుగా నమోదు చేయండి. ఇంకా బాకీ ఉన్నదానికి ఈ రోజు నుండి తిరిగి చెల్లింపు షెడ్యూల్ సృష్టించబడుతుంది — గత వాయిదాలు తిరిగి సృష్టించబడవు, కాబట్టి కస్టమర్ లైన్ స్కోర్ ఇక్కడి నుండి మొదలవుతుంది.",,C,1,add_existing_loan_note
+1443,Enter the loans that were already running when you joined. Each one records what you gave out and what has come back.,,మీరు చేరినప్పుడు ఇప్పటికే నడుస్తున్న రుణాలను నమోదు చేయండి. ప్రతి ఒక్కటి మీరు ఇచ్చినది మరియు తిరిగి వచ్చినది నమోదు చేస్తుంది.,,C,1,migration_open_note
+1444,Enter the OTP sent to verify your number,,మీ నంబర్‌ను ధృవీకరించడానికి పంపిన OTP నమోదు చేయండి,,C,1,enter_otp_title
+1445,Enter the physical count — actual on-hand — for each payment method.,,ప్రతి చెల్లింపు పద్ధతికి భౌతిక లెక్క — వాస్తవంగా చేతిలో ఉన్నది — నమోదు చేయండి.,,C,1,enter_physical_count_note
+1446,Enter your name exactly as printed on your Aadhaar. A mismatch can lead to your account being suspended.,,మీ ఆధార్‌లో ముద్రించి ఉన్నట్టుగానే మీ పేరు నమోదు చేయండి. తేడా ఉంటే మీ ఖాతా నిలిపివేయబడవచ్చు.,,C,1,aadhaar_name_notice
+1447,Enter your registered mobile number and we'll send you a one-time code.,,"మీ నమోదిత మొబైల్ నంబర్ నమోదు చేయండి, మేము మీకు ఒక్కసారి వాడే కోడ్ పంపుతాము.",,C,1,forgot_password_note
+1448,Estimated from loan dates — nothing has been collected against these in the app yet.,,రుణ తేదీల ఆధారంగా అంచనా — వీటిపై యాప్‌లో ఇంకా ఏమీ వసూలు కాలేదు.,,C,1,struck_is_estimated_note
+1449,Every agent in this business is already on this round.,,ఈ వ్యాపారంలోని ప్రతి ఏజెంట్ ఇప్పటికే ఈ రౌండ్‌లో ఉన్నారు.,,C,1,every_agent_already_on_this_round_note
+1450,"Everything here works on your phone too, in the MANA LINE app. Install it whenever it suits you.",,,,C,1,web_home_secondary_app_body
+1451,"Everything you are holding — cash, UPI, bank and cheque. Submitting hands it to the Owner; the money moves when they approve.",,"మీ వద్ద ఉన్న మొత్తం — నగదు, UPI, బ్యాంక్, చెక్. సమర్పిస్తే యజమానికి వెళ్తుంది; వారు ఆమోదించినప్పుడు సొమ్ము బదిలీ అవుతుంది.",,C,1,total_amount_note
+1452,Explain what the Agent needs to correct,,ఏజెంట్ ఏమి సరిచేయాలో వివరించండి,,C,1,reason_required_hint
+1453,"Find a Business to request Customer membership. Once the Owner or Agent approves, it will appear here.",,"కస్టమర్ సభ్యత్వం కోసం అభ్యర్థించడానికి ఒక వ్యాపారాన్ని కనుగొనండి. యజమాని లేదా ఏజెంట్ ఆమోదించిన తర్వాత, అది ఇక్కడ కనిపిస్తుంది.",,C,1,find_business_membership_note
+1454,"Find a Business to request Investor membership. Once the Owner approves, it will appear here.",,"ఇన్వెస్టర్ సభ్యత్వం కోసం అభ్యర్థించడానికి ఒక వ్యాపారాన్ని కనుగొనండి. యజమాని ఆమోదించిన తర్వాత, అది ఇక్కడ కనిపిస్తుంది.",,C,1,find_investor_membership_note
+1455,"Find a customer who already has a MANA LINE ID and link them to this business. Search by Phone, Aadhaar, MANA LINE ID, or Full Name.",,"ఇప్పటికే మానా లైన్ ఐడి ఉన్న కస్టమర్‌ను కనుగొని ఈ వ్యాపారానికి లింక్ చేయండి. ఫోన్, ఆధార్, మానా లైన్ ఐడి, లేదా పూర్తి పేరు ద్వారా శోధించండి.",,C,1,find_link_customer_note
+1456,For an agent who already has a MANA LINE ID (MLID/MLPI/MLTI).,,ఇప్పటికే మానా లైన్ ఐడి (MLID/MLPI/MLTI) ఉన్న ఏజెంట్ కోసం.,,C,1,add_existing_agent_note
+1457,For an agent who does not yet have a MANA LINE ID. Reuses the same Identity Registration fields as account registration.,,ఇంకా మానా లైన్ ఐడి లేని ఏజెంట్ కోసం. ఖాతా నమోదు వలె అదే గుర్తింపు నమోదు ఫీల్డ్‌లను తిరిగి ఉపయోగిస్తుంది.,,C,1,register_new_agent_note
+1458,From the PIN code directory,,పిన్ కోడ్ డైరెక్టరీ నుండి,,C,1,from_the_pin_code_directory
+1459,Frozen terms at time of investment — never live-recalculated.,,పెట్టుబడి సమయంలో స్థిరపడిన నిబంధనలు — ఎప్పుడూ లైవ్‌గా తిరిగి లెక్కించబడవు.,,C,1,frozen_terms_note
+1460,Grace stops future penalties. A penalty already applied stays on the balance -- use Waive / Reduce Penalty to remove one.,,గ్రేస్ భవిష్యత్ జరిమానాలను ఆపుతుంది. ఇప్పటికే వర్తింపజేసిన జరిమానా నిల్వలోనే ఉంటుంది -- దాన్ని తీసివేయడానికి జరిమానా మాఫీ / తగ్గింపు వాడండి.,,C,1,grace_stops_future_penalties_note
+1461,"Guarantor is loan-scoped, not customer-scoped — different loans for the same customer may have different guarantors.",,"పూచీకత్తుదారు రుణానికి పరిమితం, కస్టమర్‌కు కాదు — అదే కస్టమర్ యొక్క వేర్వేరు రుణాలకు వేర్వేరు పూచీకత్తుదారులు ఉండవచ్చు.",,C,1,guarantor_scope_note
+1462,Handing over {amount}. Approving moves it to you and closes their account.,,"{amount} అప్పగిస్తున్నారు. ఆమోదిస్తే అది మీకు వస్తుంది, వారి ఖాతా మూసివేయబడుతుంది.",,C,1,handed_over_amount_note
+1463,I accept the Terms & Conditions and Privacy Policy,,నేను నిబంధనలు & షరతులు మరియు గోప్యతా విధానాన్ని అంగీకరిస్తున్నాను,,C,1,accept_terms_to_continue
+1464,"If this agent still owes money from before the book came across, enter it here. Salary and sadar already settled are not asked for.",,"పుస్తకం రాకముందు నుండి ఈ ఏజెంట్ ఇంకా డబ్బు బాకీ ఉంటే, దాన్ని ఇక్కడ నమోదు చేయండి. అప్పటికే సెటిల్ అయిన జీతం మరియు సదర్ అడగబడవు.",,C,1,agent_opening_short_note
+1465,"Import the weeks you already have on paper — opening balance, collections, expenses and investors.",,"మీ వద్ద కాగితంపై ఉన్న వారాలను దిగుమతి చేయండి — ప్రారంభ నిల్వ, వసూళ్లు, ఖర్చులు మరియు పెట్టుబడిదారులు.",,C,1,migrate_existing_book_note
+1466,Indicative only — not a transfer. No funds move in-app.,,సూచన మాత్రమే — బదిలీ కాదు. యాప్‌లో నిధులు కదలవు.,,C,1,proposed_investment_helper
+1467,Interest {interest} and processing fee {fees} are already earned at disbursement — not part of the cash you hold.,,వడ్డీ {interest} మరియు ప్రాసెసింగ్ ఫీజు {fees} రుణం ఇచ్చినప్పుడే ఆర్జించబడ్డాయి — మీ వద్ద ఉన్న నగదులో భాగం కాదు.,,C,1,earned_not_held_note
+1468,"Internal only — never shown to the customer (BR-206). Owner-configurable, overridable per loan (BR-007/381).",,"1) అంతర్గతం మాత్రమే — కస్టమర్‌కు ఎప్పుడూ చూపబడదు. యజమాని కాన్ఫిగర్ చేయవచ్చు, ప్రతి రుణానికి భర్తీ చేయవచ్చు.
+2) అంతర్గతం మాత్రమే — కస్టమర్‌కు ఎప్పుడూ చూపబడదు. యజమాని కాన్ఫిగర్ చేయగలరు, ప్రతి రుణానికి మార్చవచ్చు.",,C,2,grace_period_internal_note grace_period_note
+1469,Leave blank to add them now and record the investment from their profile later.,,"ఇప్పుడే జోడించి, పెట్టుబడిని తర్వాత వారి ప్రొఫైల్ నుండి నమోదు చేయడానికి ఖాళీగా వదిలేయండి.",,C,1,first_investment_optional_note
+1470,Leave blank to name it after the first village,,ఖాళీగా వదిలితే మొదటి గ్రామం పేరుతో పేరు పెట్టబడుతుంది,,C,1,area_name_helper
+1471,Less Than The Instalment,,వాయిదా కంటే తక్కువ,,C,1,less_than_the_instalment
+1472,"Line balance is deliberately outside BF — that money is out on the line, not in the cash box.",,"లైన్ నిల్వ ఉద్దేశపూర్వకంగా BF వెలుపల ఉంది — ఆ డబ్బు లైన్‌లో ఉంది, నగదు పెట్టెలో కాదు.",,C,1,line_balance_note
+1473,Loan closed. {amount} penalty recorded as collected today.,,రుణం మూసివేయబడింది. {amount} జరిమానా నేడు వసూలు చేసినట్లు నమోదు చేయబడింది.,,C,1,penalty_recognised_note
+1474,"Loan Creation Blocked (BR-165). Top up BF Cash after the Owner sends money outside the app, or receive a BF Cash Transfer from another Agent — see the BF Cash Transfer section on the previous screen.",,"రుణ సృష్టి నిరోధించబడింది (BR-165). యజమాని యాప్ వెలుపల డబ్బు పంపిన తర్వాత BF నగదు టాప్ అప్ చేయండి, లేదా మరో ఏజెంట్ నుండి BF నగదు బదిలీ స్వీకరించండి.",,C,1,loan_creation_blocked_note
+1475,Loan written off. No penalty recorded as collected.,,రుణం రైట్-ఆఫ్ చేయబడింది. ఏ జరిమానా వసూలు చేసినట్లు నమోదు కాలేదు.,,C,1,written_off_note
+1476,"MANA LINE records loans, collections and cash movements for the business you belong to. Your name, mobile number, address, photograph and identity details are stored so the business can identify you and meet its record-keeping duties. Money figures you see are recorded by your business, not by MANA LINE, and disputes about an amount are settled with that business.\n\nYour data is visible to the owner and to agents of the business you are a member of, and to nobody else. You can ask for your account to be switched off or deleted from Settings.\n\nFull Terms & Conditions and Privacy Policy are being finalised and will be published in the app before general release. Contact your business owner for anything not covered here.",,"మీరు చెందిన వ్యాపారం కోసం MANA LINE రుణాలు, వసూళ్లు మరియు నగదు కదలికలను నమోదు చేస్తుంది. వ్యాపారం మిమ్మల్ని గుర్తించడానికి మీ పేరు, మొబైల్ నంబర్, చిరునామా, ఫోటో మరియు గుర్తింపు వివరాలు నిల్వ చేయబడతాయి. మీరు చూసే డబ్బు సంఖ్యలను మీ వ్యాపారం నమోదు చేస్తుంది, MANA LINE కాదు.\n\nమీ డేటా మీరు సభ్యులుగా ఉన్న వ్యాపారం యజమాని మరియు ఏజెంట్లకు మాత్రమే కనిపిస్తుంది. సెట్టింగ్‌ల నుండి మీ ఖాతాను ఆఫ్ చేయమని లేదా తొలగించమని అడగవచ్చు.\n\nపూర్తి నిబంధనలు & గోప్యతా విధానం ఖరారు చేయబడుతున్నాయి మరియు విడుదలకు ముందు యాప్‌లో ప్రచురించబడతాయి.",,C,1,terms_body
+1477,"Mandatory before this loan can be created (BR-036/081, fraud prevention). Camera capture only — gallery upload is never offered.",,"1) ఈ రుణం సృష్టించే ముందు తప్పనిసరి (మోసం నివారణ కోసం). కెమెరా క్యాప్చర్ మాత్రమే — గ్యాలరీ అప్‌లోడ్ ఎప్పుడూ ఇవ్వబడదు.
+2) ఈ రుణం సృష్టించడానికి ముందు తప్పనిసరి (మోసం నివారణ). కెమెరా క్యాప్చర్ మాత్రమే — గ్యాలరీ అప్‌లోడ్ ఎప్పుడూ అందించబడదు.",,C,2,live_photo_mandatory_note live_photo_note
+1478,Member loans revert to ungrouped individual loans. This does not affect their own history.,,సభ్య రుణాలు గ్రూప్ లేని వ్యక్తిగత రుణాలుగా తిరిగి మారతాయి. ఇది వారి స్వంత చరిత్రపై ప్రభావం చూపదు.,,C,1,delete_group_note
+1479,Membership is fixed permanently at creation — no additions or removals.,,సభ్యత్వం సృష్టి సమయంలో శాశ్వతంగా నిర్ణయించబడుతుంది — జోడింపులు లేదా తొలగింపులు లేవు.,,C,1,membership_fixed_note
+1480,Membership/permission/compensation changes are logged here per BR-158 — no entries yet.,,సభ్యత్వం/అనుమతి/వేతన మార్పులు ఇక్కడ నమోదు చేయబడతాయి — ఇంకా ఎంట్రీలు లేవు.,,C,1,audit_note
+1481,"Money going out today, from your cash in hand.",,ఈ రోజు మీ చేతిలోని నగదు నుండి వెళ్తున్న డబ్బు.,,C,1,new_loan_cash_note
+1482,More Than The Instalment,,వాయిదా కంటే ఎక్కువ,,C,1,more_than_the_instalment
+1483,Move cash from your own balance into {name}'s float.,,మీ సొంత నిల్వ నుండి {name} యొక్క ఫ్లోట్‌కు నగదు తరలించండి.,,C,1,move_cash_to_float_note
+1484,New customer must be physically present — this reuses the same registration fields as account registration.,,కొత్త కస్టమర్ ప్రత్యక్షంగా హాజరు కావాలి — ఇది ఖాతా నమోదు వలె అదే నమోదు ఫీల్డ్‌లను తిరిగి ఉపయోగిస్తుంది.,,C,1,new_customer_present_note
+1485,"No Active agents in this business yet — add one from Workforce Management first. If you work this round yourself, add yourself as an agent.",,"ఈ వ్యాపారంలో ఇంకా యాక్టివ్ ఏజెంట్లు లేరు — ముందుగా వర్క్‌ఫోర్స్ మేనేజ్‌మెంట్ నుండి ఒకరిని జోడించండి. మీరే ఈ రౌండ్ చేస్తుంటే, మిమ్మల్ని ఏజెంట్‌గా జోడించండి.",,C,1,no_active_agents_note
+1486,No areas enabled for you yet. Contact your Owner.,,మీ కోసం ఇంకా ఏ ప్రాంతం ప్రారంభించలేదు. మీ యజమానిని సంప్రదించండి.,,C,1,no_areas_enabled
+1487,No BF Cash assignment found for this session yet — loan issuance is blocked until the Owner grants BF Cash access via AG-001's Opening BF gate.,,ఈ సెషన్‌కు ఇంకా BF నగదు కేటాయింపు కనుగొనబడలేదు — యజమాని BF నగదు యాక్సెస్ మంజూరు చేసే వరకు రుణ జారీ నిలిపివేయబడింది.,,C,1,no_bf_assignment_note
+1488,"No businesses yet. Tap ""Create Business"" to get started.",,"ఇంకా వ్యాపారాలు లేవు. ప్రారంభించడానికి ""వ్యాపారం సృష్టించండి"" నొక్కండి.",,C,1,no_businesses_yet_note
+1489,"No cheetis yet. Add one you are already paying, or a new one you have just joined.",,"ఇంకా చీటీలు లేవు. మీరు ఇప్పటికే చెల్లిస్తున్న ఒకదాన్ని, లేదా కొత్తగా చేరిన ఒకదాన్ని జోడించండి.",,C,1,no_chetis_yet_note
+1490,No match found yet — search to look up this MLID.,,ఇంకా సరిపోలిక కనుగొనబడలేదు — ఈ MLID కోసం శోధించండి.,,C,1,no_match_found_note
+1491,No matching business found. Check the name/MLBI and try again.,,సరిపోలే వ్యాపారం కనుగొనబడలేదు. పేరు/MLBI తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.,,C,1,no_matching_business_note
+1492,No matching customer. New customers must be physically present and created via Customer Management before a first loan can be issued.,,సరిపోలే కస్టమర్ లేరు. మొదటి రుణం జారీ చేయడానికి ముందు కొత్త కస్టమర్లు ప్రత్యక్షంగా హాజరై కస్టమర్ నిర్వహణ ద్వారా సృష్టించబడాలి.,,C,1,no_matching_customer_note
+1493,No member selected — create or select a member first.,,ఏ సభ్యుడు ఎంచుకోబడలేదు — ముందుగా ఒక సభ్యుడిని సృష్టించండి లేదా ఎంచుకోండి.,,C,1,no_member_selected_note
+1494,"No one found with that Phone / Aadhaar / MANA LINE ID / Name. Check the value, or use ""Add Customer"" to register a new person.",,"ఆ ఫోన్ / ఆధార్ / మానా లైన్ ఐడి / పేరుతో ఎవరూ కనుగొనబడలేదు. విలువను తనిఖీ చేయండి, లేదా కొత్త వ్యక్తిని నమోదు చేయడానికి ""కస్టమర్ జోడించండి"" ఉపయోగించండి.",,C,1,not_found_note
+1495,No open drafts. Interrupted entries you Save Draft on will show up here.,,తెరిచిన ముసాయిదాలు లేవు. మీరు ముసాయిదాగా సేవ్ చేసిన అంతరాయ ఎంట్రీలు ఇక్కడ కనిపిస్తాయి.,,C,1,no_open_drafts_note
+1496,No Operating Areas exist yet for this business — add one from Business Management first.,,ఈ వ్యాపారానికి ఇంకా పని ప్రాంతాలు లేవు — ముందుగా వ్యాపార నిర్వహణ నుండి ఒకటి జోడించండి.,,C,1,no_operating_areas_note
+1497,No route assigned for the enabled areas in this session.,,ఈ సెషన్‌లో ప్రారంభించిన ప్రాంతాలకు ఏ మార్గం కేటాయించలేదు.,,C,1,no_route_assigned
+1498,None being worked. {count} removed area(s) are kept for their past accounts. Add one above to start collecting again.,,ఏదీ పని చేయబడటం లేదు. {count} తీసివేసిన ప్రాంతాలు వాటి గత ఖాతాల కోసం ఉంచబడ్డాయి. మళ్లీ వసూలు ప్రారంభించడానికి పైన ఒకటి జోడించండి.,,C,1,only_removed_areas_note
+1499,Not declared yet. Count the cash box and enter it below.,,ఇంకా ప్రకటించలేదు. నగదు పెట్టెను లెక్కించి క్రింద నమోదు చేయండి.,,C,1,bf_not_declared_note
+1500,Not tied to a template — enter your own amount and frequency.,,టెంప్లేట్‌తో ముడిపడలేదు — మీ స్వంత మొత్తం మరియు తరచుదనం నమోదు చేయండి.,,C,1,request_custom_amount_note
+1501,"Nothing is being charged yet. These are the planned prices, shown so you can see which one fits your business.",,"ఇంకా ఏమీ వసూలు చేయడం లేదు. ఇవి ప్రణాళికాబద్ధ ధరలు, మీ వ్యాపారానికి ఏది సరిపోతుందో చూడటానికి చూపబడ్డాయి.",,C,1,planned_prices_note
+1502,"Nothing is outstanding, so there is no loan to bring across.",,"బాకీ ఏమీ లేదు, కాబట్టి తీసుకురావడానికి రుణం లేదు.",,C,1,loan_problem_nothing_outstanding
+1503,Nothing was imported. {count} rows need fixing:,,ఏదీ దిగుమతి కాలేదు. {count} వరుసలు సరిచేయాలి:,,C,1,nothing_imported_note
+1504,"One file, every new person — Agent, Customer and Investor together. Nothing is created until every row is valid.",,"ఒక ఫైల్, ప్రతి కొత్త వ్యక్తి — ఏజెంట్, కస్టమర్ మరియు పెట్టుబడిదారు కలిసి. ప్రతి వరుస సరైనది అయ్యే వరకు ఏదీ సృష్టించబడదు.",,C,1,bulk_identities_note
+1505,"One file, three tabs — Agent, Investor, Customer — prefilled with the people just created.",,"ఒక ఫైల్, మూడు ట్యాబ్‌లు — ఏజెంట్, పెట్టుబడిదారు, కస్టమర్ — ఇప్పుడే సృష్టించిన వ్యక్తులతో ముందుగా నింపబడింది.",,C,1,bulk_details_note
+1506,Only Active investors can have new investments recorded (current status: {status}).,,యాక్టివ్ పెట్టుబడిదారులకు మాత్రమే కొత్త పెట్టుబడులు నమోదు చేయవచ్చు (ప్రస్తుత స్థితి: {status}).,,C,1,only_active_investors_note
+1507,Only areas enabled by your Owner are shown. Select one or more to start today's Business Session.,,మీ యజమాని ప్రారంభించిన ప్రాంతాలు మాత్రమే చూపబడతాయి. నేటి వ్యాపార సెషన్ ప్రారంభించడానికి ఒకటి లేదా అంతకంటే ఎక్కువ ఎంచుకోండి.,,C,1,only_areas_enabled
+1508,"Only new adjustment entries dated to this business day are permitted. Existing Collections, Loans, and Expenses for this date cannot be edited. Once adjustments are entered, run Close Again to re-close.",,"ఈ వ్యాపార దినానికి కొత్త సర్దుబాటు ఎంట్రీలు మాత్రమే అనుమతించబడతాయి. ఈ తేదీకి ఉన్న వసూళ్లు, రుణాలు, ఖర్చులను మార్చలేరు. సర్దుబాట్లు నమోదు చేసిన తర్వాత, మళ్లీ మూసివేయడానికి ""మళ్లీ మూసివేయండి"" నొక్కండి.",,C,1,reopened_awaiting_note
+1509,Open this customer from the customer list to lend to them.,,వారికి రుణం ఇవ్వడానికి కస్టమర్ జాబితా నుండి ఈ కస్టమర్‌ను తెరవండి.,,C,1,open_customer_to_lend_note
+1510,Optional — note anything the Owner should know,,ఐచ్ఛికం — యజమాని తెలుసుకోవలసినది ఏదైనా రాయండి,,C,1,supporting_remarks_hint
+1511,"Optional. If this business already runs on paper, bring its book across now. Skip if it is starting fresh.",,"ఐచ్ఛికం. ఈ వ్యాపారం ఇప్పటికే కాగితంపై నడుస్తుంటే, దాని పుస్తకాన్ని ఇప్పుడు తీసుకురండి. కొత్తగా ప్రారంభిస్తే దాటవేయండి.",,C,1,migrate_existing_book_step_note
+1512,"Optional. Up to 100 past instalments per customer, each its own row.",,"ఐచ్ఛికం. ప్రతి కస్టమర్‌కు 100 వరకు గత వాయిదాలు, ప్రతి ఒక్కటి దాని స్వంత వరుస.",,C,1,bulk_emi_note
+1513,"Outstanding, Today's Due, and loan figures are read-only here — collection and loan-issue writes only happen via Collection Mode / Loan Distribution.",,"బాకీ, నేటి బకాయి, మరియు రుణ సంఖ్యలు ఇక్కడ చదవడానికి మాత్రమే — వసూలు మరియు రుణ జారీ రాతలు వసూలు మోడ్ / రుణ పంపిణీ ద్వారా మాత్రమే జరుగుతాయి.",,C,1,read_only_figures_note
+1514,Owner has not assigned an Opening BF for this session yet. Please contact your Owner.,,యజమాని ఇంకా ఈ సెషన్ కోసం ప్రారంభ BF కేటాయించలేదు. దయచేసి మీ యజమానిని సంప్రదించండి.,,C,1,owner_not_assigned_bf
+1515,"Owner may edit: Collection Agent, Remarks, Future Effective Information only. Loan Amount, Amount Given, Interest, Processing Fee, Historical Collections, and Business Date are permanently locked (BR-016/169).",,"యజమాని మార్చగలిగేవి: వసూలు ఏజెంట్, వ్యాఖ్యలు, భవిష్యత్ ప్రభావ సమాచారం మాత్రమే. రుణ మొత్తం, ఇచ్చిన మొత్తం, వడ్డీ, ప్రాసెసింగ్ ఫీజు, గత వసూళ్లు, మరియు వ్యాపార తేదీ శాశ్వతంగా లాక్ చేయబడ్డాయి.",,C,1,edit_allowed_fields_note
+1516,"Owner must resolve — correct a mis-entered Actual figure above, or record a Short/Excess adjustment, then Recalculate.",,"యజమాని పరిష్కరించాలి — పైన తప్పుగా నమోదైన వాస్తవ సంఖ్యను సరిచేయండి, లేదా తక్కువ/అధిక సర్దుబాటును నమోదు చేసి, తిరిగి లెక్కించండి.",,C,1,owner_must_resolve_note
+1517,Owner-only action — a higher-trust concession than applying the penalty in the first place.,,యజమాని మాత్రమే చేయగల చర్య — జరిమానా విధించడం కంటే ఎక్కువ నమ్మక స్థాయి రాయితీ.,,C,1,waive_note
+1518,"Paid same-day in cash. Does NOT reduce payable salary — tracked for your visibility only (CALC BR-068, supersedes BR-046).",,అదే రోజు నగదులో చెల్లించబడుతుంది. చెల్లించవలసిన జీతాన్ని తగ్గించదు — మీ కనిపించే విధానం కోసం మాత్రమే ట్రాక్ చేయబడుతుంది.,,C,1,daily_allowance_note
+1519,Paid The Full Instalment,,పూర్తి వాయిదా చెల్లించారు,,C,1,paid_the_full_instalment
+1520,"Pay {amount}? It comes out of unpaid interest first, then principal.",,"{amount} చెల్లించాలా? ఇది ముందుగా చెల్లించని వడ్డీ నుండి, ఆ తర్వాత అసలు నుండి తీసుకోబడుతుంది.",,C,1,pay_out_confirm_note
+1521,Phone updated. Previous value kept in history; Owner(s) notified.,,ఫోన్ నవీకరించబడింది. మునుపటి విలువ చరిత్రలో ఉంచబడింది; యజమానులకు తెలియజేయబడింది.,,C,1,phone_updated_note
+1522,"Photo, address and at least one identity document are required first.",,"ముందుగా ఫోటో, చిరునామా మరియు కనీసం ఒక గుర్తింపు పత్రం అవసరం.",,C,1,owner_steps_required_note
+1523,Please contact the Business directly to resolve this payment.,,ఈ చెల్లింపును పరిష్కరించడానికి దయచేసి నేరుగా వ్యాపారాన్ని సంప్రదించండి.,,C,1,contact_business_note
+1524,"Pre-existing record entry will be closed and the business marked Active. You can reopen migration later if something was missed, but every reopen is recorded.",,"ముందుగా ఉన్న రికార్డుల నమోదు మూసివేయబడుతుంది మరియు వ్యాపారం యాక్టివ్‌గా గుర్తించబడుతుంది. ఏదైనా మిస్ అయితే తర్వాత మైగ్రేషన్ తిరిగి తెరవవచ్చు, కానీ ప్రతి తిరిగి తెరవడం నమోదు చేయబడుతుంది.",,C,1,finish_migration_note
+1525,Profit Share — Declaration and Payment are recorded separately; a row may show Declared with no Paid data yet.,,లాభ వాటా — ప్రకటన మరియు చెల్లింపు వేర్వేరుగా నమోదు చేయబడతాయి; ఒక వరుసలో చెల్లింపు డేటా లేకుండా ప్రకటన మాత్రమే కనిపించవచ్చు.,,C,1,profit_share_note
+1526,Puts it away. Nothing is deleted.,,దీన్ని పక్కన పెడుతుంది. ఏదీ తొలగించబడదు.,,C,1,ignore_notice_note
+1527,Read-only — this day is closed. Corrections still go through each entry type's own screen as a new offsetting entry.,,చదవడానికి మాత్రమే — ఈ రోజు మూసివేయబడింది. సరిదిద్దుబాట్లు ఇప్పటికీ ప్రతి ఎంట్రీ రకం యొక్క స్వంత స్క్రీన్ ద్వారా కొత్త సర్దుబాటు ఎంట్రీగా జరుగుతాయి.,,C,1,read_only_day_closed_note
+1528,Reason is mandatory and this action always writes an audit entry. Reopening unlocks new adjustment entries only — existing entries for this date cannot be edited.,,కారణం తప్పనిసరి మరియు ఈ చర్య ఎల్లప్పుడూ ఆడిట్ ఎంట్రీని నమోదు చేస్తుంది. తిరిగి తెరవడం కొత్త సర్దుబాటు ఎంట్రీలను మాత్రమే అనుమతిస్తుంది — ఈ తేదీకి ఉన్న ఎంట్రీలను మార్చలేరు.,,C,1,reopen_note
+1529,"Reduces the cash you hand over, and counts as profit.",,"మీరు అప్పగించే నగదును తగ్గిస్తుంది, మరియు లాభంగా లెక్కించబడుతుంది.",,C,1,dividend_helper
+1530,Reference only — the system never multiplies this against any figure. Distribute the actual amount below (BR-232).,,సూచన మాత్రమే — సిస్టమ్ దీన్ని ఏ మొత్తంతోనూ గుణించదు. క్రింద అసలు మొత్తాన్ని పంపిణీ చేయండి.,,C,1,profit_share_reference_note
+1531,Remaining balance cannot be more than the repayment amount.,,మిగిలిన బ్యాలెన్స్ తిరిగి చెల్లింపు మొత్తం కంటే ఎక్కువ ఉండకూడదు.,,C,1,loan_problem_balance_above_repayment
+1532,Repayment is less than the amount given plus the fee. Check these three figures.,,"తిరిగి చెల్లింపు, ఇచ్చిన మొత్తం మరియు ఫీజు కంటే తక్కువగా ఉంది. ఈ మూడు సంఖ్యలను సరిచూడండి.",,C,1,loan_problem_negative_interest
+1533,Request sent as {role} — waiting for them to accept.,,అభ్యర్థన {role}గా పంపబడింది — వారు అంగీకరించడానికి వేచి ఉంది.,,C,1,request_sent_as
+1534,Requires the member's own verified OTP,,సభ్యుడి స్వంత ధృవీకరించిన OTP అవసరం,,C,1,requires_member_own_otp
+1535,Save and Add Another,,సేవ్ చేసి మరొకటి జోడించండి,,C,1,save and add another
+1536,Save this ID. You'll use it to log in and it's yours for life.,,ఈ ఐడిని సేవ్ చేయండి. లాగిన్ కావడానికి దీన్ని ఉపయోగిస్తారు మరియు ఇది జీవితాంతం మీదే.,,C,1,save_this_id_note
+1537,Saved as a draft. Nothing you entered is lost — it is waiting in Draft Transactions.,,డ్రాఫ్ట్‌గా భద్రపరచబడింది. మీరు నమోదు చేసినది ఏదీ పోలేదు — అది డ్రాఫ్ట్ లావాదేవీలలో ఉంది.,,C,1,saved_as_draft_note
+1538,"Search by Phone, Aadhaar, MANA LINE ID, or Full Name.",,"ఫోన్, ఆధార్, మానా లైన్ ఐడి, లేదా పూర్తి పేరు ద్వారా శోధించండి.",,C,1,search_by_phone_aadhaar_mlid_name
+1539,"Search by Phone, MANA LINE ID, Aadhaar, Customer Name, or Village.",,"ఫోన్, మానా లైన్ ఐడి, ఆధార్, కస్టమర్ పేరు, లేదా గ్రామం ద్వారా శోధించండి.",,C,1,search_customer_note
+1540,"Search by Phone, MANA LINE ID, Aadhaar, Customer Name, or Village. Only existing customers may receive a remotely-issued loan — a brand-new customer must first be created via Customer Management.",,"ఫోన్, మానా లైన్ ఐడి, ఆధార్, కస్టమర్ పేరు, లేదా గ్రామం ద్వారా శోధించండి. ఇప్పటికే ఉన్న కస్టమర్లు మాత్రమే రిమోట్‌గా జారీ చేసిన రుణం పొందగలరు — కొత్త కస్టమర్‌ను ముందుగా కస్టమర్ నిర్వహణ ద్వారా సృష్టించాలి.",,C,1,select_customer_note
+1541,"Search by Phone, MANA LINE ID, Aadhaar, or Name.",,"ఫోన్, MANA LINE ID, ఆధార్ లేదా పేరు ద్వారా శోధించండి.",,C,1,search_by_phone_mlid_aadhaar_name
+1542,Search for individual loans to add as group members.,,గ్రూప్ సభ్యులుగా జోడించడానికి వ్యక్తిగత రుణాలను శోధించండి.,,C,1,search_loans_to_add_note
+1543,"Search for someone by MLID or name, or register a new agent.",,"MLID లేదా పేరుతో వెతకండి, లేదా కొత్త ఏజెంట్‌ను నమోదు చేయండి.",,C,1,search_or_register_agent_note
+1544,Search for them again to add the other roles.,,ఇతర పాత్రలను జోడించడానికి వారిని మళ్లీ వెతకండి.,,C,1,search_again_for_other_roles_note
+1545,Send or receive BF Cash with another Agent. A transfer only moves the balance once BOTH agents confirm (BR-173) — no Owner approval gate applies.,,మరో ఏజెంట్‌తో BF నగదు పంపండి లేదా స్వీకరించండి. ఇద్దరు ఏజెంట్లు నిర్ధారించిన తర్వాతే బదిలీ నిల్వను కదిలిస్తుంది — యజమాని ఆమోదం అవసరం లేదు.,,C,1,bf_cash_transfer_note
+1546,Set by the member,,సభ్యుడు సెట్ చేసారు,,C,1,set_by_member
+1547,Shown in the app only. Your Aadhaar name above stays on official records.,,యాప్‌లో మాత్రమే కనిపిస్తుంది. అధికారిక రికార్డులలో పైన ఉన్న ఆధార్ పేరే ఉంటుంది.,,C,1,name_in_telugu_helper
+1548,Sits alongside Cheque Collection {amount} for your own reconciliation.,,మీ స్వంత సరిపోల్చడం కోసం చెక్ వసూలు {amount} పక్కన ఉంటుంది.,,C,1,cheque_count_helper
+1549,Some sheets were too large and were cut to {rows} rows: {sheets}. This backup is incomplete.,,కొన్ని షీట్‌లు చాలా పెద్దవి కావడంతో {rows} వరుసలకు కత్తిరించబడ్డాయి: {sheets}. ఈ బ్యాకప్ అసంపూర్ణం.,,C,1,truncated_sheets_note
+1550,"Somebody with this name and father's or husband's name is already registered. Choose them below, or add a mobile number if this is a different person.",,"ఈ పేరు మరియు తండ్రి లేదా భర్త పేరుతో ఇప్పటికే ఒకరు నమోదై ఉన్నారు. కింద వారిని ఎంచుకోండి, లేదా ఇది వేరే వ్యక్తి అయితే మొబైల్ నంబర్ జోడించండి.",,C,1,duplicate_person_note
+1551,Sorted by: penalty → grace period → today's due → village,,క్రమం: జరిమానా → గ్రేస్ పీరియడ్ → నేటి బకాయి → గ్రామం,,C,1,sorted_by_note_short
+1552,Sorted by: penalty → grace period → today's due → village → name,,క్రమం: జరిమానా → గ్రేస్ పీరియడ్ → నేటి బకాయి → గ్రామం → పేరు,,C,1,sorted_by_note
+1553,Sorted by: village → highest outstanding → today's due → name,,క్రమం: గ్రామం → అత్యధిక బాకీ → నేటి బకాయి → పేరు,,C,1,sorted_by_note_customers
+1554,Statement capped at {count} rows. Narrow the period for a complete file.,,స్టేట్‌మెంట్ {count} వరుసలకు పరిమితం. పూర్తి ఫైల్ కోసం కాలాన్ని తగ్గించండి.,,C,1,statement_truncated_note
+1555,Status: Submitted By Customer — Pending Owner/Agent Confirmation. You will be notified once it is confirmed.,,స్థితి: కస్టమర్ సమర్పించారు — యజమాని/ఏజెంట్ నిర్ధారణ పెండింగ్‌లో ఉంది. నిర్ధారించిన తర్వాత మీకు తెలియజేయబడుతుంది.,,C,1,submitted_status_note
+1556,still owed today = pending x EMI + penalty,,ఈ రోజు ఇంకా బాకీ = పెండింగ్ x EMI + జరిమానా,,C,1,remaining_balance_hint
+1557,Taken at registration. Cannot be changed.,,నమోదు సమయంలో తీయబడింది. మార్చలేరు.,,C,1,live_photo_from_registration_note
+1558,Tap To Open Their Record And Fix It,,వారి రికార్డు తెరిచి సరిచేయడానికి నొక్కండి,,C,1,tap_to_open_their_record
+1559,Temporary ID issued. Add your Aadhaar later from your profile to get your permanent ID.,,తాత్కాలిక ఐడి జారీ చేయబడింది. శాశ్వత ఐడి పొందడానికి తర్వాత మీ ప్రొఫైల్ నుండి ఆధార్ జోడించండి.,,C,1,temp_id_issued_note
+1560,That fits the {plan} plan.,,అది {plan} ప్లాన్‌కు సరిపోతుంది.,,C,1,fits_plan_note
+1561,"The directory does not carry this PIN code, so mandal and district cannot be suggested.",,"డైరెక్టరీలో ఈ పిన్ కోడ్ లేదు, కాబట్టి మండలం మరియు జిల్లాను సూచించలేము.",,C,1,pin_not_in_directory_note
+1562,"The directory has no match at PIN {pin}. Add it, and mandal and district will come from the PIN.",,"పిన్ {pin} వద్ద డైరెక్టరీలో సరిపోలిక లేదు. దాన్ని జోడించండి, మండలం మరియు జిల్లా పిన్ నుండి వస్తాయి.",,C,1,add_village_for_pin_note
+1563,The following items must be resolved before Cash Verification can open.,,నగదు ధృవీకరణ తెరవడానికి ముందు ఈ క్రింది అంశాలు పరిష్కరించాలి.,,C,1,items_must_be_resolved_note
+1564,The house name that comes first on your Aadhaar.,,మీ ఆధార్‌లో మొదట ఉండే ఇంటి పేరు.,,C,1,surname_helper
+1565,The statement downloads as an Excel file you can share.,,స్టేట్‌మెంట్ మీరు షేర్ చేయగల ఎక్సెల్ ఫైల్‌గా డౌన్‌లోడ్ అవుతుంది.,,C,1,statement_excel_note
+1566,the whole obligation = given + interest + fee,,మొత్తం బాధ్యత = ఇచ్చినది + వడ్డీ + ఫీజు,,C,1,total_issued_hint
+1567,These cannot be done on the member's behalf — the credential is theirs to set and the OTP goes to their phone.,,ఇవి సభ్యుడి తరపున చేయలేరు — క్రెడెన్షియల్ వారు సెట్ చేయాలి మరియు OTP వారి ఫోన్‌కు వెళ్తుంది.,,C,1,member_completes_note
+1568,"These totals come from the day ledger, not from the rows listed above.",,"ఈ మొత్తాలు పైన ఉన్న వరుసల నుండి కాదు, రోజు లెడ్జర్ నుండి వచ్చాయి.",,C,1,month_totals_from_ledger_note
+1569,They have to accept before anything moves. Settle your own agent cash and review any waiting settlements first.,,"ఏదైనా కదిలే ముందు వారు అంగీకరించాలి. ముందుగా మీ స్వంత ఏజెంట్ నగదును సెటిల్ చేసి, వేచి ఉన్న సెటిల్‌మెంట్లను సమీక్షించండి.",,C,1,transfer_business_note
+1570,"They will be removed from this list. Your loans, collections and settlements are not affected.",,"అవి ఈ జాబితా నుండి తీసివేయబడతాయి. మీ రుణాలు, వసూళ్లు మరియు సెటిల్‌మెంట్లపై ప్రభావం ఉండదు.",,C,1,clear_all_notifications_note
+1571,This adds to BF. You keep paying the remaining {count} instalments — availing does not close the cheeti.,,ఇది BFకు జోడిస్తుంది. మిగిలిన {count} వాయిదాలు మీరు చెల్లిస్తూనే ఉంటారు — పొందడం చీటీని మూసివేయదు.,,C,1,availing_adds_to_bf_note
+1572,This Business does not currently accept Customer-initiated loan requests.,,ఈ వ్యాపారం ప్రస్తుతం కస్టమర్ ప్రారంభించిన రుణ అభ్యర్థనలను స్వీకరించడం లేదు.,,C,1,customer_loan_requests_disabled_note
+1573,This business has already been started. Reopening lets you enter pre-existing records again. The reason is recorded in the audit log.,,ఈ వ్యాపారం ఇప్పటికే ప్రారంభమైంది. తిరిగి తెరవడం వల్ల ముందుగా ఉన్న రికార్డులను మళ్లీ నమోదు చేయవచ్చు. కారణం ఆడిట్ లాగ్‌లో నమోదు చేయబడుతుంది.,,C,1,reopen_migration_note
+1574,This business was started on {date}. Reopen migration to enter records from the old book.,,ఈ వ్యాపారం {date}న ప్రారంభమైంది. పాత పుస్తకం నుండి రికార్డులను నమోదు చేయడానికి మైగ్రేషన్ తిరిగి తెరవండి.,,C,1,migration_locked_note
+1575,This closes a Defaulted loan and writes off the remaining balance of {amount}. Owner-only action.,,ఇది డిఫాల్ట్ అయిన రుణాన్ని మూసివేసి మిగిలిన బ్యాలెన్స్ {amount}ను రైట్-ఆఫ్ చేస్తుంది. యజమాని మాత్రమే చేయగల చర్య.,,C,1,write_off_note
+1576,This draft will be permanently removed. This cannot be undone.,,ఈ ముసాయిదా శాశ్వతంగా తీసివేయబడుతుంది. దీన్ని రద్దు చేయలేరు.,,C,1,discard_draft_note
+1577,"This is the same Create Business step covered in first-time setup — use it here to add another business, or to start one you skipped earlier.",,"ఇది మొదటిసారి సెటప్‌లో కవర్ చేసిన అదే వ్యాపారం సృష్టించే దశ — మరో వ్యాపారాన్ని జోడించడానికి, లేదా ముందు వదిలేసిన దాన్ని ప్రారంభించడానికి దీన్ని ఉపయోగించండి.",,C,1,create_business_repeat_note
+1578,This loan already has a payment recorded today by {by} ({amount}). Record this payment anyway?,,ఈ రుణానికి ఈరోజు ఇప్పటికే {by} ద్వారా ఒక చెల్లింపు నమోదైంది ({amount}). అయినప్పటికీ ఈ చెల్లింపును నమోదు చేయాలా?,,C,1,already_collected_note
+1579,"This locks the Business Date, generates the Daily Summary, and prepares the next Business Date. This action cannot be undone without an Owner Reopen.",,"ఇది వ్యాపార తేదీని లాక్ చేసి, రోజువారీ సారాంశాన్ని సృష్టించి, తదుపరి వ్యాపార తేదీని సిద్ధం చేస్తుంది. యజమాని తిరిగి తెరవందే ఈ చర్యను రద్దు చేయలేరు.",,C,1,close_business_day_note
+1580,"This member exists as an internal record only, usable for manual/offline collection and record-keeping. Cannot receive SMS, receive OTP, accept agreements, or request online services until profile completion.",,"ఈ సభ్యుడు అంతర్గత రికార్డుగా మాత్రమే ఉన్నారు, మాన్యువల్/ఆఫ్‌లైన్ వసూలు మరియు రికార్డు నిర్వహణకు ఉపయోగపడతారు. ప్రొఫైల్ పూర్తయ్యే వరకు SMS, OTP అందుకోలేరు, ఒప్పందాలు అంగీకరించలేరు, లేదా ఆన్‌లైన్ సేవలు అభ్యర్థించలేరు.",,C,1,incomplete_profile_note
+1581,This never deletes {name}'s history — only changes their membership status.,,ఇది {name} యొక్క చరిత్రను ఎప్పుడూ తొలగించదు — వారి సభ్యత్వ స్థితిని మాత్రమే మారుస్తుంది.,,C,1,never_deletes_history_note
+1582,"This page only exists in the MANA LINE app on your phone. Head back to your account here, or get the app to see everything.",,,,C,1,web_route_unavailable_body
+1583,This person does not hold that role in this business.,,ఈ వ్యక్తి ఈ వ్యాపారంలో ఆ పాత్రను కలిగి లేరు.,,C,1,person_not_in_this_stage
+1584,This Screen Is In The App,,,,C,1,web_route_unavailable_title
+1585,This stage has {count} people. One by one means {count} screens — the Bulk Onboarding Wizard is faster for this many.,,ఈ దశలో {count} మంది ఉన్నారు. ఒక్కొక్కరిగా అంటే {count} స్క్రీన్‌లు — ఇంత మందికి బల్క్ ఆన్‌బోర్డింగ్ విజార్డ్ వేగవంతమైనది.,,C,1,many_people_use_the_wizard_note
+1586,Tracking/visibility only — no linkage to Payable Salary or any figure elsewhere on this screen.,,ట్రాకింగ్/కనిపించడం మాత్రమే — చెల్లించవలసిన జీతంతో లేదా ఈ స్క్రీన్‌లోని ఏ సంఖ్యతోనూ లింక్ లేదు.,,C,1,daily_allowance_tracking_note
+1587,Unable to connect. Please check your internet connection and try again.,,కనెక్ట్ చేయలేకపోయాము. దయచేసి మీ ఇంటర్నెట్ కనెక్షన్ తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.,,C,1,unable_to_connect_note
+1588,Village added and selected.,,గ్రామం జోడించి ఎంచుకున్నారు.,,C,1,village_added_note
+1589,Village and customer order are set by your Owner — this route cannot be reordered.,,గ్రామం మరియు కస్టమర్ క్రమాన్ని మీ యజమాని నిర్ణయిస్తారు — ఈ మార్గాన్ని తిరిగి క్రమబద్ధీకరించలేరు.,,C,1,village_customer_order_note
+1590,Visible to Support only — never shown to the registrant.,,సపోర్ట్‌కు మాత్రమే కనిపిస్తుంది — నమోదు చేసేవారికి ఎప్పుడూ చూపబడదు.,,C,1,visible_to_support_only
+1591,We could not send your code. Tap Resend Otp to try again.,,"మేము మీ కోడ్‌ను పంపలేకపోయాము. మళ్లీ ప్రయత్నించడానికి ""ఓటీపీ మళ్లీ పంపు"" నొక్కండి.",,C,1,otp_not_sent_tap_resend
+1592,"Who Changed, What Changed, Old Value, New Value — per BR-158. No entries yet.",,"ఎవరు మార్చారు, ఏమి మార్చారు, పాత విలువ, కొత్త విలువ — BR-158 ప్రకారం. ఇంకా ఎంట్రీలు లేవు.",,C,1,customer_audit_tab_note
+1593,You do not have permission to view customers on this business.,,ఈ వ్యాపారంలో కస్టమర్లను చూడటానికి మీకు అనుమతి లేదు.,,C,1,no_permission_view_customers
+1594,You will no longer be able to collect for this business yourself. You can add yourself back as an agent at any time.,,మీరు ఇకపై ఈ వ్యాపారానికి స్వయంగా వసూలు చేయలేరు. మీరు ఎప్పుడైనా మిమ్మల్ని తిరిగి ఏజెంట్‌గా జోడించుకోవచ్చు.,,C,1,owner_agent_removal_warning
+1595,"You're not yet linked to a business. Create a new one, or contact the Owner if you're expecting an existing invitation.",,"మీరు ఇంకా ఏ వ్యాపారంతో లింక్ కాలేదు. కొత్తది సృష్టించండి, లేదా ఇప్పటికే ఉన్న ఆహ్వానం ఆశిస్తుంటే యజమానిని సంప్రదించండి.",,C,1,no_business_linked_note
+1596,Your account is created — your MANA LINE ID is {mlid}. Do not register again. We could not send your code; tap Resend Otp.,,మీ ఖాతా సృష్టించబడింది — మీ మన లైన్ ఐడీ {mlid}. మళ్లీ నమోదు చేయవద్దు. మేము మీ కోడ్‌ను పంపలేకపోయాము; రీసెండ్ Otp నొక్కండి.,,C,1,account_created_code_not_sent_note
+1597,"Your Business Membership is active. The Owner records the actual investment (Amount, ROI, Interest Method) after receiving funds offline — it will appear here once entered.",,"మీ వ్యాపార సభ్యత్వం యాక్టివ్‌గా ఉంది. యజమాని ఆఫ్‌లైన్‌లో నిధులు అందుకున్న తర్వాత అసలు పెట్టుబడిని (మొత్తం, ROI, వడ్డీ పద్ధతి) నమోదు చేస్తారు — నమోదైన తర్వాత ఇక్కడ కనిపిస్తుంది.",,C,1,no_investments_note
+1598,Your Opening BF dispute has been sent to the Owner. You will be re-prompted with the corrected figure once they resolve it.,,మీ ప్రారంభ BF వివాదం యజమానికి పంపబడింది. వారు పరిష్కరించిన తర్వాత సరిదిద్దిన మొత్తంతో మీకు మళ్లీ అడుగుతారు.,,C,1,bf_dispute_sent
+1599,Your own activity on this business. Not the full business history.,,ఈ వ్యాపారంలో మీ స్వంత కార్యకలాపాలు మాత్రమే. పూర్తి వ్యాపార చరిత్ర కాదు.,,C,1,your_activity_only_note
+1600,Your verification session was lost. Please go back and start again from the beginning.,,మీ ధృవీకరణ సెషన్ కోల్పోయింది. దయచేసి వెనక్కి వెళ్లి మొదటి నుండి మళ్లీ ప్రారంభించండి.,,C,1,verification_session_lost
+1601,"{amount} at {roi}, effective {date}.\n\nThis removes the record entirely. It is refused if any interest payment or withdrawal has been made against it — correct those with Edit instead.",,"{amount}, {roi} వద్ద, {date} నుండి అమలులో.\n\nఇది రికార్డును పూర్తిగా తొలగిస్తుంది. దీనిపై ఏదైనా వడ్డీ చెల్లింపు లేదా ఉపసంహరణ జరిగి ఉంటే ఇది తిరస్కరించబడుతుంది — వాటిని సరిచేయడానికి బదులుగా మార్చు ఉపయోగించండి.",,C,1,delete_investment_confirm_note
+1602,"{area} ({villages}) will be set Inactive. Its account periods and history are kept, and any assigned agent loses access to it.",,"{area} ({villages}) నిష్క్రియంగా చేయబడుతుంది. దాని ఖాతా వ్యవధులు మరియు చరిత్ర ఉంచబడతాయి, మరియు కేటాయించిన ఏజెంట్ దానికి యాక్సెస్ కోల్పోతారు.",,C,1,remove_operating_area_note
+1603,{area} is no longer worked. It is kept because past account periods refer to it.,,{area} ఇకపై పని చేయబడదు. గత ఖాతా వ్యవధులు దీన్ని సూచిస్తున్నందున ఇది ఉంచబడింది.,,C,1,area_kept_for_history_note
+1604,{area} · {agent}\nApproving locks this Account Period. Locked accounts cannot be modified.,,{area} · {agent}\nఆమోదించడం ఈ ఖాతా వ్యవధిని లాక్ చేస్తుంది. లాక్ చేసిన ఖాతాలను మార్చలేరు.,,C,1,approve_account_period_note
+1605,"{count} instalments will be created. They begin only once the migration is finished, not today.",,"{count} వాయిదాలు సృష్టించబడతాయి. మైగ్రేషన్ ముగిసిన తర్వాతే అవి మొదలవుతాయి, ఈ రోజు కాదు.",,C,1,instalments_created_note
+1606,{count} live loans sit in {area}. Removing it now leaves them with no round to be collected on.,,{area}లో {count} సజీవ రుణాలు ఉన్నాయి. ఇప్పుడు తీసివేస్తే వాటిని వసూలు చేయడానికి రౌండ్ ఉండదు.,,C,1,area_still_has_loans_note
+1607,"{count} of your areas are assigned to an agent, so a period was expected here. Pull to refresh; if it stays empty this is worth reporting.",,"మీ ప్రాంతాలలో {count} ఏజెంట్‌కు కేటాయించబడ్డాయి, కాబట్టి ఇక్కడ ఒక వ్యవధి ఆశించబడింది. రిఫ్రెష్ చేయడానికి లాగండి; అది ఖాళీగానే ఉంటే ఇది నివేదించదగినది.",,C,1,no_account_periods_yet_detail
+1608,{count} × {amount} would be {implied}. The gap is the dividend you have already earned — enter what you actually paid.,,{count} × {amount} అయితే {implied} అవుతుంది. ఆ తేడా మీరు ఇప్పటికే సంపాదించిన డివిడెండ్ — మీరు నిజంగా చెల్లించినది నమోదు చేయండి.,,C,1,opening_gap_note
+1609,{name} was added. Open their profile to record the investment.,,{name} జోడించబడ్డారు. పెట్టుబడిని నమోదు చేయడానికి వారి ప్రొఫైల్ తెరవండి.,,C,1,investor_added_record_investment_note
+1610,"{name} will no longer appear in this business. Their past loans, collections and receipts are kept.",,"{name} ఇకపై ఈ వ్యాపారంలో కనిపించరు. వారి గత రుణాలు, వసూళ్లు మరియు రసీదులు అలాగే ఉంచబడతాయి.",,C,1,remove_customer_note
+1611,{village} will no longer be part of {area}. Customers already registered there are not affected.,,{village} ఇక {area}లో భాగం కాదు. అక్కడ ఇప్పటికే నమోదైన కస్టమర్లపై ప్రభావం ఉండదు.,,C,1,remove_village_note
+1612,₹{amount} reversed off the outstanding balance.,,బాకీ నిల్వ నుండి ₹{amount} తిరిగి తీసివేయబడింది.,,C,1,reversed_off_balance_note
+1613,₹{granted} added. {name} now holds ₹{newFloat}.,,₹{granted} జోడించబడింది. ఇప్పుడు {name} వద్ద ₹{newFloat} ఉంది.,,C,1,bf_added_note

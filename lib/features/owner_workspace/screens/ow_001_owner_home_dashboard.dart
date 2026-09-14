@@ -657,7 +657,10 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
       if (mounted) _search();
       return;
     }
-    await showModalBottomSheet(
+    // The sheet pops the new customerId when "Add & Issue Loan" was pressed
+    // and null when it was "Add Only". Dropping it read as the button doing
+    // nothing -- see _openAddCustomer on OW-004 for the same defect.
+    final customerId = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       builder: (_) => ManaAddCustomerSheet(
@@ -665,7 +668,10 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
         initialQuery: _query.text.trim(),
       ),
     );
-    if (mounted) _search();
+    if (!mounted) return;
+    _search();
+    if (customerId == null || !mounted) return;
+    context.push('/ow-005?customerId=$customerId', extra: widget.businessId);
   }
 
   Future<void> _search() async {

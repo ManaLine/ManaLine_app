@@ -59,16 +59,39 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(customerListProvider.notifier).load(widget.businessId);
       if (widget.initialAction == 'register') {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => ManaAddCustomerSheet(businessId: widget.businessId),
-        ).then((_) => ref.read(customerListProvider.notifier).load(widget.businessId));
+        _openAddCustomer();
       }
     });
   }
 
   void _reload() => ref.read(customerListProvider.notifier).load(widget.businessId);
+
+  /// Add a customer, and carry on to a loan when that is what was asked for.
+  ///
+  /// THE BUG THIS FIXES: the sheet ends with two buttons -- "Add & Issue Loan"
+  /// and "Add Only" -- and signals which was pressed by what it pops:
+  /// `Navigator.pop(thenLoan ? id : null)`. Both call sites on THIS screen
+  /// discarded that value with `.then((_) => reload())`, so on the one screen
+  /// whose whole job is customers, Add & Issue Loan added the customer and
+  /// stopped. No loan screen, no error, nothing saying it had not happened.
+  ///
+  /// /customer-new forwarded it correctly, which is why the + in the header
+  /// worked and this did not -- the same sheet behaving two different ways
+  /// depending on which door opened it.
+  Future<void> _openAddCustomer() async {
+    final customerId = await showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ManaAddCustomerSheet(businessId: widget.businessId),
+    );
+    // Reload either way: a customer was added on both paths, and this list is
+    // what the Owner comes back to.
+    if (!mounted) return;
+    _reload();
+    if (customerId == null || !mounted) return;
+    // Owner workspace issues loans from OW-005.
+    context.push('/ow-005?customerId=$customerId', extra: widget.businessId);
+  }
 
   /// Asks, then removes. Returns whether the row should actually go.
   ///
@@ -130,11 +153,7 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
         MemberAction(
           label: ref.t('add_customer'),
           icon: Icons.person_add_alt_1_outlined,
-          onTap: () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => ManaAddCustomerSheet(businessId: widget.businessId),
-          ).then((_) => _reload()),
+          onTap: _openAddCustomer,
         ),
       ];
 

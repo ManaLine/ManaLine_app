@@ -22,6 +22,9 @@ import '../../login_registration/state/auth_flow_state.dart';
 import '../state/owner_api_service.dart';
 import '../state/owner_workspace_state.dart';
 import '../state/customer_state.dart';
+import '../state/business_management_state.dart'
+    show businessManagementApiServiceProvider;
+import 'ow_pre_existing_loan_sheet.dart';
 import '../state/global_workflow_state.dart'
     show MemberType, MemberTypeLabel, ManaRoleOutcome, globalWorkflowApiServiceProvider;
 import '../state/investor_state.dart' show investorApiServiceProvider, InvestorSummary;
@@ -662,6 +665,145 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     return parts.join(' ');
   }
 
+  /// Is this book still being brought across?
+  ///
+  /// Decides which KIND of loan the next step offers, which is a money
+  /// question, not a cosmetic one: a pre-existing loan is a balance carried in
+  /// through app.migrate_loan, while a new loan is cash leaving the till today
+  /// through the lending flow and it moves BF. Writing one when the Owner
+  /// meant the other is the sort of wrong number nobody notices.
+  ///
+  /// Unknown counts as LOCKED. Being unable to read the flag is not evidence
+  /// that a migration is open, and offering to record a pre-existing loan on a
+  /// running book is the more damaging of the two mistakes.
+  Future<bool> _migrationOpen() async {
+    try {
+      final detail = await ref
+          .read(businessManagementApiServiceProvider)
+          .fetchBusinessDetail(businessId: widget.businessId);
+      return detail.migrationLocked == false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Offer the loan, once the person is a Customer here.
+  ///
+  /// THE OWNER'S RULE, verbatim: while the migration is open, ASK whether this
+  /// loan is pre-existing or new; once it is locked, only new. The question
+  /// disappears by itself when a book goes live, so nobody is ever asked
+  /// something with one answer.
+  Future<void> _offerLoan({
+    required String mlid,
+    required String fullName,
+    String? customerId,
+  }) async {
+    final open = await _migrationOpen();
+    if (!mounted) return;
+
+    var preExisting = false;
+    if (open) {
+      final choice = await showModalBottomSheet<bool>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.sm),
+                child: ManaText.raw(ref.t('which_kind_of_loan'),
+                    style: ManaType.cardTitle),
+              ),
+              ListTile(
+                title: ManaText.raw(ref.t('pre_existing_loan')),
+                subtitle: ManaText.raw(ref.t('pre_existing_loan_note'),
+                    style: ManaType.note),
+                onTap: () => Navigator.pop(sheetContext, true),
+              ),
+              ListTile(
+                title: ManaText.raw(ref.t('new_loan')),
+                subtitle: ManaText.raw(ref.t('new_loan_cash_note'),
+                    style: ManaType.note),
+                onTap: () => Navigator.pop(sheetContext, false),
+              ),
+              const SizedBox(height: ManaSpacing.md),
+            ],
+          ),
+        ),
+      );
+      // Backed out. Not an error and not a default -- the person is already
+      // added, and nothing about a loan should be assumed from silence.
+      if (choice == null || !mounted) return;
+      preExisting = choice;
+    }
+
+    if (!preExisting) {
+      if (customerId == null) {
+        // A new loan is issued against a customer row, and the found-person
+        // path has only a person. Saying so beats opening a screen that
+        // cannot find them.
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: ManaText.raw(ref.t('open_customer_to_lend_note')),
+        ));
+        return;
+      }
+      context.push('/ow-005?customerId=$customerId', extra: widget.businessId);
+      return;
+    }
+
+    final saved = await manaEnterPreExistingLoan(
+      context,
+      ref,
+      businessId: widget.businessId,
+      mlid: mlid,
+      fullName: fullName,
+    );
+    if (!saved || !mounted) return;
+    await _offerAnother(fullName);
+  }
+
+  /// Save and enter another, or close.
+  ///
+  /// Asked because this screen is used in runs -- an Owner bringing a book
+  /// across does twenty of these in a sitting, and making them find the search
+  /// box again between each one is the irritation the whole door exists to
+  /// remove. Closing is the other half of the same courtesy: a run that cannot
+  /// end without backing out reads as a trap.
+  Future<void> _offerAnother(String fullName) async {
+    final again = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: ManaText.raw(
+            ref.t('loan_saved_for_note').replaceAll('{name}', fullName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: ManaText.raw(ref.t('close')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: ManaText.raw(ref.t('save_and_enter_another')),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (again == true) {
+      // Cleared, focused, ready for the next name. Leaving the last person's
+      // query in the box means the next search starts by deleting it.
+      _query.clear();
+      setState(() {
+        _found = const [];
+        _searched = false;
+      });
+      return;
+    }
+    await _search();
+  }
+
   Future<void> _addToBusiness(CustomerSummary person) async {
     final personId = person.personId;
     if (personId == null || personId.isEmpty) return;
@@ -688,6 +830,14 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: ManaText.raw(_outcomeMessage(outcomes))),
     );
+
+    // A Customer is the only role a loan belongs to. An Agent or Investor who
+    // has not accepted yet certainly has no loan, and offering one would be
+    // the app acting on an answer nobody has given.
+    if (types.contains(MemberType.customer)) {
+      await _offerLoan(mlid: person.mlid, fullName: person.fullName);
+      if (!mounted) return;
+    }
 
     // Re-run the search rather than adding the role to the list in memory:
     // the roles on these cards are what the server says they are, and a list
@@ -746,13 +896,17 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     // gives. onCreated fires on creation regardless, which is the only way to
     // learn the person_id on the "Add Only" path.
     int? createdPersonId;
+    String? createdMlid;
     final customerId = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
       builder: (_) => ManaAddCustomerSheet(
         businessId: widget.businessId,
         initialQuery: _query.text.trim(),
-        onCreated: (_, personId) => createdPersonId = personId,
+        onCreated: (_, personId, mlid) {
+          createdPersonId = personId;
+          createdMlid = mlid;
+        },
       ),
     );
     if (!mounted) return;
@@ -776,9 +930,18 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
       }
     }
 
+    // "Add & Issue Loan" on the sheet says they want a loan next, and this
+    // screen can now offer the right KIND of one. "Add Only" leaves them
+    // added, which is what it says.
+    if (customerId != null && createdMlid != null) {
+      await _offerLoan(
+        mlid: createdMlid!,
+        fullName: _query.text.trim(),
+        customerId: customerId,
+      );
+      if (!mounted) return;
+    }
     _search();
-    if (customerId == null || !mounted) return;
-    context.push('/ow-005?customerId=$customerId', extra: widget.businessId);
   }
 
   /// OW-014's `type` query parameter for a role it can register.

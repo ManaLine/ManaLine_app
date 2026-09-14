@@ -934,19 +934,25 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
     return list.isEmpty ? null : list.first['customer_id'] as String;
   }
 
-  /// The person behind a customer row.
+  /// The person behind a customer row: their id and their MLID.
   ///
   /// app.register_new_customer hands back the customer_id alone, and the two
   /// ids are not interchangeable -- attaching further roles needs the person,
   /// because business_members is keyed by person_id. One select on a path that
   /// runs once per newly created person.
-  Future<int?> personIdForCustomer(String customerId) async {
+  Future<(int, String)?> personForCustomer(String customerId) async {
+    // customers has exactly ONE foreign key to persons, so this embed needs
+    // no FK hint -- see ambiguous_embed_guard_test, which lists the eleven
+    // pairs that do and does not list this one.
     final row = await Supabase.instance.client
         .from('customers')
-        .select('person_id')
+        .select('person_id, persons(mlid)')
         .eq('customer_id', customerId)
         .maybeSingle();
-    return (row?['person_id'] as num?)?.toInt();
+    final personId = (row?['person_id'] as num?)?.toInt();
+    final mlid = (row?['persons'] as Map<String, dynamic>?)?['mlid'] as String?;
+    if (personId == null || mlid == null) return null;
+    return (personId, mlid);
   }
 
   /// [createNew] but hands back the new customer_id.

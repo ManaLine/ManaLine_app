@@ -447,7 +447,8 @@ class ManaAddCustomerSheet extends ConsumerStatefulWidget {
   /// contract that /customer-new forwards as its own route result, and every
   /// caller with it. This adds a way to hear about the person without
   /// disturbing any of that.
-  final void Function(String customerId, int personId)? onCreated;
+  final void Function(String customerId, int personId, String mlid)?
+      onCreated;
 
   const ManaAddCustomerSheet({
     super.key,
@@ -722,10 +723,10 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
     final cb = widget.onCreated;
     if (cb == null) return;
     try {
-      final personId = await ref
+      final who = await ref
           .read(customerListProvider.notifier)
-          .personIdForCustomer(customerId);
-      if (personId != null) cb(customerId, personId);
+          .personForCustomer(customerId);
+      if (who != null) cb(customerId, who.$1, who.$2);
     } catch (_) {
       // Never block the add on the announcement. The customer exists either
       // way; the caller simply does not get told, which is the state every

@@ -40,7 +40,12 @@ void main() {
     'lib/features/owner_workspace/screens/ow_012_business_management.dart',
     'lib/features/owner_workspace/screens/ow_014_profile_completion.dart',
     'lib/features/owner_workspace/screens/ow_016_profile.dart',
-    'lib/features/owner_workspace/screens/ow_018_business_migration.dart',
+    // OW-018 came OFF this list on 2026-09-14, with _MigrateLoanScreen.
+    // That screen was the file's only village entry, it had been unreachable
+    // since the Pre-Existing FAB was routed to the global search, and the
+    // shared pre-existing loan sheet that replaced it takes an existing
+    // customer and asks for no village at all. Removed after reading the
+    // diff, not to make this list match.
   ];
 
   // A screen-level PIN box: a TextField/TextFormField whose controller name

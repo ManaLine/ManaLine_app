@@ -67,7 +67,18 @@ const _census = <String, int>{
   // submitted pin_code has to come from the picked village rather than a
   // screen-typed one. Checked: both are doc comments only, same as the seven
   // above — still nothing instantiates ManaVillagePickerField directly.
-  'ManaVillagePickerField': 11,
+  //
+  // Went 11 -> 10 when _MigrateLoanScreen was deleted from OW-018. Checked
+  // before recording: OW-018's only mention was that screen's own
+  // `_villagePinCode` doc comment, and the screen was the file's only village
+  // entry point at all. It had gone unreachable when the Pre-Existing FAB was
+  // routed to the global search, and its job now belongs to the shared
+  // pre-existing loan sheet, which takes an EXISTING customer and therefore
+  // asks for no village. So OW-018 has no village control left, which is
+  // correct: it is a summary of a book, and people reach it through the
+  // search. A count that goes DOWN still gets opened -- a consumer lost
+  // silently is the same failure as one gained silently.
+  'ManaVillagePickerField': 10,
   'manaComposeAddress': 3,
 
   // Adding a village the LGD directory has never recorded. Went 8 -> 1 in

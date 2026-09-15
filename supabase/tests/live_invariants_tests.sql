@@ -262,6 +262,62 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- CREDENTIALS AT REST
+-- =============================================================================
+--
+-- Not "is the password weak" -- that check would have to NAME the weak
+-- password, and a live credential written into a tracked file is a worse
+-- problem than the one it reports. This asks the question that can be asked
+-- safely: is every secret at rest actually hashed?
+--
+-- WHY IT IS WORTH ASKING. persons.password_hash and persons.pin_hash are
+-- written by Edge Functions, not by the app, so nothing in `flutter test` can
+-- see them. A change there that stored a value directly -- a debugging shortcut
+-- left in, a hash call dropped in a refactor -- would be invisible to every
+-- other guard in this project and would look perfectly normal in the table.
+--
+-- bcrypt hashes begin `$2a$`, `$2b$` or `$2y$` and are 60 characters. Anything
+-- else in these columns is either plaintext or something nobody has looked at.
+--
+-- Checked 2026-09-15: 11 persons with a password, 0 not bcrypt, 0 PINs not
+-- bcrypt, 1 admin account also bcrypt. The "plaintext password" noted in this
+-- project's history is stale -- nothing is stored in the clear.
+DO $$
+DECLARE
+    v_bad INT;
+    v_failed INT := COALESCE(current_setting('mana.li_failures', true)::int, 0);
+BEGIN
+    SELECT count(*) INTO v_bad
+      FROM persons
+     WHERE (password_hash IS NOT NULL
+            AND (password_hash !~ '^\$2[aby]\$' OR length(password_hash) <> 60))
+        OR (pin_hash IS NOT NULL
+            AND (pin_hash !~ '^\$2[aby]\$' OR length(pin_hash) <> 60));
+
+    IF v_bad > 0 THEN
+        RAISE WARNING 'FAIL [SECURITY] (BR-178) % person row(s) hold a password or PIN that is not a bcrypt hash -- something is storing a secret unhashed', v_bad;
+        v_failed := v_failed + 1;
+    ELSE
+        RAISE NOTICE 'ok   every stored person password and PIN is a bcrypt hash';
+    END IF;
+
+    SELECT count(*) INTO v_bad
+      FROM admin_accounts
+     WHERE password_hash IS NULL
+        OR password_hash !~ '^\$2[aby]\$'
+        OR length(password_hash) <> 60;
+
+    IF v_bad > 0 THEN
+        RAISE WARNING 'FAIL [SECURITY] % admin account(s) hold a password that is not a bcrypt hash', v_bad;
+        v_failed := v_failed + 1;
+    ELSE
+        RAISE NOTICE 'ok   every admin password is a bcrypt hash';
+    END IF;
+
+    PERFORM set_config('mana.li_failures', v_failed::text, false);
+END $$;
+
+-- =============================================================================
 -- SUMMARY
 -- =============================================================================
 DO $$

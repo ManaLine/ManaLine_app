@@ -290,8 +290,11 @@ exist.
 
 **Layout tests carry vendored translations on purpose.** Translated width
 is *data*. The fake cache falls back to the raw key, and raw keys are
-short ASCII, so without the fixture a "five languages" test quietly
-measures narrower text than production.
+short ASCII, so without the fixture a multi-language layout test quietly
+measures narrower text than production. The languages that matter for width
+are English and Telugu -- Telugu is the one that overflows, because its
+rendered strings run consistently longer than the English a layout was drawn
+against.
 
 Overflow is invisible to `flutter analyze` and to looking at one phone at
 one font size. It has shipped four times (LR-007, LR-003, LR-013, and

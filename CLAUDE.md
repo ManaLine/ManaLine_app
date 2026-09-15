@@ -8,6 +8,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MANA LINE — a Flutter + Supabase field lending app for rural India (owner, agent, investor, customer workspaces; **2 languages — English and Telugu**). Read `README.md` first — it is current and accurate, including its "Status" and "Not yet true" sections.
 
+**SETTLED 2026-09-15.** The claim is honest everywhere now -- README and
+site/index.html both say two -- and `test/language_completeness_guard_test.dart`
+fails if either regains a five-language claim or if the picker gains a third
+option. The picker offers exactly English and Telugu, so no user can reach an
+11%-complete language; all 98 people in production are on English.
+
+**The three extra columns STAY.** `ui_translations` keeps its hindi, tamil and
+kannada columns and `preferred_language_enum` keeps its five values. Dropping
+them is destructive, irreversible on a live database, and buys nothing: they
+are unreachable from the UI, cost nothing to carry, and are where the
+translations would go if the languages are ever finished. What was wrong was
+never the columns -- it was the app claiming them as languages it speaks.
+
 **Corrected 2026-09-08, was "5 languages".** `ui_translations` holds five columns, but of 1,600 keys: English 1,600, Telugu 1,591, and Hindi / Tamil / Kannada 174 each — about 11%. `lib/shared/translation_service.dart:22` says it outright: *"Only English/Telugu are ever looked up now (ManaLanguage was cut…)"*. The stale figure propagated from here into a plan and came within one implementer's diligence of being printed on the public website as a claim to strangers. Update this line as languages are genuinely completed — the number here is a promise the app has to keep.
 
 **Money correctness is a safety property here.** A confidently wrong number on a collection screen is worse than a crash, because nobody notices it. Never swallow an error into a plausible value (`catch (_) => 0` on a money path). Read the comments at the top of any money file before changing it; commit messages explain *why* and are worth reading before touching money code.

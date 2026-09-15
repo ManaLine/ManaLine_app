@@ -1,9 +1,33 @@
 # Analytics: what we would ask, and what must never leave the handset
 
-**Status: DRAFT AWAITING A DECISION.** Task 5 of
-`docs/superpowers/plans/2026-09-15-production-readiness.md`. The plan says
-explicitly: **do not add an SDK before this document exists.** It exists now;
-it does not yet have your answers.
+**Status: DECIDED AND BUILT 2026-09-15 — no SDK.** Task 5 of
+`docs/superpowers/plans/2026-09-15-production-readiness.md`.
+
+**What was built:** `migration_furthest_step` and `migration_step_touched_at`
+on `businesses`, written by `app.set_migration_wizard_step`, in migration
+`20260915133840`. No SDK, no new dependency, nothing leaving the handset that
+was not already there.
+
+**Why that, of the three options.** `migration_wizard_step` already existed but
+answers the wrong question: it follows an Owner BACKWARDS when they navigate
+back, so it says where somebody is rather than how far they got. And without a
+timestamp, "stopped at step 4" cannot be told from "is on step 4 right now" —
+abandonment is a question about time, not position. Two columns fix both.
+
+Verified by invocation in a rolled-back transaction: set to 6, then back to 2 —
+current becomes 2, furthest stays 6, touched_at set.
+
+**The question it answers**, runnable today:
+
+```sql
+select migration_furthest_step, count(*), max(migration_step_touched_at)
+from businesses
+where migration_locked = false
+  and migration_step_touched_at < now() - interval '14 days'
+group by 1 order by 1;
+```
+
+The reasoning that led here is kept below.
 
 ---
 

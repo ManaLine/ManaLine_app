@@ -32,6 +32,45 @@ tests is worth more than any new test.
 
 ## Phase 1 — CI (highest value, lowest cost)
 
+> **LANDED 2026-09-15**, commits `c24a1b7` and `3702592`, on `main` and
+> `web-on-the-web`. Tasks 1 and 2 are both in; what follows is the record of
+> what actually happened, kept rather than ticked away, because the deviation
+> is the useful part.
+>
+> **Run #1 result:** `analyze and test` **green on a clean Linux checkout** --
+> 2,448 tests in 5m 42s with no secrets configured. That is the
+> offline-by-design claim proved rather than asserted, and it was the single
+> thing this phase existed to find out.
+>
+> **`assemble the apk` failed**, correctly, at `check the build is configured`:
+> `SUPABASE_URL secret is not set`. Correct and useless -- it meant "nobody
+> with repository access has been at a keyboard yet", and would have stayed
+> red on every push until somebody was.
+>
+> **The deviation:** the plan as written failed the whole run when the secrets
+> were absent. That was wrong. A run permanently red for a reason unrelated to
+> the code is a run people stop opening, and every guard it carries stops being
+> read with it. The APK job now skips, writes into the run summary why and
+> where the values live, and starts working by itself the moment the secrets
+> exist. It still refuses to build WITHOUT them, because that succeeds and
+> produces an APK which hangs on a host that does not exist.
+>
+> **Gotcha worth keeping:** secrets cannot be read from a job-level `if:`. A
+> condition written that way is not an error -- it evaluates empty and the job
+> silently never runs again. Hence the one-step `preflight` job that computes
+> the answer and hands it on as an output.
+>
+> **Still open, and needs repository access:** add `SUPABASE_URL` and
+> `SUPABASE_ANON_KEY` under Settings -> Secrets and variables -> Actions. Until
+> then the APK job skips by design and the run is green.
+>
+> **Also noticed, not acted on:** run #1 raised three deprecation warnings --
+> Node.js 20 (from the actions' own runtimes) and `setup-java v4`. Bumping
+> action versions blind, without being able to check which tags exist, is how
+> a working CI breaks on a tag that was guessed. Left for somebody with
+> network access to the marketplace.
+
+
 ### Task 1: Run the existing guards on every push
 
 **Files:**
@@ -42,7 +81,7 @@ tests is worth more than any new test.
 - Consumes: nothing. The suite already passes with no credentials — verified 2026-09-15: no file under `test/` references `SUPABASE_URL`, and `sql_tests_wired_test.dart` prints a skip rather than failing when `MANA_DB_URL` is unset.
 - Produces: a green/red signal on every push and pull request.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 // test/ci_workflow_test.dart
@@ -75,12 +114,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `flutter test test/ci_workflow_test.dart`
 Expected: FAIL — "no CI workflow"
 
-- [ ] **Step 3: Write the workflow**
+- [x] **Step 3: Write the workflow**
 
 ```yaml
 # .github/workflows/ci.yml
@@ -111,19 +150,19 @@ jobs:
       - run: flutter test
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `flutter test test/ci_workflow_test.dart`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .github/workflows/ci.yml test/ci_workflow_test.dart
 git commit -m "The guards now run without anybody remembering to run them."
 ```
 
-- [ ] **Step 6: Confirm it actually ran**
+- [x] **Step 6: Confirm it actually ran**
 
 Push, then open the Actions tab and read the run. A workflow file that has never executed is the same class of thing as the five SQL test files in Task 8: present, plausible, and proving nothing. Record the run URL in the commit's PR or in a follow-up commit message.
 
@@ -138,7 +177,7 @@ Push, then open the Actions tab and read the run. A workflow file that has never
 - Consumes: Task 1's workflow.
 - Produces: a build artifact per push, proving the APK still assembles.
 
-- [ ] **Step 1: Add the build job**
+- [x] **Step 1: Add the build job**
 
 ```yaml
   build:
@@ -164,11 +203,11 @@ Push, then open the Actions tab and read the run. A workflow file that has never
           path: build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-- [ ] **Step 2: Add the two repository secrets**
+- [ ] **Step 2: Add the two repository secrets** — STILL OPEN, needs repository access
 
 In GitHub → Settings → Secrets and variables → Actions, add `SUPABASE_URL` and `SUPABASE_ANON_KEY` with the values from `run.ps1.txt`. Nothing else goes there.
 
-- [ ] **Step 3: Commit and confirm the artifact appears**
+- [x] **Step 3: Commit** — the artifact cannot appear until Step 2 is done
 
 ```bash
 git add .github/workflows/ci.yml

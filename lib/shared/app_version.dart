@@ -48,7 +48,7 @@ const manaBuildNumber = 14;
 ///
 /// Reset to 0 by tool/build_apk.ps1 whenever it bumps [manaBuildNumber], or
 /// build 15 would announce itself as 15.1.
-const manaBuildRevision = 2;
+const manaBuildRevision = 3;
 
 /// "Test V-0.1 · build 14.1" — the name a person reads, and the number that
 /// identifies the APK. The revision is omitted entirely at 0, so an ordinary

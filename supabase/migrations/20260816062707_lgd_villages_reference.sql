@@ -28,11 +28,22 @@
 -- 768,529 rows, from 2,363,007 in the source. The difference is LGD's
 -- version-bump repeats — rows identical across every column kept here.
 --
--- NO CODE COLUMNS. LGD ships village, sub-district, district and state codes;
--- none is read, joined on or displayed by this app, and this project is on the
--- 500 MB tier. Dropping them also collapsed ~10,000 rows that differed by code
--- alone. If LGD ever renames a village there is no stable key to re-match on;
--- the source workbook is kept outside the repo, so that is recoverable.
+-- THE CODE COLUMNS ARE CREATED HERE AND DROPPED BY THE NEXT MIGRATION.
+-- LGD ships village, sub-district, district and state codes; none is read,
+-- joined on or displayed by this app, and this project is on the 500 MB tier,
+-- so 20260816065312_lgd_villages_drop_codes.sql removes all four -- which also
+-- collapsed ~10,000 rows that differed by code alone, 778,833 down to 768,529.
+-- If LGD ever renames a village there is no stable key to re-match on; the
+-- source workbook is kept outside the repo, so that is recoverable.
+--
+-- They are declared here rather than omitted BECAUSE THIS FILE IS A RECORD OF
+-- WHAT RAN. It had at some point been rewritten to describe the end state --
+-- tidier to read, and it made the pair unreplayable: the next migration
+-- dropped columns this one no longer created, so a rebuild from empty died at
+-- migration 196 with 42703. The ledger's own copy of this version still had
+-- them, which is how the divergence was found. A migration that has been
+-- edited to look right is the one thing in this directory that cannot be
+-- trusted.
 --
 -- NO TEXT INDEX EITHER, deliberately. A trigram index on `village` would be
 -- 80–150 MB, larger than the table. It is unnecessary because a village is
@@ -40,11 +51,15 @@
 -- the candidate set is a few dozen rows (358 at the worst pincode seen), which
 -- Postgres filters off the pincode index without help.
 CREATE TABLE lgd_villages (
-  pincode  TEXT NOT NULL,
-  village  TEXT NOT NULL,
-  mandal   TEXT NOT NULL,
-  district TEXT NOT NULL,
-  state    TEXT NOT NULL
+  pincode          TEXT NOT NULL,
+  village          TEXT NOT NULL,
+  village_code     TEXT,
+  mandal           TEXT NOT NULL,
+  subdistrict_code TEXT,
+  district         TEXT NOT NULL,
+  district_code    TEXT,
+  state            TEXT NOT NULL,
+  state_code       TEXT
 );
 
 COMMENT ON TABLE lgd_villages IS

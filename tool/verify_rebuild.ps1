@@ -9,40 +9,75 @@
      database reproduces the current schema... Until someone does it, treat
      'the repo can rebuild the database' as probable but unproven."
 
-  It is proven now, and the answer is NO. This script is how that was
-  established and how it is re-checked.
+  As of 2026-09-15 the answer is YES, and this script is what says so. It
+  creates a DISPOSABLE Postgres cluster on port 5433 with trust auth, in a temp
+  directory, applies supabase/rebuild_bootstrap.sql and then every migration in
+  order. It touches neither production nor any local database you already have
+  -- it does not need a password, because it makes its own server.
 
-  It creates a DISPOSABLE Postgres cluster on port 5433 with trust auth, in a
-  temp directory. It touches neither production nor any local database you
-  already have -- it does not need a password, because it makes its own server.
+  A zero exit means the schema rebuilt. Exit 3 means it stopped, and it names
+  the file and the error.
 
 .NOTES
-  WHAT IT FOUND on 2026-09-15, in the order the failures appeared:
+  WHAT IT FOUND, in the order the failures appeared. Every one of these was
+  invisible to `flutter analyze`, to `flutter test`, and to applying the
+  migrations against production -- because production already had the objects
+  each one failed to create.
 
-    after  6 files -- type "repayment_frequency_enum" does not exist
-    after  7 files -- relation "loan_templates" does not exist
-    after 21 files -- function storage.foldername(text) does not exist
-    after 23 files -- cannot change return type of existing function
-                      (app.submit_draft, in module16)
+    1. type "repayment_frequency_enum" does not exist        (file 6)
+    2. relation "loan_templates" does not exist              (file 7)
+       Two enum types and one table that exist in production and in NO
+       migration, made by hand in the dashboard before the 2026-07-30 filename
+       repair, which could not capture them because nothing recorded them.
+       Now in supabase/rebuild_bootstrap.sql.
 
-  The first two are the app's own and are now in supabase/rebuild_bootstrap.sql:
-  two enum types and one table that exist in production and in NO migration.
-  All three predate the 2026-07-30 filename repair, which renamed files and
-  rewrote the ledger but could not capture objects made by hand in the
-  dashboard, because nothing recorded that they had been.
+    3. function storage.foldername(text) does not exist      (file 21)
+       Supabase scaffolding. Stubbed in the bootstrap.
 
-  The third is scaffolding -- a Supabase storage helper -- and is stubbed.
+    4. cannot change return type of existing function        (file 23)
+       app.submit_draft in module16 used CREATE OR REPLACE where the return
+       type changed. It worked against production only because the function
+       was already there in a shape that made the replace legal. Fixed with
+       DROP-then-CREATE, the rule CLAUDE.md already records.
 
-  THE FOURTH IS A REAL DEFECT AND IS STILL OPEN. A migration uses
-  CREATE OR REPLACE FUNCTION on a function whose return type changed, which
-  Postgres refuses. It works against production only because the function
-  already existed there in a shape that made the replace legal. Against an
-  empty database it cannot run. This is the DROP-then-CREATE rule CLAUDE.md
-  records, caught on the one path that can catch it.
+    5. constraint "chk_businesses_owner_bf_nonneg" already exists   (file 95)
+       22 migrations were present under TWO names -- a hand-named pre-apply
+       draft and its ledger-stamped twin. The drafts had no ledger row and
+       were deleted. 19 translation keys lived only in them; those and 21
+       others became 20260915140000_restore_orphaned_translation_keys.sql.
 
-  Fixing it means editing a historical migration, and a migration file is a
-  record of what ran. That is a decision, not a tidy-up, so it is left here
-  rather than taken quietly.
+    6. extension "pg_cron" is not available                  (file 95)
+       Supabase provides it, stock PostgreSQL does not, and CREATE EXTENSION
+       for something absent from disk cannot be made to succeed from SQL. The
+       statement is neutralised through $platformExtensions below -- NAMED and
+       printed every run -- and cron.schedule is stubbed in the bootstrap so
+       the two purge schedules still record that they were asked for.
+
+    7. column "village_code" of "lgd_villages" does not exist       (file 196)
+       The CREATE had been rewritten to describe the end state, so the next
+       migration dropped columns it no longer created. The ledger's own copy
+       still had them. A migration edited to look right is the one thing in
+       that directory that cannot be trusted.
+
+    8. "ledger_history no longer contains the text it was matching on"  (261)
+       Six migrations patch a function by reading pg_get_functiondef and
+       running replace() on it. The defining file was CRLF and the patching
+       file was LF, so the anchor was present, identical on screen, and could
+       never match. 97 of 426 files were CRLF with no rule saying which they
+       should be. .gitattributes now pins *.sql to LF and
+       test/migration_line_endings_test.dart fails on a CR.
+
+  WHAT THE REBUILT DATABASE IS FOR. The five scratch files in supabase/tests/
+  had never executed, because running them needs a database with no books in it
+  and branching is a Pro-plan feature. They run against this one. On their
+  first execution they found eight further things, six of them defects in the
+  tests themselves -- a 15-character MLID in a varchar(13), a gender_digit
+  assertion stale since Others was added, an address fixture missing five
+  NOT NULL columns, a day_ledger row the recompute trigger had already made,
+  and a penalty assertion that depended on a default it had backwards.
+
+  A test that has never run does not go stale loudly. It goes stale quietly,
+  and then reports the schema as broken.
 
 .EXAMPLE
   pwsh tool/verify_rebuild.ps1
@@ -79,10 +114,10 @@ if (Test-Path $data) {
 }
 Write-Host 'Creating a disposable cluster...'
 & "$PgBin\initdb.exe" -D $data -U postgres --auth=trust --encoding=UTF8 2>&1 | Out-Null
-Start-Process -FilePath "$PgBin\pg_ctl.exe" `
-  -ArgumentList @('-D', $data, '-o', "-p $Port", '-l', "$data\log.txt", 'start') `
-  -NoNewWindow -Wait | Out-Null
-Start-Sleep -Seconds 3
+# The call operator, not Start-Process: -ArgumentList splits "-p 5433" on the
+# space and pg_ctl then reads 5433 as its operation mode. pg_ctl start returns
+# once the postmaster is up, so nothing needs to wait on it.
+& "$PgBin\pg_ctl.exe" -D $data -o "-p $Port" -l "$data\log.txt" -w start 2>&1 | Out-Null
 
 $up = Psql 'postgres' @('-At', '-c', 'select 1')
 if ($LASTEXITCODE -ne 0) {
@@ -100,9 +135,38 @@ if ($LASTEXITCODE -ne 0) { Write-Error 'The bootstrap itself failed.'; exit 1 }
 $files = Get-ChildItem "$repo\supabase\migrations" -Filter '*.sql' | Sort-Object Name
 Write-Host "Applying $($files.Count) migrations..."
 
+# Extensions the Supabase platform provides and a stock PostgreSQL does not.
+# CREATE EXTENSION for something absent from disk cannot be made to succeed
+# from SQL, so the statement is neutralised here and the objects it would have
+# brought are stubbed in rebuild_bootstrap.sql.
+#
+# NAMED, not pattern-matched, and printed every run: a rebuild that quietly
+# skipped statements would prove nothing. pgcrypto and pg_trgm are contrib and
+# are NOT on this list -- they install for real.
+$platformExtensions = @('pg_cron')
+
+$stage = Join-Path $env:TEMP 'mana_rebuild_stage'
+New-Item -ItemType Directory -Force -Path $stage | Out-Null
+foreach ($e in $platformExtensions) {
+  Write-Host "  CREATE EXTENSION $e is stubbed (Supabase provides it; see rebuild_bootstrap.sql)."
+}
+
 $applied = 0
 foreach ($f in $files) {
-  $out = Psql $db @('-q', '-v', 'ON_ERROR_STOP=1', '-f', $f.FullName) 2>&1
+  $text = [IO.File]::ReadAllText($f.FullName)
+  $patched = $text
+  foreach ($e in $platformExtensions) {
+    $patched = [regex]::Replace($patched,
+      "CREATE\s+EXTENSION\s+(IF\s+NOT\s+EXISTS\s+)?""?$([regex]::Escape($e))""?[^;]*;",
+      "SELECT 'platform extension $e stubbed by verify_rebuild.ps1';",
+      'IgnoreCase')
+  }
+  $target = $f.FullName
+  if ($patched -ne $text) {
+    $target = Join-Path $stage $f.Name
+    [IO.File]::WriteAllText($target, $patched, (New-Object Text.UTF8Encoding $false))
+  }
+  $out = Psql $db @('-q', '-v', 'ON_ERROR_STOP=1', '-f', $target) 2>&1
   if ($LASTEXITCODE -ne 0) {
     Write-Host ''
     Write-Host "STOPPED after $applied of $($files.Count) migrations" -ForegroundColor Red
@@ -121,10 +185,9 @@ foreach ($f in $files) {
 Write-Host ''
 Write-Host "ALL $applied MIGRATIONS APPLIED CLEANLY" -ForegroundColor Green
 Write-Host ''
-Write-Host 'The schema rebuilt from nothing. The five scratch SQL test files in'
-Write-Host 'supabase/tests/ can now be run against it -- they have never'
-Write-Host 'executed, because until now there was no empty database to run them'
-Write-Host 'on:'
+Write-Host 'The schema rebuilt from nothing. Run the five scratch SQL test'
+Write-Host 'files against it -- this cluster is the only place they can run,'
+Write-Host 'because they need a database with no books in it:'
 Write-Host ''
 Write-Host "  `$env:MANA_DB_URL = 'postgresql://postgres@localhost:$Port/$db'"
 Write-Host '  pwsh tool/run_sql_tests.ps1 -AllowNonEmpty'
@@ -136,3 +199,9 @@ if (-not $Keep) {
   Write-Host ''
   Write-Host "Cluster left running on port $Port (data: $data)."
 }
+
+# Explicit, because the teardown above is the last thing to set $LASTEXITCODE
+# and pg_ctl stop reports non-zero on a cluster that has already gone. A
+# successful rebuild reporting failure is the one outcome this script must not
+# produce.
+exit 0

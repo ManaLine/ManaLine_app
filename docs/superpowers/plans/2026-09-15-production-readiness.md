@@ -522,14 +522,40 @@ Task 6 is approved. This can start.
 
 ### Task 8: Run the five SQL test files that have never executed
 
-> **ANSWERED 2026-09-15, and the answer is no.** `tool/verify_rebuild.ps1`
-> makes its own disposable Postgres cluster — `initdb` was already installed,
-> so no Pro branch and no Docker were needed. The rebuild stops after 23 of
-> 443 migrations. Two enum types and one table exist in production and in NO
-> migration (now in `supabase/rebuild_bootstrap.sql`); a fourth failure is a
-> real defect left open by decision — module16 uses CREATE OR REPLACE on a
-> function whose return type changed. **The five scratch files still have not
-> run**, because an empty database carrying the schema still cannot be built.
+> **DONE 2026-09-15. The five files have run, and the repo can rebuild the
+> database.** `tool/verify_rebuild.ps1` makes its own disposable Postgres
+> cluster — `initdb` was already installed, so no Pro branch and no Docker were
+> needed. The first run reached 23 of 443 migrations; all **427** now apply
+> cleanly. Eight distinct failures stood in between, each invisible to
+> `flutter analyze`, `flutter test` and to applying the same migrations against
+> production, because production already had whatever the migration failed to
+> create. The two that were not bookkeeping: a migration rewritten to describe
+> the end state, so the next one dropped columns it no longer created; and a
+> CRLF/LF mismatch that made a `pg_get_functiondef` text patch unable to match
+> an anchor that was character-for-character identical on screen.
+>
+> The five scratch files then ran for the first time and reported seven
+> failures. **Six were defects in the tests**, each of which had been reporting
+> the schema as broken — including one that claimed the one-current-address
+> partial unique index was missing when a fixture five columns short of the
+> NOT NULLs was dying before it ever reached it. All six fixed; five of six
+> files green.
+>
+> **The seventh is real and is escalated, not fixed:** SP-001 business
+> suspension is enforced in neither layer. No RLS policy references
+> `business_status`, and `lib/shared/business_suspension_gate.dart` — written
+> for exactly this — has no callers. An Agent of a suspended business can still
+> query it. Whether that becomes an RLS clause or four one-line hookups is a
+> product call, and the fail-open/fail-closed choice on a field app is the part
+> that needs a human.
+>
+> Two schema findings came out of it as well: `persons.full_name` NOT NULL
+> could never fire (a BEFORE INSERT trigger writes `''` first), closed by
+> `20260915141500_a_person_always_has_a_name.sql`; and `can_apply_penalty`
+> defaults to TRUE while two comments in `lib/` say it is off by default —
+> 10 of 13 real agent profiles have it on and no Owner chose it. That one is
+> also a product call.
+>
 > Full account in `supabase/MIGRATIONS.md`.
 
 **Files:**

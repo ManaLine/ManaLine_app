@@ -1,0 +1,21 @@
+# SQL migrations are LF, always.
+#
+# WHY THIS FILE EXISTS. Six migrations patch a live function by reading
+# pg_get_functiondef() and running replace() on its text. The stored body keeps
+# whatever line endings the defining migration's FILE had, and the match string
+# keeps whatever the patching migration's file had. On 2026-09-15 a rebuild from
+# empty died at migration 261 because 20260823051953 is CRLF and 20260824172008
+# is LF: the anchor was present, visibly identical, and could not match, because
+# one side carried \r and the other did not.
+#
+# 97 of 426 migration files were CRLF at that point, with no rule saying which
+# they should be -- so which ones a checkout produced depended on the machine's
+# core.autocrlf. eol=lf overrides autocrlf, so every clone gets the same bytes.
+#
+# test/migration_line_endings_test.dart fails on a CR in any migration.
+# The catch-all comes FIRST: the LAST matching pattern wins, so a `* text=auto`
+# written below would override the eol=lf above it and quietly undo this whole
+# file. Checked with `git check-attr text eol -- <a .sql file>`.
+* text=auto
+
+*.sql text eol=lf

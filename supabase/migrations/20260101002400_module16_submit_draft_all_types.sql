@@ -19,7 +19,31 @@
 -- all 4 types, matching the spec exactly.
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION app.submit_draft(p_draft_id UUID)
+-- DROP THEN CREATE, added 2026-09-15. This file's return type differs from the
+-- one module12 and module15 create -- UUID there, JSON here -- and Postgres
+-- refuses to CREATE OR REPLACE across a changed return type. It has always
+-- refused; nobody noticed because on the live database the function already
+-- existed in a shape that made the replace legal, and no migration had ever
+-- been run against an empty database.
+--
+-- tool/verify_rebuild.ps1 ran that on 2026-09-15 and stopped here:
+--
+--   ERROR: cannot change return type of existing function
+--
+-- after 23 of 443 files. This is the DROP-then-CREATE rule CLAUDE.md records,
+-- caught on the only path capable of catching it.
+--
+-- EDITING A HISTORICAL MIGRATION, which is normally refused here because a
+-- migration file is a record of what ran. Done on the Owner's explicit
+-- instruction, and it is safe in both directions: on production the file is
+-- already in the ledger and will not re-run, and if it ever did, dropping and
+-- recreating reaches the same final state. Nothing depends on the function --
+-- checked against pg_depend, 0 dependents -- so no CASCADE is needed, and its
+-- absence means a future dependency turns this into a loud failure rather than
+-- a silent drop.
+DROP FUNCTION IF EXISTS app.submit_draft(UUID);
+
+CREATE FUNCTION app.submit_draft(p_draft_id UUID)
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER

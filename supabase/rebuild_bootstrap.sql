@@ -82,6 +82,46 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticator') THEN CREATE ROLE authenticator NOLOGIN; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='postgres') THEN CREATE ROLE postgres LOGIN SUPERUSER; END IF;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- The default privileges Supabase installs, and the repo does not.
+--
+-- WHY THIS MATTERS MORE THAN IT LOOKS. RLS decides what a role may SEE; a
+-- table GRANT decides whether the role may ASK. Without the grant Postgres
+-- raises insufficient_privilege before any policy is consulted -- and a test
+-- that counts visible rows reads that as "zero rows", which is indistinguish-
+-- able from a policy correctly denying access.
+--
+-- So on a rebuilt database every NEGATIVE assertion in the RLS matrix passed
+-- and every POSITIVE one failed, for the same reason, and the suite looked
+-- like a security triumph. It was measuring nothing.
+--
+-- Production has these because the Supabase platform runs them when a project
+-- is created, not because any migration does: 81 public tables carry SELECT
+-- for anon, authenticated and service_role there, and 5 did here. Verified by
+-- diffing information_schema.role_table_grants between the two on 2026-09-15.
+--
+-- Default privileges apply to tables created AFTER they are set, which is why
+-- this sits in the bootstrap rather than anywhere later.
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+
+-- And the tables this file made BEFORE the line above, which default
+-- privileges cannot reach backwards to. loan_templates is created here rather
+-- than by a migration precisely because it is one of the objects that exists
+-- in production and in no migration -- so it is the one table that would have
+-- been missed, and it was: the RLS matrix reported that a Customer could not
+-- see an Active loan template in their own business, which is a real screen
+-- (CW-003's template picker) and would have read as an RLS bug.
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE SCHEMA IF NOT EXISTS storage;
@@ -126,5 +166,51 @@ DECLARE parts text[];
 BEGIN
   parts := string_to_array(name, '.');
   RETURN parts[array_length(parts,1)];
+END
+$f$;
+
+-- ---------------------------------------------------------------------------
+-- pg_cron, stubbed.
+--
+-- Supabase provides pg_cron; a stock PostgreSQL install does not, and
+-- CREATE EXTENSION for something that is not on disk cannot be made to
+-- succeed from SQL. Two migrations call cron.schedule() to book the soft-delete
+-- purge and the account purge.
+--
+-- The stub records the booking in a table instead of running it, so the
+-- rebuild can assert that the schedules were ASKED FOR -- which is the part
+-- the repo is responsible for. Whether Supabase's scheduler then fires them is
+-- the platform's business and is not something an empty local cluster can
+-- answer either way.
+--
+-- This is the same category as storage.foldername() above: scaffolding the
+-- platform owns, stubbed so the app's own schema can be judged on its own.
+CREATE SCHEMA IF NOT EXISTS cron;
+
+CREATE TABLE IF NOT EXISTS cron.job (
+  jobid   BIGSERIAL PRIMARY KEY,
+  jobname TEXT UNIQUE,
+  schedule TEXT NOT NULL,
+  command  TEXT NOT NULL
+);
+
+CREATE OR REPLACE FUNCTION cron.schedule(p_name TEXT, p_schedule TEXT, p_command TEXT)
+RETURNS BIGINT LANGUAGE plpgsql AS $f$
+DECLARE v_id BIGINT;
+BEGIN
+  INSERT INTO cron.job (jobname, schedule, command)
+       VALUES (p_name, p_schedule, p_command)
+  ON CONFLICT (jobname) DO UPDATE
+          SET schedule = EXCLUDED.schedule, command = EXCLUDED.command
+    RETURNING jobid INTO v_id;
+  RETURN v_id;
+END
+$f$;
+
+CREATE OR REPLACE FUNCTION cron.unschedule(p_name TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql AS $f$
+BEGIN
+  DELETE FROM cron.job WHERE jobname = p_name;
+  RETURN FOUND;
 END
 $f$;

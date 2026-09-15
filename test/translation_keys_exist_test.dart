@@ -45,33 +45,28 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// That took this list from 69 to 21.
 ///
-/// WHAT THE REMAINING 21 ARE, and why they are a different animal. Every
-/// ledger row now has a local file. These keys are in ui_translations anyway
-/// -- all 21 confirmed present on 2026-09-15 -- which means they were inserted
-/// OUTSIDE the migration system: the Table Editor, or a statement pasted into
-/// the SQL editor. No migration created them, so no migration can recreate
-/// them, and a rebuild from an empty database would come up short by exactly
-/// these.
+/// WHAT THE REMAINING 21 WERE, and how the list reached zero. Every ledger
+/// row had a local file, but 21 keys were in ui_translations anyway -- which
+/// meant they had been inserted OUTSIDE the migration system: the Table
+/// Editor, or a statement pasted into the SQL editor. No migration created
+/// them, so no migration could recreate them, and a rebuild from an empty
+/// database would have come up short by exactly these.
 ///
-/// They are therefore not drift to be chased but a decision to be made: write
-/// one migration that inserts them (making the repo able to rebuild), or
-/// accept that the database is the only record. The first is a morning's work
-/// and is the right answer.
+/// Deleting the 22 duplicate drafts added 19 more, for 40.
 ///
-/// Listed BY NAME rather than skipped by a pattern, because the whole value of
-/// this guard is that a NEW key with no migration fails immediately. A
-/// wildcard would have swallowed village_search_by_pin along with these.
-/// Shrinking this list is progress; adding to it is not, and a new name here
-/// should be challenged rather than accepted.
-const _appliedButFileMissing = <String>{
-  'agent_asked_you_to_check_bf', 'balance', 'carried_forward', 'change_user',
-  'collect', 'day_closing', 'emi', 'existing_customers_only',
-  'existing_customers_only_off_note', 'existing_customers_only_on_note',
-  'lending_rules', 'less_than_the_instalment', 'more_than_the_instalment',
-  'no_collection', 'nothing_collected', 'paid_the_full_instalment', 'payment',
-  'penalty_adds_to_balance_note', 'sorted_by', 'tap_to_open',
-  'tap_to_open_their_record',
-};
+/// 20260915140000_restore_orphaned_translation_keys.sql inserts all forty.
+/// Its English and Telugu were read out of production by psql and written
+/// straight to the file -- see the note there. Against production it is a
+/// no-op (INSERT 0 0, confirmed); it exists so the repo can rebuild.
+///
+/// THE LIST IS NOW EMPTY, AND SHOULD STAY THAT WAY. It is kept rather than
+/// deleted because the comment above it is the argument for keeping it empty.
+/// A name added here is a key the handset renders raw on a fresh database;
+/// the fix is a migration, not an entry. Listed BY NAME rather than skipped by
+/// a pattern, because the whole value of this guard is that a NEW key with no
+/// migration fails immediately -- a wildcard would have swallowed
+/// village_search_by_pin along with these.
+const _appliedButFileMissing = <String>{};
 
 void main() {
   final migrations = Directory('supabase/migrations')

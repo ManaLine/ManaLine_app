@@ -25,73 +25,52 @@ import 'package:flutter_test/flutter_test.dart';
 /// never written -- is a separate defect, and finding one is how
 /// 20260812142822 came to be restored.
 
-/// Keys that ARE in ui_translations but whose migration file was never
-/// written locally.
+/// Keys that ARE in ui_translations but that NO migration ever created.
 ///
-/// This is the ledger drift, not a missing key: every one of these was
-/// verified present in the production ui_translations table on 2026-09-13, so
-/// none of them renders as a raw key. What is missing is the .sql file that
-/// applied it -- the same defect that had 20260812142822 restored from
-/// schema_migrations earlier the same day.
+/// Not the same thing this list held before, and the difference is the whole
+/// point of having measured it.
+///
+/// WHAT THIS WAS. On 2026-09-15 it held 69 names, described as "the ledger
+/// drift" -- keys applied to production whose .sql file was never written
+/// locally. That was measured: 421 ledger rows against 418 local files, 42
+/// applied migrations with no file.
+///
+/// WHAT HAPPENED. Seventeen of the forty-two were the same migration under a
+/// hand-written timestamp, matched by CONTENT fingerprint and renamed with
+/// `git mv`. The other twenty-five were restored from
+/// supabase_migrations.schema_migrations by tool/restore_missing_migrations.ps1
+/// -- psql writing each file directly, because 32 KB of Telugu strings retyped
+/// by hand is where a silent corruption enters and a mangled label is
+/// invisible to every guard here.
+///
+/// That took this list from 69 to 21.
+///
+/// WHAT THE REMAINING 21 ARE, and why they are a different animal. Every
+/// ledger row now has a local file. These keys are in ui_translations anyway
+/// -- all 21 confirmed present on 2026-09-15 -- which means they were inserted
+/// OUTSIDE the migration system: the Table Editor, or a statement pasted into
+/// the SQL editor. No migration created them, so no migration can recreate
+/// them, and a rebuild from an empty database would come up short by exactly
+/// these.
+///
+/// They are therefore not drift to be chased but a decision to be made: write
+/// one migration that inserts them (making the repo able to rebuild), or
+/// accept that the database is the only record. The first is a morning's work
+/// and is the right answer.
 ///
 /// Listed BY NAME rather than skipped by a pattern, because the whole value of
 /// this guard is that a NEW key with no migration fails immediately. A
 /// wildcard would have swallowed village_search_by_pin along with these.
-///
-/// The right fix is to restore the .sql files from
-/// supabase_migrations.schema_migrations, at which point entries come off this
-/// list. Shrinking it is progress; adding to it is not, and a new name here
+/// Shrinking this list is progress; adding to it is not, and a new name here
 /// should be challenged rather than accepted.
-///
-/// MEASURED 2026-09-15, so the size of this is known rather than guessed:
-/// 421 ledger rows against 418 local files, with 42 applied migrations having
-/// no file at all.
-///
-/// Seventeen of the forty-two turned out to be the same migration under a
-/// hand-written timestamp -- 20260803010000_batch_a_bf_loan_gate.sql against
-/// the stamped 20260804212717. Matched by CONTENT fingerprint rather than by
-/// name and renamed with `git mv`, so history follows them. That changed
-/// nothing on this list, because this scan reads file CONTENT: those keys
-/// were always being found, just from a file the CLI ignored.
-///
-/// The remaining twenty-five could NOT be renamed, because the applied SQL
-/// and the local file genuinely differ. batch_a_cheti_bf is the clearest: the
-/// file says `ADD COLUMN can_record_cheti`, what ran says
-/// `ADD COLUMN IF NOT EXISTS`. Renaming onto that version would make the repo
-/// claim to reproduce something it does not.
-///
-/// Eight of those twenty-five are translation migrations, and they are where
-/// every name below comes from -- the applied version carries keys the local
-/// file lacks. `tool/restore_missing_migrations.ps1` copies them back, and is
-/// a SCRIPT rather than something done by hand on purpose: it is about 32 KB
-/// of Telugu strings, and retyping those through any intermediary is exactly
-/// where a silent corruption enters. A mangled Telugu label is invisible to
-/// every guard here -- valid string, plausible length, right column -- and
-/// would reach a user looking deliberate.
 const _appliedButFileMissing = <String>{
-  'add_cheti', 'agent_asked_you_to_check_bf', 'already_availed_lumpsum',
-  'amount_availed_field', 'availed', 'availed_on', 'availed_on_note',
-  'availing_adds_to_bf_note', 'balance', 'before_migration_suffix',
-  'bf_cash_transfer_note', 'bf_transfer_confirmed_note',
-  'bf_transfer_sent_note', 'carried_forward', 'cash_out_of_bf',
-  'change_user', 'cheti_name_field', 'cheti_net_position',
-  'cheti_partway_note', 'collect', 'day_closing', 'dividend_helper',
-  'dividend_this_period_field', 'emi', 'existing_customers_only',
+  'agent_asked_you_to_check_bf', 'balance', 'carried_forward', 'change_user',
+  'collect', 'day_closing', 'emi', 'existing_customers_only',
   'existing_customers_only_off_note', 'existing_customers_only_on_note',
-  'face_value', 'face_value_field', 'final_profit', 'frequency_field',
-  'grace_period_note', 'guarantor_loan_scoped_note',
-  'instalment_amount_field', 'instalment_required_field', 'instalments',
-  'instalments_already_paid_field', 'instalments_still_to_pay_suffix',
-  'instalments_x_of_y', 'lending_rules', 'less_than_the_instalment',
-  'live_photo_note', 'more_than_the_instalment', 'net_position',
-  'no_bf_assignment_note', 'no_chetis_yet_note', 'no_collection',
-  'nothing_collected', 'opening_gap_note', 'opening_matches_note',
-  'paid_in', 'paid_the_full_instalment', 'payment',
-  'penalty_adds_to_balance_note', 'record_availing',
-  'record_availing_for_note', 'record_payment', 'record_payment_for_note',
-  'save_availing', 'save_cheti', 'save_payment', 'sorted_by', 'start_date',
-  'tap_to_open', 'tap_to_open_their_record', 'terms_body',
-  'total_already_paid_field', 'total_instalments_field', 'type_field',
+  'lending_rules', 'less_than_the_instalment', 'more_than_the_instalment',
+  'no_collection', 'nothing_collected', 'paid_the_full_instalment', 'payment',
+  'penalty_adds_to_balance_note', 'sorted_by', 'tap_to_open',
+  'tap_to_open_their_record',
 };
 
 void main() {

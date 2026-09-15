@@ -92,11 +92,52 @@ if ($files.Count -eq 0) {
 
 # --- Identify the target ------------------------------------------------------
 
+# THE PASSWORD NEVER GOES ON A COMMAND LINE.
+#
+# Both psql calls below used to take $DatabaseUrl as an argument. Two problems,
+# and the first one actually happened on 2026-09-15 in the sibling script
+# tool/restore_missing_migrations.ps1: a password containing a `$` broke
+# libpq's URI parsing, libpq then printed the mis-parsed HOST -- with the
+# password inside it -- to stderr, and this runner captures stderr and prints
+# it. A credential that only leaks when something goes wrong leaks exactly when
+# somebody is reading the output.
+#
+# Second, a command line is readable by any other process on the machine, so
+# the password was visible in the process list for the life of every call.
+#
+# Split here, handed over through PGPASSWORD, which libpq reads from the
+# environment. Percent-decoding matters: a password correctly written as %24
+# must reach libpq as `$`.
+try {
+  $dbUri = [System.Uri]$DatabaseUrl
+} catch {
+  Write-Host 'MANA_DB_URL is not a valid postgresql:// URI.' -ForegroundColor Red
+  Write-Host 'Expected: postgresql://USER:PASSWORD@HOST:PORT/DATABASE'
+  exit 2
+}
+$dbUserInfo = $dbUri.UserInfo -split ':', 2
+$dbUser = [System.Uri]::UnescapeDataString($dbUserInfo[0])
+$dbPass = if ($dbUserInfo.Count -gt 1) { [System.Uri]::UnescapeDataString($dbUserInfo[1]) } else { '' }
+$dbHost = $dbUri.Host
+$dbPort = if ($dbUri.Port -gt 0) { $dbUri.Port } else { 5432 }
+$dbName = $dbUri.AbsolutePath.TrimStart('/')
+if (-not $dbName) { $dbName = 'postgres' }
+
+if (-not $dbHost -or -not $dbUser) {
+  Write-Host 'MANA_DB_URL is missing a host or a user.' -ForegroundColor Red
+  exit 2
+}
+
+$env:PGPASSWORD = $dbPass
+
+# Connection arguments minus the credential, spliced into both calls below.
+$pgConn = @('-h', $dbHost, '-p', $dbPort, '-U', $dbUser, '-d', $dbName, '-w')
+
 function Invoke-Scalar([string]$sql) {
   $out = New-TemporaryFile
   $err = New-TemporaryFile
   $p = Start-Process -FilePath $psql `
-    -ArgumentList @('--no-psqlrc', '-t', '-A', '-v', 'ON_ERROR_STOP=1', $DatabaseUrl, '-c', $sql) `
+    -ArgumentList (@('--no-psqlrc', '-t', '-A', '-v', 'ON_ERROR_STOP=1') + $pgConn + @('-c', $sql)) `
     -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
   $value = (Get-Content $out -Raw)
   $problem = (Get-Content $err -Raw)
@@ -176,8 +217,8 @@ foreach ($file in $files) {
   $out = New-TemporaryFile
   $err = New-TemporaryFile
   $proc = Start-Process -FilePath $psql `
-    -ArgumentList @('--no-psqlrc', '--quiet', '-v', 'ON_ERROR_STOP=1',
-                    $DatabaseUrl, '-f', $file.FullName) `
+    -ArgumentList (@('--no-psqlrc', '--quiet', '-v', 'ON_ERROR_STOP=1') +
+                   $pgConn + @('-f', $file.FullName)) `
     -NoNewWindow -Wait -PassThru `
     -RedirectStandardOutput $out -RedirectStandardError $err
 

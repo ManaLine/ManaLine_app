@@ -45,22 +45,52 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
   # Where the files go. Only ever this, but overridable for a dry run.
-  [string]$MigrationsDir = "$PSScriptRoot/../supabase/migrations"
+  #
+  # Defaulted in the BODY, not here. $PSScriptRoot is empty while a param
+  # default is being evaluated under Windows PowerShell 5.1, so
+  # "$PSScriptRoot/../supabase/migrations" collapsed to "/../supabase/migrations"
+  # and resolved against the drive root -- D:\supabase\migrations, which does
+  # not exist. The .env read further down uses $PSScriptRoot successfully
+  # because that runs in the body, where it is populated.
+  [string]$MigrationsDir
 )
 
 $ErrorActionPreference = 'Stop'
 
+# .env is the documented home for anything that must not be committed --
+# CLAUDE.md: "Put those in .env (already ignored)" -- and it is line 171 of
+# .gitignore. Read here so the connection string can live in one place rather
+# than being re-exported into every new shell.
+#
+# Only MANA_DB_URL is taken. This is not a general .env loader, because a
+# script that quietly imports every name in a file is a script that can be
+# handed a PATH.
+$envFile = Join-Path $PSScriptRoot '../.env'
+if (-not $env:MANA_DB_URL -and (Test-Path $envFile)) {
+  foreach ($line in Get-Content $envFile) {
+    if ($line -match '^\s*MANA_DB_URL\s*=\s*(.+?)\s*$') {
+      $env:MANA_DB_URL = $Matches[1].Trim().Trim('"').Trim("'")
+      Write-Host 'Read MANA_DB_URL from .env'
+      break
+    }
+  }
+}
+
 if (-not $env:MANA_DB_URL) {
   Write-Error @'
-MANA_DB_URL is not set.
+MANA_DB_URL is not set, and .env does not carry it either.
 
-It is deliberately not in this repo. Take the connection string from the
-Supabase dashboard (Project Settings -> Database -> Connection string, URI),
-and set it for this shell only:
+Take the connection string from the Supabase dashboard (Project Settings ->
+Database -> Connection string, URI) and put it in .env at the repo root:
 
-  $env:MANA_DB_URL = 'postgresql://...'
+  MANA_DB_URL=postgresql://...
 
-Do not put it in run.ps1.txt, .claude/launch.json, or any other tracked file.
+.env is git-ignored (.gitignore line 171) and is where CLAUDE.md says anything
+uncommittable belongs. Do NOT put it in run.ps1.txt or .claude/launch.json --
+both are tracked.
+
+If the password contains : / ? # [ ] @ or %, percent-encode it in the URI --
+$ becomes %24, @ becomes %40. This script decodes them again before use.
 '@
   exit 2
 }
@@ -69,6 +99,54 @@ if (-not (Get-Command psql -ErrorAction SilentlyContinue)) {
   Write-Error 'psql is not on PATH. Install the PostgreSQL client tools, or run this from a machine that has them.'
   exit 2
 }
+
+if (-not $MigrationsDir) {
+  $MigrationsDir = Join-Path $PSScriptRoot '../supabase/migrations'
+}
+if (-not (Test-Path $MigrationsDir)) {
+  Write-Error "Migrations directory not found: $MigrationsDir"
+  exit 2
+}
+# THE PASSWORD NEVER GOES ON A COMMAND LINE OR INTO A URI.
+#
+# The first version handed psql the whole connection URI. A password containing
+# a `$` broke libpq's URI parsing, which then printed the mis-parsed HOST --
+# with the password inside it -- into stderr, and from there into a terminal
+# and a chat log. A credential that only leaks when something goes wrong is a
+# credential that leaks exactly when somebody is watching the output.
+#
+# So the URI is split here and the password is handed over through PGPASSWORD,
+# which libpq reads from the environment. That also keeps it out of the process
+# list, where a command line is readable by any other process on the machine.
+#
+# Percent-decoding matters: a password written correctly as %24 in the URI must
+# reach libpq as `$`.
+Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
+try {
+  $uri = [System.Uri]$env:MANA_DB_URL
+} catch {
+  Write-Error 'MANA_DB_URL is not a valid postgresql:// URI. Expected: postgresql://USER:PASSWORD@HOST:PORT/DATABASE'
+  exit 2
+}
+$userInfo = $uri.UserInfo -split ':', 2
+$pgUser = [System.Uri]::UnescapeDataString($userInfo[0])
+$pgPass = if ($userInfo.Count -gt 1) { [System.Uri]::UnescapeDataString($userInfo[1]) } else { '' }
+$pgHost = $uri.Host
+$pgPort = if ($uri.Port -gt 0) { $uri.Port } else { 5432 }
+$pgDb   = $uri.AbsolutePath.TrimStart('/')
+if (-not $pgDb) { $pgDb = 'postgres' }
+
+if (-not $pgHost -or -not $pgUser) {
+  Write-Error 'MANA_DB_URL is missing a host or a user.'
+  exit 2
+}
+
+# Only this leaves the script. Never $pgPass.
+Write-Host "Connecting to $pgHost as $pgUser (database $pgDb)"
+$env:PGPASSWORD = $pgPass
+
+# psql arguments, minus the credential. Reused by every call below.
+$psqlArgs = @('-h', $pgHost, '-p', $pgPort, '-U', $pgUser, '-d', $pgDb, '-w')
 
 $MigrationsDir = (Resolve-Path $MigrationsDir).Path
 Write-Host "Migrations directory: $MigrationsDir"
@@ -83,10 +161,14 @@ Get-ChildItem -Path $MigrationsDir -Filter '*.sql' | ForEach-Object {
 Write-Host "Local files: $($local.Count)"
 
 # Versions and names only -- small, and enough to decide what to fetch.
-$rows = & psql $env:MANA_DB_URL -At -F '|' -c @'
+$rows = & psql @psqlArgs -At -F '|' -c @'
 select version, name from supabase_migrations.schema_migrations order by version;
 '@
-if ($LASTEXITCODE -ne 0) { Write-Error 'Could not read the ledger.'; exit 1 }
+if ($LASTEXITCODE -ne 0) {
+  $env:PGPASSWORD = ''
+  Write-Error 'Could not read the ledger. Check the host, user and password in .env.'
+  exit 1
+}
 
 $missing = @()
 foreach ($row in $rows) {
@@ -114,17 +196,28 @@ foreach ($m in $missing) {
   # is joined with a blank line between entries, which is how a multi-statement
   # migration reads back as a file rather than as one enormous line.
   #
-  # Straight to the file. The contents never pass through a variable, a
-  # console, or anything that might re-encode them -- these are UTF-8 Telugu
-  # strings and every extra hop is a chance to mangle one.
+  # -o: PSQL WRITES THE FILE. PowerShell never holds the bytes.
+  #
+  # The first version piped psql into `Set-Content -NoNewline`. PowerShell
+  # captures a native command's stdout as an ARRAY OF LINES, and -NoNewline
+  # then joins that array with nothing at all -- so every newline in the
+  # migration vanished and each file arrived as one enormous line. Valid SQL,
+  # because SQL is whitespace-insensitive, and unreadable by a person.
+  #
+  # Set-Content -Encoding utf8 on Windows PowerShell 5.1 also prepends a BOM,
+  # which has no business at the start of a .sql file.
+  #
+  # Letting psql write the file solves both, and is what "copies bytes" was
+  # supposed to mean in the first place.
   $sql = "select array_to_string(statements, E'\n\n') from supabase_migrations.schema_migrations where version = '$($m.Version)';"
-  & psql $env:MANA_DB_URL -At -c $sql | Set-Content -Path $file -Encoding utf8 -NoNewline
+  & psql @psqlArgs -At -o $file -c $sql
 
   if ($LASTEXITCODE -ne 0) { Write-Error "Failed on $($m.Version)"; exit 1 }
-  Add-Content -Path $file -Value "`n" -Encoding utf8
   Write-Host "  wrote $(Split-Path $file -Leaf)"
   $written++
 }
+
+$env:PGPASSWORD = ''
 
 Write-Host ''
 Write-Host "Restored $written file(s)."

@@ -77,7 +77,12 @@ DECLARE
 BEGIN
   INSERT INTO persons (mlid, mlid_type, gender_digit, full_name, father_husband_name,
                        registration_source, customer_type)
-  VALUES ('MLPI1WKLEDGER01', 'MLPI', '1', 'WK Ledger Owner', 'WK Father', 'System', 'New')
+  -- persons.mlid is varchar(13) and a real one is exactly that: MLPI + the
+  -- gender digit + eight. 'MLPI1WKLEDGER01' was fifteen, and this file had
+  -- never been executed, so nothing had ever said so -- the first run against
+  -- a rebuilt database died here on 22001 before a single assertion ran.
+  -- 99xxxxxx is used because no issued MLID reaches it.
+  VALUES ('MLPI199000001', 'MLPI', '1', 'WK Ledger Owner', 'WK Father', 'System', 'New')
   RETURNING person_id INTO v_person;
 
   -- migration_locked defaults false, which is what app.migration_assert_open

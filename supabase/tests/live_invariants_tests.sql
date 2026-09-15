@@ -160,7 +160,24 @@ DO $$
 DECLARE
     v_count INT;
     v_bad TEXT;
+    v_directory INT;
 BEGIN
+    -- lgd_villages is 768,529 rows loaded from a workbook kept outside the
+    -- repo; no migration carries them. On a database rebuilt from migrations
+    -- alone the directory is EMPTY, and then every state is "absent" and this
+    -- reports 10,688 typos where there are none. It said exactly that on
+    -- 2026-09-15, the first time the suite ran against a rebuilt schema.
+    --
+    -- The question this asks is about the DATA, and it cannot be asked until
+    -- the reference exists. Skipping says so; passing would be a lie in the
+    -- one direction that matters, since a genuine typo would then go unseen
+    -- wherever somebody ran this against a fresh database.
+    SELECT count(*) INTO v_directory FROM lgd_villages;
+    IF v_directory = 0 THEN
+        RAISE NOTICE 'SKIP [DATA] (BR-013) the LGD village directory is empty, so a state cannot be checked against it';
+        RETURN;
+    END IF;
+
     SELECT count(*), string_agg(DISTINCT l.state, ', ')
       INTO v_count, v_bad
       FROM locations l

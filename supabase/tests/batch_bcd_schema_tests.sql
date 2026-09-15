@@ -149,28 +149,53 @@ END $$;
 DO $$
 DECLARE
   v_person BIGINT;
+  v_village UUID;
   v_rejected BOOLEAN := FALSE;
 BEGIN
   BEGIN
-    INSERT INTO persons (mlid, mlid_type, gender_digit, full_name, father_husband_name, registration_source, customer_type)
-    VALUES ('MLTI9BCDTEST1', 'MLTI', '0', 'QA BCD Person', 'QA Father', 'System', 'New')
+    -- person_addresses requires pin_code, village_id, mandal, district, state
+    -- and from_date, and village_id references locations, so the village has
+    -- to exist before the address does. This fixture supplied none of them:
+    -- the FIRST address insert died on 23502 and the second -- the one
+    -- actually under test -- never ran, so the suite reported the partial
+    -- unique index missing for as long as the file had existed. It is there,
+    -- in production and in a rebuild alike, and the assertion two blocks above
+    -- had been saying so the whole time.
+    INSERT INTO locations (pin_code, village_town_name, area_type, mandal, district, state)
+    VALUES ('500001', 'QA BCD Village', 'Village', 'QA Mandal', 'QA District', 'Telangana')
+    RETURNING location_id INTO v_village;
+
+    -- mobile_number is not optional here: persons_mlti_needs_hard_key requires
+    -- an MLTI row to carry an Aadhaar hash, a mobile number, is_migrated, or
+    -- Deleted status. Without one the person insert throws 23514 and every
+    -- address assertion below becomes a false report about the address table.
+    INSERT INTO persons (mlid, mlid_type, gender_digit, full_name, father_husband_name, registration_source, customer_type, mobile_number)
+    VALUES ('MLTI9BCDTEST1', 'MLTI', '0', 'QA BCD Person', 'QA Father', 'System', 'New', '9000000001')
     RETURNING person_id INTO v_person;
 
-    -- First current address — fine.
-    INSERT INTO person_addresses (person_id, door_no, village_id, from_date, is_current)
-    VALUES (v_person, '1', NULL, CURRENT_DATE, TRUE);
+    -- pin_code is NOT NULL, and omitting it is why this assertion reported the
+    -- index missing on 2026-09-15: the FIRST insert died on 23502, the outer
+    -- handler below swallowed it, and v_rejected stayed FALSE -- which reads
+    -- exactly like "the partial unique index is not there". It is there, in
+    -- production and in a rebuild alike. The test never reached it.
+    --
+    -- The outer handler now records WHY it caught something instead of
+    -- discarding it. A fixture that fails silently turns every assertion after
+    -- it into a false report about the schema.
+    INSERT INTO person_addresses (person_id, door_no, pin_code, village_id, mandal, district, state, from_date, is_current)
+    VALUES (v_person, '1', '500001', v_village, 'QA Mandal', 'QA District', 'Telangana', CURRENT_DATE, TRUE);
 
     -- Second current address for the SAME person — must violate
     -- uq_person_addresses_one_current.
     BEGIN
-      INSERT INTO person_addresses (person_id, door_no, village_id, from_date, is_current)
-      VALUES (v_person, '2', NULL, CURRENT_DATE, TRUE);
+      INSERT INTO person_addresses (person_id, door_no, pin_code, village_id, mandal, district, state, from_date, is_current)
+      VALUES (v_person, '2', '500001', v_village, 'QA Mandal', 'QA District', 'Telangana', CURRENT_DATE, TRUE);
       -- Fell through: constraint missing.
     EXCEPTION WHEN unique_violation THEN
       v_rejected := TRUE;
     END;
   EXCEPTION WHEN OTHERS THEN
-    NULL; -- person insert failed; report as FAIL below
+    RAISE WARNING 'the one-current-address fixture could not be built: % (%)', SQLERRM, SQLSTATE;
   END;
   PERFORM pg_temp.bcd_log('loc', 'BR-225', 'second is_current address for one person is rejected (partial unique index fires)', v_rejected);
 END $$;

@@ -518,12 +518,40 @@ SELECT pg_temp.ram_assert_count('loans', format('loan_id = %L', pg_temp.fid('loa
 -- penalty_entries: can_apply_penalty is OFF by default (BR-236) — confirm
 -- an Agent WITHOUT that flag explicitly enabled is rejected on INSERT even
 -- though they otherwise have full customer/loan visibility.
+-- THE FLAG IS SET EXPLICITLY, and it did not used to be.
+--
+-- This asserted that an Agent could not write a penalty "while
+-- can_apply_penalty is FALSE, the default". It is not the default. The column
+-- is `BOOLEAN NOT NULL DEFAULT TRUE`, the fixture above never names it, so the
+-- Agent had the permission and the policy correctly let the write through --
+-- and the suite reported that as RLS failing to enforce a rule it was in fact
+-- enforcing. Found on 2026-09-15, the first time this file ran.
+--
+-- Setting it here makes the test prove the POLICY rather than the default,
+-- which is what an access-matrix file is for.
+--
+-- THE DEFAULT ITSELF IS A SEPARATE, OPEN QUESTION, and a real one: 10 of 13
+-- agent permission profiles in production have can_apply_penalty TRUE, and no
+-- Owner chose it -- the column default did. Two comments in lib/ state the
+-- opposite ("off by default, BR-236"), and BR-236 in
+-- docs/01_Global_Rules_Guide.md is "No Renewal Linking", so the citation is
+-- wrong in all three places. Whether the default should be FALSE is a business
+-- decision on a money path and is not made here.
+DO $$
+BEGIN
+    SET LOCAL ROLE postgres;
+    UPDATE agent_permissions SET can_apply_penalty = FALSE
+     WHERE agent_id IN (SELECT a.agent_id FROM agents a
+                         WHERE a.person_id = pg_temp.fid('agent_a')::BIGINT);
+    RESET ROLE;
+END $$;
+
 DO $$ BEGIN PERFORM pg_temp.ram_login(pg_temp.fid('agent_a')::BIGINT); END $$;
 SELECT pg_temp.ram_assert_write(
     format('INSERT INTO penalty_entries (loan_id, penalty_option, penalty_value, penalty_amount_applied, applied_by_person_id, business_date)
             VALUES (%L, ''Flat Amount'', 100, 100, %L, CURRENT_DATE)', pg_temp.fid('loan_a'), pg_temp.fid('agent_a')),
-    FALSE, 'penalty_entries', 'Agent (can_apply_penalty=FALSE, the default)', 'NEGATIVE', 'BR-236',
-    'Agent A cannot INSERT a penalty_entries row while can_apply_penalty is FALSE — BR-236 default-off must be enforced even for an otherwise fully-permissioned Agent'
+    FALSE, 'penalty_entries', 'Agent (can_apply_penalty switched OFF)', 'NEGATIVE', 'schema §3.x + agent_permission()',
+    'Agent A cannot INSERT a penalty_entries row once can_apply_penalty is FALSE, even though they are otherwise fully permissioned on this customer'
 );
 
 -- =============================================================================
@@ -578,9 +606,25 @@ DO $$
 DECLARE v_ledger UUID;
 BEGIN
     SET LOCAL ROLE postgres;
-    INSERT INTO day_ledger (business_id, business_date, opening_balance, total_collections, total_loan_distribution,
-                            investor_deposits, investor_withdrawals, total_expenses, closing_balance, status)
-    VALUES (pg_temp.fid('biz_a')::UUID, CURRENT_DATE, 10000, 500, 0, 0, 0, 0, 10500, 'Open') RETURNING ledger_id INTO v_ledger;
+    -- day_ledger is RECOMPUTED, never inserted by hand: triggers on the eight
+    -- source tables call app.recompute_day_ledger(), which rebuilds the day
+    -- from scratch. The collection this file creates a few blocks above
+    -- therefore already made today's row, and a plain INSERT here died on
+    -- uq_day_ledger_business_date and took the rest of the file with it --
+    -- which is how the first ever run of this suite ended at line 586 with
+    -- forty assertions never reached.
+    --
+    -- This test only needs A row to point RLS assertions at, so it takes the
+    -- one that is there. The figures are not asserted on; visibility is.
+    SELECT ledger_id INTO v_ledger
+      FROM day_ledger
+     WHERE business_id = pg_temp.fid('biz_a')::UUID AND business_date = CURRENT_DATE;
+
+    IF v_ledger IS NULL THEN
+        INSERT INTO day_ledger (business_id, business_date, opening_balance, total_collections, total_loan_distribution,
+                                investor_deposits, investor_withdrawals, total_expenses, closing_balance, status)
+        VALUES (pg_temp.fid('biz_a')::UUID, CURRENT_DATE, 10000, 500, 0, 0, 0, 0, 10500, 'Open') RETURNING ledger_id INTO v_ledger;
+    END IF;
     RESET ROLE;
     INSERT INTO ram_fixture_ids VALUES ('ledger_a', v_ledger::TEXT);
 END $$;

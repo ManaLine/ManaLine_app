@@ -403,11 +403,17 @@ END $$;
 -- digit domain and a self-referential distinctness check on duplicate_suspects.
 -- =============================================================================
 DO $$ BEGIN
+-- 0 Female, 1 Male, 2 Others. This asserted that '2' was rejected until
+-- 2026-09-15, which had been wrong since 20260817140611_migration_wizard_core
+-- widened the CHECK to add Others for the pre-existing-business wizard. The
+-- file had never been executed, so nothing said so for a month: a test that
+-- does not run cannot go stale loudly, only quietly. '3' is the value that
+-- must still be refused.
 PERFORM pg_temp.si_expect_violation(
     'CHECK', 'schema §0.1 / BR-181/182',
-    'persons.gender_digit rejects a value outside 0/1',
+    'persons.gender_digit rejects a value outside 0/1/2',
     $f$INSERT INTO persons (mlid, mlid_type, gender_digit, full_name, father_husband_name, registration_source, customer_type)
-       VALUES ('MLPI2TESTCK01', 'MLPI', '2', 'QA Check Fixture', 'QA Father', 'System', 'New')$f$,
+       VALUES ('MLPI3TESTCK01', 'MLPI', '3', 'QA Check Fixture', 'QA Father', 'System', 'New')$f$,
     '23514'
 );
 END $$;
@@ -435,12 +441,25 @@ END $$;
 -- of these).
 -- =============================================================================
 DO $$ BEGIN
+-- A NULL full_name never reaches the NOT NULL constraint, and asserting 23502
+-- here was asserting something that cannot happen. trg_sync_person_name is a
+-- BEFORE INSERT trigger that composes the name from surname and given_name:
+--
+--   NEW.full_name := btrim(COALESCE(NEW.surname,'') || ' ' || COALESCE(NEW.given_name,''))
+--
+-- With all three NULL that is btrim(' '), i.e. ''. The column is satisfied and
+-- the row is a person with no name -- which on a collection screen is a blank
+-- where a name should be, and is exactly what BR-224 is about. The NOT NULL
+-- was never the guard anybody thought it was.
+--
+-- persons_full_name_not_blank now closes it (20260915141500). Production held
+-- zero blank names when it was added, so nothing existing had to be repaired.
 PERFORM pg_temp.si_expect_violation(
-    'NOT NULL', 'schema §0.1',
-    'persons.full_name (mandatory, "no nickname field" BR-224) rejects NULL',
+    'CHECK', 'schema §0.1',
+    'persons.full_name (mandatory, "no nickname field" BR-224) rejects a name that is blank after the name-sync trigger has run',
     $f$INSERT INTO persons (mlid, mlid_type, gender_digit, full_name, father_husband_name, registration_source, customer_type)
        VALUES ('MLPI1ESTNN001', 'MLPI', '1', NULL, 'QA Father', 'System', 'New')$f$,
-    '23502'
+    '23514'
 );
 END $$;
 

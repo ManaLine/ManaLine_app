@@ -133,14 +133,29 @@ $env:PGPASSWORD = $dbPass
 # Connection arguments minus the credential, spliced into both calls below.
 $pgConn = @('-h', $dbHost, '-p', $dbPort, '-U', $dbUser, '-d', $dbName, '-w')
 
+function Read-AllText($path) {
+  $t = Get-Content $path -Raw
+  if ($null -eq $t) { '' } else { $t }
+}
+
 function Invoke-Scalar([string]$sql) {
   $out = New-TemporaryFile
   $err = New-TemporaryFile
   $p = Start-Process -FilePath $psql `
     -ArgumentList (@('--no-psqlrc', '-t', '-A', '-v', 'ON_ERROR_STOP=1') + $pgConn + @('-c', $sql)) `
     -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
-  $value = (Get-Content $out -Raw)
-  $problem = (Get-Content $err -Raw)
+  # Get-Content -Raw on an EMPTY file yields $null, and .Trim() was being
+  # called on it straight away -- so a query that printed nothing killed the
+  # whole runner with "You cannot call a method on a null-valued expression":
+  # no file name, no SQL, no line of its own. The runner reporting a null
+  # reference instead of a test result is the least useful failure available.
+  #
+  # `[string](Get-Content ...)` does NOT fix this in Windows PowerShell 5.1.
+  # An empty file produces no pipeline output at all, so the cast has nothing
+  # to convert and the variable stays $null. Verified by running it. The only
+  # thing that works is an explicit test.
+  $value = Read-AllText $out
+  $problem = Read-AllText $err
   Remove-Item $out, $err -Force
   if ($p.ExitCode -ne 0) { return @{ ok = $false; error = $problem } }
   return @{ ok = $true; value = $value.Trim() }
@@ -222,8 +237,8 @@ foreach ($file in $files) {
     -NoNewWindow -Wait -PassThru `
     -RedirectStandardOutput $out -RedirectStandardError $err
 
-  $stderr = Get-Content $err -Raw
-  $stdout = Get-Content $out -Raw
+  $stderr = Read-AllText $err
+  $stdout = Read-AllText $out
   Remove-Item $out, $err -Force
   Remove-Item Env:PGOPTIONS -ErrorAction SilentlyContinue
 

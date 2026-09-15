@@ -61,6 +61,7 @@ dependencies:
   # not be built at all. Found by building, not by analyzing -- which is the
   # whole argument for CI's second job.
   sentry_flutter: 9.30.0
+  sqflite: ^2.4.4
 
   # Offline sync layer (see mana_line_offline_sync package delivered earlier)
   # mana_line_offline_sync:
@@ -75,6 +76,7 @@ dev_dependencies:
   # test/location_api_service_test.dart can fake the HTTP layer SupabaseClient
   # sends requests through, rather than hitting the network.
   http: ^1.2.0
+  sqflite_common_ffi: ^2.4.3
 
 flutter_launcher_icons:
   android: true

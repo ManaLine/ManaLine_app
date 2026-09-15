@@ -18,6 +18,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// unrecognised failure costs one wasted round trip if the server did answer,
 /// and saves a lost collection if it did not. Treating the unknown as a
 /// refusal has the opposite payoff: it strands real money.
+class _KnownRefusal implements ManaOutboxRefusalError {
+  const _KnownRefusal();
+  @override
+  String get refusalMessage =>
+      'This loan already has an entry for this collection window.';
+}
+
 void main() {
   group('the server answered', () {
     test('a plpgsql refusal is a refusal', () {
@@ -39,6 +46,20 @@ void main() {
           sentence,
           reason: 'these sentences are written to be read by a person, and '
               'they are the only thing telling the agent what to do next');
+    });
+  });
+
+  group('a refusal the client itself can see', () {
+    test('a ManaOutboxRefusalError is never retried', () {
+      // The classifier's default is `transport`, which is right for anything
+      // unrecognised. But a refusal the CLIENT already knows about -- the
+      // server answering "this loan already has an entry for this window" --
+      // would otherwise be retried forever against a server that will keep
+      // giving the same answer until the day closes.
+      expect(manaClassifyOutboxFailure(const _KnownRefusal()),
+          ManaOutboxFailure.refusal);
+      expect(manaOutboxFailureMessage(const _KnownRefusal()),
+          'This loan already has an entry for this collection window.');
     });
   });
 

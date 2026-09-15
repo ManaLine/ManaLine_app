@@ -17,6 +17,17 @@ enum ManaOutboxFailure {
   transport,
 }
 
+/// Something the app itself knows the server has decided.
+///
+/// The classifier's default is `transport`, which is right for anything
+/// unrecognised -- but a refusal the CLIENT can see, such as the server
+/// answering "this loan already has an entry for this window", would otherwise
+/// be retried forever against a server that will keep saying the same thing.
+/// Implementing this says "do not retry me" in the one place that decides.
+abstract class ManaOutboxRefusalError implements Exception {
+  String get refusalMessage;
+}
+
 /// SQLSTATEs are five characters: five digits, or a letter and four
 /// alphanumerics (`P0002`, `23514`, `42501`). An HTTP status is three digits.
 /// That is enough to tell a plpgsql `RAISE EXCEPTION` from a gateway.
@@ -32,6 +43,7 @@ final _sqlState = RegExp(r'^[0-9A-Z][0-9A-Z]{4}$');
 /// `refusal` has the opposite payoff: it strands somebody's money on a
 /// handset.
 ManaOutboxFailure manaClassifyOutboxFailure(Object error) {
+  if (error is ManaOutboxRefusalError) return ManaOutboxFailure.refusal;
   if (error is TimeoutException) return ManaOutboxFailure.transport;
   // NO `dart:io` HERE, so no `error is SocketException`. dart:io is a stub on
   // web that throws on use, and this app has a web build -- importing it
@@ -62,6 +74,7 @@ ManaOutboxFailure manaClassifyOutboxFailure(Object error) {
 /// collection window", "No BF assignment for this agent". Replacing them with
 /// "Could not save" throws away the only thing that says what to do next.
 String manaOutboxFailureMessage(Object error) {
+  if (error is ManaOutboxRefusalError) return error.refusalMessage;
   if (error is PostgrestException) return error.message;
   if (error is TimeoutException) return 'No answer from the server';
   // SocketException is matched by NAME rather than by type, for the dart:io

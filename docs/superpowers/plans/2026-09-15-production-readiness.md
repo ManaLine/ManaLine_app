@@ -403,6 +403,12 @@ The call must not change what the user sees, must not await in a way that delays
 
 ### Task 5: Decide on analytics, in writing
 
+> **DONE 2026-09-15** — no SDK. `migration_furthest_step` and
+> `migration_step_touched_at` on `businesses`, written by
+> `app.set_migration_wizard_step` (migration `20260915133840`), verified in a
+> rolled-back transaction. Most of what an SDK would report, SQL reports
+> better — already in India, already under RLS.
+
 > **DRAFTED 2026-09-15** at `docs/decisions/2026-09-15-analytics.md`, awaiting
 > three answers. Short version: most of what an analytics SDK would tell you, a
 > SQL query over `businesses`/`loans`/`collections` tells you better, already in
@@ -516,6 +522,16 @@ Task 6 is approved. This can start.
 
 ### Task 8: Run the five SQL test files that have never executed
 
+> **ANSWERED 2026-09-15, and the answer is no.** `tool/verify_rebuild.ps1`
+> makes its own disposable Postgres cluster — `initdb` was already installed,
+> so no Pro branch and no Docker were needed. The rebuild stops after 23 of
+> 443 migrations. Two enum types and one table exist in production and in NO
+> migration (now in `supabase/rebuild_bootstrap.sql`); a fourth failure is a
+> real defect left open by decision — module16 uses CREATE OR REPLACE on a
+> function whose return type changed. **The five scratch files still have not
+> run**, because an empty database carrying the schema still cannot be built.
+> Full account in `supabase/MIGRATIONS.md`.
+
 **Files:**
 - Modify: `tool/run_sql_tests.ps1` (only if it blocks)
 - Create: `docs/decisions/2026-09-15-sql-scratch-target.md`
@@ -573,6 +589,13 @@ challenged.
 
 ### Task 10: Settle the language claim
 
+> **DONE 2026-09-15 — the columns stay.** The claim was already honest in
+> README and site/index.html; one stale phrase fixed. The picker offers only
+> English and Telugu, so no user can reach an 11%-complete language, and all
+> 98 people in production are on English. Dropping the three columns is
+> destructive and buys nothing. `test/language_completeness_guard_test.dart`
+> holds all of it.
+
 **Files:**
 - Modify: `CLAUDE.md`, `README.md`
 - Or: new migrations completing Hindi, Tamil and Kannada
@@ -595,6 +618,14 @@ into a plan and nearly onto a public website.
 
 ### Task 11: Rotate the credentials that are known-live
 
+> **MEASURED 2026-09-15, rotation is the Owner's.** Nothing is plaintext —
+> every password and PIN is bcrypt, zero exceptions. But the admin password is
+> still `siri1234` AND so is every one of the 11 person passwords: twelve
+> accounts on one credential. Reported rather than rotated, because setting a
+> password the holder does not know locks them out. A hashed-at-rest invariant
+> now runs in `live_invariants_tests.sql`; a weak-password check is refused on
+> purpose, since it would have to name the credential in a tracked file.
+
 **Files:** none in this repo.
 
 Recorded in memory as outstanding: the admin password is `siri1234` on
@@ -608,6 +639,14 @@ with the old credential and reading the refusal.
 ---
 
 ### Task 12: Visual identity
+
+> **DIRECTION PROPOSED 2026-09-15**, at
+> `docs/decisions/2026-09-15-visual-identity.md`, which is what this task asks
+> for. Grounded in looking at the running app, not in theory: content sits in
+> the top 45% of the screen on a one-handed app where the thumb is at the
+> bottom. The signature is **the line** — the app's own word for both the round
+> an agent walks and the ruled column of the ledger it replaces. Applying it is
+> deliberately a separate pass, starting with one screen.
 
 **Files:** `lib/design/` throughout.
 

@@ -274,11 +274,40 @@ must not turn the read-only session off. And when `MANA_DB_URL` is set it
 shells out to the runner and asserts a zero exit; when it is not, it
 **prints a skip** rather than passing quietly.
 
-**Still uncovered, and known:** the five scratch files have still never
-executed, because that needs a database with no books in it and branching is
-a Pro-plan feature; the `production` file has run, and passes. Judgement
-regressions — correct code that reads as broken — have no guard at all and
-are found on the handset.
+**They have all run, as of 2026-09-15.** `pwsh tool/verify_rebuild.ps1` makes
+a disposable Postgres cluster on port 5433 with trust auth — no password, no
+Docker, and it cannot reach production because it makes its own server — and
+all 427 migrations now apply to it cleanly. That cluster is the database with
+no books in it, so the five scratch files finally have a target:
+
+```bash
+pwsh tool/verify_rebuild.ps1 -Keep
+$env:MANA_DB_URL = 'postgresql://postgres@localhost:5433/mana_rebuild'
+pwsh tool/run_sql_tests.ps1 -AllowNonEmpty
+```
+
+**On their first execution, six of the seven failures were the tests.** Each
+had been reporting the schema as broken: a 15-character MLID into a
+`varchar(13)`; a `gender_digit` assertion stale since Others was added a month
+earlier; an address fixture five NOT NULL columns short, whose own error a bare
+`WHEN OTHERS THEN NULL` swallowed, so it read as the partial unique index being
+absent when the assertion two blocks above had just confirmed it present; a
+`day_ledger` row inserted by hand when `day_ledger` is recomputed, never
+incremented; and a penalty assertion that had a column default backwards, so it
+reported RLS failing to enforce a rule RLS was enforcing.
+
+**A test that has never run does not go stale loudly.** It goes stale quietly,
+and then reports the schema as broken — which is worse than not existing,
+because somebody will go looking for the wrong bug. Treat a first execution as
+finding defects in the test, not in the system, until proven otherwise.
+
+**The seventh is real and is open:** SP-001 business suspension is enforced in
+neither layer. No RLS policy references `business_status`, and
+`lib/shared/business_suspension_gate.dart` — written for exactly this — has no
+callers.
+
+Judgement regressions — correct code that reads as broken — still have no guard
+at all and are found on the handset.
 
 Two things came off this list on 2026-09-04, both the same failure: CREATE
 says yes to almost anything inside a plpgsql body, and the first invocation

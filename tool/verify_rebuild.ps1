@@ -114,10 +114,47 @@ if (Test-Path $data) {
 }
 Write-Host 'Creating a disposable cluster...'
 & "$PgBin\initdb.exe" -D $data -U postgres --auth=trust --encoding=UTF8 2>&1 | Out-Null
-# The call operator, not Start-Process: -ArgumentList splits "-p 5433" on the
-# space and pg_ctl then reads 5433 as its operation mode. pg_ctl start returns
-# once the postmaster is up, so nothing needs to wait on it.
-& "$PgBin\pg_ctl.exe" -D $data -o "-p $Port" -l "$data\log.txt" -w start 2>&1 | Out-Null
+# THE SERVER IS STARTED DIRECTLY, NOT THROUGH pg_ctl.
+#
+# pg_ctl start cannot be called from this script on Windows. Measured rather
+# than reasoned about, after two wrong fixes -- initdb finishes in 8.4s, and
+# every one of these never returned at all:
+#
+#   & pg_ctl ... | Out-Null                 the surviving postmaster inherits
+#                                           the pipeline handle; Out-Null waits
+#                                           for a writer that never closes
+#   & pg_ctl ... *> $null                   still hangs: pg_ctl start blocks
+#                                           whenever its output is redirected,
+#                                           null device included
+#   Start-Process pg_ctl -NoNewWindow -Wait waits on the process tree, and the
+#                                           postmaster is in it
+#
+# The symptom is what made this expensive: the script sits on "Creating a
+# disposable cluster..." while a perfectly healthy server accepts connections
+# beside it, so every instinct blames the database. Earlier runs of this script
+# appeared to work only because a previous -Keep had left a cluster already
+# running on the port.
+#
+# postgres.exe IS the server, so there is no wrapper to out-wait. It is started
+# without -Wait (waiting on a server is a category error) and then POLLED until
+# it answers, which is the thing actually being waited for.
+Start-Process -FilePath "$PgBin\postgres.exe" `
+  -ArgumentList "-D `"$data`" -p $Port" `
+  -NoNewWindow `
+  -RedirectStandardOutput "$data\stdout.log" `
+  -RedirectStandardError "$data\log.txt" | Out-Null
+
+$ready = $false
+$deadline = (Get-Date).AddSeconds(60)
+while (-not $ready -and (Get-Date) -lt $deadline) {
+  Start-Sleep -Milliseconds 500
+  & "$PgBin\psql.exe" -h localhost -p $Port -U postgres -d postgres -w -At -c 'select 1' *> $null
+  $ready = ($LASTEXITCODE -eq 0)
+}
+if (-not $ready) {
+  Write-Error "The cluster did not accept a connection within 60s. See $data\log.txt"
+  exit 1
+}
 
 $up = Psql 'postgres' @('-At', '-c', 'select 1')
 if ($LASTEXITCODE -ne 0) {

@@ -228,6 +228,19 @@ class CustomerApiService {
     double? gpsLatitude,
     double? gpsLongitude,
     double? gpsAccuracyM,
+    /// True only on the pre-existing-business paths.
+    ///
+    /// A customer copied out of a paper ledger may have neither a phone nor an
+    /// Aadhaar number, and app.mint_person_mlid issues an MLTI -- a TEMPORARY
+    /// identity -- when there is no Aadhaar. persons_mlti_needs_hard_key then
+    /// requires one of aadhaar_hash / mobile_number / is_migrated, so without
+    /// this the insert died on a raw Postgres constraint name shown to an
+    /// Owner at a doorstep.
+    ///
+    /// Not a client-side permission: the RPC checks app.is_owner() and
+    /// app.migration_assert_open() before honouring it, so passing true on a
+    /// business whose migration is closed is refused exactly as before.
+    bool migrationEntry = false,
   }) async {
     if (existingPersonId != null) {
       // Linking an already-existing person -- business_members/customers
@@ -272,8 +285,19 @@ class CustomerApiService {
     // app.register_new_customer (0045) -- handling persons +
     // person_addresses + business_members + customers together, with
     // Aadhaar optional (MLPI if given, MLTI if not).
-    if (fullName == null || fatherHusbandName == null || genderDigit == null || mobileNumber == null) {
-      throw ArgumentError('fullName/fatherHusbandName/genderDigit/mobileNumber are required to create a new identity.');
+    if (fullName == null || fatherHusbandName == null || genderDigit == null) {
+      throw ArgumentError('fullName/fatherHusbandName/genderDigit are required to create a new identity.');
+    }
+    // mobileNumber came off this list because it never guarded anything: the
+    // form sends '' rather than null when the field is blank, so a customer
+    // with no phone sailed past it and died on persons_mlti_needs_hard_key
+    // instead -- a constraint name, in English, on a doorstep screen. The
+    // requirement is real and now lives in the RPC, which is the only place
+    // that can also grant the migration exemption.
+    if (!migrationEntry &&
+        (mobileNumber == null || mobileNumber.trim().isEmpty) &&
+        (aadhaarNumber == null || aadhaarNumber.trim().isEmpty)) {
+      throw ArgumentError('A customer needs a mobile number or an Aadhaar number.');
     }
     final result = await _db.schema('app').rpc('register_new_customer', params: {
       'p_business_id': businessId,
@@ -291,6 +315,7 @@ class CustomerApiService {
       'p_gps_latitude': gpsLatitude,
       'p_gps_longitude': gpsLongitude,
       'p_gps_accuracy_m': gpsAccuracyM,
+      'p_migration_entry': migrationEntry,
     });
     return result as String; // RETURNS UUID (customer_id) -- a scalar return
   }
@@ -976,6 +1001,8 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
     required String doorNo,
     String? pinCode,
     required String villageId,
+    /// Pre-existing-business paths only — see createCustomer's own note.
+    bool migrationEntry = false,
   }) async {
     final fix = await ManaLocation.currentFix();
     final id = await ref.read(customerApiServiceProvider).createCustomer(
@@ -991,6 +1018,7 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
           gpsLatitude: fix.latitude,
           gpsLongitude: fix.longitude,
           gpsAccuracyM: fix.accuracyM,
+          migrationEntry: migrationEntry,
         );
     await load(businessId);
     return id;
@@ -1006,6 +1034,8 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
     required String doorNo,
     String? pinCode,
     required String villageId,
+    /// Pre-existing-business paths only — see createCustomer's own note.
+    bool migrationEntry = false,
   }) async {
     try {
       // Capture the pin HERE rather than in the screen, so every caller gets
@@ -1031,6 +1061,7 @@ class CustomerListNotifier extends Notifier<CustomerListState> {
             gpsLatitude: fix.latitude,
             gpsLongitude: fix.longitude,
             gpsAccuracyM: fix.accuracyM,
+            migrationEntry: migrationEntry,
           );
       await load(businessId);
       return true;

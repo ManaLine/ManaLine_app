@@ -450,12 +450,26 @@ class ManaAddCustomerSheet extends ConsumerStatefulWidget {
   final void Function(String customerId, int personId, String mlid)?
       onCreated;
 
+  /// True when this sheet is bringing a customer across from a paper book.
+  ///
+  /// A customer copied out of an existing ledger may have neither a phone nor
+  /// an Aadhaar number. Everywhere else one of the two is required, and the
+  /// requirement is enforced by app.register_new_customer rather than here,
+  /// because the RPC is the only place that can also check the Owner and that
+  /// the business's migration is still open.
+  ///
+  /// Defaults false, so OW-001 and OW-004 -- where a customer is being
+  /// registered in person and can be asked for a number -- keep the stricter
+  /// rule without naming it.
+  final bool migrationEntry;
+
   const ManaAddCustomerSheet({
     super.key,
     required this.businessId,
     this.existingOnly = false,
     this.initialQuery,
-      this.onCreated,
+    this.onCreated,
+    this.migrationEntry = false,
   });
 
   @override
@@ -685,6 +699,10 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
   /// village are real -- this file says so twice about picking the wrong
   /// person -- so the right answer is to make the Owner look, not to make the
   /// row impossible.
+  /// The PIN the geocoder last read back, seeded into the village search.
+  /// Null until "Use My Location" succeeds; cleared with the rest on a new fix.
+  String? _geocodedPin;
+
   Future<bool> _wouldDuplicate() async {
     if (_mobile.text.trim().isNotEmpty) return false;
 
@@ -735,6 +753,21 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
   }
 
   Future<void> _createNew({bool thenLoan = false}) async {
+    // Checked HERE as well as in the RPC, because the two say it differently.
+    // The RPC's refusal is the backstop and arrives as a thrown error; this is
+    // the sentence the Owner reads, before the round trip, while the fields
+    // are still in front of them.
+    //
+    // The form presents Mobile Number without an asterisk, which was true when
+    // neither field was required and is now true only for a migration entry.
+    if (!widget.migrationEntry &&
+        _mobile.text.trim().isEmpty &&
+        _aadhaar.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: ManaText.raw(ref.t('customer_needs_phone_or_aadhaar')),
+      ));
+      return;
+    }
     setState(() => _submitting = true);
     if (await _wouldDuplicate()) {
       if (mounted) setState(() => _submitting = false);
@@ -755,6 +788,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
             doorNo: _doorNo.text.trim(),
             pinCode: _villagePinCode,
             villageId: _villageId!,
+            migrationEntry: widget.migrationEntry,
           );
     });
     if (!mounted) return;
@@ -762,6 +796,19 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
     if (id == null || !mounted) return;
     await _announceCreated(id);
     if (!mounted) return;
+    // "Add Only" used to add the person and close, silently. The sheet
+    // vanishing is the same thing the sheet does when it is dismissed, so from
+    // the far side of the screen the button had done nothing -- and the person
+    // it just created was somewhere off-screen in a list.
+    //
+    // Only on this branch: "Add & Issue Loan" carries straight into the loan
+    // wizard, where the next screen IS the confirmation and a snackbar would
+    // be talking over it.
+    if (!thenLoan) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: ManaText.raw(ref.t('added_to_this_business')),
+      ));
+    }
     Navigator.of(context).pop(thenLoan ? id : null);
   }
 
@@ -973,14 +1020,22 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
               // -- "Aphb Colony" -- which is not in the directory under any
               // PIN, so a typed name could never match.
               //
-              // ManaVillageSearchField owns the PIN box now, and it has no
-              // hook to accept a prefilled PIN, so the geocoded PIN cannot be
-              // carried into it here — the search field is only re-keyed so a
-              // stale search (and any village picked against the old fix) is
-              // cleared, not silently kept against the new position.
+              // THE GEOCODED PIN IS NOW CARRIED IN. This said the search
+              // field "has no hook to accept a prefilled PIN"; it has taken an
+              // `initialPin` since before this was reported, and nobody came
+              // back to use it. So the button cleared the village fields,
+              // filled nothing, and showed a snackbar -- which from the far
+              // side of the screen is a button that does not fetch anything.
+              //
+              // It fills the PIN and stops there, deliberately: a PIN alone
+              // does not search. The village still needs three letters typed
+              // (village_search_rule_test guards that rule), because one PIN
+              // can carry fifty villages and the geocoder's own name at a
+              // doorstep is usually the colony, which is in no directory.
               _villageId = null;
               _selectedVillageLabel = null;
               _villagePinCode = null;
+              _geocodedPin = place.pinCode;
               _villageFieldKey = UniqueKey();
             });
           },
@@ -994,6 +1049,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
         ManaVillageSearchField(
           key: _villageFieldKey,
           label: ref.t('search_village_town'),
+          initialPin: _geocodedPin,
           onPicked: _onVillagePicked,
         ),
         if (_selectedVillageLabel != null) ...[
@@ -1005,6 +1061,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
         _AddEndings(
           submitting: _submitting,
           enabled: _canCreateNew,
+          migrationEntry: widget.migrationEntry,
           onAddOnly: () => _createNew(),
           onAddAndLend: () => _createNew(thenLoan: true),
         ),
@@ -1023,11 +1080,25 @@ class _AddEndings extends ConsumerWidget {
   final VoidCallback onAddOnly;
   final VoidCallback onAddAndLend;
 
+  /// Changes what the first button is OFFERING, not just what it says.
+  ///
+  /// "Add & Issue Loan" is right at a doorstep: money is about to leave the
+  /// till. On the pre-existing-business door no money moves -- the loan
+  /// already exists, was issued months ago by whoever kept the paper book, and
+  /// is only being written down. Calling that "Issue" invites an Owner to
+  /// think a disbursement happened today, which is the one thing that must not
+  /// be ambiguous on a money path.
+  ///
+  /// add_existing_loan and add_existing_loan_note were both already in
+  /// ui_translations, written and never wired to anything.
+  final bool migrationEntry;
+
   const _AddEndings({
     required this.submitting,
     required this.enabled,
     required this.onAddOnly,
     required this.onAddAndLend,
+    this.migrationEntry = false,
   });
 
   @override
@@ -1044,12 +1115,18 @@ class _AddEndings extends ConsumerWidget {
     // Stacked, not side by side: both labels are sentences in five
     // languages, and a Row of two would put each on three lines at 2.0x.
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (migrationEntry) ...[
+          ManaText.raw(ref.t('add_existing_loan_note'), style: ManaType.note),
+          const SizedBox(height: ManaSpacing.sm),
+        ],
         SizedBox(
           width: double.infinity,
           child: FilledButton(
             onPressed: enabled ? onAddAndLend : null,
-            child: ManaText.raw(ref.t('add_and_issue_loan')),
+            child: ManaText.raw(ref
+                .t(migrationEntry ? 'add_existing_loan' : 'add_and_issue_loan')),
           ),
         ),
         const SizedBox(height: ManaSpacing.sm),
@@ -1439,13 +1516,26 @@ class _AuditTab extends ConsumerWidget {
 /// stop, or a customerId to carry on to a loan.
 class ManaAddCustomerScreen extends ConsumerWidget {
   final String businessId;
-  const ManaAddCustomerScreen({super.key, required this.businessId});
+
+  /// Forwarded from /customer-new?migration=1 — see ManaAddCustomerSheet.
+  final bool migrationEntry;
+
+  const ManaAddCustomerScreen({
+    super.key,
+    required this.businessId,
+    this.migrationEntry = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: ManaAppBar(title: ref.t('add_a_customer'), homeRoute: '/ow-004'),
-      body: SafeArea(child: ManaAddCustomerSheet(businessId: businessId)),
+      body: SafeArea(
+        child: ManaAddCustomerSheet(
+          businessId: businessId,
+          migrationEntry: migrationEntry,
+        ),
+      ),
     );
   }
 }

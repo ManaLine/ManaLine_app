@@ -112,6 +112,8 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
   // enforced here and again server-side in auth-register.
   DateTime? _dob;
   String? _villageId; // set by ManaVillageSearchField below (locations table)
+  /// The PIN the geocoder last read back, seeded into the village search.
+  String? _geocodedPin;
   String? _selectedVillageLabel;
   // The submitted pin_code comes from the picked village's directory row,
   // not a screen-typed box — ManaVillageSearchField owns PIN entry now (its
@@ -534,15 +536,18 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                     // The geocoder's name is not typed into the village box.
                     // At a doorstep it usually returns the colony, which is
                     // not in the directory under any PIN, so a typed name
-                    // could never match. ManaVillageSearchField owns the PIN
-                    // box now, and it has no hook to accept a prefilled PIN,
-                    // so the geocoded PIN cannot be carried into it here —
-                    // the search field is only re-keyed so a stale search
-                    // (and any village picked against the old fix) is
-                    // cleared, not silently kept against the new position.
+                    // could never match. The PIN, however, IS carried in:
+                    // the search field has taken an `initialPin` since before
+                    // this comment claimed it had no hook for one.
+                    //
+                    // It fills the PIN and stops. A PIN alone does not search
+                    // -- the village still needs three letters typed, which
+                    // village_search_rule_test guards -- because one PIN can
+                    // carry fifty villages.
                     _villageId = null;
                     _selectedVillageLabel = null;
                     _villagePinCode = null;
+                    _geocodedPin = place.pinCode;
                     _villageFieldKey = UniqueKey();
                   });
                 },
@@ -555,6 +560,7 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
               ManaVillageSearchField(
                 key: _villageFieldKey,
                 label: 'Search Village/Town *',
+                initialPin: _geocodedPin,
                 onPicked: _onVillagePicked,
               ),
               if (_selectedVillageLabel != null) ...[

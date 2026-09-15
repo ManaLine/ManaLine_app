@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
@@ -56,6 +57,34 @@ enum ManaEntryStage {
         ManaEntryStage.investors => 'entry_stage_investors',
         ManaEntryStage.agents => 'entry_stage_agents',
         ManaEntryStage.customers => 'entry_stage_customers',
+      };
+
+  /// The label on this stage's "add somebody who is not on the list" button.
+  ///
+  /// Reuses the keys the header actions already use, so "Add Investor" reads
+  /// the same word here as it does on Investor Management. A second wording
+  /// for the same act is how two screens come to look like two features.
+  String get addLabelKey => switch (this) {
+        ManaEntryStage.investors => 'add_investor',
+        ManaEntryStage.agents => 'add_an_agent',
+        ManaEntryStage.customers => 'add_a_customer',
+      };
+
+  /// Where that button goes.
+  ///
+  /// Agents and Investors go through Universal Search with the role fixed --
+  /// the same door ManaAddMemberAction uses, because somebody being entered
+  /// from a paper book may already exist in another business and must be
+  /// found rather than duplicated.
+  ///
+  /// Customers carry `migration=1`, which is what lets a customer copied out
+  /// of a ledger have neither a phone nor an Aadhaar number. The flag only
+  /// asks: app.register_new_customer checks the Owner and that the migration
+  /// is still open before honouring it.
+  String get addRoute => switch (this) {
+        ManaEntryStage.investors => '/ow-search?role=investor',
+        ManaEntryStage.agents => '/ow-search?role=agent',
+        ManaEntryStage.customers => '/customer-new?migration=1',
       };
 }
 
@@ -252,14 +281,21 @@ class _OneByOneMigrationScreenState
                 ],
                 onChanged: _switchStage,
               ),
+            // A TabBarView, so the stages can be SWIPED between and not only
+            // arrowed. ManaTabHeading's own doc already claimed "swiping still
+            // works" -- it does for the controller, but this body was a plain
+            // conditional widget, so there was nothing to swipe. The header
+            // and this share one DefaultTabController, so an arrow, a swipe
+            // and a programmatic jump all move the same index.
             Expanded(
-              child: _stage == ManaEntryStage.customers
-                  ? VillageBookList(businessId: widget.businessId)
-                  : _loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _people.isEmpty
-                          ? _emptyStage()
-                          : _peopleList(),
+              child: single
+                  ? _stageBody(_stage)
+                  : TabBarView(
+                      children: [
+                        for (final stage in ManaEntryStage.values)
+                          _stageBody(stage),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -272,6 +308,62 @@ class _OneByOneMigrationScreenState
       length: ManaEntryStage.values.length,
       initialIndex: ManaEntryStage.values.indexOf(widget.initialStage),
       child: body,
+    );
+  }
+
+  /// One stage's contents.
+  ///
+  /// Only the stage that is actually open holds people: [_loadStage] fetches
+  /// for one role at a time, so drawing the other two from `_people` would
+  /// show investors under the Agents heading for as long as the load took.
+  /// They show a spinner until the swipe settles and the load lands, which is
+  /// the truth -- this screen has not asked the server about them yet.
+  Widget _stageBody(ManaEntryStage stage) {
+    if (stage == ManaEntryStage.customers) {
+      return Column(
+        children: [
+          _addToStage(stage),
+          Expanded(child: VillageBookList(businessId: widget.businessId)),
+        ],
+      );
+    }
+    if (stage != _stage || _loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(
+      children: [
+        _addToStage(stage),
+        Expanded(child: _people.isEmpty ? _emptyStage() : _peopleList()),
+      ],
+    );
+  }
+
+  /// "Add Investor" / "Add an Agent" / "Add a Customer", per stage.
+  ///
+  /// THE GAP THIS CLOSES: this screen listed the people a bulk import had
+  /// already created and offered no way to add one. An Owner who found
+  /// somebody missing from their book had to leave, add them somewhere else,
+  /// and come back -- and for a customer out of a paper ledger with no phone
+  /// and no Aadhaar, the place they would have gone refused to create them at
+  /// all. Hidden for a single-person door, which exists to finish one entry.
+  Widget _addToStage(ManaEntryStage stage) {
+    if (widget.onlyMlid != null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, 0),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: () async {
+            await context.push(stage.addRoute, extra: widget.businessId);
+            if (!mounted) return;
+            // Somebody added on that screen is not on this list yet.
+            await _loadStage();
+          },
+          icon: const Icon(Icons.person_add_alt_1, size: 18),
+          label: ManaText.raw(ref.t(stage.addLabelKey)),
+        ),
+      ),
     );
   }
 

@@ -325,9 +325,18 @@ final manaRouter = GoRouter(
     //
     // Pops with a customerId when the person chose "Add and Issue Loan", and
     // the caller carries them straight into the wizard.
+    //
+    // ?migration=1 comes from the pre-existing-business door, and means this
+    // customer is being copied out of a paper ledger rather than met at a
+    // door: they may have neither a phone nor an Aadhaar number. The flag only
+    // asks -- app.register_new_customer checks the Owner and that the
+    // business's migration is still open before honouring it.
     GoRoute(
       path: '/customer-new',
-      builder: (c, s) => ManaAddCustomerScreen(businessId: _resolveBusinessId(s)),
+      builder: (c, s) => ManaAddCustomerScreen(
+        businessId: _resolveBusinessId(s),
+        migrationEntry: s.uri.queryParameters['migration'] == '1',
+      ),
     ),
     // `role` is what tells the header's + apart from its magnifier. Absent
     // means "ask which role"; present means the screen already answered.

@@ -1778,24 +1778,51 @@ class _MemberRow extends ConsumerWidget {
     return Card(
       child: ListTile(
         leading: const ManaVerificationRing(isVerified: true, size: 36),
-        title: ManaText.raw(member.fullName),
+        // THE NAME GETS THE ROW. It used to share it with the status pill and
+        // the menu, both in `trailing`, and ListTile hands trailing its
+        // intrinsic width FIRST -- so "Pending Invitation" plus a 48dp menu
+        // button left the title about one character wide and "Ashok Goud"
+        // came down the screen a letter per line. The shared roster's own
+        // comment warns about exactly this: "ListTile's trailing slot assumes
+        // a bounded width".
+        //
+        // The pill moved to the subtitle, where it sits beside the role and
+        // village it qualifies, and the menu stays trailing because it is a
+        // fixed 48dp and genuinely belongs at the edge. One line, ellipsised:
+        // a name that does not fit is cut, not folded.
+        title: ManaText.raw(
+          member.fullName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         // Role and village, joined from the parts that exist. The village is
         // what the Village sort orders by, and a sort you cannot see the key
         // of looks like it did nothing.
-        subtitle: ManaText.raw(
-          [
-            member.role,
-            if (member.village.isNotEmpty) member.village,
-          ].join(' · '),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        subtitle: Row(
+          children: [
+            Flexible(
+              child: ManaText.raw(
+                [
+                  member.role,
+                  if (member.village.isNotEmpty) member.village,
+                ].join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: ManaSpacing.sm),
+            // Capped at 120dp by the shared component, so a long status in
+            // Telugu cannot push the role off its own line.
+            ManaTrailingStatus(
+                label: member.membershipStatus, status: _statusKind),
+          ],
         ),
         trailing: member.role == 'Owner'
-            ? ManaStatusPill(label: member.membershipStatus, status: _statusKind)
+            ? null
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ManaStatusPill(label: member.membershipStatus, status: _statusKind),
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       final stage = _entryStage;

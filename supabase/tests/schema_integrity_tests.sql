@@ -510,6 +510,51 @@ END $$;
 -- empty branch, where all three pass for the wrong reason.
 
 -- =============================================================================
+-- THE THREE REGISTRATION RPCs AGREE ABOUT THE MIGRATION EXEMPTION
+-- =============================================================================
+--
+-- WHY THIS IS A TEST AND NOT A NOTE. A customer brought across from a paper
+-- book may have neither a phone nor an Aadhaar number, and app.mint_person_mlid
+-- issues an MLTI -- a temporary identity -- when there is no Aadhaar.
+-- persons_mlti_needs_hard_key then demands one of aadhaar_hash, mobile_number
+-- or is_migrated.
+--
+-- register_new_agent and register_new_investor were taught this. register_new_
+-- customer was not, and the failure reached a handset twice: once reported,
+-- once reported again as "not fixed", because the fix had been applied to two
+-- of three siblings and verified on those two. Nothing in the repo could see
+-- the third -- the RPCs are independent function bodies with no shared code to
+-- notice the omission.
+--
+-- This is the check that would have caught it: all three must consult the
+-- migration context. It does NOT assert how -- register_new_customer also
+-- accepts p_migration_entry and sets the GUC itself, which the other two do
+-- not need -- only that none of them is deciding this question in ignorance.
+--
+-- If a fourth registration RPC is ever added, add it here. A name removed from
+-- this list is a person who can be created without a way to be reached.
+DO $$
+DECLARE
+    v_missing TEXT;
+BEGIN
+    SELECT string_agg(f.name, ', ' ORDER BY f.name) INTO v_missing
+      FROM (VALUES ('register_new_agent'), ('register_new_customer'),
+                   ('register_new_investor')) AS f(name)
+     WHERE NOT EXISTS (
+       SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'app' AND p.proname = f.name AND p.prokind = 'f'
+          AND pg_get_functiondef(p.oid) ILIKE '%migration_import_active%');
+
+    IF v_missing IS NULL THEN
+        PERFORM pg_temp.si_log('RPC', 'BR-178/181/182',
+            'every register_new_* RPC consults the migration context before demanding a hard key', TRUE);
+    ELSE
+        PERFORM pg_temp.si_log('RPC', 'BR-178/181/182',
+            'every register_new_* RPC consults the migration context before demanding a hard key -- these do not: ' || v_missing, FALSE);
+    END IF;
+END $$;
+
+-- =============================================================================
 -- SUMMARY
 -- =============================================================================
 DO $$

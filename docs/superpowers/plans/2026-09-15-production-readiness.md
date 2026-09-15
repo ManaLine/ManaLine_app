@@ -480,14 +480,35 @@ wrong is expensive to unwind.
 
 ### Task 7: Implement offline collection queue
 
+> **UNBLOCKED 2026-09-15.** Task 6 answered, and the answer shrank this task.
+> It is an OUTBOX, not an offline mode: gaps of minutes, queue until live like
+> a WhatsApp message, and the agent can edit or delete an entry while it is
+> still queued.
+>
+> Four states -- Queued / Sending / Sent / Refused -- and the whole difficulty
+> is one rule: **an edited entry must be re-sent under a NEW idempotency key.**
+> `idempotency_keys` stores the RESPONSE, so re-sending an edited amount under
+> the old key returns the ORIGINAL answer: the server reports success, the app
+> shows success, and the edit never happened. A locked `Sending` state exists
+> for exactly the window where "never arrived" and "arrived, answer lost"
+> cannot be told apart.
+>
+> Removed from scope by the answer: local balance cache, day-long queue policy,
+> Owner-inbox escalation on day one, any local recomputation. `sqflite` is
+> already a dependency and unused by `lib/`.
+>
+> Re-sized: days, not weeks.
+
+
 **Files:** to be determined by Task 6's document.
 
-**Sized honestly: weeks, not days.** It touches `record_collection`,
+**Originally sized as weeks. See the note above -- the answered decision makes
+it days.** It touches `record_collection`,
 the collection round view, `day_ledger` recomputation, and idempotency. The
 idempotency work already done — keys minted at entry construction and reused
 by every retry — is the right foundation and is why this is feasible at all.
 
-Do not start this task until Task 6 is approved.
+Task 6 is approved. This can start.
 
 ---
 

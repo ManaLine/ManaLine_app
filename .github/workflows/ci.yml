@@ -40,17 +40,66 @@ jobs:
 
       # NO CREDENTIALS, deliberately. The suite passes offline by design:
       # nothing under test/ reads SUPABASE_URL, and sql_tests_wired_test
-      # prints a skip rather than failing when MANA_DB_URL is absent. If a
-      # secret ever becomes necessary here, a test has started reaching the
-      # network, and that is the thing to fix.
+      # prints a skip rather than failing when MANA_DB_URL is absent. Proved
+      # on a clean Linux checkout on the first run: 2,448 tests, 5m 42s, green.
+      # If a secret ever becomes necessary here, a test has started reaching
+      # the network, and that is the thing to fix.
       - run: flutter test
+
+  preflight:
+    name: can this run build an apk
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      # WHY A WHOLE JOB FOR ONE `if`. Secrets are not readable from a
+      # job-level `if:` condition, so the question "are the credentials set"
+      # has to be answered inside a step and handed on as an output.
+      #
+      # Read through `env:` rather than interpolated straight into the script.
+      # A secret spliced into a shell line is a shell injection waiting for a
+      # value with a quote in it, and this runs on every push.
+      - id: check
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$URL" ] && [ -n "$KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### APK build skipped"
+              echo ""
+              echo "\`SUPABASE_URL\` and \`SUPABASE_ANON_KEY\` are not set as"
+              echo "repository secrets, so there is nothing to build an"
+              echo "installable APK from."
+              echo ""
+              echo "The guards still ran. Only the APK step was skipped."
+              echo ""
+              echo "Add them under **Settings -> Secrets and variables ->"
+              echo "Actions**; the values are the two lines in the tracked"
+              echo "\`run.ps1.txt\`. Both ship inside every APK anyway, which"
+              echo "is why that file is tracked rather than ignored."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   build:
     name: assemble the apk
     runs-on: ubuntu-latest
     # Only if the guards passed. Assembling an APK from code that fails its
-    # own tests wastes four minutes to produce something nobody should install.
-    needs: test
+    # own tests spends four minutes producing something nobody should install.
+    #
+    # And only if there is anything to build WITH. Without the defines the
+    # build still SUCCEEDS and produces an APK that hangs on a host that does
+    # not exist -- the failure this project has already hit once, which is why
+    # main.dart carries a "Build not configured" screen. Failing the whole run
+    # for that would leave a red X on every push until somebody with repository
+    # access is at a keyboard, and a CI that is always red is one nobody reads.
+    # It skips, says so in the run summary, and starts working by itself the
+    # moment the secrets exist.
+    needs: [test, preflight]
+    if: needs.preflight.outputs.configured == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -66,23 +115,25 @@ jobs:
 
       - run: flutter pub get
 
-      # The anon key ships inside every APK anyway -- which is why
-      # run.ps1.txt is tracked rather than ignored -- but CI reads both from
-      # repository secrets so the workflow does not parse a text file, and so
-      # a future rotation happens in one place.
-      #
-      # WITHOUT THESE THE BUILD STILL SUCCEEDS and produces an APK that hangs
-      # on a host that does not exist. That is the failure this project
-      # already hit once, so the step checks rather than trusting.
+      # Belt and braces: the gate above should mean this never fires, but a
+      # secret that exists and is EMPTY would pass the gate and produce the
+      # silent-hang APK. Cheap to check, and the failure names itself.
       - name: check the build is configured
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          test -n "${{ secrets.SUPABASE_URL }}" || { echo "SUPABASE_URL secret is not set"; exit 1; }
-          test -n "${{ secrets.SUPABASE_ANON_KEY }}" || { echo "SUPABASE_ANON_KEY secret is not set"; exit 1; }
+          test -n "$URL" || { echo "SUPABASE_URL secret is empty"; exit 1; }
+          test -n "$KEY" || { echo "SUPABASE_ANON_KEY secret is empty"; exit 1; }
 
-      - run: >
+      - name: build the debug apk
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: >
           flutter build apk --debug
-          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          --dart-define=SUPABASE_URL="$URL"
+          --dart-define=SUPABASE_ANON_KEY="$KEY"
 
       - uses: actions/upload-artifact@v4
         with:

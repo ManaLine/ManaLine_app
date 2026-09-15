@@ -106,19 +106,67 @@ void main() {
   });
 
   test('no credentials are baked into the test job', () {
-    // The suite passes offline BY DESIGN -- verified 2026-09-15: nothing under
-    // test/ reads SUPABASE_URL, and sql_tests_wired_test prints a skip rather
-    // than failing when MANA_DB_URL is absent. If a secret ever appears in the
-    // test job, something has started reaching the network from a test, and
-    // that is the thing to fix rather than the workflow.
+    // The suite passes offline BY DESIGN -- proved on a clean Linux checkout
+    // by CI run #1: 2,448 tests, 5m 42s, green, with no secrets configured at
+    // all. Nothing under test/ reads SUPABASE_URL, and sql_tests_wired_test
+    // prints a skip rather than failing when MANA_DB_URL is absent.
+    //
+    // If a secret ever appears in this job, a test has started reaching the
+    // network, and THAT is the thing to fix rather than the workflow.
     final yaml = code();
-    final testJob = yaml.substring(
-      yaml.indexOf('  test:'),
-      yaml.contains('  build:') ? yaml.indexOf('  build:') : yaml.length,
-    );
+    final jobs = yaml.split(RegExp(r'^  (?=\w)', multiLine: true));
+    final testJob =
+        jobs.firstWhere((j) => j.startsWith('test:'), orElse: () => '');
+    expect(testJob, isNotEmpty, reason: 'the test job is gone');
     expect(testJob, isNot(contains('MANA_DB_URL')));
     expect(testJob, isNot(contains('secrets.')),
         reason: 'the test job has grown a secret, which means a test has '
             'started needing the network');
+  });
+
+  group('the apk build degrades rather than blocking', () {
+    // CI run #1 failed on a red X that meant only "nobody has added the
+    // repository secrets yet". A run that is permanently red for a reason
+    // unrelated to the code is a run people stop reading, and the guards it
+    // carries stop being read with it.
+    //
+    // So the APK job SKIPS when there is nothing to build with, says so in
+    // the run summary, and starts working by itself the moment the secrets
+    // exist. What it must never do is build without them: that succeeds, and
+    // produces an APK that hangs on a host which does not exist.
+    late String yaml;
+    setUp(() => yaml = code());
+
+    test('the build is gated on the credentials being present', () {
+      expect(yaml, contains("if: needs.preflight.outputs.configured == 'true'"),
+          reason: 'the APK job is no longer gated -- either it now fails the '
+              'whole run when unconfigured, or worse, it builds anyway');
+    });
+
+    test('the gate is decided in a step, not a job-level secrets lookup', () {
+      // Secrets are not readable from a job-level `if:`. A condition written
+      // that way is not an error -- it silently evaluates empty, and the job
+      // simply never runs again.
+      expect(yaml, contains('preflight:'));
+      expect(yaml, contains('configured=true'));
+      expect(yaml, contains('configured=false'));
+    });
+
+    test('an empty secret still fails rather than shipping a hanging apk', () {
+      // A secret that EXISTS and is empty passes the gate. Without the
+      // defines the build succeeds and the app hangs on a host that does not
+      // exist -- the failure this project has already hit once.
+      expect(yaml, contains('SUPABASE_URL secret is empty'));
+    });
+
+    test('secrets reach the shell through env, never spliced into a script',
+        () {
+      // A secret interpolated straight into a `run:` line is a shell
+      // injection waiting for a value containing a quote, and this runs on
+      // every push.
+      expect(yaml, isNot(contains(r'test -n "${{ secrets.')),
+          reason: 'a secret is being spliced into a shell command');
+      expect(yaml, contains(r'URL: ${{ secrets.SUPABASE_URL }}'));
+    });
   });
 }

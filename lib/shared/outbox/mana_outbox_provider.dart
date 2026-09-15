@@ -1,6 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../features/owner_workspace/state/collection_mode_state.dart';
+import 'dart:async';
+
+import '../mana_error_reporting.dart';
 import 'mana_outbox.dart';
 import 'mana_outbox_failure.dart';
 import 'mana_outbox_sqflite_store.dart';
@@ -28,11 +33,8 @@ import 'mana_outbox_sqflite_store.dart';
 /// in that window, the server refuses it on sync and the entry goes to
 /// `refused` carrying that sentence -- which is the design working, not
 /// failing.
-final manaOutboxStoreProvider = Provider<ManaOutboxSqfliteStore>((ref) {
-  final store = ManaOutboxSqfliteStore();
-  ref.onDispose(store.close);
-  return store;
-});
+final manaOutboxStoreProvider =
+    Provider<ManaOutboxSqfliteStore>((ref) => manaOutboxStore);
 
 final manaOutboxProvider = Provider<ManaOutbox>((ref) {
   final store = ref.read(manaOutboxStoreProvider);
@@ -117,4 +119,37 @@ class _OutboxDuplicateRefusal implements ManaOutboxRefusalError {
 
   @override
   String toString() => refusalMessage;
+}
+
+/// The one container the app's outbox lives in.
+///
+/// A plain global rather than a Riverpod container, because [manaOpenOutbox]
+/// runs before `runApp` and there is no ProviderScope yet. The providers above
+/// read through it, so there is still exactly one store and one queue.
+final ManaOutboxSqfliteStore manaOutboxStore = ManaOutboxSqfliteStore();
+
+/// Open the queue's database. Safe to call when it cannot be opened.
+///
+/// Returns whether the outbox is usable. Callers do not have to check: the
+/// collection screen falls back to the behaviour it had before the outbox
+/// existed, which is failing visibly rather than queueing.
+Future<bool> manaOpenOutbox() async {
+  // sqflite has no web implementation. /ow-006 is not on the web router
+  // either, so nothing there can reach the queue -- but a provider that
+  // throws on construction would take screens down with it.
+  if (kIsWeb) return false;
+  try {
+    final dir = await getApplicationDocumentsDirectory();
+    // Joined with a literal '/' rather than package:path. It is Android-only
+    // (kIsWeb returned above) and adding a dependency for one join is a
+    // build-compatibility risk taken for nothing -- the same reasoning
+    // idempotency.dart records for not pulling in a uuid package.
+    await manaOutboxStore.open(path: '${dir.path}/mana_outbox.db');
+    return true;
+  } catch (error, stack) {
+    // Never fatal. An app that will not start is a worse outcome than one
+    // without a retry queue.
+    unawaited(manaReportError(error, stack, hint: 'open outbox'));
+    return false;
+  }
 }

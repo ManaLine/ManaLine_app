@@ -14,10 +14,21 @@ import 'design/tokens/colors.dart';
 import 'design/tokens/spacing.dart';
 import 'features/login_registration/state/auth_flow_state.dart';
 import 'shared/mana_error_reporting.dart';
+import 'shared/outbox/mana_outbox_provider.dart';
 import 'shared/supabase_config.dart';
 
 Future<void> main() async {
   await bootstrapManaApp(router: manaRouter);
+  // THE OUTBOX IS ANDROID-ONLY, and opened here rather than in
+  // bootstrapManaApp because main_web.dart shares that function. sqflite has
+  // no web implementation, and /ow-006 is not on the web router anyway -- a
+  // hand-typed one lands on the route-unavailable screen.
+  //
+  // A failure to open must not stop the app launching. Without the queue a
+  // collection on a dead connection fails the way it always used to, which is
+  // worse than before this existed and far better than an app that will not
+  // start.
+  await manaOpenOutbox();
   // manaRunApp, not runApp: it installs the Flutter error handler and runs
   // the app inside a guarded zone, so a throw inside a widget build, a
   // gesture callback or an unawaited future reaches somebody who can fix it.

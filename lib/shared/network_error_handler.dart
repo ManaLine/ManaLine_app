@@ -69,6 +69,18 @@ class NetworkErrorHandler {
     /// a report that says "PostgrestException" and nothing else costs as much
     /// to triage as no report at all.
     String? reportAs,
+
+    /// A chance to handle the failure INSTEAD of showing it.
+    ///
+    /// Return true to say it has been dealt with; the SnackBar is then
+    /// suppressed and the caller still gets null. The outbox uses this: a
+    /// collection that failed on a dropped connection is queued rather than
+    /// lost, and "Saved when you are back online" is a better sentence than
+    /// "Something went wrong."
+    ///
+    /// The error still reaches the crash reporter either way. A failure that
+    /// was recovered from is still a failure worth seeing.
+    bool Function(Object error)? onFailure,
   }) async {
     try {
       // Every call routed through here inherits the deadline, so no screen
@@ -101,6 +113,10 @@ class NetworkErrorHandler {
       // that delays their SnackBar has made the app worse to use in order to
       // tell somebody about it.
       unawaited(manaReportError(e, stack, hint: reportAs));
+
+      // Handled elsewhere -- queued for retry, most likely. The caller still
+      // gets null, because nothing was written.
+      if (onFailure != null && onFailure(e)) return null;
 
       if (!context.mounted) return null;
 

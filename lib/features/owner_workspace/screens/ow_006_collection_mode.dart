@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,9 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/network_error_handler.dart';
+import '../../../shared/outbox/mana_outbox.dart';
+import '../../../shared/outbox/mana_outbox_failure.dart';
+import '../../../shared/outbox/mana_outbox_provider.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/idempotency.dart';
 import '../../../shared/mana_location.dart';
@@ -363,7 +367,45 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
       return;
     }
 
-    final outcome = await NetworkErrorHandler.run(context, () async {
+    // QUEUED RATHER THAN LOST, when the attempt reaches no verdict.
+    //
+    // The collection is still attempted directly first, which is what keeps
+    // the receipt, the balance and the server's duplicate answer. Only a
+    // failure that never got an answer -- a dropped socket, a timeout on a
+    // village 2G cell -- falls into the outbox, under the key already minted
+    // for this save so a later retry replays rather than writing twice.
+    //
+    // A REFUSAL IS NOT QUEUED. The server considered it and said no; queueing
+    // that would retry it at a time nobody is watching and show the agent a
+    // pending entry that can never land.
+    var queued = false;
+    final outcome = await NetworkErrorHandler.run(context, reportAs:
+        'record collection', onFailure: (error) {
+      if (manaClassifyOutboxFailure(error) != ManaOutboxFailure.transport) {
+        return false;
+      }
+      unawaited(ref.read(manaOutboxProvider).enqueue(
+            ManaOutboxEntry.create(
+              businessId: widget.businessId,
+              loanId: widget.row.loanId,
+              customerId: widget.row.customerId,
+              customerName: widget.row.customerName,
+              collectedAmount: _collected,
+              businessDate: manaBusinessDate(),
+              payload: {
+                'payer_type': _payerType,
+                'payer_name': _payerName.text.trim().isEmpty
+                    ? null
+                    : _payerName.text.trim(),
+                'excess_disposition': _excessDisposition,
+                'parent_collection_id': _addToReceipt,
+                'splits': manaSplitsToPayload(splits),
+              },
+            ),
+          ));
+      queued = true;
+      return true;
+    }, () async {
       final o = await ref.read(collectionModeProvider.notifier).recordCollection(
             loanId: widget.row.loanId,
             customerId: widget.row.customerId,
@@ -385,6 +427,15 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
     });
     if (!mounted) return;
     setState(() => _submitting = false);
+    if (queued) {
+      // The key stays put deliberately: this save is not finished, it is
+      // waiting, and the queued entry owns that key until it lands.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: ManaText.raw(ref.t('collection_queued_note'))),
+      );
+      Navigator.of(context).pop(true);
+      return;
+    }
     if (outcome == null) return;
 
     // This loan already has an entry today. Nothing was written -- the way

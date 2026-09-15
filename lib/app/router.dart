@@ -78,6 +78,7 @@ import '../features/investor_workspace/screens/iw_004_request_withdrawal.dart';
 import '../features/investor_workspace/screens/iw_005_my_profile_memberships.dart';
 import '../shared/mana_time.dart';
 import '../shared/widgets/recent_deletes_screen.dart';
+import '../shared/outbox/ow_outbox_screen.dart';
 
 /// Route map mirrors the locked screen inventory 1:1 — file/screen
 /// numbers double as route names, so anyone cross-referencing this
@@ -291,6 +292,12 @@ final manaRouter = GoRouter(
         prefilledCustomerId: s.uri.queryParameters['customerId'],
         sourceRequestId: s.uri.queryParameters['requestId'],
       ),
+    ),
+    // Collections that have not reached the server yet. Not a screen ID,
+    // because it is not a spec screen -- it is the queue behind one.
+    GoRoute(
+      path: '/outbox',
+      builder: (c, s) => const ManaOutboxScreen(),
     ),
     GoRoute(
       path: '/ow-006',

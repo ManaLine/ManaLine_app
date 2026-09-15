@@ -42,6 +42,32 @@ import 'package:flutter_test/flutter_test.dart';
 /// supabase_migrations.schema_migrations, at which point entries come off this
 /// list. Shrinking it is progress; adding to it is not, and a new name here
 /// should be challenged rather than accepted.
+///
+/// MEASURED 2026-09-15, so the size of this is known rather than guessed:
+/// 421 ledger rows against 418 local files, with 42 applied migrations having
+/// no file at all.
+///
+/// Seventeen of the forty-two turned out to be the same migration under a
+/// hand-written timestamp -- 20260803010000_batch_a_bf_loan_gate.sql against
+/// the stamped 20260804212717. Matched by CONTENT fingerprint rather than by
+/// name and renamed with `git mv`, so history follows them. That changed
+/// nothing on this list, because this scan reads file CONTENT: those keys
+/// were always being found, just from a file the CLI ignored.
+///
+/// The remaining twenty-five could NOT be renamed, because the applied SQL
+/// and the local file genuinely differ. batch_a_cheti_bf is the clearest: the
+/// file says `ADD COLUMN can_record_cheti`, what ran says
+/// `ADD COLUMN IF NOT EXISTS`. Renaming onto that version would make the repo
+/// claim to reproduce something it does not.
+///
+/// Eight of those twenty-five are translation migrations, and they are where
+/// every name below comes from -- the applied version carries keys the local
+/// file lacks. `tool/restore_missing_migrations.ps1` copies them back, and is
+/// a SCRIPT rather than something done by hand on purpose: it is about 32 KB
+/// of Telugu strings, and retyping those through any intermediary is exactly
+/// where a silent corruption enters. A mangled Telugu label is invisible to
+/// every guard here -- valid string, plausible length, right column -- and
+/// would reach a user looking deliberate.
 const _appliedButFileMissing = <String>{
   'add_cheti', 'agent_asked_you_to_check_bf', 'already_availed_lumpsum',
   'amount_availed_field', 'availed', 'availed_on', 'availed_on_note',

@@ -1,0 +1,91 @@
+name: CI
+
+# Every guard in this repo -- the consumer census, the enum-literal scan, the
+# invented-function-name scan, the layout sweeps at four text scales in two
+# languages, the raw-key sweep over 1,336 keys -- used to depend on somebody
+# remembering to type `flutter test` before pushing. This is that memory.
+
+on:
+  push:
+    branches: [main, web-on-the-web]
+  pull_request:
+
+# A second push while the first is still running makes the first one's answer
+# worthless. Cancel it rather than paying for a verdict on superseded code --
+# except on main, where every commit's result is worth keeping.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # PINNED, not `channel: stable`. A floating channel means a green
+          # build can turn red with no commit behind it, and the failure
+          # arrives attributed to whoever pushed next. 3.44.6 is what this
+          # project is developed against; test/ci_workflow_test.dart fails if
+          # the two ever disagree.
+          flutter-version: '3.44.6'
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      # NO CREDENTIALS, deliberately. The suite passes offline by design:
+      # nothing under test/ reads SUPABASE_URL, and sql_tests_wired_test
+      # prints a skip rather than failing when MANA_DB_URL is absent. If a
+      # secret ever becomes necessary here, a test has started reaching the
+      # network, and that is the thing to fix.
+      - run: flutter test
+
+  build:
+    name: assemble the apk
+    runs-on: ubuntu-latest
+    # Only if the guards passed. Assembling an APK from code that fails its
+    # own tests wastes four minutes to produce something nobody should install.
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          cache: true
+
+      - run: flutter pub get
+
+      # The anon key ships inside every APK anyway -- which is why
+      # run.ps1.txt is tracked rather than ignored -- but CI reads both from
+      # repository secrets so the workflow does not parse a text file, and so
+      # a future rotation happens in one place.
+      #
+      # WITHOUT THESE THE BUILD STILL SUCCEEDS and produces an APK that hangs
+      # on a host that does not exist. That is the failure this project
+      # already hit once, so the step checks rather than trusting.
+      - name: check the build is configured
+        run: |
+          test -n "${{ secrets.SUPABASE_URL }}" || { echo "SUPABASE_URL secret is not set"; exit 1; }
+          test -n "${{ secrets.SUPABASE_ANON_KEY }}" || { echo "SUPABASE_ANON_KEY secret is not set"; exit 1; }
+
+      - run: >
+          flutter build apk --debug
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14

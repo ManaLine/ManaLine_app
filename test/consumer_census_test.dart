@@ -146,7 +146,14 @@ const _census = <String, int>{
   // list's tie-break. Honours the contract -- manaTimestamp(), not a bare
   // DateTime.now() -- and its values are only ever compared against others
   // written by the same call, so consistency is the whole requirement.
-  'manaTimestamp': 10,
+  // Went 10 -> 11 with lib/shared/outbox/mana_outbox_entry.dart. Answered by
+  // OPENING it, as this test requires: both call sites -- ManaOutboxEntry
+  // .create and .editedTo -- stamp createdAt with manaTimestamp(), and there
+  // is no bare DateTime.now() anywhere in lib/shared/outbox/. That matters
+  // more here than in most places: an outbox entry's createdAt is what orders
+  // the queue and what a "stuck since" message would read from, and the
+  // handset clock is exactly what manaTimestamp exists to avoid trusting.
+  'manaTimestamp': 11,
 
   // GPS never blocks anything, and every caller depends on that contract.
   'ManaLocation': 7,

@@ -13,11 +13,17 @@ import 'design/theme.dart';
 import 'design/tokens/colors.dart';
 import 'design/tokens/spacing.dart';
 import 'features/login_registration/state/auth_flow_state.dart';
+import 'shared/mana_error_reporting.dart';
 import 'shared/supabase_config.dart';
 
 Future<void> main() async {
   await bootstrapManaApp(router: manaRouter);
-  runApp(const ProviderScope(child: ManaLineApp()));
+  // manaRunApp, not runApp: it installs the Flutter error handler and runs
+  // the app inside a guarded zone, so a throw inside a widget build, a
+  // gesture callback or an unawaited future reaches somebody who can fix it.
+  // With no SENTRY_DSN defined it is exactly runApp, which is what a local
+  // debug build and CI both get.
+  await manaRunApp(const ProviderScope(child: ManaLineApp()));
 }
 
 /// Everything both entrypoints need before `runApp` — Android's

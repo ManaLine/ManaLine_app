@@ -47,6 +47,20 @@ dependencies:
   # Browser APIs for the web half of the file-share helper
   # (mana_file_share_web.dart), replacing the deprecated dart:html.
   web: ^1.1.1
+  # Crash and error reporting. Sentry rather than Crashlytics because this app
+  # uses no other Firebase service, and pulling the Firebase SDK in for one
+  # feature is a large dependency for a small job.
+  #
+  # PINNED EXACTLY, and to 9.x rather than the 8.x that `flutter pub add`
+  # resolves to on its own. 8.14.2's Android module sets Kotlin language
+  # version 1.6, which this project's toolchain refuses outright --
+  # "Language version 1.6 is no longer supported; use version 2.0 or greater".
+  #
+  # It compiles in Dart and dies in :sentry_flutter:compileDebugKotlin, so
+  # `flutter analyze` was clean and all 2,464 tests passed while the APK could
+  # not be built at all. Found by building, not by analyzing -- which is the
+  # whole argument for CI's second job.
+  sentry_flutter: 9.30.0
 
   # Offline sync layer (see mana_line_offline_sync package delivered earlier)
   # mana_line_offline_sync:

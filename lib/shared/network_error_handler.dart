@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'mana_error_reporting.dart';
+
 /// How long any single Supabase call may hang before it is treated as failed.
 ///
 /// PostgREST and the Functions client have NO client-side deadline of their
@@ -60,6 +62,13 @@ class NetworkErrorHandler {
     /// Pass [kManaBulkTimeout] for imports and other whole-book operations.
     /// The default suits a single screen action.
     Duration timeout = kManaQueryTimeout,
+
+    /// What was being attempted, for the crash reporter -- "record
+    /// collection", "submit settlement". Optional and additive: the exception
+    /// says what went wrong, but only the caller knows what it was doing, and
+    /// a report that says "PostgrestException" and nothing else costs as much
+    /// to triage as no report at all.
+    String? reportAs,
   }) async {
     try {
       // Every call routed through here inherits the deadline, so no screen
@@ -76,6 +85,23 @@ class NetworkErrorHandler {
       // guess. debugPrint is stripped from release builds.
       debugPrint('ManaNetworkError: $e');
       debugPrintStack(stackTrace: stack, maxFrames: 8);
+
+      // AND OFF THE HANDSET, because the line above is stripped from release
+      // builds -- so in the build a real Owner runs, a failure they are
+      // looking at leaves no trace anywhere at all.
+      //
+      // This is the half a crash reporter never sees. Everything routed
+      // through here is an error the app SURVIVED: a PostgREST 300 from an
+      // ambiguous embed, a timeout on a money write, an RPC that was never
+      // created. The user gets a sentence, the function returns null, and
+      // nothing crashed -- which is correct for them and silence for
+      // everybody else.
+      //
+      // unawaited: the person is waiting to be told what happened. A report
+      // that delays their SnackBar has made the app worse to use in order to
+      // tell somebody about it.
+      unawaited(manaReportError(e, stack, hint: reportAs));
+
       if (!context.mounted) return null;
 
       // FunctionException/PostgrestException mean the request reached

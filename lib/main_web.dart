@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/web_router.dart';
 import 'main.dart' show ManaLineApp, bootstrapManaApp;
+import 'shared/mana_error_reporting.dart';
 
 /// The web build's entrypoint — `flutter build web -t lib/main_web.dart`.
 ///
@@ -15,5 +15,7 @@ import 'main.dart' show ManaLineApp, bootstrapManaApp;
 /// so that is the one thing passed in.
 Future<void> main() async {
   await bootstrapManaApp(router: manaWebRouter);
-  runApp(ProviderScope(child: ManaLineApp(router: manaWebRouter)));
+  // Shared with Android's entrypoint on purpose -- see manaRunApp. Error
+  // reporting wired into one and not the other reads as covered.
+  await manaRunApp(ProviderScope(child: ManaLineApp(router: manaWebRouter)));
 }

@@ -56,6 +56,19 @@ void main() {
     );
   });
 
+  test('a re-cut announces itself, and an ordinary build does not', () {
+    // manaBuildRevision exists so an interim APK does not have to spend the
+    // next build number — CLAUDE.md rates the app at 15, 20, 25, and those are
+    // reserved for a build with handset findings behind it.
+    expect(manaVersionLabel, contains('build $manaBuildNumber'));
+    if (manaBuildRevision == 0) {
+      expect(manaVersionLabel, isNot(contains('$manaBuildNumber.')),
+          reason: 'revision 0 must read as a plain build number');
+    } else {
+      expect(manaVersionLabel, contains('$manaBuildNumber.$manaBuildRevision'));
+    }
+  });
+
   test('the label a tester reads names the version and the build', () {
     // Both halves matter and for different people: the name is what gets
     // spoken ("are you on Test V-0.1?"), the number is what identifies the

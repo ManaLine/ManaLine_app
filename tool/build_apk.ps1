@@ -93,6 +93,9 @@ if (-not $NoBump) {
     exit 2
   }
   $dart = $dart -replace 'const manaBuildNumber = \d+;', "const manaBuildNumber = $build;"
+  # A new build number starts at revision 0, or build 15 would announce itself
+  # as 15.1 because 14.1 happened to be the last thing cut.
+  $dart = $dart -replace 'const manaBuildRevision = \d+;', 'const manaBuildRevision = 0;'
   [System.IO.File]::WriteAllText($versionPath, $dart, $utf8NoBom)
 
   Write-Host "Build number $current -> $build" -ForegroundColor Green

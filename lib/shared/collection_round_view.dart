@@ -17,6 +17,7 @@ import 'collect_sheet.dart';
 import 'mana_time.dart';
 import 'network_error_handler.dart';
 import 'translation_service.dart';
+import 'outbox/mana_outbox_banner.dart';
 
 /// The collection round, for whoever is walking it.
 ///
@@ -250,6 +251,12 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Collections still on the phone. Shown HERE, on the shared
+                // round view, so the Owner's OW-006 and the Agent's AG-002
+                // both get it from one widget -- two copies would drift, and
+                // what they would drift about is whether somebody's money has
+                // been recorded. Draws nothing when the queue is empty.
+                const ManaOutboxBanner(),
                 if (_searchOpen)
                   ManaCollectionSearchField(
                     onChanged: (v) => setState(() => _query = v),

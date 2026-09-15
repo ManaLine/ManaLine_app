@@ -15,6 +15,7 @@ import 'design/tokens/spacing.dart';
 import 'features/login_registration/state/auth_flow_state.dart';
 import 'shared/mana_error_reporting.dart';
 import 'shared/outbox/mana_outbox_provider.dart';
+import 'shared/outbox/mana_outbox_watcher.dart';
 import 'shared/supabase_config.dart';
 
 Future<void> main() async {
@@ -235,10 +236,17 @@ class ManaLineApp extends ConsumerWidget {
           // build and every screen became an ErrorWidget. Copy-paste has to
           // be introduced below the Navigator -- inside the screens -- not
           // above it.
-          child: ManaWebFrame(
-            currentLocation: () =>
-                router.routerDelegate.currentConfiguration.uri.path,
-            child: child!,
+          // The outbox drains from here, above every screen and below the
+          // Navigator, so it keeps running while an agent moves around the
+          // app. "Queue it until live" is only true if something notices when
+          // live happens; without this the queue waits for somebody to open
+          // it and press retry, which is a worse promise than the one made.
+          child: ManaOutboxWatcher(
+            child: ManaWebFrame(
+              currentLocation: () =>
+                  router.routerDelegate.currentConfiguration.uri.path,
+              child: child!,
+            ),
           ),
         );
       },

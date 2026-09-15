@@ -403,6 +403,16 @@ The call must not change what the user sees, must not await in a way that delays
 
 ### Task 5: Decide on analytics, in writing
 
+> **DRAFTED 2026-09-15** at `docs/decisions/2026-09-15-analytics.md`, awaiting
+> three answers. Short version: most of what an analytics SDK would tell you, a
+> SQL query over `businesses`/`loans`/`collections` tells you better, already in
+> India and already under RLS. Only four events genuinely need a client, all of
+> them about a migration that was ABANDONED and therefore wrote no row. If the
+> answer to "self-hosted, India region, or no SDK" is "no SDK", the whole thing
+> collapses into one nullable column on `migration_progress`, which is what I
+> would choose.
+
+
 **Files:**
 - Create: `docs/decisions/2026-09-15-analytics.md`
 
@@ -420,6 +430,25 @@ exists.**
 ## Phase 3 — Offline
 
 ### Task 6: Decide the offline contract before writing any of it
+
+> **DRAFTED 2026-09-15** at `docs/decisions/2026-09-15-offline.md`, awaiting
+> five answers. Grounded rather than generic: `app.record_collection` was read
+> out of `pg_proc` and it is not a write, it is SIXTEEN refusals wrapped around
+> one. Seven of them can become true WHILE the agent is offline -- a loan
+> deleted, a day closed, an area reassigned, the agent removed, the collection
+> window rolled over.
+>
+> Question 3 is the whole task: the agent has already told the customer the
+> money was received. Proposed answer is that a refusal becomes an inbox item
+> for the Owner and the agent, never a silent drop and never an automatic
+> retry.
+>
+> Better news than expected: `idempotency_keys` already stores the RESPONSE,
+> not just the key, so a replayed key returns the original answer rather than
+> writing twice. A retrying queue is safe by construction, and that piece is
+> already built. `sqflite` is also already a dependency and unused by `lib/`,
+> so the queue needs no new package.
+
 
 **Files:**
 - Create: `docs/decisions/2026-09-15-offline.md`

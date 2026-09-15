@@ -218,6 +218,33 @@ git commit -m "CI builds the APK, so a break in assembly is not found on a hands
 
 ## Phase 2 — Telemetry
 
+> **TASKS 3 AND 4 LANDED 2026-09-15**, commit `1c07b1c`, on `main` and
+> `web-on-the-web`. Two corrections to what this plan said:
+>
+> **The version was wrong.** The plan named `sentry_flutter: ^8.9.0`, guessed
+> rather than resolved. `flutter pub add` picks 8.14.2, whose Android module
+> sets Kotlin language version 1.6 -- refused outright by this toolchain. It
+> compiles in Dart and dies in `:sentry_flutter:compileDebugKotlin`, so
+> `flutter analyze` was clean and all 2,464 tests passed while the APK could
+> not be built at all. **Pinned exactly at 9.30.0.** Found by building the
+> APK, not by trusting a green suite -- which is precisely the job CI's
+> `build` job does and precisely what it cannot do until the repository
+> secrets exist.
+>
+> **`attachViewHierarchy` was set and then unset.** The setter is marked
+> experimental; pinning the app to an API that "could be removed or changed at
+> any time" in order to restate a default it already has is a dependency taken
+> on for nothing.
+>
+> **Still open, and needs an account:** there is no DSN. The code is complete
+> and inert without one -- an absent DSN is a normal state by design, so
+> nothing is broken and nothing is yet being reported. Create a Sentry project
+> (Flutter), take the DSN, and pass it as
+> `--dart-define=SENTRY_DSN=...` in `tool/build_apk.ps1` and as a CI secret.
+> It does **not** go in `run.ps1.txt`; that file is tracked and a DSN is a
+> write endpoint.
+
+
 ### Task 3: Report crashes
 
 **Files:**
@@ -232,7 +259,7 @@ git commit -m "CI builds the APK, so a break in assembly is not found on a hands
 
 **Why Sentry over Crashlytics:** Crashlytics pulls the Firebase SDK in, and this app uses no other Firebase service. Sentry is one dependency, works with a plain DSN, and its Dart SDK captures both Flutter framework errors and zone errors.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
 // test/error_reporting_test.dart
@@ -267,12 +294,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `flutter test test/error_reporting_test.dart`
 Expected: FAIL — file does not exist.
 
-- [ ] **Step 3: Add the dependency**
+- [x] **Step 3: Add the dependency**
 
 ```yaml
   # Crash and error reporting. Sentry rather than Crashlytics because this
@@ -281,7 +308,7 @@ Expected: FAIL — file does not exist.
   sentry_flutter: ^8.9.0
 ```
 
-- [ ] **Step 4: Write the reporter**
+- [x] **Step 4: Write the reporter**
 
 ```dart
 // lib/shared/mana_error_reporting.dart
@@ -328,11 +355,11 @@ Future<void> manaReportError(Object error, StackTrace stack,
 }
 ```
 
-- [ ] **Step 5: Wrap the app**
+- [x] **Step 5: Wrap the app**
 
 In `lib/main.dart`, wrap the existing `runApp` call in `manaInitErrorReporting(() async => runApp(...))`. Do not change the "Build not configured" screen's behaviour — a missing Supabase URL must still produce that screen, not a crash report.
 
-- [ ] **Step 6: Run tests, then commit**
+- [x] **Step 6: Run tests, then commit**
 
 ```bash
 flutter analyze && flutter test
@@ -354,7 +381,7 @@ git commit -m "An error on a handset in a village stops being silent."
 
 **Why this is separate:** `NetworkErrorHandler.run` returns null on failure and shows the user a message. That is correct for the user and invisible to you. Every one of those is an error the app decided to survive, and the interesting ones — a PostgREST 300, a timeout on a money write — are exactly what never reaches a crash reporter.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```dart
   test('handled failures are reported, not just shown', () {
@@ -366,11 +393,11 @@ git commit -m "An error on a handset in a village stops being silent."
   });
 ```
 
-- [ ] **Step 2: Run it, watch it fail, add the call in the catch block, run again**
+- [x] **Step 2: Run it, watch it fail, add the call in the catch block, run again**
 
 The call must not change what the user sees, must not await in a way that delays the SnackBar, and must pass a `hint` naming the action.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ---
 

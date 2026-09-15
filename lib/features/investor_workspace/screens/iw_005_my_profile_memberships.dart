@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../shared/business_suspension_gate.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -272,7 +274,21 @@ class _MembershipTile extends StatelessWidget {
   // Customer → CW-001 — EXCEPT an Investor-role membership specifically,
   // where tapping goes straight to IW-003 (scoped to that business)
   // rather than IW-001, per the locked distinction in the spec.
-  void _switchRole(BuildContext context) {
+  /// SP-001. These cards switch into a DIFFERENT business than the one the
+  /// session is in, so they bypass LR-012 and LR-013 and their gates entirely.
+  ///
+  /// This one takes a round trip, unlike the entry-path gates: the membership
+  /// model behind this screen does not carry `business_status`, only
+  /// `membership_status`. That is acceptable here and would not be on the
+  /// collection path -- switching workspaces is a rare, deliberate tap, not
+  /// something an agent does between two doors. Fail-closed on error, per the
+  /// standing decision.
+  Future<void> _switchRole(BuildContext context) async {
+    if (await BusinessSuspensionGate.checkAndRedirect(
+        context, membership.businessId.toString())) {
+      return;
+    }
+    if (!context.mounted) return;
     switch (membership.role) {
       case MembershipRole.owner:
         context.go('/ow-001', extra: membership.businessId.toString());

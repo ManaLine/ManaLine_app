@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../shared/business_suspension_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/local_auth_store.dart';
@@ -192,16 +194,31 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
     final groups = _activeBusinessGroups();
     if (groups.length == 1) {
       // "Automatically Open Business" — LR-012 must never appear for a
-      // single-business user.
-      ref.read(authFlowProvider.notifier).selectBusiness(groups.first.businessId);
-      context.go('/lr-013');
+      // single-business user. The gate applies here too: a single-business
+      // agent whose only business is suspended never sees this screen at all,
+      // so blocking only on the card tap would have left the most common
+      // shape of user walking straight past it.
+      _selectBusiness(groups.first);
     }
     // 0 groups → render S0 below (build() handles this, no navigation).
     // >1 groups → render the card list below (build() handles this too).
   }
 
-  void _selectBusiness(String businessId) {
-    ref.read(authFlowProvider.notifier).selectBusiness(businessId);
+  /// SP-001. The card already knows the status — it is drawing a pill from it
+  /// — so this is a field read, not a round trip, and an agent on a flaky
+  /// connection is not blocked by the check itself.
+  ///
+  /// It used to draw the pill and open the business anyway: suspended, clearly
+  /// labelled, and fully usable.
+  void _selectBusiness(_BusinessGroup g) {
+    if (BusinessSuspensionGate.blockIfSuspended(
+      context,
+      businessStatus: g.businessStatus,
+      roles: g.roles,
+    )) {
+      return;
+    }
+    ref.read(authFlowProvider.notifier).selectBusiness(g.businessId);
     context.push('/lr-013');
   }
 
@@ -262,7 +279,7 @@ class _BusinessSelectorScreenState extends ConsumerState<BusinessSelectorScreen>
     final suspended = g.businessStatus != 'Active';
     return Card(
       child: InkWell(
-        onTap: () => _selectBusiness(g.businessId),
+        onTap: () => _selectBusiness(g),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.lg),

@@ -412,7 +412,13 @@ class AuthApiService {
         businessName: titleCaseName(business?['business_name'] as String? ?? ''),
         role: r['role'] as String,
         membershipStatus: r['membership_status'] as String,
-        businessStatus: business?['business_status'] as String? ?? 'Active',
+        // '' means UNKNOWN, and the suspension gate treats unknown as
+        // blocking. This defaulted to 'Active', which is the one value that
+        // opens a door: a null embed -- RLS hiding the business row, a
+        // reshaped select -- would have read as a healthy business rather than
+        // as a question the app could not answer. See
+        // lib/shared/business_suspension_gate.dart on failing closed.
+        businessStatus: business?['business_status'] as String? ?? '',
         verificationStatus: r['verification_status'] as String,
       );
     }).toList();

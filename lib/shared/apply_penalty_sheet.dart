@@ -77,8 +77,18 @@ class _ApplyPenaltyBodyState extends ConsumerState<_ApplyPenaltyBody> {
     final ok = await NetworkErrorHandler.run(context, () async {
       // p_penalty_option is defaulted server-side; the amount is the whole
       // input. The RPC enforces what the client cannot -- Owner of this
-      // business, or an Agent with can_apply_penalty (off by default,
-      // BR-236) -- and refuses a closed or fully repaid loan.
+      // business, or an Agent with can_apply_penalty -- and refuses a closed
+      // or fully repaid loan.
+      //
+      // can_apply_penalty defaults TRUE, and this said "off by default,
+      // BR-236" until 2026-09-15. It has defaulted TRUE since
+      // 20260805141301_agent_permissions_default_on_except_delete, which
+      // flipped 22 of 23 flags because a new agent could otherwise do nothing
+      // until an Owner ticked 22 boxes. Confirmed as intended: an agent
+      // trusted to collect is trusted to penalise. BR-236 IS "NO RENEWAL LINKING" and has nothing to do with
+      // permissions -- the citation was wrong in four places and is removed.
+      // No BR states a default for this flag; BR-009 governs the penalty
+      // AMOUNT, not who may apply it.
       await Supabase.instance.client.schema('app').rpc('apply_loan_penalty', params: {
         'p_loan_id': widget.loanId,
         'p_penalty_amount': _value,

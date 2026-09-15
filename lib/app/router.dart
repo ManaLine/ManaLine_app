@@ -707,7 +707,15 @@ final manaRouter = GoRouter(
     // regular Owner/Agent/Customer/Investor screen.
     GoRoute(path: '/admin-login', builder: (c, s) => const AdminLoginScreen()),
     GoRoute(path: '/admin-forgot-password', builder: (c, s) => const AdminForgotPasswordScreen()),
-    GoRoute(path: '/business-suspended', builder: (c, s) => const BusinessSuspendedScreen()),
+    // ?reason=unconfirmed distinguishes "this business is suspended" from
+    // "the app could not establish whether it is". Both block; only one of
+    // them is a statement about the business.
+    GoRoute(
+      path: '/business-suspended',
+      builder: (c, s) => BusinessSuspendedScreen(
+        unconfirmed: s.uri.queryParameters['reason'] == 'unconfirmed',
+      ),
+    ),
   ].map(manaSelectable).toList(),
 );
 

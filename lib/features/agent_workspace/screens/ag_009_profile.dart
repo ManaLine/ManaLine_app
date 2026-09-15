@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../shared/business_suspension_gate.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
@@ -248,7 +250,17 @@ class _MembershipTile extends ConsumerWidget {
         subtitle: ManaText.raw(membership.rolesLabel),
         trailing: ManaTrailingStatus(
             label: membership.membershipStatus, status: _pillStatus),
-        onTap: () => context.push('/ag-001', extra: membership.businessId),
+        // SP-001: this opens a DIFFERENT business, bypassing LR-012/LR-013.
+        // See the note on _switchRole in cw_006 for why a round trip is
+        // acceptable on this path and not on the collection one.
+        onTap: () async {
+          if (await BusinessSuspensionGate.checkAndRedirect(
+              context, membership.businessId)) {
+            return;
+          }
+          if (!context.mounted) return;
+          context.push('/ag-001', extra: membership.businessId);
+        },
       ),
     );
   }

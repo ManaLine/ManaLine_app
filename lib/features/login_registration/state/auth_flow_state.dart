@@ -125,6 +125,10 @@ class Membership {
     required this.businessName,
     required this.role,
     required this.membershipStatus,
+    // Test fixtures only. fetchMemberships -- the single production
+    // construction site -- always passes this explicitly, and passes '' when
+    // the embed did not come back, so an unknown status cannot reach the
+    // suspension gate wearing 'Active'.
     this.businessStatus = 'Active',
     this.verificationStatus = 'Not Required',
   });

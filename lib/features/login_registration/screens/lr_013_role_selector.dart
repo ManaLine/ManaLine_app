@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../shared/business_suspension_gate.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -151,8 +153,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
       ref.read(authFlowProvider.notifier).selectRole(result.roles.first);
       await ref.read(authFlowProvider.notifier).resolveSelectedMembershipEntity();
       if (!mounted) return;
-      final businessId = ref.read(authFlowProvider).selectedBusinessId;
-      context.go(_homeRouteFor(result.roles.first), extra: businessId);
+      _enterWorkspace(result.roles.first);
     }
     // >1 → render tile list below, no navigation yet.
   }
@@ -225,7 +226,32 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
     ref.read(authFlowProvider.notifier).selectRole(role);
     await ref.read(authFlowProvider.notifier).resolveSelectedMembershipEntity();
     if (!mounted) return;
-    final businessId = ref.read(authFlowProvider).selectedBusinessId;
+    _enterWorkspace(role);
+  }
+
+  /// The single door into every workspace from this screen, and therefore the
+  /// one place the SP-001 check has to be.
+  ///
+  /// Both dispatch paths -- the single-role collapse in [_resolveRoles] and an
+  /// explicit tile tap -- came through here separately before, each with its
+  /// own `context.go(_homeRouteFor(...))`. Two copies of a navigation is two
+  /// places to forget a gate, and the gate had already been forgotten in four
+  /// others.
+  ///
+  /// Status and roles come from the memberships already in hand, so this adds
+  /// no round trip. Owner is exempt: SP-001 aims at non-Owners, and the Owner
+  /// is the person who has to reach the business to lift the suspension.
+  void _enterWorkspace(String role) {
+    final auth = ref.read(authFlowProvider);
+    final businessId = auth.selectedBusinessId;
+    final here = auth.memberships.where((m) => m.businessId == businessId);
+    if (BusinessSuspensionGate.blockIfSuspended(
+      context,
+      businessStatus: here.isEmpty ? '' : here.first.businessStatus,
+      roles: here.map((m) => m.role).toList(),
+    )) {
+      return;
+    }
     context.go(_homeRouteFor(role), extra: businessId);
   }
 

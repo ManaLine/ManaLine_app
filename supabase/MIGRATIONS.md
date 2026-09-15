@@ -135,11 +135,22 @@ recorded below.
 
 A test that has never run does not go stale loudly.
 
-**Still open, and escalated rather than fixed:** SP-001 business suspension is
-enforced in neither layer. No RLS policy references `business_status` (checked:
-zero), and `lib/shared/business_suspension_gate.dart` — written for exactly this
-and recommending itself in its own header — has **no callers**. An Agent of a
-suspended business can still query it.
+**The seventh, since closed:** SP-001 business suspension was enforced in
+neither layer. No RLS policy references `business_status`, and
+`lib/shared/business_suspension_gate.dart` — written for exactly this and
+recommending its own hookup in its header — had **no callers**. LR-012 drew a
+red "Suspended" pill on the card and left the card tappable.
+
+Decided 2026-09-15: enforce at the application layer, fail closed. The gate is
+wired at five entry points and `test/business_suspension_gate_test.dart` fails
+if any stops calling it. The two on the login path read a `business_status`
+already loaded with the memberships, so they add no round trip — a live check
+there would have ejected an agent to an error screen on the same thirty-second
+signal drop that `lib/shared/outbox/` exists to ride out.
+
+RLS is deliberately unchanged, which leaves one thing open and worth stating:
+a client that is not this app, driving PostgREST with a valid JWT, can still
+read a suspended business's rows. All six SQL files pass.
 
 ## Note on file contents vs. what was applied
 

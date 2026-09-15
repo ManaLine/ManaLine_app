@@ -738,9 +738,15 @@ class _PermissionsTab extends ConsumerStatefulWidget {
 }
 
 class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
-  // OFF by default per BR-236 pattern (can_apply_penalty, can_record_expenses,
-  // ADDENDUM v7 §13) — every toggle here defaults to whatever the profile
-  // reports, never silently assumed ON.
+  // Every toggle here shows whatever the profile reports and never assumes a
+  // value. What it must NOT do is describe the defaults, which it used to get
+  // wrong: this said can_apply_penalty and can_record_expenses were "OFF by
+  // default per BR-236". Both have defaulted TRUE since
+  // 20260805141301_agent_permissions_default_on_except_delete. Only
+  // can_delete_records and can_grant_grace_period default FALSE, and that
+  // migration states the reason for the first.
+  //
+  // BR-236 is "No Renewal Linking" and has nothing to do with permissions.
   // BUG FIXED: this listed 4 of the 20 permission columns, and NONE of the
   // ones AG-001 actually gates its Quick Action tiles on. The agent
   // dashboard shows "Collection Mode" only when can_access_collection_mode

@@ -438,15 +438,34 @@ SELECT pg_temp.mti_assert_count('customers', format('customer_id = %L', pg_temp.
     'SP-001 suspension: Owner retains data access', 'ALPHA (suspended)', 'SP-001',
     'Owner Alpha can still read customer data within their SUSPENDED business');
 
--- Non-Owner roles: per rls_role_matrix.md's own flagged "SP-001 suspension
--- enforcement — decision point, not resolved here" note, this is NOT
--- enforced at the RLS layer in the reviewed migration set (0012-0018) — it
--- is left to the application layer. This test therefore documents the
--- CURRENT ACTUAL STATE (a non-Owner can still query through RLS while
--- Suspended) as a FINDING rather than silently expecting it to pass, since
--- SP-001 explicitly requires "Agent/Investor/Customer see only the generic
--- suspension message" — if this test reports PASS-with-access, that is a
--- gap to escalate to master chat, not a suite bug.
+-- Non-Owner roles: SP-001 is enforced at the APPLICATION layer, not in RLS.
+--
+-- ESCALATED AND DECIDED 2026-09-15. This assertion is the reason the question
+-- got asked: it had never run, and on its first execution it reported that an
+-- Agent could still query a suspended business. That was true, and worse than
+-- it said -- the application layer was not enforcing it either.
+-- lib/shared/business_suspension_gate.dart had been written for exactly this,
+-- recommended its own one-line hookup in its header, and had ZERO callers.
+-- LR-012 drew a red "Suspended" pill on the card and left the card tappable.
+-- Each layer was written believing the other one had it.
+--
+-- The gate is wired now, at five entry points, and
+-- test/business_suspension_gate_test.dart fails if any of them stops calling
+-- it -- a census in the style this project uses for shared contracts, because
+-- what broke here was wiring, and wiring is what goes missing.
+--
+-- RLS IS DELIBERATELY NOT CHANGED. Adding `AND business_status = 'Active'` to
+-- the member-select policies would reach far beyond suspension: an Owner must
+-- still query a suspended business to resolve the dispute that caused it, and
+-- the same clause would have to be threaded through every table that joins to
+-- businesses, each one a place to get the Owner exemption wrong.
+--
+-- WHAT THAT LEAVES OPEN, stated rather than implied: a client that is not this
+-- app -- a valid JWT driven against PostgREST directly -- can still read a
+-- suspended business's rows. That is a real residual gap and the honest reason
+-- this assertion stays here rather than being deleted. It is a deliberate
+-- position, not an oversight, and if it is ever revisited this comment is the
+-- argument to argue with.
 DO $$ BEGIN PERFORM pg_temp.mti_login(pg_temp.mfid('agent_alpha')::BIGINT); END $$;
 DO $$
 DECLARE v_actual BIGINT;
@@ -454,10 +473,10 @@ BEGIN
     EXECUTE format('SELECT count(*) FROM businesses WHERE business_id = %L', pg_temp.mfid('biz_alpha')) INTO v_actual;
     IF v_actual = 0 THEN
         PERFORM pg_temp.mti_log('SP-001 suspension: non-Owner RLS enforcement', 'ALPHA (suspended)', 'SP-001',
-            'Agent Alpha is blocked at the RLS layer from a SUSPENDED business (stricter than the flagged decision point — a follow-up "AND business_status != Suspended" clause appears to already be present)', TRUE);
+            'Agent Alpha is blocked at the RLS layer from a SUSPENDED business. STRICTER THAN THE RECORDED DECISION: somebody added a business_status clause to the member-select policies. That is not wrong, but it is a change of position -- check the Owner can still reach their own suspended business to resolve the dispute, then update the note above.', TRUE);
     ELSE
         PERFORM pg_temp.mti_log('SP-001 suspension: non-Owner RLS enforcement', 'ALPHA (suspended)', 'SP-001',
-            'FINDING (expected, per rls_role_matrix.md''s own flag): Agent Alpha CAN still query the SUSPENDED business at the RLS layer. SP-001 requires non-Owner roles see only "This business is temporarily suspended" — that behavior is NOT implemented in RLS policies 0012-0018 and must be enforced at the application layer (block navigation before any query fires) or via an additional business_status clause. Recorded as a known gap, not a suite defect — do not silently mark this a suite bug if it fails; escalate to master chat per the briefing''s instruction.', FALSE);
+            'Agent Alpha CAN still query the SUSPENDED business at the RLS layer. EXPECTED: SP-001 is enforced at the application layer by lib/shared/business_suspension_gate.dart, wired at five entry points and held there by test/business_suspension_gate_test.dart. RLS is deliberately unchanged -- see the note above for why, and for the residual gap this leaves (a non-app client with a valid JWT). Escalated and decided 2026-09-15; this is no longer an open finding.', TRUE);
     END IF;
 END $$;
 

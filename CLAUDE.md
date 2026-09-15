@@ -357,6 +357,40 @@ before running `flutter build apk` or `adb install`.
 **Final step (only after my approval in Phase 4):** run `flutter
 analyze` + full `flutter build apk`, install via adb, report completion.
 
+## Rating the app, every fifth build
+
+**At build 15, 20, 25, 30 — multiples of five, and only then.** Not at 16,
+not "while we're here", and not because a session went well or badly.
+
+Rate 1-10 across four columns and give an overall:
+
+| Column | What it means |
+|---|---|
+| UI | Visual design, identity, motion, density, empty states |
+| UX | Whether the flows suit somebody standing in a field in the rain |
+| Code | Tests, structure, guards, honesty of the comments |
+| Production readiness | CI, telemetry, offline, credentials, languages |
+
+**The benchmark is the top-rated finance and social apps on the stores** —
+PhonePe, Groww, Kite, CRED, Revolut — not "average software" and not this
+app's own last score. A number that only ever goes up is a number nobody is
+measuring.
+
+**Ground every score in something checked during that session**, not
+recalled: run the counts, open the files, read the screenshots. The first
+rating (build 12, 2026-09-15: UI 5, UX 6, Code 7, Production 4, overall 6)
+was built on `find | wc -l`, an absent `.github/`, a commented-out offline
+dependency and a grep for crash reporting. Repeat that standard or the score
+is flattery.
+
+**Say what would move each number, in order of value.** A rating with no
+next action is a performance review nobody asked for.
+
+**Build 12's ratings and the plan that came out of them** are in
+`docs/superpowers/plans/2026-09-15-production-readiness.md`. Re-read it before
+the next rating and say which tasks landed -- a score that moved without work
+behind it means the measurement drifted, not the app.
+
 ## Session start checklist
 
 1. Read CLAUDE.md

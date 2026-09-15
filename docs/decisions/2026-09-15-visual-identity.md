@@ -1,6 +1,12 @@
 # Visual identity: the direction
 
-**Status: DIRECTION PROPOSED, NOT YET APPLIED.** Task 12 of
+**Status: APPLIED TO ONE SCREEN — the collection round, 2026-09-16.**
+`lib/shared/collection_round_view.dart`, shared by AG-002 and OW-006, so both
+rounds got it from one widget. What landed is at the bottom, under "The first
+application". Everything between here and there is the direction as it was
+decided, unchanged.
+
+**Was: DIRECTION PROPOSED, NOT YET APPLIED.** Task 12 of
 `docs/superpowers/plans/2026-09-15-production-readiness.md`, whose own entry
 says: *"A direction decided once and applied is worth more than ten screens
 each improved separately."* This is that direction. Applying it is a separate,
@@ -107,3 +113,62 @@ would trade a measured 5/10 for an unmeasured one.
 The honest sequence is: agree the direction, apply it to **one** screen —
 the collection round, which is where an agent spends the day — test that on a
 handset, and only then decide whether it earns the other seventy.
+
+---
+
+## The first application
+
+Chosen because this document said to choose it: *"apply it to **one** screen —
+the collection round, which is where an agent spends the day — test that on a
+handset, and only then decide whether it earns the other seventy."*
+
+**The line.** One 2dp amber hairline under the date, filled for the doors
+collected and hollow for the rest. It is the signature, and it is also the
+answer to a question the screen could not previously answer: the round listed
+every door and said nothing about progress, so an agent halfway down a village
+counted the rows they had already walked past.
+
+Counted over the **whole round**, not the filtered view — narrowing to one
+village must never make the day look finished.
+`test/collection_round_line_test.dart` pins that, because it is exactly the kind
+of thing that regresses quietly and ends a round two villages early.
+
+**The amounts were the real find, and they were not a taste problem.** This
+document asked for "amounts become the typography". On this screen the balance
+rendered at **13sp** — below the **16sp floor `ManaAmount` itself declares for
+money** — and neither figure used tabular figures, so a column of amounts did
+not align. Both go through `ManaAmount` now: the floor, tabular figures, a
+screen-reader label that says "rupees" rather than spelling the glyphs, and no
+wrapping mid-number.
+
+**Measured while there, and the number to carry into the next rating:** `lib/`
+holds **180 `manaRupees(` call sites against 16 `ManaAmount` usages**, 79 of
+them money interpolated into a `ManaText`. The component that exists to stop
+money being set as small text is used in under a tenth of the places it applies.
+A guard against the pattern would need a 79-entry exemption list today, which is
+a chore rather than a guard — so it is recorded as a figure to move instead of
+being dressed up as one.
+
+**The tagline.** "EVERY ₹ COUNTS" sits under a finished round, and deliberately
+**not** under "nothing matched what you typed" — one is the app idle at the end
+of a day, the other is somebody mid-search, and a brand mark over a failed
+filter is the app congratulating itself on the agent's behalf.
+
+**Anchoring actions low was NOT applied here**, which is a decision rather than
+an omission. This document's example is the workspace chooser, where a single
+primary action sits 40% of the screen height from the thumb. This screen's
+primary action is per-row — a Collect button on every door — so there is no one
+control to move, and pushing the list down would put the first door furthest
+from the eye. The direction still holds for the screens it was written about.
+
+**What it cost.** One new key, `round_progress`, which has **no Telugu**:
+English falls back, and English is what a Telugu reader sees. The test fixture
+mirrors that rather than inventing a width no handset will draw, and
+`mana_harness_test.dart` now names such keys in a list checked in **both**
+directions — a key missing Telugu must be on it, and a key on it must still be
+missing Telugu — so the list cannot rot into a place where checks go to die.
+
+**Not yet judged on a handset.** This document's sequence ends "test that on a
+handset, and only then decide whether it earns the other seventy", and that step
+has not happened. Four text scales, two languages and four behaviour tests are
+not the same as standing outside with the screen in the sun.

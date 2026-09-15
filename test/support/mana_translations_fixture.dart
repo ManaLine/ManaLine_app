@@ -915,6 +915,12 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
     'Telugu': 'క్రమం: జరిమానా → గ్రేస్ పీరియడ్ → నేటి బకాయి → గ్రామం → పేరు',
   },
   'nobody_due_today': {'English': 'Nobody due today.', 'Telugu': 'ఈరోజు ఎవరూ బకాయి లేరు.'},
+  // NO TELUGU, and that is not an omission. 20260916120000 inserts this row
+  // with telugu NULL, TranslationCache.t() falls back to English, so English
+  // is what a Telugu reader actually sees today. The fixture mirrors
+  // production -- inventing a Telugu string here would make the layout tests
+  // measure a width that does not exist on any handset.
+  'round_progress': {'English': '{done} of {total} collected'},
   'total_due': {'English': 'Total Due', 'Telugu': 'మొత్తం బకాయి'},
   'collected': {'English': 'Collected', 'Telugu': 'వసూలైంది'},
   'pending': {'English': 'Pending', 'Telugu': 'పెండింగ్'},

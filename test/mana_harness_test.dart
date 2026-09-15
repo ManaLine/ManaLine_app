@@ -200,16 +200,55 @@ void main() {
       expect(manaTranslationsFixture.length, greaterThanOrEqualTo(120));
     });
 
+    /// Keys whose PRODUCTION row has no Telugu, so English is what a Telugu
+    /// reader actually sees.
+    ///
+    /// NAMED, not pattern-matched, and checked in BOTH directions below. The
+    /// fixture exists so layout tests measure the width that really renders;
+    /// for these keys that width is the English one, and inventing a Telugu
+    /// string to satisfy the rule would make the tests measure something no
+    /// handset will ever draw.
+    ///
+    /// Being on this list is a DEBT, not a category. Each entry is a line an
+    /// agent reads in English inside an app that says it speaks Telugu. The
+    /// list is here rather than in a comment because a list can be counted,
+    /// and this is the number that says whether Telugu coverage is going
+    /// forwards or backwards.
+    const noTeluguInProduction = <String>{
+      // 20260916120000 — the collection round's progress line.
+      'round_progress',
+    };
+
     test('has at least English and Telugu for every key', () {
       // ManaLanguage was cut down to English/Telugu only (commit 5ef453a) —
       // older rows still carry Hindi/Tamil/Kannada from before that cut,
       // which is harmless, but new rows are not required to.
       for (final entry in manaTranslationsFixture.entries) {
+        if (noTeluguInProduction.contains(entry.key)) continue;
         expect(
           entry.value.keys,
           containsAll({'English', 'Telugu'}),
-          reason: '${entry.key} is missing English or Telugu',
+          reason: '${entry.key} is missing English or Telugu. If its '
+              'ui_translations row genuinely has telugu NULL, add it to '
+              'noTeluguInProduction with the migration that inserted it — and '
+              'treat that as debt, not as done',
         );
+      }
+    });
+
+    test('the no-Telugu list cannot rot', () {
+      // The other direction, and the reason this is a guard rather than an
+      // exemption. A name left here after somebody supplies the Telugu would
+      // silently stop checking a key that is now checkable, and the list would
+      // grow into the thing it was meant to measure.
+      for (final key in noTeluguInProduction) {
+        expect(manaTranslationsFixture.containsKey(key), isTrue,
+            reason: '$key is on the no-Telugu list but not in the fixture');
+        expect(manaTranslationsFixture[key]!.keys, contains('English'),
+            reason: '$key must at least have the English that renders');
+        expect(manaTranslationsFixture[key]!.containsKey('Telugu'), isFalse,
+            reason: '$key now HAS Telugu — take it off noTeluguInProduction so '
+                'it is checked like every other key');
       }
     });
 

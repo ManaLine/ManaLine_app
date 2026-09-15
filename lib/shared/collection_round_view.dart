@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../design/components/mana_amount.dart';
 import '../design/components/mana_collection_search_field.dart';
 import '../design/components/mana_skeleton.dart';
+import '../design/components/mana_brand_mark.dart';
 import '../design/components/mana_app_bar.dart';
 import '../design/components/mana_filter_rail.dart';
 import '../design/components/mana_text.dart';
@@ -106,6 +107,69 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
   /// itself below the fold -- the list is what the work happens in, and a
   /// filter should not out-size it. A village whose loans are all settled is
   /// not offered: it is not a place to walk to today.
+  /// THE LINE. One amber hairline, and the only decorative-looking thing on
+  /// this screen that is not decoration.
+  ///
+  /// The app is called MANA LINE, and in this trade a line is two things at
+  /// once: the round an agent walks, and the ruled column of the paper ledger
+  /// this replaces. `line_balance` and `line_repayment_index` are already in
+  /// the schema. The word is the product's own, so the signature is drawn from
+  /// it rather than from a moodboard -- amber because amber is already the
+  /// functional decision here (a high-luminance surface with dark marks is
+  /// what survives glare, which is why hi-vis clothing is that colour), and
+  /// horizontal because a ledger is.
+  ///
+  /// It is also the answer to a question the round could not answer. The list
+  /// showed every door and said nothing about progress, so an agent halfway
+  /// down a village counted the rows they had already walked past. Filled for
+  /// what has been collected, hollow for what has not.
+  ///
+  /// COUNTED OVER THE WHOLE ROUND, not the filtered view: narrowing to one
+  /// village must not make the day look finished. `all` is state.sorted.
+  ///
+  /// 2dp costs nothing to render on a cheap handset, survives 2.0x text scale
+  /// because it is not text, and carries no translation.
+  Widget _roundLine(List<CollectionDueRow> all) {
+    if (all.isEmpty) return const SizedBox.shrink();
+    final done = all.where(manaRowSettled).length;
+    final fraction = done / all.length;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: ManaSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ManaText.raw(
+            ref
+                .t('round_progress')
+                .replaceAll('{done}', '$done')
+                .replaceAll('{total}', '${all.length}'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: ManaType.note,
+          ),
+          const SizedBox(height: ManaSpacing.xs),
+          LayoutBuilder(
+            builder: (context, constraints) => Stack(
+              children: [
+                Container(
+                  height: 2,
+                  width: constraints.maxWidth,
+                  color: ManaColors.brand.withValues(alpha: 0.20),
+                ),
+                Container(
+                  height: 2,
+                  width: constraints.maxWidth * fraction,
+                  color: ManaColors.brand,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _villageDropdown(List<CollectionDueRow> all) {
     final villages = manaVillagesInRound(all);
     if (villages.isEmpty) return const SizedBox.shrink();
@@ -315,6 +379,7 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                       ],
                     ),
                     const SizedBox(height: ManaSpacing.sm),
+                    _roundLine(state.sorted),
                     if (visible.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
@@ -323,12 +388,43 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                           // typed" are different facts, and telling somebody
                           // the first when the second is true reads as an
                           // empty round.
-                          child: ManaText.raw(
-                              _query.trim().isEmpty
-                                  ? ref.t('nobody_due_today')
-                                  : ref.t('no_customers_match_view'),
-                              textAlign: TextAlign.center,
-                              style: ManaType.secondary),
+                          // An empty screen is an invitation, and this app
+                          // already owns a good sentence for one. The tagline
+                          // appeared once, small, on a screen nobody spends
+                          // time on; it belongs where the app is idle and
+                          // waiting, which is a round with nothing left in it.
+                          //
+                          // Only on a FINISHED round -- never under "nothing
+                          // matched what you typed", where the screen is not
+                          // idle, the agent is mid-search, and a brand mark
+                          // would be the app congratulating itself over
+                          // somebody's failed filter.
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ManaText.raw(
+                                  _query.trim().isEmpty
+                                      ? ref.t('nobody_due_today')
+                                      : ref.t('no_customers_match_view'),
+                                  textAlign: TextAlign.center,
+                                  style: ManaType.secondary),
+                              if (_query.trim().isEmpty) ...[
+                                const SizedBox(height: ManaSpacing.md),
+                                ManaText.raw(
+                                  kManaTagline,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 2.0,
+                                    color: ManaColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       )
                     else
@@ -561,28 +657,64 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
                       maxLines: 2, style: ManaType.note),
                 ],
                 const SizedBox(height: ManaSpacing.xs),
-                // Both figures labelled. They are not interchangeable and the
-                // whole point of the row is that nobody confuses them: the
-                // balance is what the loan owes, the EMI is what to ask for.
+                // THE TWO FIGURES ARE THE POINT OF THE ROW, and they were the
+                // smallest text on it.
+                //
+                // Both were interpolated into a sentence and handed to
+                // ManaText: the balance at ManaType.note, which is 13sp, and
+                // the EMI at cardTitle, 16sp. ManaAmount exists precisely to
+                // stop that -- its own doc records that money was being set at
+                // 11-12sp across the app, "the most important numbers in the
+                // app were among its smallest text" -- and it declares 16sp as
+                // the floor for a rupee figure. The screen an agent reads at a
+                // door was below that floor.
+                //
+                // What ManaAmount adds beyond size, and why a NumberFormat
+                // call could not: TABULAR FIGURES, so a column of amounts
+                // aligns instead of jittering (1 is narrower than 8, so ₹1,111
+                // and ₹8,888 did not line up, and scanning a round for the odd
+                // figure out is the core task here); a screen-reader label, so
+                // TalkBack says "four thousand rupees" instead of spelling the
+                // glyphs; and no soft-wrap mid-number.
+                //
+                // Labels sit ABOVE their figures now rather than inline. The
+                // amounts are then the only thing on their baseline, which is
+                // what makes the column scannable, and at 2.0x text scale the
+                // label wraps on its own line instead of shoving the number.
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Flexible(
-                      child: ManaText.raw(
-                        '${ref.t('balance')} ${manaRupees(row.outstandingBalance)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: ManaType.note,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ManaText.raw(ref.t('balance'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: ManaType.fine),
+                          ManaAmount(row.outstandingBalance,
+                              size: ManaAmountSize.compact,
+                              semanticLabel: ref.t('balance')),
+                        ],
                       ),
                     ),
                     const SizedBox(width: ManaSpacing.sm),
                     Flexible(
-                      child: ManaText.raw(
-                        '${ref.t('emi')} ${manaRupees(row.installmentAmount)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.right,
-                        style: ManaType.cardTitle,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          ManaText.raw(ref.t('emi'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: ManaType.fine),
+                          // The figure to ask for at the door, and the largest
+                          // thing on the row.
+                          ManaAmount(row.installmentAmount,
+                              size: ManaAmountSize.standard,
+                              semanticLabel: ref.t('emi')),
+                        ],
                       ),
                     ),
                   ],

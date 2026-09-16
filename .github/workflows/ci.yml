@@ -22,7 +22,7 @@ jobs:
     name: analyze and test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -101,9 +101,9 @@ jobs:
     needs: [test, preflight]
     if: needs.preflight.outputs.configured == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -126,16 +126,41 @@ jobs:
           test -n "$URL" || { echo "SUPABASE_URL secret is empty"; exit 1; }
           test -n "$KEY" || { echo "SUPABASE_ANON_KEY secret is empty"; exit 1; }
 
+      # RETRIED ONCE, and only this step.
+      #
+      # On 2026-09-15 this failed on web-on-the-web while the SAME COMMIT
+      # passed on main four minutes later. The cause was not the code:
+      #
+      #   Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20
+      #   Could not parse POM https://plugins.gradle.org/m2/.../*.pom
+      #
+      # Gradle could not reach the plugin registry. A red tick that means "the
+      # registry was briefly unreachable" trains everybody to ignore red ticks,
+      # which is worse than the flake.
+      #
+      # ONE retry, not three, and no retry anywhere else. A compile error fails
+      # twice in about the same time it used to fail once; a registry blip
+      # passes on the second attempt. If this step starts needing its retry
+      # regularly, that is a signal worth seeing rather than absorbing -- so
+      # the log says which attempt succeeded.
       - name: build the debug apk
         env:
           URL: ${{ secrets.SUPABASE_URL }}
           KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: >
-          flutter build apk --debug
-          --dart-define=SUPABASE_URL="$URL"
-          --dart-define=SUPABASE_ANON_KEY="$KEY"
+        run: |
+          build_apk() {
+            flutter build apk --debug               --dart-define=SUPABASE_URL="$URL"               --dart-define=SUPABASE_ANON_KEY="$KEY"
+          }
+          if build_apk; then
+            echo "apk built on the first attempt"
+          else
+            echo "::warning::first attempt failed; retrying once in case the plugin registry was unreachable"
+            sleep 15
+            build_apk
+            echo "apk built on the SECOND attempt -- if this recurs, the flake is becoming a fault"
+          fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: app-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk

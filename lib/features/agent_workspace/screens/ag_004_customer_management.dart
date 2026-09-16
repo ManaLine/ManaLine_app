@@ -326,7 +326,12 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
           data: (profile) => TabBarView(
             children: [
               _SummaryTab(profile: profile),
-              _LoanInformationTab(profile: profile),
+              _LoanInformationTab(
+                profile: profile,
+                onIssueLoan: perms.canIssueLoans
+                    ? () => _handleAction(context, ref, 'create_loan')
+                    : null,
+              ),
               CustomerCollectionsTab(profile: profile),
               _RemarksTab(customerId: customerId, profile: profile, canAddRemarks: perms.canAddRemarks),
             ],
@@ -637,12 +642,47 @@ class _SummaryTab extends ConsumerWidget {
 /// LOAN INFORMATION — read-only display only.
 class _LoanInformationTab extends ConsumerWidget {
   final CustomerProfile profile;
-  const _LoanInformationTab({required this.profile});
 
+  /// Null when this Agent may not issue loans, in which case the tab says what
+  /// it says and offers nothing — the same rule the ⋮ menu already applies.
+  final VoidCallback? onIssueLoan;
+
+  const _LoanInformationTab({required this.profile, this.onIssueLoan});
+
+  /// AN EMPTY TAB THAT OFFERS NOTHING IS A DEAD END.
+  ///
+  /// This said "No Loans Yet" and stopped, while Create Loan sat in the ⋮ menu
+  /// two taps away behind a glyph. A customer with no loan is the single most
+  /// likely person to be about to get one, so the empty state is exactly where
+  /// that action belongs — reported from the handset as "he has no loan but I
+  /// need here an option to create a loan".
+  ///
+  /// Routed through the SAME handler as the menu item rather than a second
+  /// copy of the navigation: two ways to start a loan that drift apart is how
+  /// one of them stops carrying the prefilled customer and quietly opens the
+  /// wizard on nobody.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (profile.loans.isEmpty) {
-      return Center(child: ManaText.raw(ref.t('no_loans_yet'), style: ManaType.secondary));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(ManaSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ManaText.raw(ref.t('no_loans_yet'), style: ManaType.secondary),
+              if (onIssueLoan != null) ...[
+                const SizedBox(height: ManaSpacing.lg),
+                FilledButton.icon(
+                  onPressed: onIssueLoan,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: ManaText.raw(ref.t('create_loan')),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
     }
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),

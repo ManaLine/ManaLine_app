@@ -565,10 +565,22 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       _searching = false;
       final matches = result ?? const <CustomerSummary>[];
       _results = matches;
-      // Auto-select only when there is exactly one — with several people
-      // called Sai, picking the first for the Owner is how the wrong person
-      // gets linked to a business.
-      _foundIdentity = matches.length == 1 ? matches.first : null;
+      // NOTHING IS SELECTED BY A SEARCH. This chose the match when there was
+      // exactly one, which put a filled tick and an enabled "Add & Issue Loan"
+      // on screen for a person the Owner had not yet looked at -- so the
+      // screen had made the decision and was showing the confirmation. With a
+      // village of repeated names the one row a query returns is not
+      // necessarily the right person; it is the only person who matched the
+      // letters typed.
+      //
+      // The result is shown either way. What changes is that linking somebody
+      // to a business now needs a tap that means "this one", which is also the
+      // moment the father's name and village on the card get read.
+      //
+      // The duplicate-warning path below keeps its own behaviour: there the
+      // question is "are you about to make a second record of this person",
+      // and highlighting who it means is the point of the warning.
+      _foundIdentity = null;
       if (matches.isNotEmpty) {
         _notFound = false;
         _stage = _AddCustomerStage.found;
@@ -946,6 +958,23 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
           onAddOnly: () => _linkExisting(),
           onAddAndLend: () => _linkExisting(thenLoan: true),
         ),
+        // NOT THIS PERSON. Reaching a list of matches and recognising none of
+        // them used to leave only "Search Again" -- which searches for the
+        // person the Owner has just decided is not on it. Somebody standing at
+        // a door with a customer who is genuinely new needs the other door,
+        // and it was two screens away.
+        //
+        // Hidden when the sheet was opened from "Existing Customers", where
+        // creating a new identity is not what was asked for.
+        if (!widget.existingOnly)
+          TextButton.icon(
+            onPressed: () => setState(() {
+              _duplicateBlocked = false;
+              _stage = _AddCustomerStage.createNew;
+            }),
+            icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+            label: ManaText.raw(ref.t('add_a_customer')),
+          ),
         TextButton(
           onPressed: () => setState(() {
             _duplicateBlocked = false;
@@ -1194,7 +1223,11 @@ class CustomerProfileScreen extends ConsumerWidget {
           data: (profile) => TabBarView(
             children: [
               _SummaryTab(customer: customer, profile: profile),
-              _LoansTab(profile: profile),
+              _LoansTab(
+                profile: profile,
+                businessId: businessId,
+                customerId: customer.customerId,
+              ),
               CustomerCollectionsTab(profile: profile),
               _DocumentsTab(customerId: customer.customerId),
               _RemarksTab(customerId: customer.customerId, profile: profile),
@@ -1291,13 +1324,53 @@ class _SummaryTab extends ConsumerWidget {
 
 class _LoansTab extends ConsumerWidget {
   final CustomerProfile profile;
-  const _LoansTab({required this.profile});
+  final String businessId;
+  final String customerId;
+  const _LoansTab({
+    required this.profile,
+    required this.businessId,
+    required this.customerId,
+  });
+
+  /// AN EMPTY TAB THAT OFFERS NOTHING IS A DEAD END.
+  ///
+  /// This said "No loans yet." and stopped. True, and useless: a customer with
+  /// no loan is the single most likely person to be about to get one, and the
+  /// Owner had to leave the profile, find the loan wizard, and search for the
+  /// same person again in a list of fifty-six. Reported from the handset after
+  /// looking up Kiran Rao through global search and finding no way forward.
+  ///
+  /// Same shape as OW-012's Account Periods tab, which this codebase already
+  /// fixed once for the same reason -- a screen that states a fact and offers
+  /// no way to change it is a screen that has stopped being an app.
+  ///
+  /// The action is offered in BOTH states. With loans on the list it is the
+  /// second loan somebody is here to add; with none it is the first. Only the
+  /// prominence differs.
+  void _issueLoan(BuildContext context) => context.push(
+        '/ow-005?customerId=$customerId',
+        extra: businessId,
+      );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (profile.loans.isEmpty) {
       return Center(
-        child: ManaText.raw(ref.t('no_loans_yet_period'), style: ManaType.secondary),
+        child: Padding(
+          padding: const EdgeInsets.all(ManaSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ManaText.raw(ref.t('no_loans_yet_period'), style: ManaType.secondary),
+              const SizedBox(height: ManaSpacing.lg),
+              FilledButton.icon(
+                onPressed: () => _issueLoan(context),
+                icon: const Icon(Icons.add, size: 18),
+                label: ManaText.raw(ref.t('new_loan')),
+              ),
+            ],
+          ),
+        ),
       );
     }
     return ListView(
@@ -1335,7 +1408,19 @@ class _LoansTab extends ConsumerWidget {
                   onTap: () => context.push('/ow-007', extra: l.loanId),
                 ),
               ))
-          .toList(),
+          .cast<Widget>()
+          .toList()
+        // Below the list, not above it: the loans already on the book are what
+        // somebody opened this tab to read, and a create button above them
+        // pushes the reading down the screen to serve the rarer errand.
+        ..add(Padding(
+          padding: const EdgeInsets.only(top: ManaSpacing.sm),
+          child: OutlinedButton.icon(
+            onPressed: () => _issueLoan(context),
+            icon: const Icon(Icons.add, size: 18),
+            label: ManaText.raw(ref.t('new_loan')),
+          ),
+        )),
     );
   }
 }

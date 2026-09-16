@@ -386,8 +386,31 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
     ];
 
     if (agents.isEmpty) {
+      // "No active agents" IS the answer, and it used to be the whole answer.
+      //
+      // A loan cannot be assigned without one, so this stopped the Owner
+      // halfway through creating a loan with a sentence and no way out of it:
+      // leave the wizard, find Workforce, add an agent, come back, and start
+      // the loan again from the customer.
+      //
+      // The same first-domino shape OW-012's Account Periods tab was fixed for
+      // -- "true, but useless, because nothing on screen said where an Account
+      // Period comes from". An agent is where a collection agent comes from,
+      // and the door is one tap now.
+      //
+      // A SnackBarAction rather than a dialog: the Owner did not ask a
+      // question, they hit a wall, and a modal would make them dismiss two
+      // things to get on with it.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: ManaText.raw(ref.t('no_active_agents_note'))),
+        SnackBar(
+          content: ManaText.raw(ref.t('no_active_agents_note')),
+          action: SnackBarAction(
+            label: ref.t('add_an_agent'),
+            onPressed: () =>
+                context.push('/ow-search?role=agent', extra: widget.businessId),
+          ),
+          duration: const Duration(seconds: 8),
+        ),
       );
       return;
     }

@@ -30,40 +30,124 @@ class ManaMoneyRow extends StatelessWidget {
 
   /// Only for a figure whose SIGN carries meaning, like a short or an excess.
   /// Colour is not decoration on a money screen.
-  final Color? color;
+  ///
+  /// A TONE, not a Colour, since 2026-09-16. The amount is drawn by
+  /// [ManaAmount] now, which owns the mapping from meaning to colour so that
+  /// "short" is the same red everywhere rather than whatever each caller
+  /// reached for. One caller passed this and it passed statusGood/statusBad,
+  /// which are exactly positive/negative.
+  final ManaAmountTone? tone;
 
   const ManaMoneyRow({
     super.key,
     required this.label,
     required this.amount,
     this.emphasize = false,
-    this.color,
+    this.tone,
   });
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
+    // THE LABEL'S STYLE, NOT THE AMOUNT'S.
+    //
+    // These were one TextStyle covering both, at 13sp normally and 15sp when
+    // emphasised -- so the figures an Owner reads to decide whether the day's
+    // cash balances were set BELOW the 16sp floor ManaAmount declares for
+    // money, in the shared component both day-closing screens are built from.
+    // Twenty-three call sites, all of them under the floor, and nothing in the
+    // suite could see it.
+    //
+    // The amount now goes through ManaAmount: the floor, tabular figures so a
+    // column of them aligns instead of jittering, a screen-reader label that
+    // says "rupees" rather than spelling the glyphs, and no wrap mid-number.
+    final labelStyle = TextStyle(
       fontWeight: emphasize ? FontWeight.bold : FontWeight.normal,
       fontSize: emphasize ? 15 : 13,
-      color: color,
     );
+    // The COLOUR IS ON THE FIGURE ALONE. It used to tint the label too, because
+    // one style covered both. What carries the meaning is the number's sign,
+    // and tinting the word beside it is the decoration this component's own
+    // comment says money screens do not get.
+    final money = ManaAmount(
+      amount,
+      size: emphasize ? ManaAmountSize.standard : ManaAmountSize.compact,
+      tone: tone ?? ManaAmountTone.neutral,
+      semanticLabel: label,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // The LABEL is the side that gives way. It ellipsises; the amount
-          // does not, because a truncated rupee figure is a wrong number
-          // presented as a right one, and this row is read to decide whether
-          // cash balances.
-          Expanded(
-            child: ManaText.raw(label,
-                maxLines: 2, overflow: TextOverflow.ellipsis, style: style),
-          ),
-          const SizedBox(width: ManaSpacing.sm),
-          ManaText.raw(manaRupees(amount),
-              style: style, textAlign: TextAlign.right),
-        ],
+      // WHEN THE TWO NO LONGER FIT, THE ROW STACKS. It does not shrink either
+      // side.
+      //
+      // Raising the figure to the 16sp money floor made it wide enough to stop
+      // fitting beside its label at 2.0x text scale, and OW-011's layout test
+      // said so immediately -- four failures, the overflow bug class this
+      // project has shipped four times.
+      //
+      // The obvious repair is the forbidden one. Letting the amount ellipsise
+      // would turn "₹1,23,456" into "₹1,23..." on the screen an Owner reads to
+      // decide whether the day's cash balances, and this file's own comment
+      // already says why that is not an option: a truncated rupee figure is a
+      // wrong number presented as a right one.
+      //
+      // So the LAYOUT gives instead. The width the figure needs is measured
+      // against the width there is, and if the label would be left less than a
+      // third of the row the pair stacks -- label above, figure below, both
+      // whole. A third because below that a two-line label is unreadable
+      // anyway, so the row was already failing, just silently.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final painter = TextPainter(
+            text: TextSpan(
+              text: manaRupees(amount),
+              style: TextStyle(
+                fontSize: emphasize
+                    ? ManaAmountSize.standard.fontSize
+                    : ManaAmountSize.compact.fontSize,
+                fontWeight: emphasize
+                    ? ManaAmountSize.standard.weight
+                    : ManaAmountSize.compact.weight,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+            textScaler: MediaQuery.textScalerOf(context),
+          )..layout();
+
+          final roomForLabel =
+              constraints.maxWidth - painter.width - ManaSpacing.sm;
+          final stack = roomForLabel < constraints.maxWidth / 3;
+
+          if (stack) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ManaText.raw(label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: labelStyle),
+                money,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The LABEL is the side that gives way. It ellipsises; the
+              // amount does not.
+              Expanded(
+                child: ManaText.raw(label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: labelStyle),
+              ),
+              const SizedBox(width: ManaSpacing.sm),
+              money,
+            ],
+          );
+        },
       ),
     );
   }

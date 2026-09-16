@@ -372,9 +372,11 @@ class _SummaryCard extends ConsumerWidget {
               const Divider(),
               ManaMoneyRow(label: ref.t('difference'), amount: difference!,
                   emphasize: true,
-                  color: difference == 0
-                      ? ManaColors.statusGood
-                      : ManaColors.statusBad),
+                  // A tone, not a colour: ManaAmount owns the mapping so that
+                  // "balanced" and "short" read the same on every screen.
+                  tone: difference == 0
+                      ? ManaAmountTone.positive
+                      : ManaAmountTone.negative),
             ],
           ],
         ),

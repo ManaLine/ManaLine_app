@@ -346,8 +346,7 @@ class _ExpectedRow extends StatelessWidget {
                 style: ManaType.secondary),
           ),
           const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(manaRupees(value),
-              style: Theme.of(context).textTheme.bodyMedium),
+          ManaAmount(value, size: ManaAmountSize.compact),
         ],
       ),
     );
@@ -416,14 +415,12 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
                     .t('expected_actual_note')
                     .replaceAll('{expected}', manaRupees(l.expected))
                     .replaceAll('{actual}', manaRupees(l.actual))),
-                trailing: ManaText.raw(
-                  manaRupees(l.delta),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: l.delta == 0
-                        ? ManaColors.statusGood
-                        : ManaColors.statusBad,
-                  ),
+                trailing: ManaAmount(
+                  l.delta,
+                  size: ManaAmountSize.compact,
+                  tone: l.delta == 0
+                      ? ManaAmountTone.positive
+                      : ManaAmountTone.negative,
                 ),
               ),
             )),

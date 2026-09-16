@@ -93,15 +93,12 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                   style: ManaType.note),
             ),
             const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(
-              manaRupees(net),
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                // Negative means more has been availed than paid in, so the
-                // remaining instalments are a liability rather than an asset.
-                color: net < 0 ? ManaColors.statusBad : ManaColors.textPrimary,
-              ),
+            // Negative means more has been availed than paid in, so the
+            // remaining instalments are a liability rather than an asset.
+            ManaAmount(
+              net,
+              size: ManaAmountSize.standard,
+              tone: net < 0 ? ManaAmountTone.negative : ManaAmountTone.neutral,
             ),
           ],
         ),
@@ -223,7 +220,7 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
                       ListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
-                        title: ManaText.raw(manaRupees(p.netPaid)),
+                        title: ManaAmount(p.netPaid, size: ManaAmountSize.compact),
                         subtitle: ManaText.raw(
                           _dateFmt.format(p.businessDate),
                           style: TextStyle(

@@ -354,8 +354,9 @@ class _ScheduleCard extends ConsumerWidget {
                             style: ManaType.small),
                         Row(
                           children: [
-                            ManaText.raw(manaRupees(e.installmentAmount),
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            ManaAmount(e.installmentAmount,
+                                size: ManaAmountSize.compact,
+                                semanticLabel: ref.t('emi')),
                             const SizedBox(width: ManaSpacing.xs),
                             ManaStatusPill(
                               label: e.status,
@@ -414,8 +415,9 @@ class _PaymentHistoryCard extends ConsumerWidget {
                             style: ManaType.note),
                         Row(
                           children: [
-                            ManaText.raw(manaRupees(h.collectedAmount),
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            ManaAmount(h.collectedAmount,
+                                size: ManaAmountSize.compact,
+                                semanticLabel: ref.t('collected')),
                             const SizedBox(width: ManaSpacing.xs),
                             ManaStatusPill(
                               label: h.paymentMode,
@@ -457,7 +459,7 @@ class _PendingOnlinePaymentsCard extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       ManaText.raw(_dateFmt.format(p.submittedAt), style: ManaType.small),
-                      ManaText.raw(manaRupees(p.amount), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      ManaAmount(p.amount, size: ManaAmountSize.compact),
                     ],
                   ),
                 )),
@@ -485,8 +487,12 @@ class _PenaltyGraceCard extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   ManaText.raw(ref.t('penalty'), style: ManaType.note),
-                  ManaText.raw(manaRupees(detail.penaltyAmount!),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ManaColors.statusBad)),
+                  // A tone, not a colour: ManaAmount owns the mapping, so a
+                  // penalty is the same red here as on every other screen.
+                  ManaAmount(detail.penaltyAmount!,
+                      size: ManaAmountSize.compact,
+                      tone: ManaAmountTone.negative,
+                      semanticLabel: ref.t('penalty')),
                 ],
               ),
             if (detail.gracePeriodEndDate != null)

@@ -285,13 +285,13 @@ class _OwnerTrashScreenState extends ConsumerState<OwnerTrashScreen> {
                                               const SizedBox(
                                                   width: ManaSpacing.sm),
                                               Flexible(
-                                                child: ManaText.raw(
-                                                    manaRupees(r.amount!),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    textAlign: TextAlign.right,
-                                                    style: ManaType.cardTitle),
+                                                child: Align(
+                                                  alignment:
+                                                      Alignment.centerRight,
+                                                  child: ManaAmount(r.amount!,
+                                                      size: ManaAmountSize
+                                                          .compact),
+                                                ),
                                               ),
                                             ],
                                           ],

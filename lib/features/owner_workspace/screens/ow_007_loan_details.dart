@@ -615,8 +615,7 @@ class _PaymentHistorySection extends ConsumerWidget {
                   title: ManaText.raw(
                       DateFormat('d MMM yyyy').format(p.businessDate)),
                   subtitle: ManaText.raw('${p.paymentMode} · ${p.collector} · #${p.receiptNumber}'),
-                  trailing: ManaText.raw(manaRupees(p.amount),
-                      style: ManaType.strong),
+                  trailing: ManaAmount(p.amount, size: ManaAmountSize.compact),
                 ),
               )),
       ],

@@ -531,7 +531,7 @@ class _RowDetailSheetState extends ConsumerState<_RowDetailSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(child: ManaText.raw(e.label)),
-                    ManaText.raw(manaRupees(e.amount)),
+                    ManaAmount(e.amount, size: ManaAmountSize.compact),
                   ],
                 ),
               )),

@@ -1591,12 +1591,18 @@ class _CashHolders extends ConsumerWidget {
                   style: strong ? ManaType.strong : null),
             ),
             const SizedBox(width: ManaSpacing.sm),
+            // ManaAmount already refuses to wrap and ellipsises rather than
+            // rewrap, so maxLines/overflow move inside it. The right alignment
+            // belongs to the box, since it takes no textAlign.
             Flexible(
-              child: ManaText.raw(manaRupees(amount),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: strong ? ManaType.strong : ManaType.emphasis),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ManaAmount(amount,
+                    size: strong
+                        ? ManaAmountSize.standard
+                        : ManaAmountSize.compact,
+                    semanticLabel: name),
+              ),
             ),
           ],
         ),

@@ -123,8 +123,7 @@ class _DeletedRowState extends ConsumerState<_DeletedRow> {
                       style: ManaType.emphasis),
                 ),
                 if (r.amount != null)
-                  ManaText.raw(manaRupees(r.amount!),
-                      style: ManaType.strong),
+                  ManaAmount(r.amount!, size: ManaAmountSize.compact),
               ],
             ),
             const SizedBox(height: ManaSpacing.xs),

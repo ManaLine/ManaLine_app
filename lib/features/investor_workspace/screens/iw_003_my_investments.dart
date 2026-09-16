@@ -163,9 +163,9 @@ class _InvestmentListCard extends ConsumerWidget {
         title: Row(
           children: [
             Expanded(
-              child: ManaText.raw(manaRupees(investment.principalAmount),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
+              child: ManaAmount(investment.principalAmount,
+                  size: ManaAmountSize.compact,
+                  semanticLabel: ref.t('principal_amount')),
             ),
             ManaStatusPill(
               label: investment.status,
@@ -505,9 +505,8 @@ class _InterestLedgerSection extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              ManaText.raw(manaRupees(e.amount),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600)),
+                              ManaAmount(e.amount,
+                                  size: ManaAmountSize.compact),
                               ManaStatusPill(
                                 label: ref.t(e.ownerVerified ? 'owner_verified' : 'not_verified'),
                                 status: e.ownerVerified
@@ -582,9 +581,8 @@ class _WithdrawalHistorySection extends ConsumerWidget {
                           flex: 2,
                           child: Align(
                             alignment: Alignment.centerRight,
-                            child: ManaText.raw(manaRupees(e.amount),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
+                            child: ManaAmount(e.amount,
+                                size: ManaAmountSize.compact),
                           ),
                         ),
                       ],

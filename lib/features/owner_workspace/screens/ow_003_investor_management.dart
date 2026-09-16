@@ -379,8 +379,9 @@ class _InvestmentsTab extends ConsumerWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: ManaText.raw(manaRupees(inv.principalAmount),
-                                style: ManaType.cardTitle),
+                            child: ManaAmount(inv.principalAmount,
+                                size: ManaAmountSize.standard,
+                                semanticLabel: ref.t('principal_amount')),
                           ),
                           ManaStatusPill(
                             label: inv.status,
@@ -863,7 +864,8 @@ class _ProfitShareSheetState extends ConsumerState<_ProfitShareSheet> {
                       final d = declarations[i];
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: ManaText.raw(manaRupees(d.declaredAmount)),
+                        title: ManaAmount(d.declaredAmount,
+                            size: ManaAmountSize.compact),
                         subtitle: ManaText.raw(
                             '${DateFormat('d MMM yyyy').format(d.businessDate)} · of ${manaRupees(d.totalProfitAmount)} total'),
                         trailing: d.status == 'Declared'

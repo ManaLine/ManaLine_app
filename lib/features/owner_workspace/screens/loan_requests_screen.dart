@@ -137,9 +137,14 @@ class _LoanRequestsScreenState extends ConsumerState<LoanRequestsScreen> {
                                     const SizedBox(width: ManaSpacing.xs),
                                     Expanded(
                                       flex: 4,
-                                      child: ManaText.raw(manaRupees(r.requestedAmount),
-                                          style: ManaType.cardTitle,
-                                          textAlign: TextAlign.right),
+                                      // ManaAmount owns its own text style and
+                                      // takes no textAlign; the alignment
+                                      // belongs to the box around it.
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: ManaAmount(r.requestedAmount,
+                                            size: ManaAmountSize.standard),
+                                      ),
                                     ),
                                   ],
                                 ),

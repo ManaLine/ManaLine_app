@@ -37,7 +37,7 @@ class CustomerCollectionsTab extends ConsumerWidget {
       children: profile.collections
           .map((c) => ListTile(
                 leading: Icon(Icons.receipt_long_outlined, color: ManaColors.brand),
-                title: ManaText.raw(manaRupees(c.amount)),
+                title: ManaAmount(c.amount, size: ManaAmountSize.compact),
                 subtitle: ManaText.raw('${c.paymentMode} · ${c.collector} · #${c.receiptNumber}'),
                 trailing: ManaText.raw(DateFormat('d MMM').format(c.businessDate),
                     style: TextStyle(fontSize: 16, color: ManaColors.textSecondary)),

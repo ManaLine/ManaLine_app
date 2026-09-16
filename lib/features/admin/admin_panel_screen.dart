@@ -738,7 +738,8 @@ class _DeleteCollectionCardState extends ConsumerState<_DeleteCollectionCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ManaText.raw(manaRupees(_found!['collected_amount']), style: ManaType.strong),
+                    ManaAmount(_found!['collected_amount'] as num,
+                        size: ManaAmountSize.compact),
                     ManaText.raw('Customer: ${_found!['customer_name']} (${_found!['customer_mlid']})', style: const TextStyle(fontSize: 16)),
                     ManaText.raw('Loan: ${_found!['loan_number'] ?? 'N/A'}   Date: ${_found!['entry_timestamp']}', style: ManaType.small),
                   ],

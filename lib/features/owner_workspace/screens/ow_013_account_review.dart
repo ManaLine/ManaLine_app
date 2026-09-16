@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
+import '../../../design/components/mana_money_row.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_app_bar.dart';
@@ -172,23 +173,21 @@ class _OwnerBfPanel extends ConsumerWidget {
     );
   }
 
-  Widget _bfRow(String label, int amount, {bool emphasize = false}) {
-    final style = TextStyle(
-      fontWeight: emphasize ? FontWeight.bold : FontWeight.normal,
-      fontSize: emphasize ? 16 : 14,
-    );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style)),
-          const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(manaRupees(amount), style: style),
-        ],
-      ),
-    );
-  }
+  /// Delegates to ManaMoneyRow rather than repeating it.
+  ///
+  /// These were the same shape -- a label and the rupee figure it names -- and
+  /// the copies differed only in padding. Raising the figure to the 16sp money floor
+  /// made it wide enough to stop fitting beside its label, and this screen
+  /// overflowed at 2.0x exactly as OW-011 had an hour earlier. ManaMoneyRow
+  /// had already solved that: measure the figure against the room available
+  /// and stack the pair when the label would be left under a third of the row,
+  /// because a truncated rupee figure is a wrong number presented as a right
+  /// one and must never be the thing that gives.
+  ///
+  /// Copying that logic here would have been a second copy of a rule about
+  /// money, drifting from the first.
+  Widget _bfRow(String label, int amount, {bool emphasize = false}) =>
+      ManaMoneyRow(label: label, amount: amount, emphasize: emphasize);
 }
 
 class _SettlementCard extends ConsumerWidget {
@@ -236,17 +235,18 @@ class _SettlementCard extends ConsumerWidget {
             _fieldRow(ref.t('total_interest'), settlement.totalInterest),
             _fieldRow(ref.t('total_processing_fee'), settlement.totalProcessingFee),
             if (settlement.expenses > 0) _fieldRow(ref.t('expenses'), settlement.expenses),
-            if (settlement.short > 0) _fieldRow(ref.t('short'), settlement.short, color: ManaColors.statusBad),
-            if (settlement.excess > 0) _fieldRow(ref.t('excess'), settlement.excess, color: ManaColors.statusWarn),
-            if (settlement.difference > 0) _fieldRow(ref.t('difference'), settlement.difference, color: ManaColors.statusBad),
+            if (settlement.short > 0) _fieldRow(ref.t('short'), settlement.short, tone: ManaAmountTone.negative),
+            if (settlement.excess > 0) _fieldRow(ref.t('excess'), settlement.excess, tone: ManaAmountTone.caution),
+            if (settlement.difference > 0) _fieldRow(ref.t('difference'), settlement.difference, tone: ManaAmountTone.negative),
             const Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(child: ManaText.raw(ref.t('hand_over_balance'), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 const SizedBox(width: ManaSpacing.xs),
-                ManaText.raw(manaRupees(settlement.handOverTotal),
-                    style: ManaType.strong),
+                ManaAmount(settlement.handOverTotal,
+                    size: ManaAmountSize.standard,
+                    semanticLabel: ref.t('hand_over_balance')),
               ],
             ),
             if (breakdown.isNotEmpty)
@@ -287,19 +287,10 @@ class _SettlementCard extends ConsumerWidget {
     );
   }
 
-  Widget _fieldRow(String label, int amount, {Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: color))),
-          const SizedBox(width: ManaSpacing.xs),
-          ManaText.raw(manaRupees(amount), style: TextStyle(fontSize: 16, color: color)),
-        ],
-      ),
-    );
-  }
+  /// A tone rather than a Colour, so ManaAmount owns the mapping and "short"
+  /// is the same red on every screen that shows one.
+  Widget _fieldRow(String label, int amount, {ManaAmountTone? tone}) =>
+      ManaMoneyRow(label: label, amount: amount, tone: tone);
 
   Future<void> _viewDetail(BuildContext context, WidgetRef ref) async {
     final detail = await ref.read(accountReviewProvider.notifier).viewDetail(settlement.settlementId);

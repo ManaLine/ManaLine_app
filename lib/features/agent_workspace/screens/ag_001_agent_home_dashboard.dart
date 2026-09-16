@@ -311,9 +311,10 @@ class _BfGateState extends ConsumerState<_BfGate> {
                 const SizedBox(height: ManaSpacing.md),
                 ManaText.raw(ref.t('opening_bf_for_session')),
                 const SizedBox(height: ManaSpacing.sm),
-                ManaText.raw(manaRupees(bf.openingBf),
-                    style: const TextStyle(
-                        fontSize: 28, fontWeight: FontWeight.bold)),
+                // hero: the figure this card is about -- what the agent
+                // holds before the round starts.
+                ManaAmount.hero(bf.openingBf,
+                    semanticLabel: ref.t('opening_bf')),
                 const SizedBox(height: ManaSpacing.sm),
                 ManaText.raw(
                   ref.t('confirm_bf_or_update_warning'),
@@ -874,8 +875,7 @@ class _CompensationSection extends ConsumerWidget {
                         ManaText.raw(h.cycleLabel,
                             style: TextStyle(
                                 fontSize: 13, color: ManaColors.textSecondary)),
-                        ManaText.raw(manaRupees(h.amount),
-                            style: const TextStyle(fontSize: 16)),
+                        ManaAmount(h.amount, size: ManaAmountSize.compact),
                       ],
                     ),
                   )),

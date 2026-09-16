@@ -177,9 +177,11 @@ class _WithdrawalRequestsScreenState extends ConsumerState<WithdrawalRequestsScr
                                     const SizedBox(width: ManaSpacing.xs),
                                     Expanded(
                                       flex: 4,
-                                      child: ManaText.raw(manaRupees(r.requestedAmount),
-                                          style: ManaType.cardTitle,
-                                          textAlign: TextAlign.right),
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: ManaAmount(r.requestedAmount,
+                                            size: ManaAmountSize.standard),
+                                      ),
                                     ),
                                   ],
                                 ),

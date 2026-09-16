@@ -189,11 +189,9 @@ class _ManaPreExistingLoanSheetState extends ConsumerState<ManaPreExistingLoanSh
                       fontWeight: bold ? FontWeight.w600 : null)),
             ),
             const SizedBox(width: ManaSpacing.sm),
-            ManaText.raw(
-              manaRupees(value),
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w600),
+            ManaAmount(
+              value,
+              size: bold ? ManaAmountSize.standard : ManaAmountSize.compact,
             ),
           ],
         ),

@@ -202,13 +202,11 @@ class _LedgerRowCard extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ManaText.raw(label, style: ManaType.note),
-        ManaText.raw(
-          manaRupees(amount),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: warn ? ManaColors.statusWarn : ManaColors.textPrimary,
-          ),
+        ManaAmount(
+          amount,
+          size: ManaAmountSize.compact,
+          tone: warn ? ManaAmountTone.caution : ManaAmountTone.neutral,
+          semanticLabel: label,
         ),
       ],
     );
@@ -464,8 +462,7 @@ class _EntryList extends ConsumerWidget {
               ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.timestamp),
                   style: TextStyle(
                       fontSize: 13, color: ManaColors.textSecondary)),
-              ManaText.raw(manaRupees(e.amount),
-                  style: ManaType.emphasis),
+              ManaAmount(e.amount, size: ManaAmountSize.compact),
               if (e.isCorrection)
                 ManaStatusPill(label: ref.t('correction'), status: ManaStatus.warn),
             ],

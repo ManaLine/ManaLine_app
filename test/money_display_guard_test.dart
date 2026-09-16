@@ -37,45 +37,31 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   /// Files that still draw a bare amount through ManaText, and how many times.
   ///
-  /// Captured 2026-09-16, after ManaMoneyRow was converted — which removed 23
-  /// call sites in one edit and is why 20 files carry 34 sites rather than
-  /// closer to sixty.
+  /// EMPTY, as of 2026-09-16. It was 20 files and 34 sites when this guard was
+  /// written a few hours earlier; converting ManaMoneyRow took 23 call sites
+  /// out in one edit, and the remaining 34 were done by hand.
   ///
-  /// The first draft of this list came from a shell grep and was WRONG: it
-  /// read one line at a time and missed every site where the amount sits on
-  /// the line after `ManaText.raw(`. The guard reads whole files and found
-  /// three more screens immediately, which is the guard earning its place
-  /// before it had been committed.
-  const backlog = <String, int>{
-    'features/customer_workspace/screens/cw_004_my_loans.dart': 4,
-    'features/investor_workspace/screens/iw_003_my_investments.dart': 3,
-    'features/owner_workspace/screens/ow_013_account_review.dart': 3,
-    'features/agent_workspace/screens/ag_001_agent_home_dashboard.dart': 2,
-    'features/owner_workspace/screens/ow_003_investor_management.dart': 2,
-    'features/owner_workspace/screens/ow_007_loan_details.dart': 2,
-    'features/owner_workspace/screens/ow_009_daily_record_book.dart': 2,
-    'features/owner_workspace/screens/ow_011_day_closure.dart': 2,
-    'features/owner_workspace/screens/ow_015_group_loan_management.dart': 2,
-    'features/owner_workspace/screens/ow_019_cheti_management.dart': 2,
-    'features/admin/admin_panel_screen.dart': 1,
-    'features/customer_workspace/screens/cw_003_request_new_loan.dart': 1,
-    'features/owner_workspace/screens/loan_requests_screen.dart': 1,
-    'features/owner_workspace/screens/ow_001_owner_home_dashboard.dart': 1,
-    'features/owner_workspace/screens/ow_010_report_hub.dart': 1,
-    'features/owner_workspace/screens/ow_pre_existing_loan_sheet.dart': 1,
-    'features/owner_workspace/screens/ow_trash_screen.dart': 1,
-    'features/owner_workspace/screens/withdrawal_requests_screen.dart': 1,
-    'shared/customer_collections_tab.dart': 1,
-    'shared/widgets/recent_deletes_screen.dart': 1,
-  };
+  /// Kept rather than deleted, exactly as `_appliedButFileMissing` is kept in
+  /// translation_keys_exist_test.dart after reaching zero by the same route:
+  /// the argument above it is the argument for keeping it empty. A name added
+  /// here is a screen drawing money below the 16sp floor, and the fix is
+  /// ManaAmount, not an entry.
+  const backlog = <String, int>{};
 
   /// `ManaText.raw(manaRupees(x))` and `ManaText.raw('${manaRupees(x)}')` —
   /// an amount as the ENTIRE content of a text widget. An amount inside a
   /// sentence is deliberately not matched: splitting those is a judgement
   /// about the sentence, not a mechanical swap, and a guard that demanded it
   /// would be demanding the wrong thing.
+  ///
+  /// THE INTERPOLATED HALF IS ANCHORED, and it was not at first. Written as
+  /// `'\$\{manaRupees\(` it also matched `'\${manaRupees(x)} · \$other'` --
+  /// a sentence that merely BEGINS with the figure. Two of those were on the
+  /// first backlog (cw_003's template line, ow_007's penalty line) and
+  /// converting either would have been the guard demanding a wrong answer.
+  /// The closing `\}'` is what makes it mean "and then the string ends".
   final pattern = RegExp(
-    r"""ManaText\.raw\(\s*(manaRupees\(|'\$\{manaRupees\()""",
+    r"""ManaText\.raw\(\s*(manaRupees\(|'\$\{manaRupees\([^)]*\)\}')""",
   );
 
   Map<String, int> scan() {
@@ -135,12 +121,38 @@ void main() {
             '${stale.join('; ')}');
   });
 
-  test('the scan is finding anything at all', () {
-    // A guard that quietly checks nothing reads exactly like one that passes.
-    // If the pattern stops matching, this says so rather than going green.
-    final total = scan().values.fold<int>(0, (a, b) => a + b);
-    expect(total, greaterThan(0),
-        reason: 'the pattern has stopped matching — it is not that the backlog '
-            'was cleared, it is that the guard went blind');
+  test('the pattern still recognises a violation, and still ignores a sentence', () {
+    // A GUARD THAT CHECKS NOTHING READS EXACTLY LIKE ONE THAT PASSES, and with
+    // the backlog at zero there are no real violations left to prove the
+    // pattern still works. So it is tested against strings instead of against
+    // the tree — which is stronger anyway: it keeps working the day somebody
+    // reformats every file in lib/.
+    expect(pattern.hasMatch('ManaText.raw(manaRupees(x))'), isTrue);
+    expect(
+      // A triple-quoted Dart string, so the line break is REAL and no escape
+      // is needed. The escaped form has to survive every tool between the
+      // editor and the file, and twice on 2026-09-16 it did not -- the second
+      // time inside the comment explaining the first.
+      pattern.hasMatch('''ManaText.raw(
+    manaRupees(loan.balance),'''),
+      isTrue,
+      reason: 'the amount on the line after the paren is the case a shell '
+          'grep missed when this backlog was first drafted',
+    );
+    expect(pattern.hasMatch(r"ManaText.raw('${manaRupees(x)}')"), isTrue);
+
+    // And the two that must NOT match: an amount inside a sentence. Converting
+    // either would be the guard demanding a wrong answer — splitting a
+    // sentence is a judgement about the sentence, not a mechanical swap.
+    expect(
+      pattern.hasMatch(r"ManaText.raw('${manaRupees(x)} - ${other}')"),
+      isFalse,
+      reason: 'a sentence that merely BEGINS with the figure',
+    );
+    expect(
+      pattern.hasMatch(r"ManaText.raw(ref.t('note').replaceAll('{a}', manaRupees(x)))"),
+      isFalse,
+      reason: 'an amount interpolated into a translated sentence',
+    );
   });
 }

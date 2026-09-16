@@ -667,23 +667,21 @@ class _RunningDashboard extends ConsumerWidget {
               summary:
                   '${ref.t('todays_collections_total')} ${manaRupees(d.todaysCollectionsTotal)}',
               rows: [
-                (ref.t('customers_assigned'), '${d.customersAssigned}'),
-                (ref.t('customers_visited'), '${d.customersVisited}'),
-                (ref.t('customers_remaining'), '${d.customersRemaining}'),
-                (ref.t('cash'), manaRupees(d.collectionsCash)),
-                (ref.t('upi'), manaRupees(d.collectionsUpi)),
-                (ref.t('bank'), manaRupees(d.collectionsBank)),
-                (ref.t('cheque'), manaRupees(d.collectionsCheque)),
-                (ref.t('mixed'), manaRupees(d.collectionsMixed)),
-                (
-                  ref.t('todays_collections_total'),
-                  manaRupees(d.todaysCollectionsTotal)
-                ),
-                (ref.t('loans_issued'), '${d.loansIssued}'),
-                (ref.t('pending_collections'), '${d.pendingCollections}'),
-                (ref.t('skipped_customers'), '${d.skippedCustomers}'),
-                (ref.t('short'), manaRupees(d.shortAmount)),
-                (ref.t('excess'), manaRupees(d.excessAmount)),
+                _Line(ref.t('customers_assigned'), '${d.customersAssigned}'),
+                _Line(ref.t('customers_visited'), '${d.customersVisited}'),
+                _Line(ref.t('customers_remaining'), '${d.customersRemaining}'),
+                _Line.money(ref.t('cash'), d.collectionsCash),
+                _Line.money(ref.t('upi'), d.collectionsUpi),
+                _Line.money(ref.t('bank'), d.collectionsBank),
+                _Line.money(ref.t('cheque'), d.collectionsCheque),
+                _Line.money(ref.t('mixed'), d.collectionsMixed),
+                _Line.money(
+                    ref.t('todays_collections_total'), d.todaysCollectionsTotal),
+                _Line(ref.t('loans_issued'), '${d.loansIssued}'),
+                _Line(ref.t('pending_collections'), '${d.pendingCollections}'),
+                _Line(ref.t('skipped_customers'), '${d.skippedCustomers}'),
+                _Line.money(ref.t('short'), d.shortAmount),
+                _Line.money(ref.t('excess'), d.excessAmount),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -691,11 +689,11 @@ class _RunningDashboard extends ConsumerWidget {
               title: ref.t('business_status'),
               summary: '${ref.t('todays_target')} ${manaRupees(d.todaysTarget)}',
               rows: [
-                (ref.t('business_date'), _date.format(d.businessDate)),
-                (ref.t('assigned_route'), d.assignedRoute),
-                (ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
-                (ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
-                (ref.t('todays_target'), manaRupees(d.todaysTarget)),
+                _Line(ref.t('business_date'), _date.format(d.businessDate)),
+                _Line(ref.t('assigned_route'), d.assignedRoute),
+                _Line(ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
+                _Line(ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
+                _Line.money(ref.t('todays_target'), d.todaysTarget),
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
@@ -711,15 +709,13 @@ class _RunningDashboard extends ConsumerWidget {
               _SectionCard(
                 title: ref.t('attention_required'),
                 rows: [
-                  (ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
-                  (ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
-                  (ref.t('pending_customer_requests'), '${d.pendingCustomerRequests}'),
-                  (
-                    ref.t('pending_extension_requests'),
-                    '${d.pendingExtensionRequests}'
-                  ),
-                  (ref.t('pending_route_changes'), '${d.pendingRouteChanges}'),
-                  (ref.t('pending_messages'), '${d.pendingMessages}'),
+                  _Line(ref.t('pending_drafts'), '${d.pendingDraftsCount}'),
+                  _Line(ref.t('pending_settlement'), d.pendingSettlement ? ref.t('yes') : ref.t('no')),
+                  _Line(ref.t('pending_customer_requests'), '${d.pendingCustomerRequests}'),
+                  _Line(ref.t('pending_extension_requests'),
+                      '${d.pendingExtensionRequests}'),
+                  _Line(ref.t('pending_route_changes'), '${d.pendingRouteChanges}'),
+                  _Line(ref.t('pending_messages'), '${d.pendingMessages}'),
                 ],
                 accent: ManaColors.statusWarn,
               ),
@@ -732,11 +728,11 @@ class _RunningDashboard extends ConsumerWidget {
               title: ref.t('workspace_information'),
               summary: d.businessName,
               rows: [
-                (ref.t('business_name'), d.businessName),
-                (ref.t('owner'), d.ownerName),
-                (ref.t('membership_status'), d.membershipStatus),
-                (ref.t('permission_profile'), d.permissionProfile),
-                (ref.t('last_sync'), _time.format(d.lastSync)),
+                _Line(ref.t('business_name'), d.businessName),
+                _Line(ref.t('owner'), d.ownerName),
+                _Line(ref.t('membership_status'), d.membershipStatus),
+                _Line(ref.t('permission_profile'), d.permissionProfile),
+                _Line(ref.t('last_sync'), _time.format(d.lastSync)),
               ],
             ),
           ],
@@ -751,9 +747,24 @@ class _RunningDashboard extends ConsumerWidget {
 /// The card and the title moved out to ManaCollapsibleSection: five of these
 /// open at once is four screens of scrolling before the last one is reached,
 /// and most of them are read once a day.
+/// One row on a section card: a label, and either text or MONEY.
+///
+/// Replaces a `(String, String)` tuple. The tuple carried counts, names, routes
+/// and rupee figures in the same slot, so nothing downstream could tell which
+/// was which and every figure was drawn like a count -- 13sp, proportional
+/// digits, no spoken "rupees". Two constructors rather than a nullable pair, so
+/// a caller states which it means and cannot pass both.
+class _Line {
+  final String label;
+  final String? text;
+  final num? amount;
+  const _Line(this.label, this.text) : amount = null;
+  const _Line.money(this.label, this.amount) : text = null;
+}
+
 class _SectionCard extends StatelessWidget {
   final String title;
-  final List<(String, String)> rows;
+  final List<_Line> rows;
   final Color? accent;
 
   /// The one line worth reading with the section shut.
@@ -794,19 +805,30 @@ class _SectionCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Flexible(
-                        child: ManaText.raw(r.$1,
+                        child: ManaText.raw(r.label,
                             style: TextStyle(
                                 fontSize: 13, color: ManaColors.textSecondary)),
                       ),
                       const SizedBox(width: ManaSpacing.sm),
-                      Flexible(
-                        child: ManaText.raw(r.$2,
-                            textAlign: TextAlign.right,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600)),
-                      ),
+                      // MONEY IS NOT A STRING HERE ANY MORE. Thirteen of these
+                      // rows are rupee figures and the rest are counts, names
+                      // and routes; a (String, String) tuple could not tell
+                      // them apart, so every figure rendered at 13sp -- under
+                      // the 16sp floor -- with proportional digits, so a column
+                      // of them did not line up.
+                      if (r.amount != null)
+                        ManaAmount(r.amount!,
+                            size: ManaAmountSize.compact,
+                            semanticLabel: r.label)
+                      else
+                        Flexible(
+                          child: ManaText.raw(r.text ?? '',
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
                     ],
                   ),
                 )),
@@ -837,28 +859,31 @@ class _CompensationSection extends ConsumerWidget {
                     ManaType.note),
             const SizedBox(height: ManaSpacing.sm),
             ...[
-              (ref.t('fixed_salary'), manaRupees(d.fixedSalary)),
-              (
-                ref.t('salary_cycle'),
-                d.salaryCycleStatus.isEmpty ? '—' : d.salaryCycleStatus
-              ),
-              (ref.t('daily_allowance'), manaRupees(d.dailyAllowance)),
+              _Line.money(ref.t('fixed_salary'), d.fixedSalary),
+              _Line(ref.t('salary_cycle'),
+                  d.salaryCycleStatus.isEmpty ? '—' : d.salaryCycleStatus),
+              _Line.money(ref.t('daily_allowance'), d.dailyAllowance),
               if (d.profitSharePercent != null)
-                (ref.t('profit_share'), '${d.profitSharePercent}%'),
-              (ref.t('advances_deducted'), manaRupees(d.advancesDeducted)),
-              (ref.t('shorts_deducted'), manaRupees(d.shortsDeducted)),
-              (ref.t('pending_salary'), manaRupees(d.pendingSalary)),
+                _Line(ref.t('profit_share'), '${d.profitSharePercent}%'),
+              _Line.money(ref.t('advances_deducted'), d.advancesDeducted),
+              _Line.money(ref.t('shorts_deducted'), d.shortsDeducted),
+              _Line.money(ref.t('pending_salary'), d.pendingSalary),
             ].map((r) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ManaText.raw(r.$1,
+                      ManaText.raw(r.label,
                           style: TextStyle(
                               fontSize: 13, color: ManaColors.textSecondary)),
-                      ManaText.raw(r.$2,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)),
+                      if (r.amount != null)
+                        ManaAmount(r.amount!,
+                            size: ManaAmountSize.compact,
+                            semanticLabel: r.label)
+                      else
+                        ManaText.raw(r.text ?? '',
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 )),

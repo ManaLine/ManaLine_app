@@ -29,17 +29,42 @@ library;
 import 'package:flutter/material.dart';
 import '../tokens/colors.dart';
 import '../tokens/spacing.dart';
+import 'mana_amount.dart';
 import 'mana_text.dart';
 
 /// One cell: a headline value with a status label beneath it.
 class ManaStat {
-  /// Pre-formatted — callers pass counts as strings, or currency via their own
-  /// formatter, so this component never guesses at formatting.
+  /// Pre-formatted — callers pass counts as strings. A rupee figure goes in
+  /// [amount] instead, NOT here.
   final String value;
   final String label;
   final ManaStatus status;
 
-  const ManaStat({required this.value, required this.label, required this.status});
+  /// Set when the value is MONEY, and the reason this class has two value
+  /// fields rather than one.
+  ///
+  /// The doc above used to say callers pass "currency via their own
+  /// formatter", and they did — which meant a strip mixing an investor's total
+  /// balance with a count of active investments drew both the same way, at
+  /// whatever `valueFontSize` the caller chose, with proportional digits. A
+  /// balance is not a count. Given an amount, the cell renders ManaAmount: the
+  /// 16sp floor, tabular figures so a row of cards lines up, and a screen
+  /// reader that says "rupees".
+  final num? amount;
+
+  const ManaStat({
+    required this.value,
+    required this.label,
+    required this.status,
+    this.amount,
+  });
+
+  /// A money cell. [value] is unused and left empty.
+  const ManaStat.money({
+    required this.amount,
+    required this.label,
+    required this.status,
+  }) : value = '';
 }
 
 class ManaStatStrip extends StatelessWidget {
@@ -113,16 +138,23 @@ class _StatCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ManaText.raw(
-              stat.value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: valueFontSize,
-                color: ManaColors.textPrimary,
+            if (stat.amount != null)
+              ManaAmount(stat.amount!,
+                  size: valueFontSize >= ManaAmountSize.standard.fontSize
+                      ? ManaAmountSize.standard
+                      : ManaAmountSize.compact,
+                  semanticLabel: stat.label)
+            else
+              ManaText.raw(
+                stat.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: valueFontSize,
+                  color: ManaColors.textPrimary,
+                ),
               ),
-            ),
             const SizedBox(height: 2),
             ManaStatusPill(label: stat.label, status: stat.status),
           ],

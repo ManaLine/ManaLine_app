@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../tokens/spacing.dart';
 import '../tokens/typography.dart';
+import 'mana_amount.dart';
 import 'mana_text.dart';
 
 /// A label on the left, its value on the right, with NEITHER side unbounded.
@@ -24,7 +25,19 @@ import 'mana_text.dart';
 /// truncating costs the fact.
 class ManaLabelValueRow extends StatelessWidget {
   final String label;
+
+  /// Pre-formatted text. A rupee figure goes in [amount] instead, NOT here.
   final String value;
+
+  /// Set when the value is MONEY.
+  ///
+  /// Seven of this component's fifty-one call sites pass a rupee figure, and
+  /// they used to pass it as a String -- so a customer's outstanding balance
+  /// was drawn at ManaType.smallStrong, 13sp, with proportional digits, beside
+  /// a village name rendered identically. Given an amount the row draws
+  /// ManaAmount: the 16sp floor, tabular figures so a column of them aligns,
+  /// and a screen reader that says "rupees" rather than spelling the glyphs.
+  final num? amount;
 
   /// Drawn after the value, inside the row's bounds -- a call button, say.
   /// Must be intrinsically bounded; it is the one child that is not flexible.
@@ -43,7 +56,8 @@ class ManaLabelValueRow extends StatelessWidget {
   const ManaLabelValueRow({
     super.key,
     required this.label,
-    required this.value,
+    this.value = '',
+    this.amount,
     this.trailing,
     this.dense = false,
     this.valueStyle,
@@ -59,9 +73,15 @@ class ManaLabelValueRow extends StatelessWidget {
             const SizedBox(width: ManaSpacing.xs),
             Expanded(
               flex: 6,
-              child: ManaText.raw(value,
-                  style: valueStyle ?? ManaType.smallStrong,
-                  textAlign: TextAlign.right),
+              child: amount != null
+                  ? Align(
+                      alignment: Alignment.centerRight,
+                      child: ManaAmount(amount!,
+                          size: ManaAmountSize.compact, semanticLabel: label),
+                    )
+                  : ManaText.raw(value,
+                      style: valueStyle ?? ManaType.smallStrong,
+                      textAlign: TextAlign.right),
             ),
             if (trailing != null) trailing!,
           ],

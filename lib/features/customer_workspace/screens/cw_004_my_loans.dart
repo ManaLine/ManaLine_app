@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
+import '../../../design/components/mana_money_row.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_app_bar.dart';
@@ -303,10 +304,10 @@ class _AgreementSummaryCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: ManaSpacing.md),
-            _row(ref.t('principal_amount'), manaRupees(s.principalAmount)),
-            _row(ref.t('outstanding_balance'), manaRupees(s.outstandingBalance)),
+            _row(ref.t('principal_amount'), '', amount: s.principalAmount),
+            _row(ref.t('outstanding_balance'), '', amount: s.outstandingBalance),
             _row(ref.t('repayment_type'), '${detail.durationValue} × ${detail.repaymentType}'),
-            _row(ref.t('installment_amount'), manaRupees(detail.installmentAmount)),
+            _row(ref.t('installment_amount'), '', amount: detail.installmentAmount),
             _row(ref.t('effective_date'), _dateFmt.format(detail.effectiveDate)),
             if (detail.loanGivenBy != null && detail.loanGivenBy!.isNotEmpty)
               _row(ref.t('loan_given_by'), detail.loanGivenBy!),
@@ -316,16 +317,27 @@ class _AgreementSummaryCard extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            ManaText.raw(label, style: ManaType.note),
-            ManaText.raw(value, style: ManaType.smallStrong),
-          ],
-        ),
-      );
+  /// Pass [amount] when the value IS money.
+  ///
+  /// The list this builds is mixed -- rupee figures beside counts and dates --
+  /// so a single String parameter could not tell them apart and every figure
+  /// came out weighted like a count. A money value delegates to ManaMoneyRow,
+  /// which carries the 16sp floor, tabular figures, the screen-reader label,
+  /// and the rule that when the figure no longer fits beside its label the
+  /// pair STACKS rather than the number being clipped.
+  Widget _row(String label, String value, {num? amount}) {
+    if (amount != null) return ManaMoneyRow(label: label, amount: amount);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          ManaText.raw(label, style: ManaType.note),
+          ManaText.raw(value, style: ManaType.smallStrong),
+        ],
+      ),
+    );
+  }
 }
 
 class _ScheduleCard extends ConsumerWidget {

@@ -138,20 +138,20 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
               spacing: ManaSpacing.lg,
               runSpacing: ManaSpacing.xs,
               children: [
-                _figure(ref.t('face_value'), manaRupees(c.faceValue)),
+                _figure(ref.t('face_value'), '', amount: c.faceValue),
                 _figure(
                     ref.t('instalments'),
                     ref
                         .t('instalments_x_of_y')
                         .replaceAll('{paid}', '${c.instalmentsPaid}')
                         .replaceAll('{total}', '${c.totalInstalments}')),
-                _figure(ref.t('paid_in'), manaRupees(c.totalPaid)),
+                _figure(ref.t('paid_in'), '', amount: c.totalPaid),
                 if (c.isAvailed)
-                  _figure(ref.t('availed'), manaRupees(c.totalReceived)),
-                _figure(ref.t('net_position'), manaRupees(net),
+                  _figure(ref.t('availed'), '', amount: c.totalReceived),
+                _figure(ref.t('net_position'), '', amount: net,
                     warn: net < 0),
                 if (c.finalProfit != null)
-                  _figure(ref.t('final_profit'), manaRupees(c.finalProfit!),
+                  _figure(ref.t('final_profit'), '', amount: c.finalProfit!,
                       warn: c.finalProfit! < 0),
               ],
             ),
@@ -242,16 +242,26 @@ class _ChetiManagementScreenState extends ConsumerState<ChetiManagementScreen> {
     );
   }
 
-  Widget _figure(String label, String value, {bool warn = false}) => Column(
+  /// Pass [amount] when the value IS money. Stacked already, so the figure
+  /// simply goes through ManaAmount rather than delegating.
+  Widget _figure(String label, String value,
+          {bool warn = false, num? amount}) =>
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(label,
               style: TextStyle(fontSize: 11, color: ManaColors.textSecondary)),
-          ManaText.raw(value,
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: warn ? ManaColors.statusBad : ManaColors.textPrimary)),
+          if (amount != null)
+            ManaAmount(amount,
+                size: ManaAmountSize.compact,
+                tone: warn ? ManaAmountTone.negative : ManaAmountTone.neutral,
+                semanticLabel: label)
+          else
+            ManaText.raw(value,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: warn ? ManaColors.statusBad : ManaColors.textPrimary)),
         ],
       );
 

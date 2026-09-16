@@ -22,7 +22,13 @@ import 'mana_text.dart';
 /// the note on the value side below.
 class ManaMoneyRow extends StatelessWidget {
   final String label;
-  final int amount;
+
+  /// `num`, not `int`, since 2026-09-16. Screens hold money as int and as
+  /// double in different places, and three local label-and-figure helpers
+  /// wanted to delegate here rather than each grow its own copy of the
+  /// stacking rule below. Widening the parameter was cheaper and safer than
+  /// three copies of a decision about money.
+  final num amount;
 
   /// The line somebody is meant to land on -- a closing balance, a
   /// difference. Heavier and larger, not a different colour.

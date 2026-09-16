@@ -281,13 +281,17 @@ class _MySummary extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stats = <(String, String, ManaStatus)>[
-      (ref.t('total_investment_balance'), manaRupees(data.totalInvestmentBalance), ManaStatus.neutral),
-      (ref.t('active_investments'), '${data.activeInvestmentCount}', ManaStatus.good),
-      (ref.t('interest_accrued'), manaRupees(data.totalInterestAccrued), ManaStatus.neutral),
-      (ref.t('interest_paid_to_date'), manaRupees(data.interestPaidToDate), ManaStatus.good),
-      (ref.t('pending_withdrawal_requests'), '${data.pendingWithdrawalRequests}', ManaStatus.warn),
-      (ref.t('pending_interest_payment_requests'), '${data.pendingInterestPaymentRequests}', ManaStatus.warn),
+    // FOUR-PART, because the third element could not say whether the second
+    // was money. Three of these six are rupee figures and three are counts,
+    // and they all rendered through ManaType.cardTitle -- so an investor's
+    // total balance was drawn exactly like the number 2.
+    final stats = <(String, String, ManaStatus, num?)>[
+      (ref.t('total_investment_balance'), '', ManaStatus.neutral, data.totalInvestmentBalance),
+      (ref.t('active_investments'), '${data.activeInvestmentCount}', ManaStatus.good, null),
+      (ref.t('interest_accrued'), '', ManaStatus.neutral, data.totalInterestAccrued),
+      (ref.t('interest_paid_to_date'), '', ManaStatus.good, data.interestPaidToDate),
+      (ref.t('pending_withdrawal_requests'), '${data.pendingWithdrawalRequests}', ManaStatus.warn, null),
+      (ref.t('pending_interest_payment_requests'), '${data.pendingInterestPaymentRequests}', ManaStatus.warn, null),
     ];
     return Card(
       child: Padding(
@@ -306,7 +310,12 @@ class _MySummary extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ManaText.raw(s.$2, style: ManaType.cardTitle),
+                            if (s.$4 != null)
+                              ManaAmount(s.$4!,
+                                  size: ManaAmountSize.standard,
+                                  semanticLabel: s.$1)
+                            else
+                              ManaText.raw(s.$2, style: ManaType.cardTitle),
                             const SizedBox(height: 2),
                             ManaStatusPill(label: s.$1, status: s.$3),
                           ],

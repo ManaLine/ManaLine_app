@@ -178,20 +178,23 @@ class _DashboardStrip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stats = <(String, String, ManaStatus)>[
-      (ref.t('total'), '${state.total}', ManaStatus.neutral),
-      (ref.t('active'), '${state.active}', ManaStatus.good),
-      (ref.t('pending_invitation_status'), '${state.pendingInvitations}', ManaStatus.warn),
-      (ref.t('pending_acceptance_status'), '${state.pendingAcceptance}', ManaStatus.warn),
-      (ref.t('suspended'), '${state.suspended}', ManaStatus.bad),
-      (ref.t('total_investment_balance'), manaRupees(state.totalInvestment), ManaStatus.neutral),
-      (ref.t('interest_payable'), manaRupees(state.interestPayable), ManaStatus.neutral),
+    final stats = <(String, String, ManaStatus, num?)>[
+      (ref.t('total'), '${state.total}', ManaStatus.neutral, null),
+      (ref.t('active'), '${state.active}', ManaStatus.good, null),
+      (ref.t('pending_invitation_status'), '${state.pendingInvitations}', ManaStatus.warn, null),
+      (ref.t('pending_acceptance_status'), '${state.pendingAcceptance}', ManaStatus.warn, null),
+      (ref.t('suspended'), '${state.suspended}', ManaStatus.bad, null),
+      (ref.t('total_investment_balance'), '', ManaStatus.neutral, state.totalInvestment),
+      (ref.t('interest_payable'), '', ManaStatus.neutral, state.interestPayable),
     ];
     return ManaStatStrip(
       valueFontSize: 16,
       stats: [
-        for (final (label, value, status) in stats)
-          ManaStat(value: value, label: label, status: status),
+        for (final (label, value, status, amount) in stats)
+          if (amount != null)
+            ManaStat.money(amount: amount, label: label, status: status)
+          else
+            ManaStat(value: value, label: label, status: status),
       ],
     );
   }
@@ -318,10 +321,10 @@ class _OverviewTab extends ConsumerWidget {
           value: investor.phoneNumber,
           trailing: ManaCallButton(investor.phoneNumber),
         ),
-        ManaLabelValueRow(label: ref.t('investment_balance'), value: manaRupees(investor.investmentBalance)),
+        ManaLabelValueRow(label: ref.t('investment_balance'), amount: investor.investmentBalance),
         ManaLabelValueRow(label: ref.t('roi'), value: roiLabel(investor.roi)),
         ManaLabelValueRow(label: ref.t('roi_yearly_equivalent'), value: roiAnnualEquivalent(investor.roi)),
-        ManaLabelValueRow(label: ref.t('interest_due'), value: manaRupees(investor.interestDue)),
+        ManaLabelValueRow(label: ref.t('interest_due'), amount: investor.interestDue),
         ManaLabelValueRow(label: ref.t('membership_status'), value: investor.membershipStatus),
         ManaLabelValueRow(
           label: ref.t('last_transaction'),
@@ -425,7 +428,7 @@ class _InvestmentsTab extends ConsumerWidget {
                               manaRupees(inv.interestAccrued),
                             ),
                           ),
-                          Expanded(child: _small(ref.t('paid'), manaRupees(inv.interestPaid))),
+                          Expanded(child: _small(ref.t('paid'), '', amount: inv.interestPaid)),
                         ],
                       ),
                       // Where the compounded years went. Without this the
@@ -436,7 +439,7 @@ class _InvestmentsTab extends ConsumerWidget {
                         Row(
                           children: [
                             Expanded(
-                                child: _small(ref.t('invested'), manaRupees(inv.originalPrincipal))),
+                                child: _small(ref.t('invested'), '', amount: inv.originalPrincipal)),
                             Expanded(
                                 child: _small(ref.t('added_to_principal'),
                                     manaRupees(inv.principalAmount - inv.originalPrincipal))),
@@ -501,11 +504,20 @@ class _InvestmentsTab extends ConsumerWidget {
     );
   }
 
-  Widget _small(String label, String value) => Column(
+  /// Pass [amount] when the value IS money.
+  ///
+  /// Stacked already, so there is no room-for-the-label problem here and no
+  /// need to delegate -- the figure simply goes through ManaAmount for the
+  /// floor, the tabular figures and the spoken label.
+  Widget _small(String label, String value, {num? amount}) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(label, style: ManaType.note),
-          ManaText.raw(value, style: ManaType.smallStrong),
+          if (amount != null)
+            ManaAmount(amount,
+                size: ManaAmountSize.compact, semanticLabel: label)
+          else
+            ManaText.raw(value, style: ManaType.smallStrong),
         ],
       );
 

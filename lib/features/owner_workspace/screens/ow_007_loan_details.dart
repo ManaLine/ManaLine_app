@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
+import '../../../design/components/mana_money_row.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_app_bar.dart';
@@ -143,14 +144,14 @@ class _SummaryCard extends ConsumerWidget {
         child: Column(
           children: [
             _row(ref.t('repayment_type'), loan.repaymentType),
-            _row(ref.t('installment_amount'), manaRupees(loan.installmentAmount)),
-            _row(ref.t('loan_amount'), manaRupees(loan.loanAmount)),
-            _row(ref.t('outstanding_balance'), manaRupees(loan.outstandingBalance)),
+            _row(ref.t('installment_amount'), '', amount: loan.installmentAmount),
+            _row(ref.t('loan_amount'), '', amount: loan.loanAmount),
+            _row(ref.t('outstanding_balance'), '', amount: loan.outstandingBalance),
             // What has come back. The card said what is still owed and never
             // what has been paid, which is the figure a customer asks for at
             // the door.
-            _row(ref.t('paid'), manaRupees(loan.paidAmount)),
-            _row(ref.t('todays_due'), manaRupees(loan.todaysDue)),
+            _row(ref.t('paid'), '', amount: loan.paidAmount),
+            _row(ref.t('todays_due'), '', amount: loan.todaysDue),
             _row(ref.t('completed_installments'), '${loan.completedInstallments}'),
             _row(ref.t('remaining_installments'), '${loan.remainingInstallments}'),
             // Grace, in both halves: how much was granted, and whether it is
@@ -182,7 +183,20 @@ class _SummaryCard extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) => Padding(
+  /// Pass [amount] when the value IS money.
+  ///
+  /// Five of this card's thirteen rows are rupee figures and the rest are
+  /// dates and counts, so a single String parameter could not tell them apart.
+  /// A money row delegates to ManaMoneyRow for the 16sp floor, the tabular
+  /// figures, and the rule that the pair stacks when the number would
+  /// otherwise be squeezed -- the column alignment this row's own comment
+  /// argues for is exactly what tabular figures deliver properly.
+  Widget _row(String label, String value, {num? amount}) {
+    if (amount != null) return ManaMoneyRow(label: label, amount: amount);
+    return _textRow(label, value);
+  }
+
+  Widget _textRow(String label, String value) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [

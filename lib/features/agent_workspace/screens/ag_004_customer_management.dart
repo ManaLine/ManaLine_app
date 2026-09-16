@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
-import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../shared/customer_row.dart';
@@ -625,8 +624,8 @@ class _SummaryTab extends ConsumerWidget {
         ),
         ManaLabelValueRow(label: ref.t('assigned_agent'), value: profile.currentAgent ?? '—'),
         ManaLabelValueRow(label: ref.t('loan_count'), value: '${s.activeLoanCount}'),
-        ManaLabelValueRow(label: ref.t('outstanding'), value: manaRupees(s.outstandingBalance)),
-        ManaLabelValueRow(label: ref.t('todays_due'), value: manaRupees(s.todaysDue)),
+        ManaLabelValueRow(label: ref.t('outstanding'), amount: s.outstandingBalance),
+        ManaLabelValueRow(label: ref.t('todays_due'), amount: s.todaysDue),
         const SizedBox(height: ManaSpacing.md),
         ManaText.raw(
           ref.t('read_only_figures_note'),
@@ -713,8 +712,8 @@ class _LoanInformationTab extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: ManaSpacing.sm),
-                      ManaLabelValueRow(dense: true, label: 'Outstanding', value: manaRupees(l.outstanding)),
-                      ManaLabelValueRow(dense: true, label: "Today's Due", value: manaRupees(l.todaysDue)),
+                      ManaLabelValueRow(dense: true, label: 'Outstanding', amount: l.outstanding),
+                      ManaLabelValueRow(dense: true, label: "Today's Due", amount: l.todaysDue),
                       ManaLabelValueRow(dense: true, label: 'Issued', value: DateFormat('d MMM yyyy').format(l.issueDate)),
                       ManaLabelValueRow(dense: true, label: 'Progress', value: '${l.progressPercent.toStringAsFixed(0)}%'),
                     ],

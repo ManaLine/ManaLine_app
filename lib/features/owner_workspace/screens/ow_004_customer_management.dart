@@ -1314,7 +1314,7 @@ class _SummaryTab extends ConsumerWidget {
         ManaLabelValueRow(label: ref.t('current_status'), value: customer.membershipStatus),
         ManaLabelValueRow(label: ref.t('line_repayment_index'), value: '${customer.lineRepaymentIndex}'),
         ManaLabelValueRow(label: ref.t('loan_count'), value: '${customer.activeLoanCount}'),
-        ManaLabelValueRow(label: ref.t('outstanding_balance'), value: manaRupees(customer.outstandingBalance)),
+        ManaLabelValueRow(label: ref.t('outstanding_balance'), amount: customer.outstandingBalance),
       ],
     );
   }

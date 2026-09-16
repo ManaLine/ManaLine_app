@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
+import '../../../design/components/mana_money_row.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_app_bar.dart';
@@ -227,9 +228,9 @@ class _MonthlySummaryCard extends ConsumerWidget {
                   const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           const SizedBox(height: ManaSpacing.sm),
           _line(ref.t('business_day_accounts'), '${summary.businessDayAccounts}'),
-          _line(ref.t('total_collections'), manaRupees(summary.totalCollections)),
-          _line(ref.t('total_loans_given'), manaRupees(summary.totalLoansGiven)),
-          _line(ref.t('total_expenses'), manaRupees(summary.totalExpenses)),
+          _line(ref.t('total_collections'), '', amount: summary.totalCollections),
+          _line(ref.t('total_loans_given'), '', amount: summary.totalLoansGiven),
+          _line(ref.t('total_expenses'), '', amount: summary.totalExpenses),
           _line(ref.t('pending_customers'), '${summary.pendingCustomers}'),
           _line(ref.t('outstanding_amount'),
               manaRupees(summary.outstandingAmount)),
@@ -238,18 +239,34 @@ class _MonthlySummaryCard extends ConsumerWidget {
     );
   }
 
-  Widget _line(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
-            const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(value,
-                style: ManaType.emphasis)
-          ],
-        ),
-      );
+  /// A label and its value. Pass [amount] when the value IS money.
+  ///
+  /// The helper takes both because the list it builds is mixed -- seven of its
+  /// thirteen rows are rupee figures and the rest are counts and dates -- so a
+  /// single String parameter could not tell them apart, and every figure came
+  /// out at the same weight as a count. [amount] is what lets the money go
+  /// through ManaAmount: the 16sp floor, tabular figures so a column of them
+  /// aligns, and a screen reader that says "rupees".
+  Widget _line(String label, String value, {num? amount}) {
+    // A money row delegates rather than repeating the stacking rule. Raising
+    // the figure to the 16sp floor made it wide enough to stop fitting beside
+    // its label, and this screen overflowed at 2.0x exactly as OW-011 and
+    // OW-013 had. ManaMoneyRow already measures the figure against the room
+    // available and stacks the pair when the label would be squeezed, because
+    // a truncated rupee figure is a wrong number presented as a right one.
+    if (amount != null) return ManaMoneyRow(label: label, amount: amount);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: ManaSpacing.xs),
+          ManaText.raw(value, style: ManaType.emphasis)
+        ],
+      ),
+    );
+  }
 }
 
 class _MonthlyClosingCard extends ConsumerWidget {
@@ -274,27 +291,37 @@ class _MonthlyClosingCard extends ConsumerWidget {
           ),
           const SizedBox(height: ManaSpacing.sm),
           _line(ref.t('business_day_accounts'), '${closing.businessDayAccounts}'),
-          _line(ref.t('collections'), manaRupees(closing.collections)),
-          _line(ref.t('loans_given'), manaRupees(closing.loansGiven)),
-          _line(ref.t('expenses'), manaRupees(closing.expenses)),
-          _line(ref.t('net_cash_movement'), manaRupees(closing.netCashMovement)),
+          _line(ref.t('collections'), '', amount: closing.collections),
+          _line(ref.t('loans_given'), '', amount: closing.loansGiven),
+          _line(ref.t('expenses'), '', amount: closing.expenses),
+          _line(ref.t('net_cash_movement'), '', amount: closing.netCashMovement),
         ],
       ),
     );
   }
 
-  Widget _line(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
-            const SizedBox(width: ManaSpacing.xs),
-            ManaText.raw(value,
-                style: ManaType.emphasis)
-          ],
-        ),
-      );
+  /// The second copy of _line in this file, on the closing-summary card.
+  /// Takes [amount] for the same reason the first does.
+  Widget _line(String label, String value, {num? amount}) {
+    // A money row delegates rather than repeating the stacking rule. Raising
+    // the figure to the 16sp floor made it wide enough to stop fitting beside
+    // its label, and this screen overflowed at 2.0x exactly as OW-011 and
+    // OW-013 had. ManaMoneyRow already measures the figure against the room
+    // available and stacks the pair when the label would be squeezed, because
+    // a truncated rupee figure is a wrong number presented as a right one.
+    if (amount != null) return ManaMoneyRow(label: label, amount: amount);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: ManaText.raw(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: ManaSpacing.xs),
+          ManaText.raw(value, style: ManaType.emphasis)
+        ],
+      ),
+    );
+  }
 }
 
 class _RecordBookRowCard extends ConsumerWidget {
@@ -351,10 +378,10 @@ class _RecordBookRowCard extends ConsumerWidget {
                 spacing: ManaSpacing.lg,
                 runSpacing: ManaSpacing.xs,
                 children: [
-                  _figure(ref.t('collections'), manaRupees(row.collectionsTotal)),
-                  _figure(ref.t('loans_given'), manaRupees(row.loansGivenTotal)),
-                  _figure(ref.t('expenses'), manaRupees(row.expensesTotal)),
-                  _figure(ref.t('closing_cash'), manaRupees(row.closingCash)),
+                  _figure(ref.t('collections'), '', amount: row.collectionsTotal),
+                  _figure(ref.t('loans_given'), '', amount: row.loansGivenTotal),
+                  _figure(ref.t('expenses'), '', amount: row.expensesTotal),
+                  _figure(ref.t('closing_cash'), '', amount: row.closingCash),
                   _figure(ref.t('pending_customers'), '${row.pendingCustomersCount}'),
                 ],
               ),
@@ -371,15 +398,18 @@ class _RecordBookRowCard extends ConsumerWidget {
     );
   }
 
-  Widget _figure(String label, String value) => Column(
+  /// As [_line], stacked. Pass [amount] when the value IS money.
+  Widget _figure(String label, String value, {num? amount}) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ManaText.raw(label,
               style: TextStyle(
                   fontSize: 13, color: ManaColors.textSecondary)),
-          ManaText.raw(value,
-              style:
-                  ManaType.smallStrong),
+          if (amount != null)
+            ManaAmount(amount,
+                size: ManaAmountSize.compact, semanticLabel: label)
+          else
+            ManaText.raw(value, style: ManaType.smallStrong),
         ],
       );
 }

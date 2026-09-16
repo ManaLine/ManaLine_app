@@ -87,6 +87,44 @@ class ManaFix {
       };
 }
 
+/// HIGH, and the reason is which SENSOR it turns on -- not how precise it is.
+///
+/// This asked for `LocationAccuracy.medium` and failed in a rural village on a
+/// handset with full 5G signal. From geolocator_android's own source:
+///
+///   case medium: return Priority.PRIORITY_BALANCED_POWER_ACCURACY;
+///   default:     return Priority.PRIORITY_HIGH_ACCURACY;
+///
+/// BALANCED_POWER deliberately does NOT use the GPS radio. It positions from
+/// WiFi access points and cell towers to save battery. In a village that is
+/// exactly what is missing -- Google has almost no mapped access points there,
+/// and one sparse tower trilaterates to nothing useful -- so the app spent its
+/// whole budget asking the two sources that do not work there while GPS, which
+/// is BETTER in open country than in a city with no urban canyon, was never
+/// switched on.
+///
+/// The comment that chose `medium` said "best keeps the radio hunting for a
+/// tighter fix that this app has no use for... medium clears 100m comfortably
+/// outdoors". That confuses HOW PRECISE with WHICH SENSOR. `medium` does not
+/// mean "GPS, less precise". It means no GPS.
+///
+/// Checked on the handset that failed, 2026-09-16: ACCESS_FINE_LOCATION
+/// granted=true, location_mode=3, providers "gps,network". The phone could
+/// have fixed by satellite the whole time.
+///
+/// Battery: this runs when somebody taps "Use My Location" or saves one
+/// address. It is not a background track, so the power argument that justified
+/// BALANCED_POWER does not apply to how it is actually used.
+///
+/// NOT reduced-precision-aware, on purpose. geolocator exposes
+/// getLocationAccuracy(), but its own documentation says "when an Android
+/// device is used, an 'unknown' status is returned, since Android does not
+/// support Approximate Location yet" -- so a branch on it would be dead code
+/// on the only platform this ships to. If somebody grants Approximate in
+/// Android settings, this still degrades to a timeout, and that is the honest
+/// state of the library rather than a check pretending to cover it.
+const LocationAccuracy kManaLocationAccuracy = LocationAccuracy.high;
+
 class ManaLocation {
   /// A position this phone recorded moments ago is as good as one taken now,
   /// and it arrives instantly. Beyond this it is a different place.
@@ -158,11 +196,7 @@ class ManaLocation {
 
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: LocationSettings(
-          // `medium` rather than `best`: best keeps the radio hunting for a
-          // tighter fix that this app has no use for, on phones where battery
-          // is a real constraint. 100m is the threshold that matters, and
-          // medium clears it comfortably outdoors.
-          accuracy: LocationAccuracy.medium,
+          accuracy: kManaLocationAccuracy,
           timeLimit: timeout,
         ),
       );

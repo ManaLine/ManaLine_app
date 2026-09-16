@@ -874,8 +874,14 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     // roles are attached afterwards by person_id.
     if (!types.contains(MemberType.customer)) {
       final first = types.first;
+      // ?new=1 -- this button only exists under "No identity found", so the
+      // search has already run and already answered. Without it OW-014 opened
+      // on its own "Search Existing MLID" step and asked for the same person
+      // again by mobile number or MLID, which is the app disbelieving the
+      // answer it had just given.
       await context.push(
-          '/ow-014?type=${_workflowTypeFor(first)}', extra: widget.businessId);
+          '/ow-014?type=${_workflowTypeFor(first)}&new=1',
+          extra: widget.businessId);
       if (!mounted) return;
       // The remaining roles cannot be applied from here: OW-014 does not hand
       // back the person it made, and guessing which search result is theirs in

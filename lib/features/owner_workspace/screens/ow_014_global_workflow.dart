@@ -21,11 +21,19 @@ class GlobalWorkflowScreen extends ConsumerStatefulWidget {
   final String currentOwnerPersonId; // used as invited_by_person_id
   final MemberType? preSelectedType;
 
+  /// Open on the registration form, skipping the MLID search.
+  ///
+  /// Set by a caller that has already searched and been told nobody matched —
+  /// see GlobalWorkflowNotifier.initWithType for why searching a second time
+  /// was the bug rather than the safeguard.
+  final bool startAtRegistration;
+
   const GlobalWorkflowScreen({
     super.key,
     required this.businessId,
     required this.currentOwnerPersonId,
     this.preSelectedType,
+    this.startAtRegistration = false,
   });
 
   @override
@@ -37,7 +45,10 @@ class _GlobalWorkflowScreenState extends ConsumerState<GlobalWorkflowScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(globalWorkflowProvider.notifier).initWithType(widget.preSelectedType);
+      ref.read(globalWorkflowProvider.notifier).initWithType(
+            widget.preSelectedType,
+            startAtRegistration: widget.startAtRegistration,
+          );
     });
   }
 
@@ -46,7 +57,19 @@ class _GlobalWorkflowScreenState extends ConsumerState<GlobalWorkflowScreen> {
     final state = ref.watch(globalWorkflowProvider);
 
     return Scaffold(
-      appBar: ManaAppBar(title: ref.t('add_existing_member')),
+      // The title follows the step, because it stopped being true. Landing on
+      // the registration form under "Add Existing Member" tells somebody they
+      // are attaching a person who already exists, at the moment the app has
+      // just told them nobody does.
+      appBar: ManaAppBar(
+        title: ref.t(state.stage == WizardStage.notFound
+            ? switch (state.memberType) {
+                MemberType.agent => 'add_an_agent',
+                MemberType.investor => 'add_investor',
+                _ => 'add_existing_member',
+              }
+            : 'add_existing_member'),
+      ),
       body: SafeArea(
         child: switch (state.stage) {
           WizardStage.selectType => _SelectTypeStep(),

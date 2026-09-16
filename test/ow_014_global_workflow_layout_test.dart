@@ -13,7 +13,7 @@ class _Seeded extends GlobalWorkflowNotifier {
   GlobalWorkflowState build() => _seed;
 
   @override
-  void initWithType(MemberType? type) {}
+  void initWithType(MemberType? type, {bool startAtRegistration = false}) {}
 }
 
 final _found = GlobalWorkflowState(

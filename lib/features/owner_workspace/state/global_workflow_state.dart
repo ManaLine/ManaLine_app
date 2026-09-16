@@ -491,14 +491,29 @@ class GlobalWorkflowNotifier extends Notifier<GlobalWorkflowState> {
   @override
   GlobalWorkflowState build() => const GlobalWorkflowState();
 
-  void initWithType(MemberType? preSelected) {
-    if (preSelected != null) {
-      state = state.copyWith(
-        memberType: preSelected,
-        typeLockedByEntryPoint: true,
-        stage: WizardStage.searchMlid,
-      );
-    }
+  /// [startAtRegistration] skips the MLID search and opens the registration
+  /// form, for a caller that has ALREADY searched and been told nobody matched.
+  ///
+  /// THE FLOW THIS FIXES. The universal search offered "Add Investor" under
+  /// "No identity found", and that button pushed this screen -- which opened on
+  /// its own "Search Existing MLID" step and asked, by mobile number or MLID,
+  /// for the person the previous screen had just finished failing to find.
+  /// Searching twice for somebody the app has already said does not exist is
+  /// not a safeguard; it is the app disbelieving its own answer.
+  ///
+  /// The registration form was never missing. WizardStage.notFound has always
+  /// been it -- reachable only by performing the search that had already been
+  /// performed.
+  void initWithType(MemberType? preSelected, {bool startAtRegistration = false}) {
+    if (preSelected == null) return;
+    state = state.copyWith(
+      memberType: preSelected,
+      typeLockedByEntryPoint: true,
+      // searchedNotFound so the form reads as the answer to a search rather
+      // than as a step somebody wandered into.
+      stage: startAtRegistration ? WizardStage.notFound : WizardStage.searchMlid,
+      searchedNotFound: startAtRegistration,
+    );
   }
 
   void selectType(MemberType type) {

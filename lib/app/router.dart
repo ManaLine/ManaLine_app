@@ -419,6 +419,10 @@ final manaRouter = GoRouter(
           'investor' => MemberType.investor,
           _ => null,
         },
+        // ?new=1 means the caller has ALREADY searched and been told nobody
+        // matched, so this opens on the registration form instead of asking
+        // for the same person again by mobile number or MLID.
+        startAtRegistration: s.uri.queryParameters['new'] == '1',
       ),
     ),
     // OW-014's Profile Completion sub-flow. Separate route rather than a

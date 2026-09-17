@@ -68,6 +68,22 @@ class MemberEntry {
         _ when status.startsWith('Pending') => ManaStatus.warn,
         _ => ManaStatus.neutral,
       };
+
+  /// What the ring around the photo says.
+  ///
+  /// THE OWNER'S OWN MAPPING, and it is deliberately NOT statusKind's. That
+  /// getter groups Suspended and Removed together as "bad", which is right
+  /// for a pill that also carries the word -- the word does the separating.
+  /// A ring has no word, so the two need different colours or the ring says
+  /// less than the pill it replaced: active green, suspended red, removed
+  /// orange.
+  Color get ringColor => switch (status) {
+        'Active' => ManaColors.statusGood,
+        'Suspended' => ManaColors.statusBad,
+        'Removed' => ManaColors.statusWarn,
+        _ when status.startsWith('Pending') => ManaColors.statusWarn,
+        _ => ManaColors.textSecondary,
+      };
 }
 
 /// Something you can do, either to the roster or to one member.
@@ -480,15 +496,31 @@ class _MemberRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
+      // THE RING CARRIES THE STATE, on every roster in the app.
+      //
+      // OW-012's member list settled this on 2026-09-17 -- active green,
+      // suspended red, removed orange -- and it was asked for again for Agent
+      // and Investor Management: "remove active wording - implement ring
+      // concept here". This row is where those two live, so it lands in one
+      // place rather than three.
       leading: ManaStoredImage(
         bucket: 'profile-photos',
         stored: entry.photoUrl,
-        builder: (context, image) => CircleAvatar(
-          backgroundColor: ManaColors.surfaceSunken,
-          backgroundImage: image,
-          child: image == null
-              ? Icon(Icons.person, color: ManaColors.textSecondary)
-              : null,
+        builder: (context, image) => Container(
+          width: 44,
+          height: 44,
+          padding: const EdgeInsets.all(2.5),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: entry.ringColor, width: 2.5),
+          ),
+          child: CircleAvatar(
+            backgroundColor: ManaColors.surfaceSunken,
+            backgroundImage: image,
+            child: image == null
+                ? Icon(Icons.person, color: ManaColors.textSecondary)
+                : null,
+          ),
         ),
       ),
       // THE HIGHEST-LEVERAGE SITE IN THE APP for the no-dots rule: Workforce,
@@ -500,7 +532,15 @@ class _MemberRow extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: ManaFitText(entry.subtitle,
           style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
-      trailing: ManaTrailingStatus(label: entry.status, status: entry.statusKind),
+      // THE WORD ONLY WHEN IT IS NOT ACTIVE. "Active" on a green ring is the
+      // same fact twice, and it was the fact on nearly every row -- so the
+      // column existed to say nothing. Suspended, Removed and the Pending
+      // states keep their words, because a colour alone is a legend nobody
+      // was given and those are the rows where being sure matters.
+      trailing: entry.status == 'Active'
+          ? null
+          : ManaTrailingStatus(
+              label: entry.status, status: entry.statusKind),
     );
   }
 }

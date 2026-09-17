@@ -10,7 +10,6 @@ import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
-import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
@@ -81,7 +80,15 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
               ? const ManaSkeletonList()
               : ManaMemberRoster(
                   heading: ref.t('investors'),
-                  header: _DashboardStrip(state: state),
+                  // THE SUMMARY STRIP IS GONE, as it went from Agent
+                  // Management the same day. Counts across a sideways
+                  // scroller above a list of four -- and the third slide was
+                  // already cut off at the screen edge in the screenshot.
+                  //
+                  // The filter below narrows by the same states, and every
+                  // row's ring says its own. A strip of counts over a book
+                  // with four investors is a dashboard borrowed from a
+                  // business that does not exist yet.
                   members: [
                     // Pending Acceptance rows are excluded because they are
                     // not real members yet: no investor_id, so a row tap into
@@ -171,35 +178,6 @@ class _InvestorManagementScreenState extends ConsumerState<InvestorManagementScr
     );
   }
 }
-
-class _DashboardStrip extends ConsumerWidget {
-  final InvestorWorkforceState state;
-  const _DashboardStrip({required this.state});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final stats = <(String, String, ManaStatus, num?)>[
-      (ref.t('total'), '${state.total}', ManaStatus.neutral, null),
-      (ref.t('active'), '${state.active}', ManaStatus.good, null),
-      (ref.t('pending_invitation_status'), '${state.pendingInvitations}', ManaStatus.warn, null),
-      (ref.t('pending_acceptance_status'), '${state.pendingAcceptance}', ManaStatus.warn, null),
-      (ref.t('suspended'), '${state.suspended}', ManaStatus.bad, null),
-      (ref.t('total_investment_balance'), '', ManaStatus.neutral, state.totalInvestment),
-      (ref.t('interest_payable'), '', ManaStatus.neutral, state.interestPayable),
-    ];
-    return ManaStatStrip(
-      valueFontSize: 16,
-      stats: [
-        for (final (label, value, status, amount) in stats)
-          if (amount != null)
-            ManaStat.money(amount: amount, label: label, status: status)
-          else
-            ManaStat(value: value, label: label, status: status),
-      ],
-    );
-  }
-}
-
 class _InvestorRow extends StatelessWidget {
   final InvestorSummary investor;
   final VoidCallback onTap;

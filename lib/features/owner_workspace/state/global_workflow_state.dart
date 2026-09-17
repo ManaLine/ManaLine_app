@@ -82,22 +82,24 @@ class GlobalWorkflowApiService {
     required String businessId,
     required String personId,
     required MemberType type,
-    required String invitedByPersonId,
   }) async {
-    final row = await _db
-        .from('business_members')
-        .insert({
-          'person_id': int.parse(personId),
-          'business_id': businessId,
-          'role': type.role,
-          'membership_status': 'Pending Invitation',
-          'verification_status': type == MemberType.customer ? 'Not Required' : 'Pending Verification',
-          'onboarding_method': 'Migration/Pre-Existing',
-          'invited_by_person_id': int.parse(invitedByPersonId),
-        })
-        .select('membership_id')
-        .single();
-    return row['membership_id'] as String;
+    // THE THIRD DIRECT WRITER, found while fixing the first two. It had
+    // 'Pending Invitation' hardcoded for every role, so a Customer reaching
+    // this path was asked to accept an invitation that no screen in the app
+    // can show them -- the same defect that left Ashok Goud pending on Sri
+    // Durga Finance, in a third place.
+    //
+    // The invitedByPersonId this used to take is gone rather than ignored:
+    // the RPC records app.current_person_id(), and the only person who can
+    // execute it is the Owner it checks for, so a second copy threaded down
+    // from the screen could only ever agree or be wrong.
+    final res = await _db.schema('app').rpc('attach_person_to_business', params: {
+      'p_business_id': businessId,
+      'p_person_id': int.parse(personId),
+      'p_role': type.role,
+      'p_onboarding_method': 'Migration/Pre-Existing',
+    });
+    return (res as Map).cast<String, dynamic>()['membership_id'] as String;
   }
 
   Future<void> setMembershipStatus({required String membershipId, required String status}) async {
@@ -540,7 +542,7 @@ class GlobalWorkflowNotifier extends Notifier<GlobalWorkflowState> {
     }
   }
 
-  Future<bool> requestMembership({required String businessId, required String invitedByPersonId}) async {
+  Future<bool> requestMembership({required String businessId}) async {
     if (state.searchResult == null || state.memberType == null) return false;
     state = state.copyWith(loading: true, clearError: true);
     try {
@@ -548,7 +550,6 @@ class GlobalWorkflowNotifier extends Notifier<GlobalWorkflowState> {
             businessId: businessId,
             personId: state.searchResult!.personId,
             type: state.memberType!,
-            invitedByPersonId: invitedByPersonId,
           );
       state = state.copyWith(loading: false);
       return true;

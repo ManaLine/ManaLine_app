@@ -26,6 +26,14 @@ class ManaLoanPosition {
   final String mlid;
   final String fullName;
 
+  /// The care-of name -- persons.father_husband_name. Empty when the record
+  /// has none, which is legal: MLTI identities entered from a paper ledger
+  /// often have a name and a village and nothing else.
+  ///
+  /// It is here because it is what tells two men of the same name in one
+  /// village apart, and the one-person entry header is built on exactly that.
+  final String fatherHusbandName;
+
   /// The village of the person's CURRENT address. Empty when they have no
   /// address on file -- a real state, and not a reason to drop the loan.
   final String village;
@@ -74,6 +82,7 @@ class ManaLoanPosition {
     required this.personId,
     required this.mlid,
     required this.fullName,
+    this.fatherHusbandName = '',
     required this.village,
     required this.inOperatingArea,
     required this.loanId,

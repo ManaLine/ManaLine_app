@@ -546,6 +546,8 @@ class BulkOnboardingService {
           personId: r['person_id'].toString(),
           mlid: (r['mlid'] as String?) ?? '',
           fullName: titleCaseName((r['full_name'] as String?) ?? ''),
+          fatherHusbandName:
+              titleCaseName((r['father_husband_name'] as String?) ?? ''),
           // Null when the person has no current address. A real state, and not
           // a reason to drop the loan -- it lands in the out-of-area group.
           village: (r['village'] as String?)?.trim() ?? '',

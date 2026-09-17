@@ -194,6 +194,121 @@ void main() {
     });
   });
 
+  group('who writes the membership row', () {
+    // THE GUARD THAT WAS MISSING, and the defect is in the group above it.
+    //
+    // 20260911211146 put the Owner's rule in app.attach_person_to_business
+    // and the test above pins Dart's sentence to it. Neither noticed that
+    // THREE other places in lib/ were still inserting into business_members
+    // themselves with 'Pending Invitation' typed in for every role:
+    //
+    //   BusinessManagementService.addExistingMember
+    //   BusinessManagementService.decideMembershipRequest
+    //   GlobalWorkflowApiService.requestBusinessMembership
+    //
+    // Reported from a handset on 2026-09-16 as "if Ashok is a customer why
+    // invitation sent to him" -- one row out of ninety, added by ID Lookup
+    // two hours before the migration that was supposed to have fixed this,
+    // through the path it never touched. He also had no `customers` row, so
+    // he was a customer who could not be lent to.
+    //
+    // A status rule agreeing with itself in two languages is worth pinning.
+    // A status rule with four writers is worth deleting three of.
+
+    /// Files that may still INSERT a membership row themselves, and why.
+    ///
+    /// Each of these hardcodes a status that the rule agrees with today, so
+    /// neither is a live defect -- but each is a place the rule could drift,
+    /// which is why they are named here rather than pattern-matched away.
+    const allowed = <String, String>{
+      'lib/features/owner_workspace/state/customer_state.dart':
+          "creates a Customer at 'Active', which IS the rule, and returns the "
+              'customer_id its caller needs -- something the RPC does not '
+              'return. Routing it would mean widening the RPC for one caller',
+      'lib/features/owner_workspace/state/owner_api_service.dart':
+          "addExistingAgent, Agent at 'Pending Invitation', which IS the rule "
+              'for an Agent. It also builds the agents and agent_permissions '
+              'rows inline; respond_to_invitation builds them again '
+              'idempotently, so the two do not fight',
+    };
+
+    List<String> writers() {
+      final found = <String>[];
+      for (final file in Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))) {
+        final source = file.readAsStringSync();
+        // `.from('business_members')` followed by `.insert(`, across the line
+        // break that a formatter puts between them.
+        if (!RegExp(r"from\('business_members'\)\s*\.insert\(", dotAll: true)
+            .hasMatch(source)) {
+          continue;
+        }
+        found.add(file.path.replaceAll(r'\', '/'));
+      }
+      return found;
+    }
+
+    test('nobody new writes a membership row by hand', () {
+      final unexpected =
+          writers().where((f) => !allowed.containsKey(f)).toList();
+      expect(unexpected, isEmpty,
+          reason: 'these INSERT into business_members directly, which means '
+              'they decide membership_status themselves: ${unexpected.join(', ')}. '
+              'Call app.attach_person_to_business instead -- it is the one '
+              'place that knows a Customer is added and the other two are '
+              'asked, and it makes the role-side row in the same statement');
+    });
+
+    test('the two that remain are still the two, and still say why', () {
+      // Answered by looking, exactly as the census is. One of these becoming
+      // unnecessary is good news that still fails here, because somebody has
+      // to open the file and confirm it before editing the list.
+      expect(writers().toSet(), allowed.keys.toSet(),
+          reason: 'the allowlist and the code disagree; if a writer was '
+              'removed, remove its entry and its reason with it');
+    });
+
+    test('the three that were converted call the RPC and pass a method', () {
+      // Not "they no longer INSERT" -- that would pass if somebody deleted the
+      // call entirely. They have to be reaching the one path.
+      const converted = {
+        'lib/features/owner_workspace/state/business_management_state.dart': 2,
+        'lib/features/owner_workspace/state/global_workflow_state.dart': 1,
+      };
+      converted.forEach((path, atLeast) {
+        final source = File(path).readAsStringSync();
+        final n = RegExp(r"rpc\('attach_person_to_business'")
+            .allMatches(source)
+            .length;
+        expect(n, greaterThanOrEqualTo(atLeast),
+            reason: '$path should reach app.attach_person_to_business at '
+                'least $atLeast time(s); found $n');
+        expect(source, contains('p_onboarding_method'),
+            reason: 'the RPC gained that parameter so these callers could '
+                'keep recording how somebody was added; dropping it silently '
+                'relabels every one of them Migration/Pre-Existing');
+      });
+    });
+
+    test('the RPC still takes the onboarding method, and still has one overload',
+        () {
+      final migration = File(
+              'supabase/migrations/20260917092847_a_customer_is_added_on_every_path_not_only_one.sql')
+          .readAsStringSync();
+      expect(migration, contains('DROP FUNCTION IF EXISTS app.attach_person_to_business'),
+          reason: 'a changed parameter list is DROP then CREATE; CREATE OR '
+              'REPLACE would leave two functions and PostgREST would answer '
+              '300');
+      expect(migration, contains('p_onboarding_method text DEFAULT'),
+          reason: 'the default is what keeps the existing three-argument '
+              'callers working');
+      expect(manaAppFunctionOverloads,
+          isNot(contains('attach_person_to_business')));
+    });
+  });
+
   group('the role the Owner picks', () {
     test('all three member types can be added, and only those three', () {
       // app.attach_person_to_business raises 22023 for anything that is not

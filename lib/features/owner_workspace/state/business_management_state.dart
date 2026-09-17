@@ -650,14 +650,18 @@ class BusinessManagementApiService {
     }
     final resolvedPersonId = list.first['person_id'];
 
-    await _db.from('business_members').insert({
-      'person_id': resolvedPersonId,
-      'business_id': businessId,
-      'role': role,
-      'membership_status': 'Pending Invitation',
-      'verification_status': role == 'Customer' ? 'Not Required' : 'Pending Verification',
-      'onboarding_method': onboardingMethod,
-      'invited_by_person_id': _personId,
+    // THROUGH THE RPC, not a direct INSERT. This used to write the row itself
+    // with 'Pending Invitation' hardcoded for every role -- so a Customer
+    // added here was asked to accept an invitation, which is not the Owner's
+    // rule, and got no `customers` row either, which left them unlendable.
+    // One live row (Ashok Goud, Sri Durga Finance) was found that way from a
+    // handset. The rule about who is asked belongs in exactly one place;
+    // 20260917092847 is that place and this is a caller of it.
+    await _db.schema('app').rpc('attach_person_to_business', params: {
+      'p_business_id': businessId,
+      'p_person_id': resolvedPersonId,
+      'p_role': role,
+      'p_onboarding_method': onboardingMethod,
     });
   }
 
@@ -709,23 +713,22 @@ class BusinessManagementApiService {
     }).eq('request_id', requestId);
 
     if (status == 'Approved') {
-      final role = req['requested_role'] as String;
-      final membership = await _db
-          .from('business_members')
-          .insert({
-            'person_id': req['person_id'],
-            'business_id': req['business_id'],
-            'role': role,
-            'membership_status': 'Pending Invitation',
-            'verification_status': role == 'Customer' ? 'Not Required' : 'Pending Verification',
-            'onboarding_method': 'Direct Registration',
-            'invited_by_person_id': _personId,
-          })
-          .select('membership_id')
-          .single();
-      if (role == 'Investor') {
-        await _db.from('investors').insert({'membership_id': membership['membership_id'], 'person_id': req['person_id']});
-      }
+      // The second direct writer, same defect: 'Pending Invitation' for every
+      // role, so approving a CUSTOMER'S request to join left them pending
+      // forever with nothing to accept -- the app has no customer-side
+      // invitation screen, because by the Owner's rule a customer never needs
+      // one.
+      //
+      // The investors INSERT that used to sit here is gone rather than moved.
+      // app.respond_to_invitation makes the investors row at the moment the
+      // person accepts, which is when they become real; making it here gave
+      // an investor row to somebody who had not answered yet.
+      await _db.schema('app').rpc('attach_person_to_business', params: {
+        'p_business_id': req['business_id'],
+        'p_person_id': req['person_id'],
+        'p_role': req['requested_role'],
+        'p_onboarding_method': 'Direct Registration',
+      });
     }
   }
 

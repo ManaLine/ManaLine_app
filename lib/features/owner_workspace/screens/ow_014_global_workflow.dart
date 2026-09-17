@@ -74,7 +74,7 @@ class _GlobalWorkflowScreenState extends ConsumerState<GlobalWorkflowScreen> {
         child: switch (state.stage) {
           WizardStage.selectType => _SelectTypeStep(),
           WizardStage.searchMlid => _SearchMlidStep(businessId: widget.businessId),
-          WizardStage.found => _FoundStep(businessId: widget.businessId, invitedBy: widget.currentOwnerPersonId),
+          WizardStage.found => _FoundStep(businessId: widget.businessId),
           WizardStage.notFound => _NotFoundStep(businessId: widget.businessId),
           WizardStage.incomplete => _IncompleteStep(state: state),
           WizardStage.completionInProgress => _IncompleteStep(state: state),
@@ -182,8 +182,7 @@ class _SearchMlidStepState extends ConsumerState<_SearchMlidStep> {
 
 class _FoundStep extends ConsumerWidget {
   final String businessId;
-  final String invitedBy;
-  const _FoundStep({required this.businessId, required this.invitedBy});
+  const _FoundStep({required this.businessId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -221,7 +220,6 @@ class _FoundStep extends ConsumerWidget {
         // accepts), and money is being taken in rather than lent out.
         _AddMemberButton(
           businessId: businessId,
-          invitedBy: invitedBy,
           personName: result.fullName,
           mlid: result.mlid,
         ),
@@ -237,13 +235,11 @@ class _FoundStep extends ConsumerWidget {
 /// inside a button.
 class _AddMemberButton extends ConsumerWidget {
   final String businessId;
-  final String invitedBy;
   final String personName;
   final String mlid;
 
   const _AddMemberButton({
     required this.businessId,
-    required this.invitedBy,
     required this.personName,
     required this.mlid,
   });
@@ -268,7 +264,7 @@ class _AddMemberButton extends ConsumerWidget {
               final ok = await NetworkErrorHandler.run(context, () async {
                 return isInvestor
                     ? notifier.requestMembership(
-                        businessId: businessId, invitedByPersonId: invitedBy)
+                        businessId: businessId)
                     : notifier.addExistingMemberDirect(businessId: businessId);
               });
               if (!context.mounted) return;

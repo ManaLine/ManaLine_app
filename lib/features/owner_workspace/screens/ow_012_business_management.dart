@@ -1,5 +1,5 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1655,6 +1655,16 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
           const SizedBox(height: ManaSpacing.lg),
         ],
         ManaText.raw(ref.t('active_members'), style: ManaType.strong),
+        // THE ONE PLACE THE GESTURES ARE NAMED. Taking the three dots off
+        // every row also took away the only thing on screen saying suspend
+        // and remove exist, and a gesture nobody is told about is a feature
+        // nobody has. Said once, here, rather than drawn on two hundred rows
+        // -- and only when there are rows for it to describe.
+        if (active.isNotEmpty) ...[
+          const SizedBox(height: ManaSpacing.xs),
+          ManaText.raw(ref.t('members_gesture_hint'), style: ManaType.note),
+          const SizedBox(height: ManaSpacing.xs),
+        ],
         if (active.isEmpty)
           ManaText.raw(ref.t('no_active_members_yet'), style: ManaType.secondary)
         else if (_byVillage)
@@ -1768,15 +1778,99 @@ class _MemberRow extends ConsumerWidget {
     });
   }
 
+  /// What a tap on the row does, and what it says when it cannot do it.
+  ///
+  /// THE TAP IS THE ERRAND. An Owner opens this roster while entering a book
+  /// from paper, and the thing they are doing to nine rows out of ten is
+  /// finishing somebody's entry. That is the tap; the three-dot menu that used
+  /// to hold it is gone.
+  ///
+  /// When there is nowhere to go it says which of the two reasons applies.
+  /// Silence on a tap reads as a broken row, and the reasons are different
+  /// enough to matter: a locked migration is the book being finished, and a
+  /// missing MLID is one person's record being incomplete.
+  void _tap(BuildContext context, WidgetRef ref) {
+    final stage = _entryStage;
+    if (stage != null) {
+      _openEntry(context, stage);
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: ManaText.raw(member.mlid.isEmpty
+          ? ref.t('entry_needs_mlid_note')
+          : ref.t('entry_closed_note')),
+    ));
+  }
+
+  /// Suspend, remove, reactivate -- behind a three-second hold.
+  ///
+  /// THE OWNER'S RULE, and the reason the menu is not a menu any more: these
+  /// sat one tap away on a three-dot button, beside the errand above, on a
+  /// row an Owner taps constantly. Taking somebody off a book is not a
+  /// neighbour of finishing their entry.
+  ///
+  /// A BOTTOM SHEET rather than a popup, because there is no longer a button
+  /// for a popup to hang off, and because a sheet arrives under the thumb of
+  /// somebody holding the phone one-handed.
+  ///
+  /// REACTIVATE IS NOT OFFERED TO SOMEBODY ACTIVE. It was, and it was the
+  /// Owner's complaint: an option that cannot mean anything still has to be
+  /// read and dismissed, and on a row that IS active it invites the thought
+  /// that they might not be.
+  Future<void> _holdActions(BuildContext context, WidgetRef ref) async {
+    final active = member.membershipStatus == 'Active';
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: ManaText.raw(member.fullName,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: ManaText.raw(member.membershipStatus,
+                  style: ManaType.note),
+            ),
+            const Divider(height: 1),
+            // Remove first, then Suspend: the Owner's own order.
+            ListTile(
+              leading: Icon(Icons.person_remove_outlined,
+                  color: ManaColors.statusBad),
+              title: ManaText.raw(ref.t('remove')),
+              onTap: () => Navigator.pop(sheetContext, 'Removed'),
+            ),
+            if (member.membershipStatus != 'Suspended')
+              ListTile(
+                leading: const Icon(Icons.pause_circle_outline),
+                title: ManaText.raw(ref.t('suspend')),
+                onTap: () => Navigator.pop(sheetContext, 'Suspended'),
+              ),
+            if (!active)
+              ListTile(
+                leading: Icon(Icons.play_circle_outline,
+                    color: ManaColors.statusGood),
+                title: ManaText.raw(ref.t('reactivate')),
+                onTap: () => Navigator.pop(sheetContext, 'Active'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    await _changeStatus(context, ref, choice);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // BUG FIXED this pass: Business Members had no status-change action
-    // at all — Agent/Investor/Customer profiles all already have one
-    // (their own PopupMenuButton in the AppBar), this was the one place
-    // an Owner couldn't suspend/reactivate/remove a member. The Owner's
-    // own row is exempt — never offer to suspend/remove yourself.
+    // The Owner's own row is exempt from both gestures — never offer to
+    // suspend or remove yourself, and an Owner has no pre-existing entry.
+    final owner = member.role == 'Owner';
     return Card(
-      child: ListTile(
+      child: _HoldForActions(
+        enabled: !owner,
+        onTap: owner ? null : () => _tap(context, ref),
+        onHold: () => _holdActions(context, ref),
+        child: ListTile(
         leading: const ManaVerificationRing(isVerified: true, size: 36),
         // THE NAME GETS THE ROW. It used to share it with the status pill and
         // the menu, both in `trailing`, and ListTile hands trailing its
@@ -1818,32 +1912,115 @@ class _MemberRow extends ConsumerWidget {
                 label: member.membershipStatus, status: _statusKind),
           ],
         ),
-        trailing: member.role == 'Owner'
-            ? null
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      final stage = _entryStage;
-                      if (value == 'entry' && stage != null) {
-                        _openEntry(context, stage);
-                        return;
-                      }
-                      _changeStatus(context, ref, value);
-                    },
-                    itemBuilder: (_) => [
-                      if (_entryStage != null)
-                        PopupMenuItem(
-                            value: 'entry',
-                            child: ManaText.raw(ref.t('add_this_persons_entry'))),
-                      PopupMenuItem(value: 'Active', child: ManaText.raw(ref.t('reactivate'))),
-                      PopupMenuItem(value: 'Suspended', child: ManaText.raw(ref.t('suspend'))),
-                      PopupMenuItem(value: 'Removed', child: ManaText.raw(ref.t('remove'))),
-                    ],
-                  ),
-                ],
-              ),
+          // NO TRAILING WIDGET AT ALL. The three-dot button that lived here
+          // is what item 5 asked to be rid of, and nothing replaces it: the
+          // row's whole width is the tap target for the errand, and the hold
+          // is the way to the rest. The list's own heading says so once,
+          // rather than every row carrying an affordance.
+        ),
+      ),
+    );
+  }
+}
+
+/// Tap for the errand, hold three seconds for the rest.
+///
+/// WHY THREE SECONDS AND NOT FLUTTER'S 500ms. This is the gate in front of
+/// suspending and removing somebody, and the Owner asked for it by that
+/// duration. A half-second press is something a thumb does by accident on a
+/// scrolling list; three is a decision.
+///
+/// WHICH MEANS IT HAS TO SHOW PROGRESS. A three-second hold with no feedback
+/// is indistinguishable from a dead row for the first two of them -- somebody
+/// would let go at one second, twice, and conclude the list does not respond.
+/// The bar under the row fills as the hold runs, so letting go early is
+/// visibly stopping something rather than finding nothing.
+class _HoldForActions extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final VoidCallback onHold;
+  final bool enabled;
+  const _HoldForActions({
+    required this.child,
+    required this.onTap,
+    required this.onHold,
+    required this.enabled,
+  });
+
+  @override
+  State<_HoldForActions> createState() => _HoldForActionsState();
+}
+
+class _HoldForActionsState extends State<_HoldForActions>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _hold = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 3),
+  )..addStatusListener((s) {
+      if (s != AnimationStatus.completed) return;
+      // Fired. The tap that arrives on release must not also open the entry
+      // screen behind the sheet.
+      _fired = true;
+      HapticFeedback.mediumImpact();
+      _hold.value = 0;
+      widget.onHold();
+    });
+
+  bool _fired = false;
+
+  @override
+  void dispose() {
+    _hold.dispose();
+    super.dispose();
+  }
+
+  void _down() {
+    if (!widget.enabled) return;
+    _fired = false;
+    _hold.forward(from: 0);
+  }
+
+  /// A release, a drag away, or the list scrolling under the finger. All three
+  /// mean the same thing: the hold did not happen.
+  void _up() {
+    if (_hold.isAnimating) _hold.stop();
+    _hold.value = 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _down(),
+      onTapUp: (_) => _up(),
+      onTapCancel: _up,
+      onTap: () {
+        if (_fired) {
+          _fired = false;
+          return;
+        }
+        widget.onTap?.call();
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          widget.child,
+          // Two pixels, and zero-width until a finger is down, so a settled
+          // list looks exactly as it did.
+          AnimatedBuilder(
+            animation: _hold,
+            builder: (context, _) => SizedBox(
+              height: 2,
+              child: _hold.value == 0
+                  ? null
+                  : LinearProgressIndicator(
+                      value: _hold.value,
+                      minHeight: 2,
+                      backgroundColor: Colors.transparent,
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -16,7 +16,7 @@ import '../state/village_book_summary.dart';
 import '../../../shared/widgets/mana_tab_heading.dart';
 import 'ow_investor_entry_sheets.dart';
 import 'ow_village_book.dart';
-import 'ow_village_customers.dart';
+import 'ow_one_person_entry.dart';
 
 /// Entering a pre-existing book ONE PERSON AT A TIME, beside the bulk wizard.
 ///
@@ -754,10 +754,10 @@ class _SingleCustomerEntryState extends ConsumerState<_SingleCustomerEntry> {
         ),
       );
     }
-    return VillageCustomersScreen(
+    return OnePersonEntryScreen(
       businessId: widget.businessId,
-      title: mine.first.fullName,
       positions: mine,
+      onSaved: _load,
     );
   }
 }

@@ -234,7 +234,8 @@ const manaAppFunctions = <String>{
   'support_suspend_membership', 'support_suspension_impact',
   'support_unsuspend_business', 'support_unsuspend_membership',
   'support_upgrade_mlid_dispute', 'support_upload_identity_document',
-  'sync_person_name', 'tg_recompute_day_ledger', 'update_collection_gps',
+  'sync_person_name', 'tg_recompute_day_ledger',
+  'tg_loan_status_follows_balance', 'update_collection_gps',
   'update_customer_address_from_gps', 'update_loan_gps', 'village_at_point',
   'waive_loan_penalty', 'withdraw_from_investment',
 };

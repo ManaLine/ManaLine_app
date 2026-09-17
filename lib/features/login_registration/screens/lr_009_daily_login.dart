@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_logo_backdrop.dart';
 import '../../../design/components/mana_brand_mark.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
@@ -518,7 +519,10 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
   Widget _scaffold(ManaLanguage lang) {
     return Scaffold(
       appBar: ManaAppBar(onBack: _handleBack),
-      body: SafeArea(
+      // The logo, large and centred, behind the whole screen -- the way the
+      // splash has always shown it, and the way it was asked for.
+      body: ManaLogoBackdrop(
+        child: SafeArea(
         child: Column(
           children: [
             // PINNED. The brand was the first thing inside the scroll view, so
@@ -535,10 +539,14 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
             const Padding(
               padding: EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.md,
                   ManaSpacing.lg, ManaSpacing.sm),
-              child: ManaBrandMark(logoSize: 44, horizontal: true),
+              // Wordmark alone. The logo is behind the whole screen now,
+              // large and centred, which is where it reads as a brand rather
+              // than as an icon.
+              child: ManaBrandMark(logoSize: 0, horizontal: true),
             ),
             Expanded(child: _scrollingForm(lang)),
           ],
+        ),
         ),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../design/components/mana_logo_backdrop.dart';
 import '../../../design/components/mana_brand_mark.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../shared/translation_service.dart';
@@ -19,7 +20,12 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
     ref.watch(translationLoaderProvider); // triggers cache load, rebuilds when ready
 
     return Scaffold(
-      body: SafeArea(
+      // THE LOGO IS THE BACKGROUND NOW, not a 44dp square beside the
+      // wordmark. At that size on a 360dp bar it was a smudge competing with
+      // the one word it was meant to support; the splash already showed it
+      // the right way -- large and centred -- and the two agree now.
+      body: ManaLogoBackdrop(
+        child: SafeArea(
         child: Column(
           children: [
             // THE BRAND IS A HEADER NOW, not the first thing you scroll past.
@@ -52,7 +58,10 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
               child: const Padding(
                 padding: EdgeInsets.fromLTRB(ManaSpacing.lg, ManaSpacing.md,
                     ManaSpacing.lg, ManaSpacing.md),
-                child: ManaBrandMark(horizontal: true, logoSize: 44),
+                // logoSize: 0 -- the component's own documented way to
+                // show "the wordmark alone", which is what a header wants
+                // once the mark itself is behind the page.
+                child: ManaBrandMark(horizontal: true, logoSize: 0),
               ),
             ),
             const Divider(height: 1),
@@ -98,6 +107,7 @@ class WorkspaceChoiceScreen extends ConsumerWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

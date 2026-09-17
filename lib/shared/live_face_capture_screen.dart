@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image/image.dart' as img;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../design/tokens/colors.dart';
@@ -167,14 +168,31 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       if (_cameras.isEmpty) {
         throw CameraException('no_cameras', 'This device reports no cameras.');
       }
-      // Front by default: this is a selfie for identity, and it is what the
-      // person will want nine times in ten. The rear lens is one tap away —
-      // see _flip — because the tenth time is an Agent holding the handset up
-      // to somebody standing in front of them, and before this there was no
-      // way to do that at all.
-      final frontIndex = _cameras
-          .indexWhere((c) => c.lensDirection == CameraLensDirection.front);
-      _cameraIndex = frontIndex >= 0 ? frontIndex : 0;
+      // THE LENS YOU LAST USED, falling back to the front.
+      //
+      // Front is right nine times in ten -- this is a selfie for identity --
+      // and the rear lens exists for the tenth: an Agent holding the handset
+      // up to somebody standing in front of them. That person is not doing it
+      // once. An Agent working a round photographs customer after customer
+      // the same way, and before this the screen forgot between every one of
+      // them, so the flip was a tap they paid on every single capture.
+      // Reported from a handset: "once camera is switched remember and open
+      // the same".
+      //
+      // BY LENS DIRECTION, not by index. _cameras is whatever the platform
+      // enumerates and its ORDER is not promised -- remembering "camera 1"
+      // would point at a different lens on a handset that reports them the
+      // other way round, or on a phone with three.
+      final preferred = await _lastLens();
+      var index = _cameras.indexWhere((c) => c.lensDirection == preferred);
+      // The remembered lens may simply not exist on this device. Falling back
+      // to front rather than to whatever is first keeps the default the right
+      // one nine times in ten.
+      if (index < 0) {
+        index = _cameras
+            .indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+      }
+      _cameraIndex = index >= 0 ? index : 0;
 
       await _openCamera(_cameras[_cameraIndex]);
       if (!mounted) return;
@@ -228,6 +246,40 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
   /// Switches lens. Only offered when the device actually has a second one
   /// — native only; Web never populates `_cameras`, so the flip button
   /// never renders there (see build()).
+  /// Which lens this handset used last time.
+  ///
+  /// flutter_secure_storage rather than a new preferences dependency -- the
+  /// same call appearance_state.dart makes, and for the same reason it writes
+  /// down: it is heavier than this preference needs and it is already here,
+  /// and adding a package for one enum is not worth another
+  /// build-compatibility risk on AGP 9.
+  ///
+  /// A READ THAT FAILS IS NOT AN ERROR. No value stored yet is the ordinary
+  /// first run, and a storage that refuses is a preference lost, not a camera
+  /// that cannot open.
+  static const _lensKey = 'mana_last_camera_lens';
+  static const _lensStore = FlutterSecureStorage();
+
+  Future<CameraLensDirection> _lastLens() async {
+    try {
+      final saved = await _lensStore.read(key: _lensKey);
+      if (saved == 'back') return CameraLensDirection.back;
+      if (saved == 'external') return CameraLensDirection.external;
+    } catch (_) {
+      // Fall through to the default.
+    }
+    return CameraLensDirection.front;
+  }
+
+  Future<void> _rememberLens(CameraLensDirection lens) async {
+    try {
+      await _lensStore.write(key: _lensKey, value: lens.name);
+    } catch (_) {
+      // A preference that could not be saved costs one tap next time. It must
+      // never cost the capture that is happening now.
+    }
+  }
+
   Future<void> _flip() async {
     if (_cameras.length < 2 || _switching || _busyCapturing) return;
     setState(() {
@@ -250,6 +302,10 @@ class _LiveFaceCaptureScreenState extends ConsumerState<LiveFaceCaptureScreen> {
       }
       _cameraIndex = (_cameraIndex + 1) % _cameras.length;
       await _openCamera(_cameras[_cameraIndex]);
+      // Remembered AFTER the open succeeds, not before. A lens that failed to
+      // open is not a lens to come back to -- storing the choice first would
+      // make one bad camera permanent.
+      await _rememberLens(_cameras[_cameraIndex].lensDirection);
     } catch (e) {
       if (mounted) setState(() => _error = 'Could not switch camera. ($e)');
     } finally {

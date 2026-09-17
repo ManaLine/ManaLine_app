@@ -15,6 +15,7 @@ import '../../../shared/idempotency.dart';
 import '../../../shared/mana_location.dart';
 import '../../../shared/gps_address_service.dart';
 import '../../../shared/widgets/workspace_nav.dart';
+import '../../../shared/payment_modes.dart';
 import '../../../shared/translation_service.dart';
 import '../state/collection_mode_state.dart';
 import '../../../shared/collection_round_view.dart';
@@ -195,18 +196,36 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
   /// controller the dialog's own exit animation was still reading -- "A
   /// TextEditingController was used after being disposed" on every second
   /// mode entered. Their lifetime is the form's.
-  final Map<String, TextEditingController> _modeFields = {
-    for (final m in _modes) m: TextEditingController(),
-  };
+  /// Created on demand, because the mode list is no longer fixed at
+  /// construction -- it grows to include whatever the entry being corrected
+  /// was recorded in.
+  final Map<String, TextEditingController> _modeFields = {};
 
-  static const _modes = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
+  TextEditingController _fieldFor(String mode) =>
+      _modeFields.putIfAbsent(mode, TextEditingController.new);
 
-  static const _modeKeys = {
-    'Cash': 'cash',
-    'UPI': 'upi',
-    'Bank Transfer': 'bank_transfer',
-    'Cheque': 'cheque',
-  };
+  /// The offered modes, from the one place that knows them.
+  ///
+  /// Was a second copy of the vocabulary here -- four modes and their keys --
+  /// which is how the agent dashboard came to be summing buckets that could
+  /// not hold a GPay payment. manaOfferedPaymentModes leaves UPI out on
+  /// purpose; see payment_modes.dart.
+  ///
+  /// PLUS WHATEVER THIS ENTRY ALREADY HAS. UPI is not offered for new
+  /// collections -- asking an agent to choose between "PhonePe" and "UPI" for
+  /// a PhonePe payment is a question with no right answer -- but six live
+  /// collections were recorded under it, and this list drives three things at
+  /// once: which chips are drawn, which amounts are displayed, and, at lines
+  /// below, WHICH SPLITS ARE SAVED. A fixed offered-only list would have
+  /// dropped a historical UPI split on amend, silently changing what the
+  /// customer had paid.
+  ///
+  /// Order is preserved: the offered modes first, then any straggler.
+  List<String> get _modes => [
+        ...manaOfferedPaymentModes,
+        ..._modeAmounts.keys
+            .where((m) => !manaOfferedPaymentModes.contains(m)),
+      ];
 
   String? _excessDisposition;
   bool _submitting = false;
@@ -284,7 +303,7 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
   /// is a line on a receipt naming a payment nobody made.
   Future<void> _editMode(String mode) async {
     final existing = _modeAmounts[mode] ?? 0;
-    final controller = _modeFields[mode]!;
+    final controller = _fieldFor(mode);
     controller.text = existing > 0 ? '$existing' : '';
     controller.selection =
         TextSelection(baseOffset: 0, extentOffset: controller.text.length);
@@ -293,7 +312,7 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
       builder: (dialogContext) => AlertDialog(
         // Scrolls if it does not fit -- see ow_011_day_closure.dart.
         scrollable: true,
-        title: ManaText.raw(ref.t(_modeKeys[mode]!)),
+        title: ManaText.raw(ref.t(manaPaymentModeKey(mode))),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -690,7 +709,7 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
               // quick-action groups use at the same scales. The amounts read
               // below, in text that is allowed to wrap.
               ChoiceChip(
-                label: ManaText.raw(ref.t(_modeKeys[mode]!),
+                label: ManaText.raw(ref.t(manaPaymentModeKey(mode)),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 selected: (_modeAmounts[mode] ?? 0) > 0,
                 onSelected: (_) => _editMode(mode),
@@ -702,7 +721,7 @@ class ManaCollectionFormState extends ConsumerState<ManaCollectionForm> {
           ManaText.raw(
             [
               for (final m in _activeModes)
-                '${ref.t(_modeKeys[m]!)} ${manaRupees(_modeAmounts[m]!)}'
+                '${ref.t(manaPaymentModeKey(m))} ${manaRupees(_modeAmounts[m]!)}'
             ].join('  ·  '),
             style: ManaType.note,
           ),

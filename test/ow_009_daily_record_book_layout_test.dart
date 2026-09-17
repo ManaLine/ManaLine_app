@@ -85,6 +85,11 @@ class _SeededRecordBookNotifier extends RecordBookNotifier {
         // app.active_account_dates call, so they cannot disagree; a seeded
         // state has to say so explicitly or the date picker opens empty.
         activeDates: {'2026-08-07', '2026-08-06'},
+        // 7 Aug's Vasool is 187500, and these three add up to it. Page 4 of
+        // the design document totals the day by mode underneath the slip.
+        paymentModes: const {
+          '2026-08-07': {'Cash': 150000, 'PhonePe': 30000, 'GPay': 7500},
+        },
         selectedDate: _row1.businessDate,
         dayDetail: _dayDetail,
       );
@@ -344,5 +349,44 @@ void main() {
     expect(find.textContaining('Pedanandipadu'), findsOneWidget);
     expect(find.textContaining('07 Aug, 10:30'), findsOneWidget,
         reason: 'date AND time, to tell two payments the same day apart');
+  });
+
+  testWidgets('OW-009 says how the day was paid, without counting it twice',
+      (tester) async {
+    // The Owner approved the mode split ("1. approved") against page 4. It is
+    // a NOTE, not rows: Cash + PhonePe + GPay ADD UP TO Vasool, so a Cash row
+    // beside a Vasool row in a sheet that sums its columns would count every
+    // rupee twice -- the same trap penalty sets.
+    await pumpManaScreen(
+      tester,
+      const DailyRecordBookScreen(businessId: 'b1'),
+      overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
+    );
+
+    final note = find.textContaining('How It Was Paid');
+    expect(note, findsOneWidget);
+
+    // The finder already matches the Text itself -- ManaFitText renders one
+    // -- so read its data. Asking for Text DESCENDANTS of a Text finds
+    // nothing, and every indexOf below then returns -1 and compares equal.
+    final text = tester.widget<Text>(note).data ?? '';
+    // Largest first, so the note leads with where the money actually came
+    // from rather than with whichever mode sorts first alphabetically.
+    //
+    // ASSERTED ON THE AMOUNTS, not the mode names. The harness carries only
+    // the vendored translation fixture, so 'phonepe' and 'gpay' resolve to
+    // their raw keys here while 'How It Was Paid' resolves properly -- and an
+    // assertion on the English brand names passes or fails on which keys the
+    // fixture happens to hold rather than on the ordering it is testing.
+    expect(text.indexOf('1,50,000'), lessThan(text.indexOf('30,000')));
+    expect(text.indexOf('30,000'), lessThan(text.indexOf('7,500')));
+    expect(text.toLowerCase(), contains('phonepe'));
+    expect(text.toLowerCase(), contains('gpay'));
+
+    // THE DOUBLE-COUNT GUARD. The day's credits are BF 250000 + Vasool 187500
+    // + Excess 250 + Investor Dep. 50000 = 487750. If a mode ever became a
+    // row, this total would move by exactly the modes shown.
+    expect(find.textContaining('4,87,750'), findsWidgets,
+        reason: 'the credits total must not include the mode breakdown');
   });
 }

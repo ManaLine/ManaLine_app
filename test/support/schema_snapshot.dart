@@ -97,7 +97,11 @@ const manaDbEnums = <String, List<String>>{
   'otp_purpose_enum': ['Registration', 'Role Escalation', 'Password Reset', 'PIN Reset', 'Account Unlock', 'Agreement Acceptance'],
   'otp_status_enum': ['Sent', 'Verified', 'Expired'],
   'payer_type_enum': ['Customer', 'Guarantor', 'Others'],
-  'payment_mode_enum': ['Cash', 'UPI', 'Bank Transfer', 'Cheque'],
+  // 'UPI' is KEPT, not superseded. Six live payments were recorded under it
+  // before the app could ask which provider, and rewriting them would invent
+  // a fact. New entries pick one of the three named apps.
+  'payment_mode_enum': [
+    'Cash', 'UPI', 'Bank Transfer', 'Cheque', 'GPay', 'PhonePe', 'Paytm'],
   'penalty_option_enum': ['Flat Amount', '% of Overdue Installment', '% of Remaining Balance'],
   'preferred_language_enum': ['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada'],
   'profile_status_enum': ['Complete', 'Incomplete', 'Pending Verification', 'Archived'],
@@ -202,6 +206,8 @@ const manaAppFunctions = <String>{
   'recompute_day_ledger', 'recompute_day_ledger_onward',
   'day_loan_income',
   'active_account_dates',
+  'day_payment_modes',
+  'online_payment_modes',
   'loan_float_position',
   'refresh_business_figures',
   'transferable_agents',

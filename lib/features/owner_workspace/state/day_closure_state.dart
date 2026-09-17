@@ -374,7 +374,14 @@ class DayClosureDetail {
 /// Details — per-method breakdown showing exactly where Expected and Actual
 /// diverge").
 class DifferenceLine {
-  final String method; // 'Cash' | 'UPI' | 'Bank' | 'Cheque'
+  /// A TRANSLATION KEY, not a label. It was the English word, rendered
+  /// straight through ManaText.raw, so this row of the difference analyser
+  /// stayed in English on a Telugu handset.
+  ///
+  /// The online line also had to stop saying UPI: the figure behind it covers
+  /// GPay, PhonePe, Paytm and UPI since payment_mode_enum widened, so the word
+  /// named one app while the number counted four.
+  final String method;
   final int expected;
   final int actual;
   DifferenceLine({required this.method, required this.expected, required this.actual});
@@ -581,10 +588,10 @@ class DayClosureNotifier extends Notifier<DayClosureState> {
     final expected = state.expected;
     if (expected == null) return;
     final lines = [
-      DifferenceLine(method: 'Cash', expected: expected.expectedCash, actual: state.physicalCash),
-      DifferenceLine(method: 'UPI', expected: expected.expectedUpi, actual: state.upiBalance),
-      DifferenceLine(method: 'Bank', expected: expected.expectedBank, actual: state.bankBalance),
-      DifferenceLine(method: 'Cheque', expected: expected.expectedCheque, actual: state.chequeBalance),
+      DifferenceLine(method: 'cash', expected: expected.expectedCash, actual: state.physicalCash),
+      DifferenceLine(method: 'online_payment', expected: expected.expectedUpi, actual: state.upiBalance),
+      DifferenceLine(method: 'bank', expected: expected.expectedBank, actual: state.bankBalance),
+      DifferenceLine(method: 'cheque', expected: expected.expectedCheque, actual: state.chequeBalance),
     ];
     state = state.copyWith(
       differenceLines: lines,

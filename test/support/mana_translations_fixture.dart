@@ -836,6 +836,13 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'how_it_was_paid': {'English': 'How It Was Paid', 'Telugu': 'ఎలా చెల్లించారు'},
   'added_up_from_modes_note': {'English': 'Added up from the payment modes below.', 'Telugu': 'కింది చెల్లింపు విధానాల నుండి కూడబెట్టబడింది.'},
   'upi': {'English': 'UPI', 'Telugu': 'UPI'},
+  // The three providers, added 2026-09-17 with payment_mode_enum. Vendored
+  // here for the same reason as everything else in this file: translated
+  // width is data, and a chip row that fits in English may not in Telugu.
+  'gpay': {'English': 'GPay', 'Telugu': 'జీపే'},
+  'phonepe': {'English': 'PhonePe', 'Telugu': 'ఫోన్‌పే'},
+  'paytm': {'English': 'Paytm', 'Telugu': 'పేటీఎం'},
+  'online_payment': {'English': 'Online Payment', 'Telugu': 'ఆన్‌లైన్ చెల్లింపు'},
   'bank': {'English': 'Bank', 'Telugu': 'బ్యాంక్'},
   'cheque': {'English': 'Cheque', 'Telugu': 'చెక్కు'},
   'mixed': {'English': 'Mixed', 'Telugu': 'మిశ్రమ'},

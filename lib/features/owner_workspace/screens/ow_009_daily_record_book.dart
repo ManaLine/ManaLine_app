@@ -15,6 +15,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/soft_delete_service.dart';
+import '../../../shared/payment_modes.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/record_book_state.dart';
@@ -191,6 +192,8 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
                             income: state.loanIncome[
                                 manaIsoDate(state.rows[i].businessDate)],
                             shown: _shown,
+                            modes: state.paymentModes[
+                                manaIsoDate(state.rows[i].businessDate)],
                             onLongPress: () =>
                                 _openDayDetails(context, state.rows[i]),
                             onDateTap: () => _pickDate(context),
@@ -327,6 +330,10 @@ class _LedgerRowCard extends ConsumerWidget {
   /// Which optional lines the Owner has asked to see.
   final Set<ManaSheetLine> shown;
 
+  /// How this day's Vasool arrived, by mode. Null means it was not broken
+  /// down, which is not the same as a day that took nothing.
+  final Map<String, int>? modes;
+
   /// LONG PRESS, NOT TAP, opens the day's entries -- the Owner's instruction:
   /// "on long tap show the summary as it shows now". Tap belongs to the date
   /// now, and a card that opened a sheet on any tap would swallow it.
@@ -339,6 +346,7 @@ class _LedgerRowCard extends ConsumerWidget {
     required this.row,
     required this.income,
     required this.shown,
+    required this.modes,
     required this.onLongPress,
     required this.onDateTap,
   });
@@ -435,6 +443,30 @@ class _LedgerRowCard extends ConsumerWidget {
                   label: (line) => ref.t(_lineKey(line)),
                 ),
               ),
+              // THE MODE SPLIT AS A NOTE, NOT ROWS -- for exactly the reason
+              // spelled out for penalty immediately below, and worth saying
+              // twice because the pull to make them rows is strong. Page 4 of
+              // the design document totals the day by mode underneath the
+              // slip, and the Owner approved it. But Cash + GPay + PhonePe
+              // ADD UP TO Vasool; they are not money arriving beside it. In a
+              // two-column sheet that sums its columns, a Cash row and a
+              // Vasool row would count every rupee twice.
+              //
+              // Zero-amount modes are dropped: a day that took nothing by
+              // Paytm has nothing to say about Paytm.
+              if (modes != null &&
+                  modes!.values.any((v) => v != 0)) ...[
+                const SizedBox(height: ManaSpacing.xs),
+                ManaFitText(
+                  '${ref.t('how_it_was_paid')}: '
+                  '${(modes!.entries.where((e) => e.value != 0).toList()
+                        ..sort((a, b) => b.value.compareTo(a.value)))
+                      .map((e) => '${ref.t(manaPaymentModeKey(e.key))} '
+                          '${manaRupees(e.value)}')
+                      .join(' · ')}',
+                  style: ManaType.note,
+                ),
+              ],
               // PENALTY AS A NOTE, NOT A ROW. It is already inside Vasool --
               // it arrived as part of ordinary collections -- and this sheet
               // adds its columns up, so a penalty line in Credits would

@@ -101,6 +101,35 @@ class RecordBookApiService {
     };
   }
 
+  /// How each day's Vasool arrived, keyed by ISO date then by mode.
+  ///
+  /// A DECOMPOSITION, NOT AN ADDITION. The modes sum to the day's collections,
+  /// so nothing may add them to total_collections -- the same trap penalty
+  /// sets, and the reason both are drawn as a note beside the sheet rather
+  /// than as rows inside a two-column layout that adds its columns up.
+  ///
+  /// Days with no splits are absent and read as "not broken down", which is
+  /// not the same as a day that took nothing.
+  Future<Map<String, Map<String, int>>> fetchPaymentModes({
+    required String businessId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final rows = await _db.schema('app').rpc('day_payment_modes', params: {
+      'p_business_id': businessId,
+      // BETWEEN against NULL matches nothing, so the range is always real --
+      // the same bound day_loan_income uses.
+      'p_from': manaIsoDate(from ?? DateTime(2000)),
+      'p_to': manaIsoDate(to ?? DateTime(2099)),
+    });
+    final out = <String, Map<String, int>>{};
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      out.putIfAbsent(r['business_date'] as String, () => <String, int>{})[
+          r['payment_mode'] as String] = (r['amount'] as num).round();
+    }
+    return out;
+  }
+
   /// Recognised penalty totals keyed by ISO business date. One call for the
   /// whole range rather than per row — the RPC returns only days that
   /// actually have penalties, so absent days read as zero.
@@ -526,6 +555,10 @@ class RecordBookState {
   /// fetched with no range and left alone while the window moves.
   final Set<String> activeDates;
 
+  /// Each day's Vasool broken down by how it arrived, keyed by ISO date then
+  /// mode. Absent means not broken down, not zero.
+  final Map<String, Map<String, int>> paymentModes;
+
   final bool loading;
   final String? error;
   final String? statusFilter;
@@ -539,6 +572,7 @@ class RecordBookState {
     this.rows = const [],
     this.loanIncome = const {},
     this.activeDates = const {},
+    this.paymentModes = const {},
     this.loading = false,
     this.error,
     this.statusFilter,
@@ -552,6 +586,7 @@ class RecordBookState {
     List<DayLedgerRow>? rows,
     Map<String, ManaDayLoanIncome>? loanIncome,
     Set<String>? activeDates,
+    Map<String, Map<String, int>>? paymentModes,
     bool? loading,
     String? error,
     bool clearError = false,
@@ -569,6 +604,7 @@ class RecordBookState {
       rows: rows ?? this.rows,
       loanIncome: loanIncome ?? this.loanIncome,
       activeDates: activeDates ?? this.activeDates,
+      paymentModes: paymentModes ?? this.paymentModes,
       loading: loading ?? this.loading,
       error: clearError ? null : (error ?? this.error),
       statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
@@ -611,6 +647,8 @@ class RecordBookNotifier extends Notifier<RecordBookState> {
         // otherwise the first jump strands the Owner on the day they jumped
         // to, with a calendar that now offers only it.
         api.fetchActiveDates(businessId: businessId),
+        api.fetchPaymentModes(
+            businessId: businessId, from: dateFrom, to: dateTo),
       ]);
       final active = results[2] as Set<String>;
       // ONE RULE, APPLIED ONCE. The list shows these days and the picker
@@ -623,6 +661,7 @@ class RecordBookNotifier extends Notifier<RecordBookState> {
             .toList(),
         loanIncome: results[1] as Map<String, ManaDayLoanIncome>,
         activeDates: active,
+        paymentModes: results[3] as Map<String, Map<String, int>>,
         loading: false,
       );
     } catch (e) {

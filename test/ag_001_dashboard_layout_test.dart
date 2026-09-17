@@ -28,7 +28,7 @@ AgentDashboardData _seedData() => AgentDashboardData(
       customersAssigned: 45,
       customersVisited: 28,
       collectionsCash: 84500,
-      collectionsUpi: 12300,
+      collectionsOnline: 12300,
       collectionsBank: 0,
       collectionsCheque: 0,
       collectionsMixed: 0,

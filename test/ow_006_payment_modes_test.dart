@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mana_line/shared/payment_modes.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_006_collection_mode.dart';
 import 'package:mana_line/features/owner_workspace/state/collection_mode_state.dart';
 
@@ -79,6 +80,10 @@ Future<void> _pumpForm(WidgetTester tester) async {
         ),
       ),
     ),
+    // The mode chips are ref.t(manaPaymentModeKey(mode)), so without these
+    // the three new providers render as their raw keys and a test looking for
+    // "GPay" finds nothing -- a failure that says the chip is missing when it
+    // is present and merely untranslated.
     overrides: [
       collectionModeProvider.overrideWith(_CapturingNotifier.new),
     ],
@@ -121,25 +126,30 @@ void main() {
     expect(_CapturingNotifier.lastSplits!.single.amount, 6300);
   });
 
-  testWidgets('a UPI-only collection records as UPI, not as Cash',
+  testWidgets('an online-only collection records as that app, not as Cash',
       (tester) async {
+    // Was 'UPI' until 2026-09-17, when payment_mode_enum gained the three
+    // providers and the form stopped offering the generic value -- asking an
+    // agent to choose between "PhonePe" and "UPI" for a PhonePe payment is a
+    // question with no right answer. The behaviour under test is unchanged:
+    // an entry paid entirely online must not record as Cash.
     await _pumpForm(tester);
     // Clearing the collected amount drops the prefilled Cash, which is what
-    // makes a pure-UPI entry possible at all -- the bug was that it wasn't.
+    // makes a pure-online entry possible at all -- the bug was that it wasn't.
     await tester.enterText(find.byType(TextField).first, '');
     await tester.pumpAndSettle();
-    await _enterMode(tester, 'UPI', '6300');
+    await _enterMode(tester, 'PhonePe', '6300');
     await _submit(tester);
 
     expect(_CapturingNotifier.lastAmount, 6300);
     expect(_CapturingNotifier.lastSplits!.map((s) => s.paymentMode).toList(),
-        ['UPI']);
+        ['PhonePe']);
   });
 
   testWidgets('two modes add up into the collected amount', (tester) async {
     await _pumpForm(tester);
     await _enterMode(tester, 'Cash', '4000');
-    await _enterMode(tester, 'UPI', '2300');
+    await _enterMode(tester, 'GPay', '2300');
     await _submit(tester);
 
     expect(_CapturingNotifier.lastAmount, 6300,
@@ -148,7 +158,7 @@ void main() {
       {
         for (final s in _CapturingNotifier.lastSplits!) s.paymentMode: s.amount
       },
-      {'Cash': 4000, 'UPI': 2300},
+      {'Cash': 4000, 'GPay': 2300},
     );
   });
 
@@ -163,12 +173,18 @@ void main() {
         reason: 'a zero-rupee split names a payment nobody made');
   });
 
-  testWidgets('Bank Transfer and Cheque are offered at all', (tester) async {
+  testWidgets('every offered mode is actually offered', (tester) async {
     await _pumpForm(tester);
-    for (final mode in ['Cash', 'UPI', 'Bank Transfer', 'Cheque']) {
+    for (final mode in manaOfferedPaymentModes) {
       expect(find.text(mode), findsOneWidget,
-          reason: '$mode has been in payment_mode_enum all along');
+          reason: '$mode is in manaOfferedPaymentModes but has no chip');
     }
     expect(find.text('Mixed Payment'), findsNothing);
+
+    // UPI is in the enum and NOT offered, deliberately. A new collection
+    // names the app it came through; the six historical UPI rows keep theirs,
+    // and the form grows a chip for one when it is correcting it.
+    expect(find.text('UPI'), findsNothing,
+        reason: 'offering UPI beside PhonePe asks an unanswerable question');
   });
 }

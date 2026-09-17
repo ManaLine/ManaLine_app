@@ -672,7 +672,7 @@ class _RunningDashboard extends ConsumerWidget {
                 _Line(ref.t('customers_visited'), '${d.customersVisited}'),
                 _Line(ref.t('customers_remaining'), '${d.customersRemaining}'),
                 _Line.money(ref.t('cash'), d.collectionsCash),
-                _Line.money(ref.t('upi'), d.collectionsUpi),
+                _Line.money(ref.t('online_payment'), d.collectionsOnline),
                 _Line.money(ref.t('bank'), d.collectionsBank),
                 _Line.money(ref.t('cheque'), d.collectionsCheque),
                 _Line.money(ref.t('mixed'), d.collectionsMixed),

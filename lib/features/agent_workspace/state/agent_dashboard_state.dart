@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/mana_time.dart';
+import '../../../shared/payment_modes.dart';
 import '../../../shared/text_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -452,7 +453,13 @@ class AgentApiService {
           .toSet()
           .length,
       collectionsCash: byMode('Cash'),
-      collectionsUpi: byMode('UPI'),
+      // EVERY ONLINE MODE, not just the one literal. This read byMode('UPI')
+      // until 2026-09-17, when payment_mode_enum gained GPay, PhonePe and
+      // Paytm -- and a payment in any of the three would then have landed in
+      // no bucket at all and vanished from todaysCollectionsTotal below. An
+      // agent would have handed over cash that their own screen said they had
+      // not taken.
+      collectionsOnline: manaOnlinePaymentModes.fold(0, (n, m) => n + byMode(m)),
       collectionsBank: byMode('Bank Transfer'),
       collectionsCheque: byMode('Cheque'),
       collectionsMixed:
@@ -605,7 +612,8 @@ class AgentDashboardData {
   final int customersAssigned;
   final int customersVisited;
   final int collectionsCash;
-  final int collectionsUpi;
+  /// Every ℗ mode together -- GPay, PhonePe, Paytm and the historical UPI.
+  final int collectionsOnline;
   final int collectionsBank;
   final int collectionsCheque;
   final int collectionsMixed;
@@ -660,7 +668,7 @@ class AgentDashboardData {
     required this.customersAssigned,
     required this.customersVisited,
     required this.collectionsCash,
-    required this.collectionsUpi,
+    required this.collectionsOnline,
     required this.collectionsBank,
     required this.collectionsCheque,
     required this.collectionsMixed,
@@ -694,10 +702,16 @@ class AgentDashboardData {
   int get customersRemaining => customersAssigned - customersVisited;
   int get todaysCollectionsTotal =>
       collectionsCash +
-      collectionsUpi +
+      collectionsOnline +
       collectionsBank +
-      collectionsCheque +
-      collectionsMixed;
+      collectionsCheque;
+  // collectionsMixed IS NOT IN THIS SUM, and was. It is a COUNT of collections
+  // paid in more than one mode, not an amount, and the four buckets above
+  // already contain every rupee of those collections -- byMode sums all split
+  // rows, including both halves of a mixed one. Adding it inflated the figure
+  // the agent reads as their day's takings by the number of mixed collections.
+  // Small, live, and on a money display; found while widening the online
+  // bucket, not looked for.
 }
 
 class AgentSalaryHistoryEntry {

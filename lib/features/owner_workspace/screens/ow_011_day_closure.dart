@@ -410,7 +410,7 @@ class _DifferenceAnalyzerState extends ConsumerState<_DifferenceAnalyzer> {
         const SizedBox(height: ManaSpacing.sm),
         ...state.differenceLines.map((l) => Card(
               child: ListTile(
-                title: ManaText.raw(l.method),
+                title: ManaText.raw(ref.t(l.method)),
                 subtitle: ManaText.raw(ref
                     .t('expected_actual_note')
                     .replaceAll('{expected}', manaRupees(l.expected))

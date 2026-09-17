@@ -68,6 +68,10 @@ class _SeededRecordBookNotifier extends RecordBookNotifier {
   @override
   RecordBookState build() => RecordBookState(
         rows: [_row1, _row2],
+        // The same two days the rows carry. In production both come from one
+        // app.active_account_dates call, so they cannot disagree; a seeded
+        // state has to say so explicitly or the date picker opens empty.
+        activeDates: {'2026-08-07', '2026-08-06'},
         selectedDate: _row1.businessDate,
         dayDetail: _dayDetail,
       );
@@ -145,10 +149,19 @@ void main() {
         textScale: scale,
         overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
       );
+      // LONG PRESS below, since 2026-09-17: tapping the date opens the
+      // calendar now, and the day details moved to a long press at the
+      // Owner's request. These tests went on tapping and would have gone on
+      // passing -- against a Flutter date picker instead of the sheet they
+      // are named for.
+      //
+      // The comment lives ABOVE this line, not beside the gesture: the
+      // silent-tap guard looks exactly 8 lines back for an ensureVisible,
+      // and five lines of prose in that gap put a real tap out of its reach.
       final dateText = find.textContaining('07 Aug 2026').first;
       await tester.ensureVisible(dateText);
       await tester.pumpAndSettle();
-      await tester.tap(dateText);
+      await tester.longPress(dateText);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expectNoLayoutFault(tester, 'OW-009 day details at ${scale}x');
@@ -163,10 +176,19 @@ void main() {
         translations: _ow009TeluguTranslations,
         overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
       );
+      // LONG PRESS below, since 2026-09-17: tapping the date opens the
+      // calendar now, and the day details moved to a long press at the
+      // Owner's request. These tests went on tapping and would have gone on
+      // passing -- against a Flutter date picker instead of the sheet they
+      // are named for.
+      //
+      // The comment lives ABOVE this line, not beside the gesture: the
+      // silent-tap guard looks exactly 8 lines back for an ensureVisible,
+      // and five lines of prose in that gap put a real tap out of its reach.
       final dateText = find.textContaining('07 Aug 2026').first;
       await tester.ensureVisible(dateText);
       await tester.pumpAndSettle();
-      await tester.tap(dateText);
+      await tester.longPress(dateText);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expectNoLayoutFault(tester, 'OW-009 day details at ${scale}x in Telugu');
@@ -190,10 +212,19 @@ void main() {
             translations: lang == ManaLanguage.telugu ? _ow009TeluguTranslations : null,
             overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
           );
-          final dateText = find.textContaining('07 Aug 2026').first;
+          // LONG PRESS below, since 2026-09-17: tapping the date opens the
+      // calendar now, and the day details moved to a long press at the
+      // Owner's request. These tests went on tapping and would have gone on
+      // passing -- against a Flutter date picker instead of the sheet they
+      // are named for.
+      //
+      // The comment lives ABOVE this line, not beside the gesture: the
+      // silent-tap guard looks exactly 8 lines back for an ensureVisible,
+      // and five lines of prose in that gap put a real tap out of its reach.
+      final dateText = find.textContaining('07 Aug 2026').first;
           await tester.ensureVisible(dateText);
           await tester.pumpAndSettle();
-          await tester.tap(dateText);
+          await tester.longPress(dateText);
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 300));
 
@@ -217,21 +248,65 @@ void main() {
     );
     expect(find.textContaining('07 Aug 2026'), findsWidgets);
 
-    // SCROLLED TO, since 2026-09-17. A day is drawn as the two-column account
-    // sheet now -- credits, debits, both totals and the carried closing --
-    // which is taller than the thirteen figures in a wrap that it replaced.
-    // Two days no longer fit one screen at 1.0x, and that is the format the
-    // Owner asked for rather than a regression.
+    // SWIPED TO, since 2026-09-17: "show latest account on top and on swipe
+    // up show previous one." One account fills the screen and the previous
+    // one is a page turn away, so the second day is not merely below the
+    // fold -- PageView has not built it at all.
     //
-    // The assertion is unchanged in what it proves: the SECOND row renders.
+    // scrollUntilVisible cannot express this. It calls `.single` on the
+    // target finder before the page exists, which throws "Bad state: No
+    // element" rather than scrolling until it does. A fling on the pager is
+    // both the gesture the Owner asked for and the only one that builds it.
+    // hitTestable, not plain existence. PageView BUILDS the adjacent page so
+    // it can animate to it, so '06 Aug 2026' is in the tree from the first
+    // frame -- asserting findsNothing on it fails against correct code, which
+    // is what the first version of this test did. What the Owner asked about
+    // is what is in front of them, and that is what hitTestable measures.
+    expect(find.textContaining('06 Aug 2026').hitTestable(), findsNothing,
+        reason: 'the previous day must not already be on screen, or the '
+            'swipe below proves nothing');
+
+    // SCROLLED TO. A day is drawn as the two-column account sheet now --
+    // credits, debits, both totals and the carried closing -- so two days no
+    // longer fit one screen at 1.0x. That is the format the Owner asked for,
+    // and "swipe up show previous one" is what this scroll is.
+    //
     // No `.first` on the target: it is evaluated eagerly and throws "Bad
-    // state: No element" on a finder that has not been scrolled into
-    // existence yet, which is the whole reason this call is here.
+    // state: No element" on a finder for something not yet built, which is
+    // the whole reason this call is here.
     await tester.scrollUntilVisible(
       find.textContaining('06 Aug 2026'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.textContaining('06 Aug 2026'), findsWidgets);
+  });
+
+  testWidgets('OW-009 offers only the days it holds', (tester) async {
+    // "tap on date (beside BF) opens calendar ... and only show dates that
+    // are actively submitted account dates." The seeded book holds 7 and 6
+    // August; every other August day must be unselectable.
+    await pumpManaScreen(
+      tester,
+      const DailyRecordBookScreen(businessId: 'b1'),
+      overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
+    );
+
+    await tester.tap(find.textContaining('07 Aug 2026').first);
+    await tester.pumpAndSettle();
+
+    // A day the book does not hold. Disabled, not absent -- the calendar
+    // draws the whole month either way.
+    final fifth = find.descendant(
+        of: find.byType(DatePickerDialog), matching: find.text('5'));
+    expect(fifth, findsOneWidget, reason: 'the calendar opened');
+    final enabled = tester
+        .widget<Semantics>(find
+            .ancestor(of: fifth, matching: find.byType(Semantics))
+            .first)
+        .properties
+        .enabled;
+    expect(enabled, isFalse,
+        reason: '5 Aug has no account, so it must not be selectable');
   });
 }

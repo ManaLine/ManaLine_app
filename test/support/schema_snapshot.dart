@@ -201,6 +201,7 @@ const manaAppFunctions = <String>{
   'reactivate_own_account', 'recompute_agent_bf', 'recompute_business_bf',
   'recompute_day_ledger', 'recompute_day_ledger_onward',
   'day_loan_income',
+  'active_account_dates',
   'loan_float_position',
   'refresh_business_figures',
   'transferable_agents',

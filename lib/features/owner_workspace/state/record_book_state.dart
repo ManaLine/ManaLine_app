@@ -70,6 +70,37 @@ class RecordBookApiService {
     return out;
   }
 
+  /// The ISO dates this book actually did something on.
+  ///
+  /// THE OWNER'S RULE, 2026-09-17: "show only submitted accounts (with any of
+  /// these - an active collection or loan or an expense)". Before this, OW-009
+  /// listed every `day_ledger` row, and `day_ledger` has a row for every day
+  /// its recompute trigger has ever touched -- 82 rows across the five live
+  /// books, of which 20 are accounts and 62 are empty days. Three whole books
+  /// showed nothing else.
+  ///
+  /// SERVER-SIDE, not a filter over the rows already in hand. The rule is
+  /// "a source row exists", and a day can have a live collection while every
+  /// figure on it reads zero -- a no-payment visit is a day somebody worked.
+  /// Deciding it from the ledger's own totals would hide exactly that day.
+  /// app.active_account_dates carries the full rule, including the migrated
+  /// weekly accounts that have money but no source rows behind them.
+  Future<Set<String>> fetchActiveDates({
+    required String businessId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final rows = await _db.schema('app').rpc('active_account_dates', params: {
+      'p_business_id': businessId,
+      'p_from': from == null ? null : manaIsoDate(from),
+      'p_to': to == null ? null : manaIsoDate(to),
+    });
+    return {
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        r['business_date'] as String,
+    };
+  }
+
   /// Recognised penalty totals keyed by ISO business date. One call for the
   /// whole range rather than per row — the RPC returns only days that
   /// actually have penalties, so absent days read as zero.
@@ -370,6 +401,17 @@ class RecordBookState {
   /// does not know them. A day that genuinely had no loans is absent from a
   /// map that HAS been fetched, which reads as zero and is correct.
   final Map<String, ManaDayLoanIncome> loanIncome;
+
+  /// Every ISO date this book has an account on, for the WHOLE book.
+  ///
+  /// NOT DERIVED FROM `rows`, deliberately, and this is the second attempt.
+  /// Deriving it looked airtight -- the calendar could then only ever offer a
+  /// day the list holds -- until picking a date narrows the loaded window to
+  /// that day, at which point the calendar would shrink to a single
+  /// selectable date and the Owner would be stranded on it. So this is
+  /// fetched with no range and left alone while the window moves.
+  final Set<String> activeDates;
+
   final bool loading;
   final String? error;
   final String? statusFilter;
@@ -382,6 +424,7 @@ class RecordBookState {
   const RecordBookState({
     this.rows = const [],
     this.loanIncome = const {},
+    this.activeDates = const {},
     this.loading = false,
     this.error,
     this.statusFilter,
@@ -394,6 +437,7 @@ class RecordBookState {
   RecordBookState copyWith({
     List<DayLedgerRow>? rows,
     Map<String, ManaDayLoanIncome>? loanIncome,
+    Set<String>? activeDates,
     bool? loading,
     String? error,
     bool clearError = false,
@@ -410,6 +454,7 @@ class RecordBookState {
     return RecordBookState(
       rows: rows ?? this.rows,
       loanIncome: loanIncome ?? this.loanIncome,
+      activeDates: activeDates ?? this.activeDates,
       loading: loading ?? this.loading,
       error: clearError ? null : (error ?? this.error),
       statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
@@ -446,10 +491,24 @@ class RecordBookNotifier extends Notifier<RecordBookState> {
         ),
         api.fetchLoanIncome(
             businessId: businessId, from: dateFrom, to: dateTo),
+        // NO RANGE, on purpose, while the other two are windowed. This set
+        // feeds the date picker, which must keep offering the whole book even
+        // after picking a date has narrowed the loaded window to one day --
+        // otherwise the first jump strands the Owner on the day they jumped
+        // to, with a calendar that now offers only it.
+        api.fetchActiveDates(businessId: businessId),
       ]);
+      final active = results[2] as Set<String>;
+      // ONE RULE, APPLIED ONCE. The list shows these days and the picker
+      // offers these days -- "only show dates that are actively submitted
+      // account dates" -- so a day can never be selectable without being
+      // showable.
       state = state.copyWith(
-        rows: results[0] as List<DayLedgerRow>,
+        rows: (results[0] as List<DayLedgerRow>)
+            .where((r) => active.contains(manaIsoDate(r.businessDate)))
+            .toList(),
         loanIncome: results[1] as Map<String, ManaDayLoanIncome>,
+        activeDates: active,
         loading: false,
       );
     } catch (e) {

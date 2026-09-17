@@ -37,6 +37,46 @@ class DailyRecordBookScreen extends ConsumerStatefulWidget {
 }
 
 class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
+  /// Tap the date beside BF to jump to another day's account.
+  ///
+  /// THE CALENDAR OFFERS ONLY THE DAYS THE BOOK HOLDS -- "only show dates
+  /// that are actively submitted account dates". state.activeDates is the
+  /// same answer the list was filtered by, fetched for the whole book rather
+  /// than for the loaded window, so jumping never shrinks the calendar.
+  ///
+  /// PICKING RELOADS FROM THAT DAY rather than scrolling to it. "tap on date
+  /// ... to select date that shows that days account" -- so the chosen day
+  /// becomes the top of the list and swiping up still walks backwards from
+  /// there, which is the same gesture that worked a moment ago. Scrolling to
+  /// an index would need every account's height in advance, and they vary
+  /// with how many optional rows the Owner has added.
+  Future<void> _pickDate(BuildContext context) async {
+    final state = ref.read(recordBookProvider);
+    if (state.activeDates.isEmpty) return;
+    final sorted = state.activeDates.toList()..sort();
+    final earliest = DateTime.parse(sorted.first);
+    final latest = DateTime.parse(sorted.last);
+    final current = state.rows.isEmpty ? latest : state.rows.first.businessDate;
+    final picked = await showDatePicker(
+      context: context,
+      // The window's own top day may sit outside [earliest, latest] only if
+      // activeDates and rows disagree, which they cannot -- both come from
+      // one call. Clamped anyway: showDatePicker asserts rather than copes.
+      initialDate: current.isBefore(earliest)
+          ? earliest
+          : (current.isAfter(latest) ? latest : current),
+      firstDate: earliest,
+      lastDate: latest,
+      selectableDayPredicate: (d) => state.activeDates.contains(manaIsoDate(d)),
+    );
+    if (picked == null || !mounted) return;
+    await ref.read(recordBookProvider.notifier).load(
+          widget.businessId,
+          dateTo: picked,
+          status: state.statusFilter,
+        );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -89,7 +129,7 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xxl),
                           child: Center(
-                            child: ManaText.raw(ref.t('no_business_days_yet'),
+                            child: ManaText.raw(ref.t('no_accounts_yet'),
                                 style: ManaType.secondary),
                           ),
                         ),
@@ -120,18 +160,40 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
                           ),
                         ),
                       ),
+                      // AN ORDINARY LIST, LATEST FIRST.
+                      //
+                      // This was a vertical PageView for about an hour --
+                      // one account per page, swipe up to turn it -- and the
+                      // layout tests caught what that costs. A page tall
+                      // enough to need its own scroll view (any day carrying
+                      // an investor deposit, a cheti and a penalty note) puts
+                      // two scrollables on the same axis, and Flutter does
+                      // not hand the gesture up when the inner one reaches
+                      // its end. Measured: the pager stayed at offset 0
+                      // through three consecutive flings. The previous day
+                      // was not merely awkward to reach -- it was
+                      // unreachable, on exactly the days that matter most.
+                      //
+                      // A plain list is what the Owner actually asked for:
+                      // "show latest account on top and on swipe up show
+                      // previous one." rows arrive newest-first, so the
+                      // latest account IS on top and swiping up reveals the
+                      // one before it. The paging was mine, not theirs.
                       Expanded(
                         child: ListView.separated(
-                      padding: const EdgeInsets.all(ManaSpacing.lg),
-                      itemCount: state.rows.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: ManaSpacing.sm),
-                      itemBuilder: (context, i) => _LedgerRowCard(
-                        row: state.rows[i],
-                        income: state.loanIncome[
-                            manaIsoDate(state.rows[i].businessDate)],
-                        shown: _shown,
-                        onTap: () => _openDayDetails(context, state.rows[i]),
-                      ),
+                          padding: const EdgeInsets.all(ManaSpacing.lg),
+                          itemCount: state.rows.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: ManaSpacing.md),
+                          itemBuilder: (context, i) => _LedgerRowCard(
+                            row: state.rows[i],
+                            income: state.loanIncome[
+                                manaIsoDate(state.rows[i].businessDate)],
+                            shown: _shown,
+                            onLongPress: () =>
+                                _openDayDetails(context, state.rows[i]),
+                            onDateTap: () => _pickDate(context),
+                          ),
                         ),
                       ),
                     ]),
@@ -264,12 +326,20 @@ class _LedgerRowCard extends ConsumerWidget {
   /// Which optional lines the Owner has asked to see.
   final Set<ManaSheetLine> shown;
 
-  final VoidCallback onTap;
+  /// LONG PRESS, NOT TAP, opens the day's entries -- the Owner's instruction:
+  /// "on long tap show the summary as it shows now". Tap belongs to the date
+  /// now, and a card that opened a sheet on any tap would swallow it.
+  final VoidCallback onLongPress;
+
+  /// Tap the date to jump to another day.
+  final VoidCallback onDateTap;
+
   const _LedgerRowCard({
     required this.row,
     required this.income,
     required this.shown,
-    required this.onTap,
+    required this.onLongPress,
+    required this.onDateTap,
   });
 
   @override
@@ -280,7 +350,7 @@ class _LedgerRowCard extends ConsumerWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.md),
           child: Column(
@@ -289,12 +359,36 @@ class _LedgerRowCard extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // THE DATE IS THE CONTROL. "tap on date (beside BF) opens
+                  // calendar to select date that shows that days account."
+                  // The icon is there because a bare date does not look like
+                  // a button, and this is the only way back to a day that is
+                  // twenty swipes down.
+                  //
+                  // Flexible inside the Row inside the Expanded: the date is
+                  // the thing that may need to give way, and the 16dp icon
+                  // beside it must not be the fixed-width child that makes
+                  // this the project's sixth overflow.
                   Expanded(
-                    child: ManaText.raw(
-                      _dateFmt.format(row.businessDate),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: ManaType.heavy,
+                    child: InkWell(
+                      onTap: onDateTap,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: ManaText.raw(
+                              _dateFmt.format(row.businessDate),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: ManaType.heavy,
+                            ),
+                          ),
+                          const SizedBox(width: ManaSpacing.xs),
+                          Icon(Icons.calendar_month_outlined,
+                              size: 16, color: ManaColors.textSecondary),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: ManaSpacing.xs),

@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import '../tokens/colors.dart';
 import '../tokens/spacing.dart';
 import '../motion.dart';
+import 'mana_fit_text.dart';
 
 /// Minimum interactive size. Material specifies 48dp; this app's users are
 /// often standing, one-handed, in a hurry, sometimes with wet or dusty hands,
@@ -107,10 +108,18 @@ class ManaHeaderBlock extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      // The business name, on the bar an Owner reads to know
+                      // WHICH book they are in. Shrinks rather than cutting:
+                      // two of this account's businesses begin "Sri ", so a
+                      // truncated one names neither.
+                      //
+                      // One line and a hard floor, because this bar has a
+                      // fixed height and a second row would push the date off
+                      // it.
+                      ManaFitText(
                         title,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        minScale: 0.7,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,

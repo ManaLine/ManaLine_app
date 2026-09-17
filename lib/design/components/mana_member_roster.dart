@@ -17,6 +17,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'mana_fit_text.dart';
 import 'mana_stored_image.dart';
 
 import '../tokens/colors.dart';
@@ -292,11 +293,13 @@ class _ManaMemberRosterState extends State<ManaMemberRoster> {
               child: Row(
                 children: [
                   Flexible(
-                    child: ManaText.raw(
+                    // The heading names the list -- "Agents", "Investors",
+                    // a village. Cut, it names a different one.
+                    child: ManaFitText(
                       widget.heading,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w700),
                     ),
                   ),
                   const SizedBox(width: ManaSpacing.sm),
@@ -488,13 +491,14 @@ class _MemberRow extends StatelessWidget {
               : null,
         ),
       ),
-      title: ManaText.raw(entry.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+      // THE HIGHEST-LEVERAGE SITE IN THE APP for the no-dots rule: Workforce,
+      // Investor Management, Customer Management and the agent's own customer
+      // list all draw their people through this row. Both lines are identity
+      // -- the name, and the MLID and phone that tell two of them apart -- so
+      // neither may end in dots.
+      title: ManaFitText(entry.name,
           style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: ManaText.raw(entry.subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+      subtitle: ManaFitText(entry.subtitle,
           style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
       trailing: ManaTrailingStatus(label: entry.status, status: entry.statusKind),
     );
@@ -525,14 +529,12 @@ Future<void> showMemberActions(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ManaText.raw(entry.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                ManaText.raw(entry.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: ManaColors.textSecondary)),
+                ManaFitText(entry.name,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w700)),
+                ManaFitText(entry.subtitle,
+                    style: TextStyle(
+                        fontSize: 12, color: ManaColors.textSecondary)),
               ],
             ),
           ),

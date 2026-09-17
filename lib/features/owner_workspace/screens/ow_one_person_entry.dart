@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../design/components/mana_fit_text.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
@@ -173,10 +174,9 @@ class _OnePersonEntryScreenState extends ConsumerState<OnePersonEntryScreen> {
           _nameAndMlid(),
           if (second.isNotEmpty) ...[
             const SizedBox(height: ManaSpacing.xs),
-            ManaText.raw(second,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: ManaType.secondary),
+            // C/o and the village: the two fields that tell one Ramesh
+            // from another. Cutting either is cutting the answer.
+            ManaFitText(second, style: ManaType.secondary),
           ],
         ],
       ),
@@ -207,12 +207,10 @@ class _OnePersonEntryScreenState extends ConsumerState<OnePersonEntryScreen> {
         textScaler: scale,
       )..layout();
       final room = constraints.maxWidth - painter.width - ManaSpacing.sm;
-      final name = ManaText.raw(
-        _who.fullName,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: nameStyle,
-      );
+      // Shrinks before it wraps, and never ends in dots. The MLID beside
+      // it still cannot do either -- it is an identifier, and a shrunken one
+      // is still the whole string where a cut one is a different string.
+      final name = ManaFitText(_who.fullName, style: nameStyle);
       final mlid = ManaText.raw(_who.mlid, style: ManaType.note);
 
       if (room < constraints.maxWidth / 2) {

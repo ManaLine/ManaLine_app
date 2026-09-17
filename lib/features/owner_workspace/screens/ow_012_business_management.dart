@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../design/components/mana_fit_text.dart';
 import '../../../design/components/mana_stored_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -2060,10 +2061,17 @@ class _MemberRow extends ConsumerWidget {
           // button left the title about one character wide and "Ashok Goud"
           // came down the screen a letter per line. One line, ellipsised: a
           // name that does not fit is cut, not folded.
-          title: ManaText.raw(
+          // A NAME IS AN ANSWER. It was one line with an ellipsis, which
+          // came from an earlier finding -- "Ashok Goud" was coming down the
+          // screen a letter per line -- and the cure was worse than it looked:
+          // a roster of two hundred people where the long names all end in
+          // dots cannot be read for the thing a roster is for.
+          //
+          // ManaFitText shrinks first and takes a second line only when
+          // shrinking would make it unreadable, so the letter-per-line case
+          // is still impossible and the dots are gone.
+          title: ManaFitText(
             member.fullName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           // C/O AND VILLAGE, NOT THE ROLE. The role used to be the first

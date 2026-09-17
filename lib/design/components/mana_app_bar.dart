@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'mana_text.dart';
+import 'mana_fit_text.dart';
 
 /// The app bar, for every screen that has one.
 ///
@@ -151,12 +151,18 @@ class ManaAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: backgroundColor,
       foregroundColor: foregroundColor,
-      // One line, and it may be a person's name, so it ellipsizes rather than
-      // wrapping the bar to two rows at a large text scale.
+      // ONE LINE, AND IT SHRINKS. An AppBar has a fixed toolbarHeight, so a
+      // second row is not available here the way it is in a list -- which is
+      // why this ellipsised and why the handset read "Workforce Ma...".
+      //
+      // A harder floor than the default for that reason: 0.7, because the
+      // alternative on this widget is not another line, it is dots on a
+      // screen title. "Agent Management" at 0.7 fits a 360dp bar with the
+      // four actions beside it at every scale this app tests.
       automaticallyImplyLeading: implyLeading,
       title: title == null
           ? null
-          : ManaText.raw(title!, maxLines: 1, overflow: TextOverflow.ellipsis),
+          : ManaFitText(title!, maxLines: 1, minScale: 0.7),
       leading: onBack != null
           ? BackButton(onPressed: onBack)
           : homeRoute == null

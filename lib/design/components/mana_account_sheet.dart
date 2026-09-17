@@ -132,18 +132,28 @@ class _HeadRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget head(String s, TextAlign align) => Expanded(
+    // GREEN IN, RED OUT -- the Owner's instruction, heading and numbers both.
+    //
+    // The two columns were previously distinguished only by which side of the
+    // sheet a figure sat on, which is the one cue that disappears the moment a
+    // row stacks (and rows stack at 2.0x, by design). Colour survives that.
+    //
+    // Tokens, not literal colours: statusGood and statusBad are already tuned
+    // per theme, and ManaColors carries a separate darker pair for the dark
+    // palette. A hardcoded green here would be unreadable on one of them.
+    Widget head(String s, TextAlign align, Color colour) => Expanded(
           child: ManaText.raw(s,
               textAlign: align,
-              style: ManaType.note.copyWith(fontWeight: FontWeight.w700)),
+              style: ManaType.note
+                  .copyWith(fontWeight: FontWeight.w700, color: colour)),
         );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xs),
       child: Row(
         children: [
-          head(credits, TextAlign.left),
+          head(credits, TextAlign.left, ManaColors.statusGood),
           const Spacer(),
-          head(debits, TextAlign.right),
+          head(debits, TextAlign.right, ManaColors.statusBad),
         ],
       ),
     );
@@ -159,7 +169,15 @@ class _Row extends StatelessWidget {
     final figure = ManaAmount(
       row.amount,
       size: ManaAmountSize.compact,
-      tone: row.caution ? ManaAmountTone.caution : ManaAmountTone.neutral,
+      // Credit green, debit red. Caution still wins where it applies -- a
+      // short or an excess is a discrepancy first and a side second, and
+      // colouring it like an ordinary line would hide the thing it is there
+      // to flag.
+      tone: row.caution
+          ? ManaAmountTone.caution
+          : (row.isCredit
+              ? ManaAmountTone.positive
+              : ManaAmountTone.negative),
       semanticLabel: row.label,
     );
 
@@ -247,8 +265,8 @@ class _TotalRow extends StatelessWidget {
     // text style and takes no override -- deliberately, so money cannot be
     // set below its floor -- so the totals separate themselves by SIZE
     // rather than by a weight passed in from here.
-    Widget total(int v) => ManaAmount(v,
-        size: ManaAmountSize.standard, semanticLabel: 'Total');
+    Widget total(int v, ManaAmountTone tone) => ManaAmount(v,
+        size: ManaAmountSize.standard, tone: tone, semanticLabel: 'Total');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: ManaSpacing.xs),
@@ -274,15 +292,15 @@ class _TotalRow extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Align(alignment: Alignment.centerLeft, child: total(credits)),
-              Align(alignment: Alignment.centerRight, child: total(debits)),
+              Align(alignment: Alignment.centerLeft, child: total(credits, ManaAmountTone.positive)),
+              Align(alignment: Alignment.centerRight, child: total(debits, ManaAmountTone.negative)),
             ],
           );
         }
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [total(credits), total(debits)],
+          children: [total(credits, ManaAmountTone.positive), total(debits, ManaAmountTone.negative)],
         );
       }),
     );
@@ -296,6 +314,13 @@ class _ClosingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // DELIBERATELY NEUTRAL, while the two columns above are green and red.
+    //
+    // Next BF sits on the debit side of the sheet because that is where the
+    // paper puts it, but it is not money going out -- it is what the day ends
+    // with and what tomorrow opens on. Painting it red would tell an Owner
+    // their closing balance was a loss. Painting it green would be worse on a
+    // day that closed negative.
     final figure = ManaAmount(closing, semanticLabel: note ?? 'Closing');
 
     return Container(

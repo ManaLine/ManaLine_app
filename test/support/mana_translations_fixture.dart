@@ -839,6 +839,22 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   // The three providers, added 2026-09-17 with payment_mode_enum. Vendored
   // here for the same reason as everything else in this file: translated
   // width is data, and a chip row that fits in English may not in Telugu.
+  // The account sheet's own vocabulary (migration 20260917173448). Vendored
+  // because without it the sheet's Telugu layout tests were measuring the raw
+  // key names -- 'vasool', 'karchu' -- instead of the Telugu words they render
+  // on a handset, which is the one thing those tests exist to measure.
+  'credits': {'English': 'Credits', 'Telugu': 'జమ'},
+  'debits': {'English': 'Debits', 'Telugu': 'ఖర్చు'},
+  'vasool': {'English': 'Vasool (Collections)', 'Telugu': 'వసూల్'},
+  'karchu': {'English': 'Karchu (Loans Given)', 'Telugu': 'ఖర్చు'},
+  'vaddi': {'English': 'Vaddi (Interest)', 'Telugu': 'వడ్డీ'},
+  'short_excess': {'English': 'Excess / Short', 'Telugu': 'అధికం / తక్కువ'},
+  'next_bf': {'English': 'Next BF', 'Telugu': 'తదుపరి BF'},
+  'account_sheet': {'English': 'Account Sheet', 'Telugu': 'ఖాతా షీట్'},
+  'add_row': {'English': 'Add Row', 'Telugu': 'వరుస జోడించండి'},
+  'rows_to_show': {'English': 'Rows To Show', 'Telugu': 'చూపవలసిన వరుసలు'},
+  'of_which_penalty': {'English': 'Includes {amount} penalty', 'Telugu': '{amount} జరిమానా ఇందులో ఉంది'},
+  'no_accounts_yet': {'English': 'No accounts yet. A day appears here once it has a collection, a loan or an expense on it.', 'Telugu': 'ఇంకా ఖాతాలు లేవు. ఒక రోజున వసూల్, అప్పు లేదా ఖర్చు నమోదైన తర్వాత అది ఇక్కడ కనిపిస్తుంది.'},
   // The Line Pending List (design document 2.6.1.1), added 2026-09-17.
   // Vendored like everything else here because translated width is data: the
   // filter rail is four chips across 360dp and Telugu is the language that

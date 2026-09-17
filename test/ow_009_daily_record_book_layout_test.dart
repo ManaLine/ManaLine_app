@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mana_line/design/components/mana_amount.dart';
+import 'package:mana_line/design/tokens/colors.dart';
 import 'package:mana_line/features/owner_workspace/screens/ow_009_daily_record_book.dart';
 import 'package:mana_line/features/owner_workspace/state/record_book_state.dart';
 import 'package:mana_line/shared/widgets/language_selector.dart';
@@ -460,5 +462,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TabBar), findsOneWidget,
         reason: 'anywhere else on the card opens the summary');
+  });
+
+  testWidgets('credits read green and debits read red', (tester) async {
+    // The Owner, on build 14.9: "credits show in green and debits show in red
+    // (heading & numbers)". Before this the only thing telling the two columns
+    // apart was which side of the sheet a figure sat on -- and that cue
+    // disappears the moment a row stacks, which it does by design at 2.0x.
+    await pumpManaScreen(
+      tester,
+      const DailyRecordBookScreen(businessId: 'b1'),
+      overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
+    );
+
+    Color colourOf(String label) =>
+        tester.widget<Text>(find.text(label)).style!.color!;
+    expect(colourOf('Credits'), ManaColors.statusGood);
+    expect(colourOf('Debits'), ManaColors.statusBad);
+
+    ManaAmountTone toneOf(int value) => tester
+        .widgetList<ManaAmount>(find.byType(ManaAmount))
+        .firstWhere((a) => a.value == value)
+        .tone;
+
+    // Vasool is a credit, Karchu a debit -- the two fixed rows that always
+    // carry a side.
+    expect(toneOf(187500), ManaAmountTone.positive, reason: 'Vasool');
+    expect(toneOf(120000), ManaAmountTone.negative, reason: 'Karchu');
+
+    // An excess is a discrepancy before it is a side: caution still wins, or
+    // the one row that needs flagging would read as an ordinary credit.
+    expect(toneOf(250), ManaAmountTone.caution, reason: 'Excess');
+
+    // And the closing is neither. Next BF sits in the debit column because
+    // that is where the paper puts it, but it is what tomorrow opens on --
+    // painting it red would call a closing balance a loss.
+    expect(toneOf(312750), ManaAmountTone.neutral, reason: 'Next BF');
   });
 }

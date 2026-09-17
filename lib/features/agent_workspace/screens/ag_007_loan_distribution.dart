@@ -194,26 +194,56 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
   // use-after-dispose, which is worse than the leak.
   @override
   void dispose() {
-    _toAgentName.dispose();
-    _toAgentId.dispose();
     _amount.dispose();
     super.dispose();
   }
-  final _toAgentName = TextEditingController();
-  final _toAgentId = TextEditingController(); // stub picker — real build reuses OW-002's agent list
+
+  /// THE TWO TYPED BOXES ARE GONE. "To Agent Name" and "To Agent ID", both
+  /// free text, and the controller for the second one said what it was:
+  /// "stub picker". An agents.agent_id is a uuid -- nobody carries one and
+  /// nothing in the app shows one, so this form could not be completed by a
+  /// person. Reported from a handset: "remove agent id user entry, just name
+  /// & amount enough".
   final _amount = TextEditingController();
 
-  bool get _canSend =>
-      _toAgentName.text.trim().isNotEmpty &&
-      _toAgentId.text.trim().isNotEmpty &&
-      (int.tryParse(_amount.text) ?? 0) > 0;
+  /// Loaded once when this card is built. The list is the other agents of
+  /// this business -- a handful, not a page -- so it is fetched whole rather
+  /// than searched.
+  List<ManaTransferTarget>? _targets;
+  ManaTransferTarget? _to;
+
+  /// The load finished, whether or not it found anything.
+  ///
+  /// SEPARATE FROM AN EMPTY LIST, because "nobody to send to" and "could not
+  /// ask" are different sentences and only one of them is about the book.
+  bool _asked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTargets());
+  }
+
+  Future<void> _loadTargets() async {
+    final rows = await NetworkErrorHandler.run(
+      context,
+      () => ref.read(cashTransferApiServiceProvider).transferableAgents(),
+    );
+    if (!mounted) return;
+    setState(() {
+      _asked = true;
+      _targets = rows;
+    });
+  }
+
+  bool get _canSend => _to != null && (int.tryParse(_amount.text) ?? 0) > 0;
 
   Future<void> _send() async {
     final ok = await NetworkErrorHandler.run(context, () async {
       final sent = await ref.read(loanDistributionProvider.notifier).sendTransfer(
             fromAgentId: widget.agentId,
-            toAgentId: _toAgentId.text.trim(),
-            toAgentName: _toAgentName.text.trim(),
+            toAgentId: _to!.agentId,
+            toAgentName: _to!.fullName,
             amount: int.parse(_amount.text), // whole rupees (M8)
             businessDate: manaBusinessDate(),
           );
@@ -224,8 +254,7 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
     });
     if (ok == null || !mounted) return;
     setState(() {
-      _toAgentName.clear();
-      _toAgentId.clear();
+      _to = null;
       _amount.clear();
     });
     if (!context.mounted) return;
@@ -245,18 +274,66 @@ class _SendBfCashCardState extends ConsumerState<_SendBfCashCard> {
           children: [
             ManaText.raw(ref.t('send_bf_cash'), style: ManaType.emphasis),
             const SizedBox(height: ManaSpacing.sm),
-            TextField(
-              controller: _toAgentName,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(labelText: ref.t('to_agent_name_field')),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: ManaSpacing.sm),
-            TextField(
-              controller: _toAgentId,
-              decoration: InputDecoration(labelText: ref.t('to_agent_id_field')),
-              onChanged: (_) => setState(() {}),
-            ),
+            // A LIST OF PEOPLE WHO EXIST. isExpanded, because a name plus
+            // its MLID plus a rupee figure is wider than a 360dp card and an
+            // unbounded DropdownMenuItem is this project's recurring overflow.
+            // NOT AN INDETERMINATE BAR. A LinearProgressIndicator animates
+            // forever, and this card is on a screen whose layout tests call
+            // pumpAndSettle -- six of them timed out the moment it was added.
+            // The harness's own note says the same thing about the shimmer
+            // screens. A settled placeholder says as much and settles.
+            if (!_asked)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
+                child: ManaText.raw(ref.t('loading'), style: ManaType.note),
+              )
+            else if (_targets == null)
+              // ASKED AND FAILED is not the same as "nobody to send to", and
+              // saying the second when the first happened would be the app
+              // stating a fact about the book that it does not know.
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: ManaText.raw(ref.t('could_not_load_agents_note'),
+                          style: ManaType.note),
+                    ),
+                    TextButton(
+                      onPressed: _loadTargets,
+                      child: ManaText.raw(ref.t('retry')),
+                    ),
+                  ],
+                ),
+              )
+            else if (_targets!.isEmpty)
+              // An honest empty state, not a disabled dropdown. A one-agent
+              // business has nobody to hand cash to, and that is a fact about
+              // the book rather than a fault.
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: ManaSpacing.sm),
+                child: ManaText.raw(ref.t('no_other_agents_note'),
+                    style: ManaType.note),
+              )
+            else
+              DropdownButtonFormField<ManaTransferTarget>(
+                initialValue: _to,
+                isExpanded: true,
+                decoration:
+                    InputDecoration(labelText: ref.t('to_agent_name_field')),
+                items: [
+                  for (final t in _targets!)
+                    DropdownMenuItem(
+                      value: t,
+                      child: ManaText.raw(
+                        '${t.fullName} - ${manaRupees(t.bfCurrent)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (v) => setState(() => _to = v),
+              ),
             const SizedBox(height: ManaSpacing.sm),
             TextField(
               controller: _amount,

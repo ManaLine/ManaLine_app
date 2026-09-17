@@ -16,6 +16,19 @@ import 'support/mana_harness.dart';
 ///
 /// The wizard flow is private, so it is reached the way an Agent reaches it:
 /// by tapping New Loan on the distribution screen.
+/// The transfer card asks who else is an agent of this business the moment
+/// it is built.
+///
+/// SEEDED RATHER THAN LEFT TO REACH THE NETWORK, which is this project's own
+/// convention for a screen that loads in initState -- and here it is not only
+/// tidiness: NetworkErrorHandler.run arms a six-second timeout, and a Timer
+/// still pending when the tree is disposed fails the test on its way out,
+/// with an error about timers rather than about the layout under test.
+class _NoTransferTargets extends CashTransferApiService {
+  @override
+  Future<List<ManaTransferTarget>> transferableAgents() async => const [];
+}
+
 class _SeededWizard extends LoanWizardNotifier {
   _SeededWizard(this._seed);
   final LoanWizardState _seed;
@@ -99,6 +112,8 @@ void main() {
               loanWizardProvider.overrideWith(() => _SeededWizard(at(step))),
               agentDashboardProvider.overrideWith(_SeededDashboard.new),
               loanDistributionProvider.overrideWith(_SeededDistribution.new),
+              cashTransferApiServiceProvider
+                  .overrideWithValue(_NoTransferTargets()),
             ],
           );
           await tester.pumpAndSettle();

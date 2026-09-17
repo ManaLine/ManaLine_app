@@ -106,16 +106,38 @@ class GlobalWorkflowApiService {
     await _db.from('business_members').update({'membership_status': status}).eq('membership_id', membershipId);
   }
 
-  /// Reuses AuthApiService.register() — this IS the same operation LR-004
-  /// performs (persons row creation via the `auth-register` Edge
-  /// Function), just Owner-initiated instead of self-registration.
-  /// BLOCKED on the same Edge Function gap flagged throughout
-  /// auth_api_service.dart — not re-flagged again here, same root cause.
+  /// Registers a person who is not on file, in full.
+  ///
+  /// THIS COULD NOT WORK, AND HAD NOT SINCE IT WAS WRITTEN. The form behind it
+  /// -- "Minimum Information" -- collected a name, a father/husband name and a
+  /// VILLAGE AS FREE TEXT, and this method sent
+  ///
+  ///     address: {'village': village, 'area_locality': areaLocality}
+  ///
+  /// while supabase/functions/auth-register validates:
+  ///
+  ///     if (!body.address?.village_id) errors.push("address.village_id is required");
+  ///     address.pin_code must be exactly 6 digits
+  ///
+  /// So every Save on that form was a 400. It also hardcoded genderDigit '0'
+  /// with its own FLAGGED note, against a NOT NULL column. Reported from a
+  /// handset as "completely remove that minimal information form in both",
+  /// which is the right instinct for a different reason than the one given.
+  ///
+  /// It takes what the server asks for now. The village arrives as an id from
+  /// the same picker the customer form uses, so an Agent's address is a row in
+  /// `locations` with a mandal, a district and a state -- not a string
+  /// somebody typed, which is what decides whether they can ever be found by
+  /// village again.
   Future<String> registerPreExistingPerson({
     required String fullName,
     required String fatherHusbandName,
-    required String village,
+    required String genderDigit,
+    required String villageId,
+    required String pinCode,
+    String? doorNo,
     String? mobileNumber,
+    String? aadhaarNumber,
     String? areaLocality,
     String? remarks,
   }) async {
@@ -130,9 +152,19 @@ class GlobalWorkflowApiService {
       surname: firstSpace == -1 ? trimmed : trimmed.substring(0, firstSpace),
       givenName: firstSpace == -1 ? '' : trimmed.substring(firstSpace + 1).trim(),
       fatherHusbandName: fatherHusbandName,
-      genderDigit: '0', // FLAGGED: this stub's own params never collected gender — same gap as the original stub, not introduced here
+      genderDigit: genderDigit,
       mobileNumber: mobileNumber,
-      address: {'village': village, 'area_locality': areaLocality},
+      aadhaarNumber: aadhaarNumber,
+      address: {
+        // door_no is NOT NULL on person_addresses and the Edge Function
+        // forwards it straight through, so an empty box is '' rather than
+        // null -- a doorstep record often genuinely has no house number.
+        'door_no': doorNo?.trim() ?? '',
+        'area_locality': areaLocality,
+        'pin_code': pinCode,
+        'village_id': villageId,
+        'reason': remarks,
+      },
       registrationSource: 'Migration',
       customerType: 'Migrated',
     );
@@ -600,8 +632,12 @@ class GlobalWorkflowNotifier extends Notifier<GlobalWorkflowState> {
     required String businessId,
     required String fullName,
     required String fatherHusbandName,
-    required String village,
+    required String genderDigit,
+    required String villageId,
+    required String pinCode,
+    String? doorNo,
     String? mobileNumber,
+    String? aadhaarNumber,
     String? areaLocality,
     String? remarks,
   }) async {
@@ -612,8 +648,12 @@ class GlobalWorkflowNotifier extends Notifier<GlobalWorkflowState> {
       final personId = await api.registerPreExistingPerson(
         fullName: fullName,
         fatherHusbandName: fatherHusbandName,
-        village: village,
+        genderDigit: genderDigit,
+        villageId: villageId,
+        pinCode: pinCode,
+        doorNo: doorNo,
         mobileNumber: mobileNumber,
+        aadhaarNumber: aadhaarNumber,
         areaLocality: areaLocality,
         remarks: remarks,
       );

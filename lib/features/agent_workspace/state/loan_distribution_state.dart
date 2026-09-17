@@ -1,3 +1,4 @@
+import '../../../shared/text_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -42,6 +43,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Flagged; not fixed, since fixing it means adding a new RLS policy or a
 /// SECURITY DEFINER view/RPC exposing minimal counterparty-name lookup,
 /// and this chat does not own the RLS migrations.
+/// An agent this agent may hand cash to.
+class ManaTransferTarget {
+  final String agentId;
+  final String fullName;
+  final String mlid;
+
+  /// What they are holding. Shown so a transfer is aimed at somebody who
+  /// needs it rather than at whoever is first alphabetically.
+  final int bfCurrent;
+
+  const ManaTransferTarget({
+    required this.agentId,
+    required this.fullName,
+    required this.mlid,
+    required this.bfCurrent,
+  });
+}
+
 class CashTransferApiService {
   SupabaseClient get _db => Supabase.instance.client;
 
@@ -74,6 +93,30 @@ class CashTransferApiService {
   // full row) — the notifier below refreshes via loadTransfers for
   // complete, accurate display data rather than this method constructing
   // an incomplete CashTransfer object with a missing fromAgentName.
+  /// The other agents of this business, with what each is holding.
+  ///
+  /// THE FORM USED TO ASK FOR AN agents.agent_id, TYPED. That is a uuid;
+  /// nobody carries one and nothing in the app displays one, so BF Cash
+  /// Transfer could not be completed by a person at all. The controller
+  /// beside it admitted as much -- "stub picker".
+  ///
+  /// The RPC resolves the caller's business the same way
+  /// app.initiate_cash_transfer resolves it, and excludes self for the same
+  /// reason that function raises on it: an option that cannot work has no
+  /// business being offered.
+  Future<List<ManaTransferTarget>> transferableAgents() async {
+    final rows = await _db.schema('app').rpc('transferable_agents');
+    return [
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        ManaTransferTarget(
+          agentId: r['agent_id'].toString(),
+          fullName: titleCaseName((r['full_name'] as String?) ?? ''),
+          mlid: (r['mlid'] as String?) ?? '',
+          bfCurrent: (r['bf_current'] as num?)?.round() ?? 0,
+        ),
+    ];
+  }
+
   Future<String> initiateTransfer({
     required String fromAgentId,
     required String toAgentId,

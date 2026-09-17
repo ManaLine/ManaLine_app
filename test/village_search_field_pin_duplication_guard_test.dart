@@ -38,6 +38,19 @@ void main() {
     'lib/features/owner_workspace/screens/ow_000_first_business_setup.dart',
     'lib/features/owner_workspace/screens/ow_004_customer_management.dart',
     'lib/features/owner_workspace/screens/ow_012_business_management.dart',
+    // ADDED 2026-09-17, after reading it rather than to make this pass.
+    // OW-014's not-found step used to collect a village as FREE TEXT -- which
+    // auth-register rejects outright (it validates address.village_id), so
+    // that form had never once saved anybody. It uses the shared field now.
+    //
+    // Confirmed against this file's contract: the class declares no PIN
+    // controller at all. _villagePin is a String set FROM the picked village,
+    // not a TextEditingController driving a box, so there is exactly one PIN
+    // entry point on the screen and it is the one inside the shared widget.
+    //
+    // Note the near-collision: this is ow_014_GLOBAL_WORKFLOW, a different
+    // file from ow_014_profile_completion above it.
+    'lib/features/owner_workspace/screens/ow_014_global_workflow.dart',
     'lib/features/owner_workspace/screens/ow_014_profile_completion.dart',
     'lib/features/owner_workspace/screens/ow_016_profile.dart',
     // OW-018 came OFF this list on 2026-09-14, with _MigrateLoanScreen.

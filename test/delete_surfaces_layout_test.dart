@@ -122,6 +122,7 @@ void main() {
                 transfer(id: 't1', incoming: true),
                 transfer(id: 't2', incoming: false),
               ])),
+          cashTransferApiServiceProvider.overrideWithValue(_NoTransferTargets()),
         ];
 
     for (final scale in kManaTextScales) {
@@ -300,6 +301,16 @@ class _SeededRecordBook extends RecordBookNotifier {
 
 /// Seeds the transfer list without touching the network. loadTransfers is
 /// overridden to a no-op because the screen calls it from initState.
+/// AG-007's transfer card asks who else is an agent of this business as soon
+/// as it is built. Seeded rather than left to reach the network -- this
+/// project's own convention for a screen that loads in initState, and here
+/// also what stops NetworkErrorHandler's six-second timeout leaving a pending
+/// Timer that fails the test with an error about timers.
+class _NoTransferTargets extends CashTransferApiService {
+  @override
+  Future<List<ManaTransferTarget>> transferableAgents() async => const [];
+}
+
 class _SeededTransfers extends LoanDistributionNotifier {
   final List<CashTransfer> _seed;
   _SeededTransfers(this._seed);

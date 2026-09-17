@@ -6,6 +6,8 @@ import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../shared/widgets/village_search_field.dart';
+import '../../../shared/location_api_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/translation_service.dart';
 import '../state/global_workflow_state.dart';
@@ -297,34 +299,148 @@ class _NotFoundStep extends ConsumerStatefulWidget {
   ConsumerState<_NotFoundStep> createState() => _NotFoundStepState();
 }
 
+/// Nobody on file with that number -- so register them properly.
+///
+/// WHAT THIS REPLACED, AND WHY IT HAD TO GO. The heading said "Minimum
+/// Information" and it collected three required fields: a full name, a
+/// father/husband name, and a VILLAGE TYPED INTO A BOX. It could not work.
+/// supabase/functions/auth-register validates `address.village_id` and a
+/// six-digit `pin_code`, and the method behind the button sent neither -- so
+/// every Save on that form was a 400, and had been since it was written. It
+/// also hardcoded gender '0' against a NOT NULL column, with its own FLAGGED
+/// note saying so.
+///
+/// Reported from a handset as "completely remove that minimal information
+/// form in both" -- right instinct, and for a harder reason than the one
+/// given: an Agent registered this way had an address that was a string
+/// somebody typed, which is the difference between being findable by village
+/// and not.
+///
+/// THE SAME FIELD SET AS A CUSTOMER, because it is the same act. A person is
+/// a person; the role is what is attached afterwards, and Add Customer has
+/// already settled what registering one costs at a doorstep -- name,
+/// father/husband, gender, a village from the picker, and a mobile or an
+/// Aadhaar so the record can be matched later.
 class _NotFoundStepState extends ConsumerState<_NotFoundStep> {
+  final _fullName = TextEditingController();
+  final _fatherHusband = TextEditingController();
+  final _mobile = TextEditingController();
+  final _aadhaar = TextEditingController();
+  final _doorNo = TextEditingController();
+  final _area = TextEditingController();
+  final _remarks = TextEditingController();
+  String? _gender;
+  String? _villageId;
+  String? _villagePin;
+  String? _villageLabel;
 
-  // Disposed with the State that owns them.
-  //
-  // These outlived every visit: a TextEditingController holds a listener list
-  // and a ChangeNotifier, and a State that never disposes them leaks one set
-  // each time the screen is opened. Attached per class rather than in bulk --
-  // disposing a controller that belongs to a different State would be a
-  // use-after-dispose, which is worse than the leak.
   @override
   void dispose() {
     _fullName.dispose();
     _fatherHusband.dispose();
-    _village.dispose();
     _mobile.dispose();
+    _aadhaar.dispose();
+    _doorNo.dispose();
     _area.dispose();
     _remarks.dispose();
     super.dispose();
   }
-  final _fullName = TextEditingController();
-  final _fatherHusband = TextEditingController();
-  final _village = TextEditingController();
-  final _mobile = TextEditingController();
-  final _area = TextEditingController();
-  final _remarks = TextEditingController();
 
-  bool get _canSave =>
-      _fullName.text.trim().isNotEmpty && _fatherHusband.text.trim().isNotEmpty && _village.text.trim().isNotEmpty;
+  /// A VILLAGE PICK IS A LOCATION ROW, not a name.
+  ///
+  /// Resolved through the same service the customer form uses, so a village
+  /// chosen here and one chosen there point at the same `locations` row --
+  /// idempotent through add_location_if_missing.
+  Future<void> _onVillagePicked(ManaVillage? v) async {
+    if (v == null) {
+      setState(() {
+        _villageId = null;
+        _villagePin = null;
+        _villageLabel = null;
+      });
+      return;
+    }
+    var id = v.locationId;
+    if (id.isEmpty) {
+      final resolved = await NetworkErrorHandler.run(
+          context, () => ref.read(locationApiServiceProvider).resolveId(v));
+      if (resolved == null || !mounted) return;
+      id = resolved;
+    }
+    if (!mounted) return;
+    setState(() {
+      _villageId = id;
+      if (v.pinCode.isNotEmpty) _villagePin = v.pinCode;
+      _villageLabel = [v.name, v.mandal, v.district, v.state]
+          .where((s) => s.trim().isNotEmpty)
+          .join(' — ');
+    });
+  }
+
+  /// What is missing, in order, or null.
+  ///
+  /// THE SAME SHAPE Add Customer settled on this pass, and for the same
+  /// reason: a disabled Save at a doorstep is indistinguishable from a broken
+  /// one, so the button is always pressable and always answers.
+  String? _whatIsMissing() {
+    if (_fullName.text.trim().length < 2) return ref.t('full_name_required');
+    if (_fatherHusband.text.trim().length < 2) {
+      return ref.t('father_husband_name_required');
+    }
+    if (_gender == null) return ref.t('gender_required');
+    if (_villageId == null || (_villagePin ?? '').length != 6) {
+      return ref.t('village_required');
+    }
+    if (_mobile.text.trim().isNotEmpty && _mobile.text.trim().length != 10) {
+      return ref.t('mobile_must_be_ten_digits');
+    }
+    if (_aadhaar.text.trim().isNotEmpty && _aadhaar.text.trim().length != 12) {
+      return ref.t('aadhaar_must_be_twelve_digits');
+    }
+    // An Agent or an Investor SIGNS IN -- they are being granted reach into
+    // somebody else's book, and respond_to_invitation is how they accept. A
+    // person the app cannot reach cannot accept, so unlike a migrated
+    // customer this is not optional for them.
+    if (_mobile.text.trim().isEmpty && _aadhaar.text.trim().isEmpty) {
+      return ref.t('customer_needs_phone_or_aadhaar');
+    }
+    return null;
+  }
+
+  Future<void> _save() async {
+    final why = _whatIsMissing();
+    if (why != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: ManaText.raw(why)));
+      return;
+    }
+    final ok = await NetworkErrorHandler.run(context, () async {
+      return ref.read(globalWorkflowProvider.notifier).createPreExistingMember(
+            businessId: widget.businessId,
+            fullName: _fullName.text.trim(),
+            fatherHusbandName: _fatherHusband.text.trim(),
+            genderDigit: _gender!,
+            villageId: _villageId!,
+            pinCode: _villagePin!,
+            doorNo: _doorNo.text.trim(),
+            mobileNumber:
+                _mobile.text.trim().isEmpty ? null : _mobile.text.trim(),
+            aadhaarNumber:
+                _aadhaar.text.trim().isEmpty ? null : _aadhaar.text.trim(),
+            areaLocality: _area.text.trim().isEmpty ? null : _area.text.trim(),
+            remarks:
+                _remarks.text.trim().isEmpty ? null : _remarks.text.trim(),
+          );
+    });
+    // `mounted`, the State's own -- context.mounted is a different question
+    // and the analyzer is right to say so: this is a State.context.
+    if (ok == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: ManaText.raw(ref.t('pre_existing_member_created_note'))),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -333,55 +449,93 @@ class _NotFoundStepState extends ConsumerState<_NotFoundStep> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        ManaText.raw(ref.t('minimum_information'), style: Theme.of(context).textTheme.headlineMedium),
+        ManaText.raw(ref.t('register_new_person'),
+            style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: ManaSpacing.xs),
+        ManaText.raw(ref.t('register_new_person_note'), style: ManaType.note),
         const SizedBox(height: ManaSpacing.md),
         TextField(
           controller: _fullName,
+          textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(labelText: ref.t('full_name_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
           controller: _fatherHusband,
-          decoration: InputDecoration(labelText: ref.t('father_husband_name_field')),
+          textCapitalization: TextCapitalization.words,
+          decoration:
+              InputDecoration(labelText: ref.t('father_husband_name_field')),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: ManaSpacing.sm),
+        // Gender is NOT NULL on persons and the MLID's own check digit is
+        // derived from it. The old form hardcoded '0' and said so in a
+        // comment; it is asked now.
+        DropdownButtonFormField<String>(
+          initialValue: _gender,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: ref.t('gender_field')),
+          items: [
+            DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
+            DropdownMenuItem(value: '2', child: ManaText.raw(ref.t('female'))),
+            DropdownMenuItem(value: '3', child: ManaText.raw(ref.t('others'))),
+          ],
+          onChanged: (v) => setState(() => _gender = v),
+        ),
+        const SizedBox(height: ManaSpacing.sm),
+        TextField(
+          controller: _mobile,
+          keyboardType: TextInputType.phone,
+          maxLength: 10,
+          decoration:
+              InputDecoration(labelText: ref.t('mobile_number_optional_field')),
+          onChanged: (_) => setState(() {}),
+        ),
+        TextField(
+          controller: _aadhaar,
+          keyboardType: TextInputType.number,
+          maxLength: 12,
+          decoration: InputDecoration(labelText: ref.t('aadhaar_number_field')),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.sm),
         TextField(
-          controller: _village,
-          decoration: InputDecoration(labelText: ref.t('village_required_field')),
-          onChanged: (_) => setState(() {}),
+          controller: _doorNo,
+          decoration: InputDecoration(labelText: ref.t('door_house_no')),
         ),
         const SizedBox(height: ManaSpacing.md),
-        TextField(controller: _mobile, decoration: InputDecoration(labelText: ref.t('mobile_number_optional_field'))),
+        ManaVillageSearchField(
+          label: ref.t('search_village_town'),
+          onPicked: _onVillagePicked,
+        ),
+        if (_villageLabel != null) ...[
+          const SizedBox(height: ManaSpacing.xs),
+          ManaText.raw(
+              ref.t('selected_note').replaceAll('{label}', _villageLabel!),
+              style: ManaType.note),
+        ],
         const SizedBox(height: ManaSpacing.sm),
-        TextField(controller: _area, decoration: InputDecoration(labelText: ref.t('area_locality_optional_field'))),
+        TextField(
+          controller: _area,
+          decoration:
+              InputDecoration(labelText: ref.t('area_locality_optional_field')),
+        ),
         const SizedBox(height: ManaSpacing.sm),
-        TextField(controller: _remarks, decoration: InputDecoration(labelText: ref.t('remarks_optional_field')), maxLines: 2),
+        TextField(
+          controller: _remarks,
+          decoration:
+              InputDecoration(labelText: ref.t('remarks_optional_field')),
+          maxLines: 2,
+        ),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
-          onPressed: !_canSave || state.loading
-              ? null
-              : () async {
-                  final ok = await NetworkErrorHandler.run(context, () async {
-                    return ref.read(globalWorkflowProvider.notifier).createPreExistingMember(
-                          businessId: widget.businessId,
-                          fullName: _fullName.text.trim(),
-                          fatherHusbandName: _fatherHusband.text.trim(),
-                          village: _village.text.trim(),
-                          mobileNumber: _mobile.text.trim().isEmpty ? null : _mobile.text.trim(),
-                          areaLocality: _area.text.trim().isEmpty ? null : _area.text.trim(),
-                          remarks: _remarks.text.trim().isEmpty ? null : _remarks.text.trim(),
-                        );
-                  });
-                  if (ok == true && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: ManaText.raw(ref.t('pre_existing_member_created_note'))),
-                    );
-                  }
-                },
+          // ALWAYS PRESSABLE. See _whatIsMissing.
+          onPressed: state.loading ? null : _save,
           child: state.loading
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : ManaText.raw(ref.t('save')),
         ),
       ],

@@ -202,6 +202,7 @@ const manaAppFunctions = <String>{
   'recompute_day_ledger', 'recompute_day_ledger_onward',
   'loan_float_position',
   'refresh_business_figures',
+  'transferable_agents',
   'recompute_ledger_chain', 'record_cheti_payment', 'record_collection',
   'record_day_closure_adjustment', 'record_expense', 'record_investment',
   'record_investment_interest_payment', 'record_opening_snapshot',

@@ -94,4 +94,57 @@ void main() {
       expect(src, contains("== 'GREEN'"), reason: f);
     }
   });
+
+  test('no screen claims a verification it did not fetch', () {
+    // Sixteen sites drew the ring from a literal `isVerified: true`. Fixing
+    // one at a time is how the other fifteen survived, so this is the check
+    // rather than the memory.
+    //
+    // TWO EXEMPTIONS, both real:
+    //   design_showcase_screen draws a verified AND an unverified ring on
+    //     purpose -- it is the page that shows what the component does.
+    //   ow_012_business_management passes an explicit ringColor on that line,
+    //     which wins over isVerified entirely, so the literal decides nothing.
+    const exempt = {
+      'design_showcase_screen.dart',
+      'ow_012_business_management.dart',
+    };
+
+    final offenders = <String>[];
+    for (final e in Directory('lib').listSync(recursive: true)) {
+      if (e is! File || !e.path.endsWith('.dart')) continue;
+      // uri.pathSegments, not a regex on the path: the separator is a
+      // backslash on Windows and a slash in CI, and a char class that
+      // matched only one of them silently exempted nothing.
+      final name = e.uri.pathSegments.last;
+      if (exempt.contains(name)) continue;
+      final lines = e.readAsStringSync().split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        final code = lines[i].trim();
+        if (code.startsWith('//') || code.startsWith('///')) continue;
+        if (code.contains('isVerified: true')) {
+          offenders.add('$name:${i + 1}');
+        }
+      }
+    }
+    expect(offenders, isEmpty,
+        reason: 'these assert that somebody is verified without having asked: '
+            '$offenders');
+  });
+
+  test('the models that feed a ring can carry the answer', () {
+    // A truthful widget fed by a model with nowhere to put the value would
+    // render every person as not-loaded -- grey for everybody, which is the
+    // same failure wearing a quieter colour.
+    for (final f in [
+      'lib/features/owner_workspace/state/customer_state.dart',
+      'lib/features/owner_workspace/state/owner_api_service.dart',
+      'lib/features/owner_workspace/state/investor_state.dart',
+    ]) {
+      final src = File(f).readAsStringSync();
+      expect(src, contains('final bool? isVerified;'), reason: f);
+      expect(src, contains('verification_ring'), reason: f);
+      expect(src, contains("== 'GREEN'"), reason: f);
+    }
+  });
 }

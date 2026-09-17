@@ -618,7 +618,11 @@ class _SummaryTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const Center(child: ManaVerificationRing(isVerified: true, size: 72)),
+        ManaVerificationRing(
+                            isVerified: s.isVerified ?? false,
+                            ringColor: s.isVerified == null ? ManaColors.textSecondary : null,
+                            size: 72,
+                          ),
         const SizedBox(height: ManaSpacing.md),
         Center(child: ManaText.raw(s.fullName, style: ManaType.sheetTitle)),
         Center(child: ManaText.raw(s.mlid, style: ManaType.secondary)),

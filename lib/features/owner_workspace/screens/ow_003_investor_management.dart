@@ -195,7 +195,11 @@ class _InvestorRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: ListTile(
-        leading: const ManaVerificationRing(isVerified: true, size: 40),
+        leading: ManaVerificationRing(
+                          isVerified: investor.isVerified ?? false,
+                          ringColor: investor.isVerified == null ? ManaColors.textSecondary : null,
+                          size: 40,
+                        ),
         title: ManaText.raw(investor.fullName, style: ManaType.emphasis),
         subtitle: ManaText.raw(
           '${investor.mlid} · ${manaRupees(investor.investmentBalance)} @ ${roiLabel(investor.roi)}',
@@ -286,7 +290,11 @@ class _OverviewTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const Center(child: ManaVerificationRing(isVerified: true, size: 72)),
+        ManaVerificationRing(
+                          isVerified: investor.isVerified ?? false,
+                          ringColor: investor.isVerified == null ? ManaColors.textSecondary : null,
+                          size: 72,
+                        ),
         const SizedBox(height: ManaSpacing.md),
         Center(
             child:

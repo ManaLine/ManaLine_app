@@ -16,7 +16,7 @@ class InvestorApiService {
         .from('investors')
         .select('investor_id, membership_id, '
             'business_members!inner(business_id, membership_status, person_id), '
-            'persons!inner(full_name, mlid, mobile_number), '
+            'persons!inner(full_name, mlid, mobile_number, verification_ring), '
             // SCHEMA MISMATCH FIX: `investments` has no `remaining_balance`
             // column (0006_module5_investor_domain.sql) — per that
             // migration's own column comment, `principal_amount` IS the
@@ -90,6 +90,7 @@ class InvestorApiService {
               ?.toString(),
           fullName: titleCaseName(person['full_name'] as String? ?? ''),
           mlid: person['mlid'] as String? ?? '',
+          isVerified: person['verification_ring'] == 'GREEN',
           phoneNumber: person['mobile_number'] as String? ?? '',
           investmentBalance: balance,
           roi: roi,
@@ -226,7 +227,7 @@ class InvestorApiService {
         .from('investors')
         .select('investor_id, membership_id, '
             'business_members!inner(membership_status), '
-            'persons!inner(full_name, mlid, mobile_number), '
+            'persons!inner(full_name, mlid, mobile_number, verification_ring), '
             'investments(investment_id, principal_amount, original_principal_amount, roi_rate, '
             'interest_type, effective_date, status, profit_share_percent)')
         .eq('investor_id', investorId)
@@ -602,6 +603,16 @@ class InvestorSummary {
   final String membershipStatus; // Pending Invitation | Pending Acceptance | Active | Temporarily Disabled | Suspended | Removed
   final DateTime? lastTransaction;
 
+  /// persons.verification_ring, as a boolean. NULL means NOT LOADED.
+  ///
+  /// Every ring in this app was drawn from a literal `isVerified: true` until
+  /// 2026-09-18 -- sixteen sites, all asserting that everybody is verified
+  /// while 8 of 99 people on the live books actually are. Null rather than
+  /// false wherever a path builds a summary without asking for the column: a
+  /// default of false would replace one confident lie with its opposite.
+  final bool? isVerified;
+
+
   InvestorSummary({
     required this.investorId,
     this.personId,
@@ -614,6 +625,7 @@ class InvestorSummary {
     required this.interestDue,
     required this.membershipStatus,
     this.lastTransaction,
+    this.isVerified,
   });
 }
 

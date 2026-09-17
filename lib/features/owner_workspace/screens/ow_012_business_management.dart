@@ -1224,7 +1224,13 @@ class _AssignAgentSheet extends ConsumerWidget {
                       fontSize: 13, fontWeight: FontWeight.w700, color: ManaColors.textSecondary)),
             ),
             ...area.assignedAgents.map((a) => ListTile(
-                  leading: const ManaVerificationRing(isVerified: true, size: 32),
+                  // AreaAgent carries an id, a membership and a name --
+                  // nothing about identity verification -- so this ring says
+                  // nothing rather than claiming a green one.
+                  leading: ManaVerificationRing(
+                      isVerified: false,
+                      ringColor: ManaColors.textSecondary,
+                      size: 32),
                   title: ManaText.raw(a.fullName),
                   trailing: TextButton(
                     style: TextButton.styleFrom(foregroundColor: ManaColors.statusBad),
@@ -1294,8 +1300,12 @@ class _AssignAgentSheet extends ConsumerWidget {
                 ),
               ...assignable
                   .map((agent) => ListTile(
-                        leading: const ManaVerificationRing(
-                            isVerified: true, size: 32),
+                        leading: ManaVerificationRing(
+                            isVerified: agent.isVerified ?? false,
+                            ringColor: agent.isVerified == null
+                                ? ManaColors.textSecondary
+                                : null,
+                            size: 32),
                         title: ManaText.raw(agent.fullName),
                         subtitle:
                             ManaText.raw(agent.mlid, style: ManaType.small),

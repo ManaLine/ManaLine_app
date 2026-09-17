@@ -207,7 +207,11 @@ class _AgentRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: ManaSpacing.sm),
       child: ListTile(
-        leading: const ManaVerificationRing(isVerified: true, size: 40),
+        leading: ManaVerificationRing(
+                          isVerified: agent.isVerified ?? false,
+                          ringColor: agent.isVerified == null ? ManaColors.textSecondary : null,
+                          size: 40,
+                        ),
         title: ManaText.raw(agent.fullName,
             style: ManaType.emphasis),
         subtitle: Padding(
@@ -400,7 +404,11 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const Center(child: ManaVerificationRing(isVerified: true, size: 72)),
+        ManaVerificationRing(
+                          isVerified: agent.isVerified ?? false,
+                          ringColor: agent.isVerified == null ? ManaColors.textSecondary : null,
+                          size: 72,
+                        ),
         const SizedBox(height: ManaSpacing.md),
         Center(
             child: ManaText.raw(agent.fullName,

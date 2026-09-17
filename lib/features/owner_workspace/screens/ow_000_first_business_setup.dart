@@ -757,7 +757,13 @@ class _Step6AssignAreas extends ConsumerWidget {
               )
             else
               ...agents.map((agent) => ListTile(
-                    leading: const ManaVerificationRing(isVerified: true, size: 32),
+                    leading: ManaVerificationRing(
+                      isVerified: agent.isVerified ?? false,
+                      ringColor: agent.isVerified == null
+                          ? ManaColors.textSecondary
+                          : null,
+                      size: 32,
+                    ),
                     title: ManaText.raw(agent.fullName),
                     subtitle: ManaText.raw(agent.mlid, style: ManaType.small),
                     onTap: () => Navigator.of(context).pop(agent),

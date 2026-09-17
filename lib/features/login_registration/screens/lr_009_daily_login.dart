@@ -571,7 +571,15 @@ class _DailyLoginScreenState extends ConsumerState<DailyLoginScreen> {
               const SizedBox(height: ManaSpacing.md),
               // The brand mark moved OUT of here and is pinned above this
               // scroll view; what remains starts with who you are.
-              const ManaVerificationRing(isVerified: true, size: 64),
+              // NEUTRAL. This is the PIN pad, before anybody has been
+              // authenticated -- the screen knows which person the handset
+              // last belonged to, not whether their identity was ever
+              // verified. A green ring here would be a claim made about
+              // somebody who has not yet proved they are that person.
+              ManaVerificationRing(
+                  isVerified: false,
+                  ringColor: ManaColors.textSecondary,
+                  size: 64),
               const SizedBox(height: ManaSpacing.sm),
               ManaText.raw(
                 ref.t('welcome_back'),

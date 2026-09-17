@@ -514,7 +514,7 @@ class OwnerApiService {
         .from('business_members')
         .select('''
           membership_id, membership_status, joined_at, person_id,
-          persons!business_members_person_id_fkey(full_name, mlid, mobile_number),
+          persons!business_members_person_id_fkey(full_name, mlid, mobile_number, verification_ring),
           agents!inner(agent_id, current_status, joined_date)
         ''')
         .eq('business_id', businessId)
@@ -557,6 +557,7 @@ class OwnerApiService {
         membershipId: r['membership_id'] as String,
         fullName: titleCaseName(person?['full_name'] as String? ?? ''),
         mlid: person?['mlid'] as String? ?? '',
+        isVerified: person == null ? null : person['verification_ring'] == 'GREEN',
         phoneNumber: (person?['mobile_number'] as String?) ?? '',
         status: r['membership_status'] as String,
         businessAccess: 'Full Access', // derived from agent_permissions in fetchAgentProfile, not duplicated per-row here (would be N extra queries for a list screen)
@@ -987,7 +988,7 @@ class OwnerApiService {
         .from('agents')
         .select('''
           agent_id, current_status, joined_date, membership_id,
-          persons(full_name, mlid, mobile_number),
+          persons(full_name, mlid, mobile_number, verification_ring),
           business_members!inner(membership_status)
         ''')
         .eq('agent_id', agentId)
@@ -1332,6 +1333,16 @@ class AgentSummary {
   /// the screen must not render those two the same way.
   final bool lastLoginVisible;
 
+  /// persons.verification_ring, as a boolean. NULL means NOT LOADED.
+  ///
+  /// Every ring in this app was drawn from a literal `isVerified: true` until
+  /// 2026-09-18 -- sixteen sites, all asserting that everybody is verified
+  /// while 8 of 99 people on the live books actually are. Null rather than
+  /// false wherever a path builds a summary without asking for the column: a
+  /// default of false would replace one confident lie with its opposite.
+  final bool? isVerified;
+
+
   AgentSummary({
     required this.agentId,
     this.personId,
@@ -1347,6 +1358,7 @@ class AgentSummary {
     required this.joinedDate,
     this.lastLogin,
     this.lastLoginVisible = false,
+    this.isVerified,
   });
 }
 

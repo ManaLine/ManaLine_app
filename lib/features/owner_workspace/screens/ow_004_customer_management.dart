@@ -1149,7 +1149,12 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
                 ? ManaColors.brandFaint
                 : null,
             child: ListTile(
-              leading: const ManaVerificationRing(isVerified: true, size: 40),
+              leading: ManaVerificationRing(
+                isVerified: person.isVerified ?? false,
+                ringColor:
+                    person.isVerified == null ? ManaColors.textSecondary : null,
+                size: 40,
+              ),
               title: ManaText.raw(person.fullName),
               // Village included, and FIRST after the name it qualifies: with
               // "2 matches — choose one" the Owner was picking between two men
@@ -1581,7 +1586,14 @@ class _SummaryTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
-        const Center(child: ManaVerificationRing(isVerified: true, size: 72)),
+        Center(
+          child: ManaVerificationRing(
+            isVerified: customer.isVerified ?? false,
+            ringColor:
+                customer.isVerified == null ? ManaColors.textSecondary : null,
+            size: 72,
+          ),
+        ),
         const SizedBox(height: ManaSpacing.md),
         Center(
             child:

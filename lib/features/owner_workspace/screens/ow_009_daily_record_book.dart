@@ -10,6 +10,7 @@ import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_app_bar.dart';
+import '../../../design/components/mana_fit_text.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
@@ -698,21 +699,70 @@ class _EntryList extends ConsumerWidget {
         // whole tile width — which ListTile rejects outright rather than
         // merely overflowing. Actions stay in trailing; facts read below the
         // title, in a Wrap so they can drop to a second line when scaled.
+        // WHO, THEN WHAT, THEN WHEN AND HOW MUCH.
+        //
+        // Reported from a handset: "it should at least show name, c/o,
+        // village along with date & time to identify from whom collected
+        // from." Before this the title was the word 'Collection' on every
+        // row, so a day read "Collection / Collection / Collection" with
+        // amounts beside them -- enough to see that money came in, and
+        // nothing at all about whose.
+        //
+        // The NAME takes the title when there is one and the kind moves to
+        // the line below. On a tab already labelled Collections, repeating
+        // "Collection" eleven times is the one thing on the row carrying no
+        // information. An expense keeps its category as the title, because
+        // there the category IS what identifies it.
+        final identity = [
+          if (e.careOf != null && e.careOf!.isNotEmpty) 'C/o ${e.careOf}',
+          if (e.village != null && e.village!.isNotEmpty) e.village!,
+        ].join(' · ');
+
         return ListTile(
           contentPadding: EdgeInsets.zero,
-          isThreeLine: e.isCorrection,
-          title: ManaText.raw(e.label),
-          subtitle: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: ManaSpacing.sm,
-            runSpacing: ManaSpacing.xs,
+          // The tile is three lines whenever anything sits between the title
+          // and the facts row. Left at two, ListTile clips the identity line
+          // rather than growing -- and it would clip exactly the C/o that was
+          // added to tell two people apart.
+          isThreeLine: e.isCorrection || identity.isNotEmpty,
+          title: ManaText.raw(e.personName?.isNotEmpty == true
+              ? e.personName!
+              : e.label),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              ManaText.raw(DateFormat('dd MMM, hh:mm a').format(e.timestamp),
-                  style: TextStyle(
-                      fontSize: 13, color: ManaColors.textSecondary)),
-              ManaAmount(e.amount, size: ManaAmountSize.compact),
-              if (e.isCorrection)
-                ManaStatusPill(label: ref.t('correction'), status: ManaStatus.warn),
+              // ManaFitText, NOT an ellipsis. This line is a C/o and a
+              // village -- the two things that tell two people with the same
+              // given name apart -- so cutting it takes away exactly the
+              // information it was added to supply. It shrinks to fit and
+              // wraps to a second line before it gives up anything.
+              if (identity.isNotEmpty)
+                ManaFitText(identity,
+                    style: TextStyle(
+                        fontSize: 13, color: ManaColors.textSecondary)),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: ManaSpacing.sm,
+                runSpacing: ManaSpacing.xs,
+                children: [
+                  // The kind, now that the title is a person. Dropped when the
+                  // title already IS the kind, so an expense does not read
+                  // "Fuel / Fuel".
+                  if (e.personName?.isNotEmpty == true)
+                    ManaText.raw(e.label,
+                        style: TextStyle(
+                            fontSize: 13, color: ManaColors.textSecondary)),
+                  ManaText.raw(
+                      DateFormat('dd MMM, hh:mm a').format(e.timestamp),
+                      style: TextStyle(
+                          fontSize: 13, color: ManaColors.textSecondary)),
+                  ManaAmount(e.amount, size: ManaAmountSize.compact),
+                  if (e.isCorrection)
+                    ManaStatusPill(
+                        label: ref.t('correction'), status: ManaStatus.warn),
+                ],
+              ),
             ],
           ),
           trailing: Row(

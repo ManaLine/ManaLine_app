@@ -43,15 +43,28 @@ final _dayDetail = DayDetail(
   collections: [
     DayDetailEntry(
       id: 'c1',
-      label: 'Venkata Subrahmanyam — RCT-20260807-a1b2c3',
+      label: 'Collection',
       amount: 125000,
       timestamp: DateTime(2026, 8, 7, 10, 30),
       isCorrection: true,
       sourceLoanId: 'loan-1',
+      // A long Telugu-length name with a C/o and a village, because this row
+      // is now three lines and the identity line is the one that has room to
+      // go wrong at 2.0x.
+      personName: 'Venkata Subrahmanyam',
+      careOf: 'Satyanarayana Murthy',
+      village: 'Pedanandipadu',
     ),
   ],
   expenses: [
-    DayDetailEntry(id: 'e1', label: 'Fuel', amount: 4750, timestamp: DateTime(2026, 8, 7, 9, 0)),
+    // An expense has no customer: a category, the member who recorded it,
+    // and no C/o or village. It must not draw a blank identity line.
+    DayDetailEntry(
+        id: 'e1',
+        label: 'Fuel',
+        amount: 4750,
+        timestamp: DateTime(2026, 8, 7, 9, 0),
+        personName: 'Ramesh Babu'),
   ],
   auditLog: [
     AuditLogEntry(
@@ -308,5 +321,28 @@ void main() {
         .enabled;
     expect(enabled, isFalse,
         reason: '5 Aug has no account, so it must not be selectable');
+  });
+
+  testWidgets('OW-009 a collection says whose it was', (tester) async {
+    // "in screenshot it's showing collection but it should at least show
+    // name, c/o, village along with date & time to identify from whom
+    // collected from." Every row used to be titled 'Collection'.
+    await pumpManaScreen(
+      tester,
+      const DailyRecordBookScreen(businessId: 'b1'),
+      overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
+    );
+    final dateText = find.textContaining('07 Aug 2026').first;
+    await tester.ensureVisible(dateText);
+    await tester.pumpAndSettle();
+    await tester.longPress(dateText);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Venkata Subrahmanyam'), findsOneWidget,
+        reason: 'the name is the title of the row now');
+    expect(find.textContaining('C/o Satyanarayana Murthy'), findsOneWidget);
+    expect(find.textContaining('Pedanandipadu'), findsOneWidget);
+    expect(find.textContaining('07 Aug, 10:30'), findsOneWidget,
+        reason: 'date AND time, to tell two payments the same day apart');
   });
 }

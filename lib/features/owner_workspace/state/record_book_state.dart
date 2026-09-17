@@ -156,7 +156,18 @@ class RecordBookApiService {
       _db.from('day_ledger').select().eq('business_id', businessId).eq('business_date', date).single(),
       _db
           .from('collections')
-          .select('collection_id, collected_amount, entry_timestamp, loan_id, loans!inner(business_id)')
+          // WHO PAID, not just that somebody did. collections carries its
+          // own customer_id -- a single FK, so `customers(...)` needs no FK
+          // name -- which is a shorter and more reliable path than reaching
+          // through the loan. `customers` has one FK to persons, and persons
+          // to person_addresses, so nothing here is one of the eleven
+          // ambiguous pairs ambiguous_embed_guard_test lists.
+          .select('''
+            collection_id, collected_amount, entry_timestamp, loan_id,
+            loans!inner(business_id),
+            customers(persons!inner(full_name, father_husband_name,
+              person_addresses(is_current, locations(village_town_name))))
+          ''')
           .eq('business_date', date)
           .eq('loans.business_id', businessId)
           // 612 of 862 collections on the live book are soft-deleted. A day's
@@ -164,13 +175,27 @@ class RecordBookApiService {
           .isFilter('deleted_at', null),
       _db
           .from('loans')
-          .select('loan_id, repayment_amount, entry_timestamp')
+          // WHO IT WENT TO. loans has one FK to customers.
+          .select('''
+            loan_id, repayment_amount, entry_timestamp,
+            customers(persons!inner(full_name, father_husband_name,
+              person_addresses(is_current, locations(village_town_name))))
+          ''')
           .eq('business_id', businessId)
           .eq('issue_business_date', date)
           .isFilter('deleted_at', null),
       _db
           .from('expenses')
-          .select('expense_id, amount, entry_timestamp, category')
+          // WHO RECORDED IT. An expense has no customer -- fuel and tea are
+          // not owed by anybody -- so the person who identifies it is the
+          // member who entered it. expenses has TWO FKs to business_members
+          // (recorded_by and deleted_by), so the FK is named or PostgREST
+          // answers PGRST201 and the tab just says it could not load.
+          .select('''
+            expense_id, amount, entry_timestamp, category,
+            business_members!expenses_recorded_by_membership_id_fkey(
+              persons(full_name))
+          ''')
           .eq('business_id', businessId)
           .eq('business_date', date),
       _db
@@ -191,26 +216,46 @@ class RecordBookApiService {
 
     return DayDetail(
       ledger: _rowFromMap(ledgerRow, penalties),
-      collections: collectionRows.cast<Map<String, dynamic>>().map((c) => DayDetailEntry(
-            id: c['collection_id'] as String,
-            label: 'Collection',
-            amount: (c['collected_amount'] as num).toInt(),
-            timestamp: DateTime.parse(c['entry_timestamp'] as String),
-            sourceLoanId: c['loan_id'] as String?,
-          )).toList(),
-      loans: loanRows.cast<Map<String, dynamic>>().map((l) => DayDetailEntry(
-            id: l['loan_id'] as String,
-            label: 'Loan Distribution',
-            amount: (l['repayment_amount'] as num).toInt(),
-            timestamp: DateTime.parse(l['entry_timestamp'] as String),
-            sourceLoanId: l['loan_id'] as String,
-          )).toList(),
-      expenses: expenseRows.cast<Map<String, dynamic>>().map((e) => DayDetailEntry(
-            id: e['expense_id'] as String,
-            label: e['category'] as String? ?? 'Expense',
-            amount: (e['amount'] as num).toInt(),
-            timestamp: DateTime.parse(e['entry_timestamp'] as String),
-          )).toList(),
+      collections: collectionRows.cast<Map<String, dynamic>>().map((c) {
+        final who = _identity(c['customers']);
+        return DayDetailEntry(
+          id: c['collection_id'] as String,
+          label: 'Collection',
+          amount: (c['collected_amount'] as num).toInt(),
+          timestamp: DateTime.parse(c['entry_timestamp'] as String),
+          sourceLoanId: c['loan_id'] as String?,
+          personName: who?.name,
+          careOf: who?.careOf,
+          village: who?.village,
+        );
+      }).toList(),
+      loans: loanRows.cast<Map<String, dynamic>>().map((l) {
+        final who = _identity(l['customers']);
+        return DayDetailEntry(
+          id: l['loan_id'] as String,
+          label: 'Loan Distribution',
+          amount: (l['repayment_amount'] as num).toInt(),
+          timestamp: DateTime.parse(l['entry_timestamp'] as String),
+          sourceLoanId: l['loan_id'] as String,
+          personName: who?.name,
+          careOf: who?.careOf,
+          village: who?.village,
+        );
+      }).toList(),
+      expenses: expenseRows.cast<Map<String, dynamic>>().map((e) {
+        // No C/o and no village: this names the member who recorded the
+        // expense, not a customer, and a colleague's father's name is not
+        // what identifies a fuel bill.
+        final member = e['business_members'] as Map<String, dynamic>?;
+        final person = member?['persons'] as Map<String, dynamic>?;
+        return DayDetailEntry(
+          id: e['expense_id'] as String,
+          label: e['category'] as String? ?? 'Expense',
+          amount: (e['amount'] as num).toInt(),
+          timestamp: DateTime.parse(e['entry_timestamp'] as String),
+          personName: person?['full_name'] as String?,
+        );
+      }).toList(),
       deposits: const [], // requires an investments query scoped to business_date — not fetched by this summary view
       withdrawals: const [], // requires an investment_withdrawals query scoped to business_date — not fetched by this summary view
       adjustments: adjustmentRows.cast<Map<String, dynamic>>().map((a) => DayDetailEntry(
@@ -221,6 +266,35 @@ class RecordBookApiService {
             isCorrection: true,
           )).toList(),
       auditLog: const [], // BR-124/158 admin/security only — requires a dedicated audit_log query, not fetched by this summary view
+    );
+  }
+
+  /// Name, C/o and village out of an embedded `customers` row.
+  ///
+  /// ONE READER FOR BOTH PATHS. Collections and loans reach a customer by
+  /// different foreign keys but unwrap identically, and CLAUDE.md's rule about
+  /// shared contracts cuts both ways: two copies of this is how the loans tab
+  /// comes to show a village the collections tab does not.
+  ///
+  /// The current address, or the first one if none is flagged current -- the
+  /// same fallback agent_customer_state.dart uses, and for the same reason: a
+  /// person whose address rows predate the is_current flag still lives
+  /// somewhere, and showing no village is worse than showing an old one.
+  static _Identity? _identity(dynamic customer) {
+    final c = customer as Map<String, dynamic>?;
+    final person = c?['persons'] as Map<String, dynamic>?;
+    if (person == null) return null;
+    final addresses = (person['person_addresses'] as List?) ?? const [];
+    final current = addresses.cast<Map<String, dynamic>?>().firstWhere(
+          (a) => a?['is_current'] == true,
+          orElse: () =>
+              addresses.isNotEmpty ? addresses.first as Map<String, dynamic> : null,
+        );
+    return _Identity(
+      name: person['full_name'] as String?,
+      careOf: person['father_husband_name'] as String?,
+      village: (current?['locations'] as Map<String, dynamic>?)?['village_town_name']
+          as String?,
     );
   }
 
@@ -354,11 +428,41 @@ class DayDetail {
 
 class DayDetailEntry {
   final String id;
+
+  /// What KIND of entry this is -- 'Collection', an expense's category, an
+  /// adjustment's type. Never who it was with; that is [personName].
   final String label;
+
   final int amount;
   final DateTime timestamp;
   final bool isCorrection;
   final String? sourceLoanId;
+
+  /// WHO. Reported from a handset, 2026-09-17: "in screenshot it's showing
+  /// collection but it should at least show name, c/o, village along with
+  /// date & time to identify from whom collected from and same applies to
+  /// others too loans, expenses, timeline."
+  ///
+  /// A day's collections used to read "Collection, Collection, Collection"
+  /// down the sheet with an amount beside each. An Owner checking an agent's
+  /// day could see that eleven payments came in and nothing about whose they
+  /// were -- so the one question the screen exists to answer, "is this
+  /// right?", could not be asked of it.
+  ///
+  /// NULL, NOT EMPTY, when there is no person: an expense has a category and
+  /// a payee, not a customer. Empty string would draw a blank line where the
+  /// name goes and read as a missing name rather than an entry that never had
+  /// one.
+  final String? personName;
+
+  /// C/o -- the father or husband name. Two people in one village share a
+  /// given name often enough that this is how the book tells them apart, and
+  /// it is why persons has the column NOT NULL.
+  final String? careOf;
+
+  /// The village, which is the third part of the same answer: a name and a
+  /// C/o still collide across villages on a line that works several.
+  final String? village;
 
   DayDetailEntry({
     required this.id,
@@ -367,7 +471,17 @@ class DayDetailEntry {
     required this.timestamp,
     this.isCorrection = false,
     this.sourceLoanId,
+    this.personName,
+    this.careOf,
+    this.village,
   });
+}
+
+class _Identity {
+  final String? name;
+  final String? careOf;
+  final String? village;
+  const _Identity({this.name, this.careOf, this.village});
 }
 
 class AuditLogEntry {

@@ -167,19 +167,19 @@ void main() {
         textScale: scale,
         overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
       );
-      // LONG PRESS below, since 2026-09-17: tapping the date opens the
-      // calendar now, and the day details moved to a long press at the
-      // Owner's request. These tests went on tapping and would have gone on
-      // passing -- against a Flutter date picker instead of the sheet they
-      // are named for.
+      // TAP THE CARD, not the date. The Owner changed this twice in one day:
+      // details moved to a long press, then back to a tap ("not long tap -
+      // just tap to open the summary"). The DATE keeps its own tap for the
+      // calendar, so the target here is the sheet body -- tapping the date
+      // would open a date picker and this test would pass against it.
       //
       // The comment lives ABOVE this line, not beside the gesture: the
       // silent-tap guard looks exactly 8 lines back for an ensureVisible,
       // and five lines of prose in that gap put a real tap out of its reach.
-      final dateText = find.textContaining('07 Aug 2026').first;
+      final dateText = find.textContaining('Brought Forward').first;
       await tester.ensureVisible(dateText);
       await tester.pumpAndSettle();
-      await tester.longPress(dateText);
+      await tester.tap(dateText);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expectNoLayoutFault(tester, 'OW-009 day details at ${scale}x');
@@ -206,7 +206,7 @@ void main() {
       final dateText = find.textContaining('07 Aug 2026').first;
       await tester.ensureVisible(dateText);
       await tester.pumpAndSettle();
-      await tester.longPress(dateText);
+      await tester.tap(dateText);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expectNoLayoutFault(tester, 'OW-009 day details at ${scale}x in Telugu');
@@ -242,7 +242,7 @@ void main() {
       final dateText = find.textContaining('07 Aug 2026').first;
           await tester.ensureVisible(dateText);
           await tester.pumpAndSettle();
-          await tester.longPress(dateText);
+          await tester.tap(dateText);
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 300));
 
@@ -284,20 +284,23 @@ void main() {
         reason: 'the previous day must not already be on screen, or the '
             'swipe below proves nothing');
 
-    // SCROLLED TO. A day is drawn as the two-column account sheet now --
-    // credits, debits, both totals and the carried closing -- so two days no
-    // longer fit one screen at 1.0x. That is the format the Owner asked for,
-    // and "swipe up show previous one" is what this scroll is.
+    // SIDEWAYS, since the Owner saw it on a handset: "no scrolling - show one
+    // account and swipe to left to see the next account with arrow mark."
+    // One account fills the screen and the next is a page to the left.
     //
-    // No `.first` on the target: it is evaluated eagerly and throws "Bad
-    // state: No element" on a finder for something not yet built, which is
-    // the whole reason this call is here.
-    await tester.scrollUntilVisible(
-      find.textContaining('06 Aug 2026'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.textContaining('06 Aug 2026'), findsWidgets);
+    // hitTestable, because a PageView BUILDS its neighbour so it can animate
+    // to it -- '06 Aug 2026' is in the tree from the first frame, and a plain
+    // findsNothing here fails against correct code.
+    expect(find.textContaining('06 Aug 2026').hitTestable(), findsNothing,
+        reason: 'the older account must be off screen, or the swipe below '
+            'proves nothing');
+
+    await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('06 Aug 2026').hitTestable(), findsWidgets);
+    expect(find.textContaining('07 Aug 2026').hitTestable(), findsNothing,
+        reason: 'a page turn replaces the account, it does not append to it');
   });
 
   testWidgets('OW-009 offers only the days it holds', (tester) async {
@@ -337,10 +340,13 @@ void main() {
       const DailyRecordBookScreen(businessId: 'b1'),
       overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
     );
-    final dateText = find.textContaining('07 Aug 2026').first;
-    await tester.ensureVisible(dateText);
+    // The CARD, not the date: the date opens the calendar. Tapping it here
+    // would open a date picker and every assertion below would fail for a
+    // reason that has nothing to do with whose collection it was.
+    final card = find.textContaining('Brought Forward').first;
+    await tester.ensureVisible(card);
     await tester.pumpAndSettle();
-    await tester.longPress(dateText);
+    await tester.tap(card);
     await tester.pumpAndSettle();
 
     expect(find.text('Venkata Subrahmanyam'), findsOneWidget,
@@ -388,5 +394,71 @@ void main() {
     // row, this total would move by exactly the modes shown.
     expect(find.textContaining('4,87,750'), findsWidgets,
         reason: 'the credits total must not include the mode breakdown');
+  });
+
+  testWidgets('the arrow mark moves the account, and stops at the ends',
+      (tester) async {
+    // "show one account and swipe to left to see the next account with arrow
+    // mark." The arrows are the visible half of that: a PageView looks
+    // identical whether there are two accounts or twenty, so without them the
+    // gesture is discoverable only by accident.
+    await pumpManaScreen(
+      tester,
+      const DailyRecordBookScreen(businessId: 'b1'),
+      overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
+    );
+
+    expect(find.text('1 / 2'), findsOneWidget);
+
+    IconButton button(IconData icon) => tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, icon).first);
+
+    // Page 0 is the latest account: there is nothing more recent to go to.
+    expect(button(Icons.chevron_left).onPressed, isNull,
+        reason: 'the newest account has no newer one beside it');
+    expect(button(Icons.chevron_right).onPressed, isNotNull);
+
+    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(find.textContaining('06 Aug 2026').hitTestable(), findsWidgets);
+    // And now the other end is the closed one.
+    expect(button(Icons.chevron_right).onPressed, isNull);
+    expect(button(Icons.chevron_left).onPressed, isNotNull);
+  });
+
+  testWidgets('the date opens the calendar and the card opens the summary',
+      (tester) async {
+    // Two tap targets, one inside the other. Flutter gives the contest to the
+    // innermost hit target, so the date wins its own tap and the card gets
+    // everything else -- but that is a claim about gesture arenas, and this
+    // asserts it rather than trusting it.
+    await pumpManaScreen(
+      tester,
+      const DailyRecordBookScreen(businessId: 'b1'),
+      overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
+    );
+
+    final date = find.textContaining('07 Aug 2026').first;
+    await tester.ensureVisible(date);
+    await tester.pumpAndSettle();
+    await tester.tap(date);
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget,
+        reason: 'the date is its own control');
+    expect(find.byType(TabBar), findsNothing,
+        reason: 'and it must not also open the day summary');
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    final card = find.textContaining('Brought Forward').first;
+    await tester.ensureVisible(card);
+    await tester.pumpAndSettle();
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    expect(find.byType(TabBar), findsOneWidget,
+        reason: 'anywhere else on the card opens the summary');
   });
 }

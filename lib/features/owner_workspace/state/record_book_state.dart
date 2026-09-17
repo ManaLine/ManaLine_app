@@ -217,13 +217,23 @@ class RecordBookApiService {
           .from('expenses')
           // WHO RECORDED IT. An expense has no customer -- fuel and tea are
           // not owed by anybody -- so the person who identifies it is the
-          // member who entered it. expenses has TWO FKs to business_members
-          // (recorded_by and deleted_by), so the FK is named or PostgREST
-          // answers PGRST201 and the tab just says it could not load.
+          // member who entered it.
+          //
+          // BOTH FOREIGN KEYS ARE NAMED, and shipping this with only one was
+          // the defect. expenses has two FKs to business_members (recorded_by,
+          // deleted_by) AND business_members has two to persons (person_id,
+          // invited_by_person_id). Naming the outer one and leaving the inner
+          // bare still answers PGRST201 -- reported from the handset on build
+          // 14.8, where the Collections tab showed the raw exception.
+          //
+          // CLAUDE.md says this exactly: "`!inner` is a join modifier, not an
+          // FK name: `persons!inner(...)` under `business_members` is still
+          // ambiguous." An explicit FK name is not a modifier either -- it
+          // qualifies the hop it is written on, and nothing below it.
           .select('''
             expense_id, amount, entry_timestamp, category,
             business_members!expenses_recorded_by_membership_id_fkey(
-              persons(full_name))
+              persons!business_members_person_id_fkey(full_name))
           ''')
           .eq('business_id', businessId)
           .eq('business_date', date),

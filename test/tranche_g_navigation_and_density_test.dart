@@ -12,7 +12,14 @@ import 'package:flutter_test/flutter_test.dart';
 /// picker". A source-text guard has to look for a declaration or a call,
 /// because the explanation of a deletion necessarily names what was deleted.
 void main() {
-  String lib(String path) => File('lib/$path').readAsStringSync();
+  // LINE ENDINGS NORMALISED. These assertions match multi-line snippets of
+  // source, and .gitattributes pins only *.sql to LF -- every other file follows
+  // the machine's core.autocrlf, so a Dart file is CRLF on Windows and LF in CI.
+  // Five tests in this repo failed the moment a branch switch re-materialised
+  // the working tree with CRLF, having passed all day only because unrelated
+  // edits had happened to rewrite those files as LF. What the guard is checking
+  // is the code, not which bytes end its lines.
+  String lib(String path) => File('lib/$path').readAsStringSync().replaceAll('\r\n', '\n');
 
   final ow001 =
       lib('features/owner_workspace/screens/ow_001_owner_home_dashboard.dart');
@@ -140,7 +147,7 @@ void main() {
       // nothing anybody reads.
       final m = File(
               'supabase/migrations/20260917135625_the_word_workforce_becomes_agents.sql')
-          .readAsStringSync();
+          .readAsStringSync().replaceAll('\r\n', '\n');
       expect(m, contains("SET english = 'Agent Management'"));
       expect(m, contains("WHERE translation_key = 'workforce_management'"));
     });

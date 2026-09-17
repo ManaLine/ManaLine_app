@@ -90,8 +90,23 @@ List<_Embed> _embedsOf(String body, String root) {
   return found;
 }
 
+/// `.from('t')` … `.select('…')`, tolerating whatever sits between them.
+///
+/// THE GAP THIS CLOSES. The separator was `\s*`, which matches whitespace and
+/// nothing else — so a COMMENT between the two calls made the whole query
+/// invisible to this guard. Three queries in record_book_state.dart acquired
+/// an explanatory comment in exactly that position on 2026-09-17, and all
+/// three stopped being scanned the moment they did. One of them embedded
+/// `persons` under `business_members` with only the outer foreign key named,
+/// it shipped in build 14.8, and the Collections tab showed a raw PGRST201 on
+/// the handset while this test reported green.
+///
+/// A guard that quietly checks nothing reads exactly like one that passes.
+/// That is why the count assertion at the bottom of this file exists, and it
+/// did not help here: the three queries it stopped seeing were new, so the
+/// total it compares against had never counted them.
 final _selectPattern = RegExp(
-  r"""\.from\(\s*'([a-z_]+)'\s*\)\s*\.select\(\s*('''|')(.*?)\2\s*\)""",
+  r"""\.from\(\s*'([a-z_]+)'\s*\)(?:\s|//[^\n]*\n)*\.select\(\s*('''|')(.*?)\2\s*\)""",
   dotAll: true,
 );
 

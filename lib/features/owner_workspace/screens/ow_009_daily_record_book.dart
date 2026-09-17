@@ -40,6 +40,18 @@ class DailyRecordBookScreen extends ConsumerStatefulWidget {
 }
 
 class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
+  final _pager = PageController();
+
+  /// Which account is in front, so the arrow bar can say so and stop
+  /// offering a direction there is nothing in.
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _pager.dispose();
+    super.dispose();
+  }
+
   /// Tap the date beside BF to jump to another day's account.
   ///
   /// THE CALENDAR OFFERS ONLY THE DAYS THE BOOK HOLDS -- "only show dates
@@ -78,6 +90,13 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
           dateTo: picked,
           status: state.statusFilter,
         );
+    // The picked day becomes the newest row, so it is page 0 -- but the pager
+    // is wherever the Owner left it. Without this, jumping to a date lands on
+    // whatever account happens to sit at that index, which is a different day
+    // from the one they chose.
+    if (!mounted || !_pager.hasClients) return;
+    _pager.jumpToPage(0);
+    setState(() => _page = 0);
   }
 
   @override
@@ -182,44 +201,74 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
                           ),
                         ),
                       ),
-                      // AN ORDINARY LIST, LATEST FIRST.
+                      // ONE ACCOUNT, AND THE NEXT ONE IS SIDEWAYS.
                       //
-                      // This was a vertical PageView for about an hour --
-                      // one account per page, swipe up to turn it -- and the
-                      // layout tests caught what that costs. A page tall
-                      // enough to need its own scroll view (any day carrying
-                      // an investor deposit, a cheti and a penalty note) puts
-                      // two scrollables on the same axis, and Flutter does
-                      // not hand the gesture up when the inner one reaches
-                      // its end. Measured: the pager stayed at offset 0
-                      // through three consecutive flings. The previous day
-                      // was not merely awkward to reach -- it was
-                      // unreachable, on exactly the days that matter most.
+                      // The Owner, on build 14.8: "no scrolling - show one
+                      // account and swipe to left to see the next account with
+                      // arrow mark."
                       //
-                      // A plain list is what the Owner actually asked for:
-                      // "show latest account on top and on swipe up show
-                      // previous one." rows arrive newest-first, so the
-                      // latest account IS on top and swiping up reveals the
-                      // one before it. The paging was mine, not theirs.
+                      // This was a VERTICAL pager for about an hour earlier
+                      // today, and it had to be torn out: a day tall enough to
+                      // need its own scroll view puts two scrollables on the
+                      // same axis, Flutter does not hand the gesture up when
+                      // the inner one ends, and the pager sat at offset 0
+                      // through three consecutive flings. Measured, not
+                      // guessed. Horizontal has none of that -- the page turns
+                      // on one axis and the content scrolls on the other, so
+                      // they never compete for the same drag.
+                      //
+                      // rows are newest-first, so page 0 is the latest account
+                      // and swiping left walks backwards in time.
                       Expanded(
-                        child: ListView.separated(
-                          padding: const EdgeInsets.all(ManaSpacing.lg),
+                        child: PageView.builder(
+                          controller: _pager,
                           itemCount: state.rows.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: ManaSpacing.md),
-                          itemBuilder: (context, i) => _LedgerRowCard(
-                            row: state.rows[i],
-                            income: state.loanIncome[
-                                manaIsoDate(state.rows[i].businessDate)],
-                            shown: _shown,
-                            modes: state.paymentModes[
-                                manaIsoDate(state.rows[i].businessDate)],
-                            onLongPress: () =>
-                                _openDayDetails(context, state.rows[i]),
-                            onDateTap: () => _pickDate(context),
+                          onPageChanged: (i) => setState(() => _page = i),
+                          itemBuilder: (context, i) => SingleChildScrollView(
+                            // Vertical, against a horizontal pager, so this is
+                            // not the nested-scroll trap the vertical version
+                            // was. It exists only for 2.0x text, where the
+                            // sheet is taller than the screen and the Closing
+                            // -- the one figure the sheet exists to state --
+                            // would otherwise be clipped.
+                            padding: const EdgeInsets.all(ManaSpacing.lg),
+                            child: _LedgerRowCard(
+                              row: state.rows[i],
+                              income: state.loanIncome[
+                                  manaIsoDate(state.rows[i].businessDate)],
+                              shown: _shown,
+                              modes: state.paymentModes[
+                                  manaIsoDate(state.rows[i].businessDate)],
+                              onTap: () =>
+                                  _openDayDetails(context, state.rows[i]),
+                              onDateTap: () => _pickDate(context),
+                            ),
                           ),
                         ),
                       ),
+                      // THE ARROW MARK the Owner asked for, and a position.
+                      //
+                      // A PageView gives no sign that anything is beside it.
+                      // On a list you can see the next row beginning; on a
+                      // pager the screen looks identical whether there are two
+                      // accounts or twenty, and the gesture is only
+                      // discoverable by accident.
+                      //
+                      // The arrows are buttons as well as signs. One-handed at
+                      // a doorstep, a tap at the edge is easier than a swipe
+                      // across the whole screen, and an arrow that points at
+                      // something you cannot press reads as broken.
+                      if (state.rows.length > 1)
+                        _PagerBar(
+                          page: _page,
+                          count: state.rows.length,
+                          onPrev: () => _pager.previousPage(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOut),
+                          onNext: () => _pager.nextPage(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOut),
+                        ),
                     ]),
         ),
       ),
@@ -354,10 +403,18 @@ class _LedgerRowCard extends ConsumerWidget {
   /// down, which is not the same as a day that took nothing.
   final Map<String, int>? modes;
 
-  /// LONG PRESS, NOT TAP, opens the day's entries -- the Owner's instruction:
-  /// "on long tap show the summary as it shows now". Tap belongs to the date
-  /// now, and a card that opened a sheet on any tap would swallow it.
-  final VoidCallback onLongPress;
+  /// TAP opens the day's entries.
+  ///
+  /// It was a long press for one build, on the Owner's first instruction, and
+  /// they changed it on seeing it: "not long tap - just tap to open the
+  /// summary of that account." A long press is an invisible gesture -- nothing
+  /// on the card says it is there -- and the summary is the main thing an
+  /// Owner wants from a day.
+  ///
+  /// The date still opens the calendar, and still wins, because its InkWell is
+  /// a child of this one: Flutter's gesture arena gives the contest to the
+  /// innermost hit target, so the two do not fight.
+  final VoidCallback onTap;
 
   /// Tap the date to jump to another day.
   final VoidCallback onDateTap;
@@ -367,7 +424,7 @@ class _LedgerRowCard extends ConsumerWidget {
     required this.income,
     required this.shown,
     required this.modes,
-    required this.onLongPress,
+    required this.onTap,
     required this.onDateTap,
   });
 
@@ -379,7 +436,7 @@ class _LedgerRowCard extends ConsumerWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onLongPress: onLongPress,
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(ManaSpacing.md),
           child: Column(
@@ -516,6 +573,55 @@ class _LedgerRowCard extends ConsumerWidget {
 
 /// VIEW DAY DETAILS — Collections/Loans/Expenses/Deposits/Withdrawals/
 /// Adjustments/Audit/Timeline, all filtered to one Business Date.
+/// The arrow mark, and which account of how many is in front.
+///
+/// Both arrows are always drawn and the unavailable one is disabled rather
+/// than removed. A control that disappears moves the one beside it, and on
+/// the last account the Owner would find the button they were aiming at has
+/// shifted under their thumb.
+class _PagerBar extends StatelessWidget {
+  final int page;
+  final int count;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+
+  const _PagerBar({
+    required this.page,
+    required this.count,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          ManaSpacing.lg, 0, ManaSpacing.lg, ManaSpacing.sm),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            // Page 0 is the LATEST account, so this arrow moves towards the
+            // more recent one -- forwards in time, backwards through pages.
+            onPressed: page > 0 ? onPrev : null,
+          ),
+          // Flexible so a large text scale shrinks this rather than pushing
+          // an arrow off the edge.
+          Flexible(
+            child: ManaFitText('${page + 1} / $count',
+                style: ManaType.secondary, maxLines: 1),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: page < count - 1 ? onNext : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DayDetailsSheet extends ConsumerStatefulWidget {
   final String businessId;
   final DayLedgerRow row;

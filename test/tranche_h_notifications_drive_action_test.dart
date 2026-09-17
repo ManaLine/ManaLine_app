@@ -18,11 +18,18 @@ import 'package:mana_line/shared/inbox_service.dart';
 /// already has the shape for "somebody is waiting on your decision", and this
 /// is that.
 void main() {
-  String lib(String path) => File('lib/$path').readAsStringSync();
+  // LINE ENDINGS NORMALISED. These assertions match multi-line snippets of
+  // source, and .gitattributes pins only *.sql to LF -- every other file follows
+  // the machine's core.autocrlf, so a Dart file is CRLF on Windows and LF in CI.
+  // Five tests in this repo failed the moment a branch switch re-materialised
+  // the working tree with CRLF, having passed all day only because unrelated
+  // edits had happened to rewrite those files as LF. What the guard is checking
+  // is the code, not which bytes end its lines.
+  String lib(String path) => File('lib/$path').readAsStringSync().replaceAll('\r\n', '\n');
 
   final migration = File(
           'supabase/migrations/20260917141421_a_bf_request_reaches_the_bell_as_something_to_do.sql')
-      .readAsStringSync();
+      .readAsStringSync().replaceAll('\r\n', '\n');
 
   group('the server offers it as a decision', () {
     test('my_inbox_actions has a bf_request branch', () {

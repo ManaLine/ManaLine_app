@@ -14,7 +14,14 @@ import 'package:mana_line/design/tokens/colors.dart';
 /// lands in the shared row rather than in each screen.
 void main() {
   final roster =
-      File('lib/design/components/mana_member_roster.dart').readAsStringSync();
+      // LINE ENDINGS NORMALISED. These assertions match multi-line snippets of
+      // source, and .gitattributes pins only *.sql to LF -- every other file follows
+      // the machine's core.autocrlf, so a Dart file is CRLF on Windows and LF in CI.
+      // Five tests in this repo failed the moment a branch switch re-materialised
+      // the working tree with CRLF, having passed all day only because unrelated
+      // edits had happened to rewrite those files as LF. What the guard is checking
+      // is the code, not which bytes end its lines.
+      File('lib/design/components/mana_member_roster.dart').readAsStringSync().replaceAll('\r\n', '\n');
 
   group('the ring says the state', () {
     test('Suspended and Removed are different colours', () {
@@ -65,7 +72,7 @@ void main() {
     test('Investor Management', () {
       final src = File(
               'lib/features/owner_workspace/screens/ow_003_investor_management.dart')
-          .readAsStringSync();
+          .readAsStringSync().replaceAll('\r\n', '\n');
       expect(src.contains('_DashboardStrip'), isFalse,
           reason: 'the widget went with its usage, not just the call');
       expect(src.contains('ManaStatStrip'), isFalse);
@@ -77,7 +84,7 @@ void main() {
     test('Agent Management, still', () {
       final src = File(
               'lib/features/owner_workspace/screens/ow_002_workforce_management.dart')
-          .readAsStringSync();
+          .readAsStringSync().replaceAll('\r\n', '\n');
       expect(src.contains('_DashboardStrip'), isFalse);
       expect(src.contains('ManaStatStrip'), isFalse);
     });
@@ -92,7 +99,7 @@ void main() {
         'lib/features/owner_workspace/screens/ow_004_customer_management.dart',
         'lib/features/agent_workspace/screens/ag_004_customer_management.dart',
       ]) {
-        final src = File(f).readAsStringSync();
+        final src = File(f).readAsStringSync().replaceAll('\r\n', '\n');
         if (!src.contains('ManaMemberRoster')) continue;
         expect(src.contains('header: _DashboardStrip'), isFalse,
             reason: '$f put a count strip back above its roster');

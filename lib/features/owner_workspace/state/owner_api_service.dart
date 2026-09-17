@@ -33,6 +33,25 @@ class OwnerApiService {
 
   SupabaseClient get _db => Supabase.instance.client;
 
+  /// Re-derive this business's cash figure from its own ledger, and hand back
+  /// what it now is.
+  ///
+  /// `businesses.owner_bf_balance` is a CACHE of a derived figure -- CLAUDE.md
+  /// is explicit that BF is derived and never a stored running total -- and a
+  /// cache can go stale. It did: sri tirumala finance showed Rs 4,90,000 for
+  /// sixteen days after a Rs 2,00,000 withdrawal, because the withdrawal moved
+  /// the day ledger and nothing re-derived the figure sitting on top of it.
+  ///
+  /// Idempotent and Owner-gated server-side. It does NOT rebuild the day
+  /// ledger -- that is hundreds of days for an established book, and a gesture
+  /// made standing at a door should not do seconds of work.
+  Future<num?> refreshBusinessFigures(String businessId) async {
+    final bf = await _db
+        .schema('app')
+        .rpc('refresh_business_figures', params: {'p_business_id': businessId});
+    return bf as num?;
+  }
+
   int get _personId {
     final id = ref.read(authFlowProvider).personId;
     if (id == null) throw StateError('No logged-in person_id available.');

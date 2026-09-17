@@ -349,6 +349,37 @@ class OwnerDashboardNotifier extends AsyncNotifier<OwnerDashboardData> {
   /// see the guard in [load].
   String? _loadedForBusinessId;
 
+  /// Pull-to-refresh: RE-DERIVE, then reload.
+  ///
+  /// `owner_bf_balance` is a cache of a derived figure -- CLAUDE.md is explicit
+  /// that BF is derived and never a stored running total -- and a cache can go
+  /// stale. sri tirumala finance showed Rs 4,90,000 for sixteen days after a
+  /// Rs 2,00,000 withdrawal, because the withdrawal moved the day ledger and
+  /// nothing re-derived the cash figure sitting on top of it. Every screen
+  /// reading BF read a number Rs 2,37,800 too high, and a plain reload would
+  /// have faithfully fetched the wrong number again.
+  ///
+  /// So the gesture repairs before it reads. app.refresh_business_figures is
+  /// idempotent and reads only source rows: if the figure is already right
+  /// this changes nothing, and if it has drifted the Owner gets the truth by
+  /// pulling down.
+  ///
+  /// NON-FATAL ON PURPOSE. The recompute is Owner-gated and this screen is the
+  /// Owner's, but an Agent reaching a dashboard, an expired token, or no signal
+  /// must not turn a refresh into an error -- the reload below still runs and
+  /// still shows what the server has. A refresh that refuses to refresh
+  /// because it could not also repair would be worse than the staleness.
+  Future<void> refresh(String businessId) async {
+    try {
+      await ref.read(ownerApiServiceProvider).refreshBusinessFigures(businessId);
+    } catch (_) {
+      // Swallowed deliberately, and ONLY here: this is a repair attempt, not
+      // the data path. load() below is what the screen actually depends on,
+      // and it reports its own failures.
+    }
+    await load(businessId);
+  }
+
   Future<void> load(String businessId) async {
     // PERF/UX: only blank the screen to a spinner when there is nothing
     // useful to show. The screen calls this from initState on every visit, so

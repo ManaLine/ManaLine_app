@@ -172,8 +172,13 @@ class _OwnerHomeDashboardScreenState
     });
   }
 
+  /// Pull down to re-derive the figures, then reload them.
+  ///
+  /// Not just load(): BF is a cached derivation and this book carried a figure
+  /// Rs 2,37,800 too high for sixteen days after a withdrawal. A reload would
+  /// have fetched that number again, correctly and uselessly.
   Future<void> _refresh() =>
-      ref.read(ownerDashboardProvider.notifier).load(widget.businessId);
+      ref.read(ownerDashboardProvider.notifier).refresh(widget.businessId);
 
 
   // _addCustomer went with the + above. The add-then-lend flow it opened is

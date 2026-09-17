@@ -335,6 +335,61 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- A PAST DAY'S DEPOSIT IS THE DEPOSIT, NOT TODAY'S BALANCE
+-- =============================================================================
+--
+-- app.recompute_day_ledger summed investments.principal_amount for the day an
+-- investment began. principal_amount is the CURRENT balance: yearly
+-- compounding adds interest to it and a withdrawal takes principal out of it.
+-- So a day in the past reported today's balance as that day's cash inflow, and
+-- because one day's closing is the next day's opening, every closing after it
+-- inherited the error.
+--
+-- Found on 2026-09-16 from a handset: sri tirumala finance took Rs 5,00,000 on
+-- 2025-01-01 and that day's ledger said Rs 4,62,200 -- 500,000 plus 91,250 of
+-- compounding minus 129,050 of withdrawn principal, which is the balance on
+-- the day somebody looked. The history screen showed "+Rs 5,00,000" beside a
+-- closing of Rs 4,62,200, because the two halves of one screen read different
+-- columns and only one of them was wrong.
+--
+-- WHY THIS LIVES IN THE PRODUCTION FILE. It is an assertion about real books:
+-- it needs an investment whose principal has actually moved away from what was
+-- deposited, which is what time and a withdrawal do and what a fixture has to
+-- fake. Three of six live investments had already diverged.
+DO $$
+DECLARE
+    v_bad INT;
+    v_detail TEXT;
+    v_failed INT := COALESCE(current_setting('mana.li_failures', true)::int, 0);
+BEGIN
+    SELECT count(*), string_agg(x.business_name || ' ' || x.business_date ||
+                                ' ledger=' || x.recorded || ' deposited=' || x.actual, '; ')
+      INTO v_bad, v_detail
+      FROM (
+        SELECT b.business_name, d.business_date,
+               d.investor_deposits AS recorded,
+               COALESCE(SUM(i.original_principal_amount), 0) AS actual
+          FROM day_ledger d
+          JOIN businesses b ON b.business_id = d.business_id
+          LEFT JOIN investments i
+                 ON i.business_id = d.business_id
+                AND i.effective_date = d.business_date
+                AND i.deleted_at IS NULL
+         GROUP BY b.business_name, d.business_date, d.investor_deposits
+        HAVING d.investor_deposits <> COALESCE(SUM(i.original_principal_amount), 0)
+      ) x;
+
+    IF v_bad = 0 THEN
+        RAISE NOTICE 'ok   every day records the money that actually arrived that day';
+    ELSE
+        RAISE WARNING 'FAIL [MONEY] (BR-013) % day(s) record an investor deposit that is not what was deposited -- a past day is reporting a present balance: %', v_bad, v_detail;
+        v_failed := v_failed + 1;
+    END IF;
+
+    PERFORM set_config('mana.li_failures', v_failed::text, false);
+END $$;
+
+-- =============================================================================
 -- SUMMARY
 -- =============================================================================
 DO $$

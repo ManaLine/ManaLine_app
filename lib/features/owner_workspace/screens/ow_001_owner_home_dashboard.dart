@@ -220,6 +220,33 @@ class _OwnerHomeDashboardScreenState
         // which reads both directions live via app.my_inbox_actions and works
         // the same in every workspace.
         const ManaNotificationBell(),
+        // DRAFTS, beside the bell, because a draft nobody can reach is a loan
+        // quietly deleted.
+        //
+        // A loan refused for float is parked as a draft and the refusal says
+        // so -- "Saved as a draft. Nothing you entered is lost." That sentence
+        // was a promise the app could not keep from this workspace: AG-005
+        // exists and is routed, and nothing on the Owner's side linked to it.
+        // Reported from a handset: "saved as draft but no screen showing
+        // drafts".
+        //
+        // SHOWN ONLY WHEN THERE IS SOMEWHERE TO GO. AG-005 is keyed by an
+        // AGENT membership -- drafts are parked under the collecting agent --
+        // so an Owner who is not also an agent of this book has no drafts of
+        // their own and would get an empty screen that reads as a bug. On
+        // every live book the Owner IS also an agent, which is the case this
+        // serves.
+        //
+        // WORTH SAYING PLAINLY: a draft parked under ANOTHER agent belongs to
+        // that agent's screen and is not reachable here. That is unchanged by
+        // this button, and it matters less now that the float is checked at
+        // step 3 -- an Owner should rarely produce one of these at all.
+        if (ManaSession.instance.lastAgentMembershipId != null)
+          ManaHeaderAction(
+            icon: Icons.drafts_outlined,
+            label: ref.t('drafts'),
+            onPressed: () => context.push('/ag-005', extra: widget.businessId),
+          ),
         // NO + ON HOME, deliberately, and this is the one screen where that
         // is right.
         //

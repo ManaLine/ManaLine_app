@@ -80,6 +80,46 @@ class LoanApiService {
   /// placeholder photo URL. Whichever chat next touches the OW-005/AG-007
   /// screen UI should add the missing capture step and start passing
   /// these two.
+  /// What cash exists, asked WITHOUT creating anything.
+  ///
+  /// app.create_loan_with_bf_check was the only thing that knew, and it is a
+  /// write that takes a live photo URL -- so the only way to learn whether a
+  /// loan could be funded was to walk six steps, photograph the customer, and
+  /// be refused. Reported from a handset: "why letting user to fill all the
+  /// details and then showing error".
+  ///
+  /// This reads the SAME rows the write compares against, ordered the same
+  /// way. Two orderings would be two answers.
+  Future<ManaFloatPosition> floatPosition({
+    required String businessId,
+    required String collectionAgentMembershipId,
+  }) async {
+    final res = await _db.schema('app').rpc('loan_float_position', params: {
+      'p_business_id': businessId,
+      'p_collection_agent_membership_id': collectionAgentMembershipId,
+    });
+    final map = (res as Map).cast<String, dynamic>();
+    return ManaFloatPosition(
+      agentAvailable: (map['agent_available'] as num?)?.toInt() ?? 0,
+      businessBf: (map['business_bf'] as num?)?.toInt() ?? 0,
+      hasAssignment: map['has_assignment'] as bool? ?? false,
+      viewerIsOwner: map['viewer_is_owner'] as bool? ?? false,
+    );
+  }
+
+  /// The OWNER's remedy: move cash from the business till into an agent's
+  /// hand. app.grant_agent_bf is Owner-only and refuses when the business
+  /// itself is short, which is the second sentence an empty book needs.
+  Future<void> topUpAgentBf({
+    required String agentMembershipId,
+    required int amount,
+  }) async {
+    await _db.schema('app').rpc('grant_agent_bf', params: {
+      'p_agent_membership_id': agentMembershipId,
+      'p_amount': amount,
+    });
+  }
+
   Future<EligibilityResult> checkEligibilityAndCreate({
     required String businessId,
     required String customerId,
@@ -336,6 +376,47 @@ final loanApiServiceProvider = Provider<LoanApiService>((ref) {
 
 enum LoanWizardStep { customerSelection, eligibility, loanDetails, guarantor, livePhoto, confirm }
 
+/// What cash exists, and who is standing in front of it.
+///
+/// FOUR FIELDS BECAUSE THE REMEDY NEEDS ALL FOUR. The float check is against
+/// the COLLECTION AGENT's float -- correct, and unchanged: the cash physically
+/// leaves the collecting agent's hand. What the refusal could not do was say
+/// what to DO about it, because that depends on who is asking and on whether
+/// the business itself has anything.
+///
+///   viewer is the Owner, business has it  -> top the agent up
+///   viewer is the Owner, business has not -> nobody to ask; the book is empty
+///   viewer is an Agent                    -> ask the Owner
+///
+/// The third was the only one the app knew. On the Stf book on 2026-09-17 both
+/// figures were zero and the Owner was also the collecting agent, so the app
+/// offered them a request to themselves.
+class ManaFloatPosition {
+  /// The collecting agent's cash in hand. What the loan is checked against.
+  final int agentAvailable;
+
+  /// The business's own till -- businesses.owner_bf_balance. What an Owner
+  /// would top the agent up FROM.
+  final int businessBf;
+
+  /// Whether that agent has an agent_bf_assignments row at all.
+  ///
+  /// Separate from a zero float on purpose: an agent who has never been given
+  /// an opening figure has not spent anything, and "you have not been set up
+  /// yet" is a different sentence from "you have spent it". Both are live on
+  /// the Stf book -- one agent of each.
+  final bool hasAssignment;
+
+  final bool viewerIsOwner;
+
+  const ManaFloatPosition({
+    required this.agentAvailable,
+    required this.businessBf,
+    required this.hasAssignment,
+    required this.viewerIsOwner,
+  });
+}
+
 class LoanWizardState {
   final LoanWizardStep step;
   final CustomerSummary? customer;
@@ -382,12 +463,25 @@ class LoanWizardState {
   // is actually created, rather than leaving the two disconnected.
   final String? sourceRequestId;
 
-  /// Set when confirm() was refused for float. Carries the two numbers the
-  /// Agent needs to ask the Owner for BF, and the draft the refused loan was
-  /// parked in so nothing they typed is lost.
+  /// Set when the float is short. Carries the two numbers, and the draft the
+  /// refused loan was parked in so nothing typed is lost.
+  ///
+  /// SET IN TWO PLACES NOW, and only one of them has a draft. The gate at the
+  /// end of step 3 sets these BEFORE a guarantor or a live photo exists --
+  /// there is nothing to park, because nothing has been spent yet. confirm()
+  /// still sets them too: money can move between the gate and the submit, and
+  /// the server stays the authority on whether a loan may be funded.
   final int? bfAvailable;
   final int? bfRequired;
   final String? savedDraftId;
+
+  /// Who is asking, and what the business itself has. Null until the gate has
+  /// run. See [ManaFloatPosition] -- the remedy depends on all of it.
+  final ManaFloatPosition? floatPosition;
+
+  /// The gate is in flight. Step 3's Next waits on it rather than advancing
+  /// and asking later.
+  final bool checkingFloat;
 
   const LoanWizardState({
     this.step = LoanWizardStep.customerSelection,
@@ -423,6 +517,8 @@ class LoanWizardState {
     this.bfAvailable,
     this.bfRequired,
     this.savedDraftId,
+    this.floatPosition,
+    this.checkingFloat = false,
   });
 
   /// The loan was refused because the till is empty, not because anything in
@@ -479,6 +575,8 @@ class LoanWizardState {
     int? bfAvailable,
     int? bfRequired,
     String? savedDraftId,
+    ManaFloatPosition? floatPosition,
+    bool? checkingFloat,
     bool clearBfBlock = false,
   }) {
     return LoanWizardState(
@@ -512,6 +610,8 @@ class LoanWizardState {
       bfAvailable: clearBfBlock ? null : (bfAvailable ?? this.bfAvailable),
       bfRequired: clearBfBlock ? null : (bfRequired ?? this.bfRequired),
       savedDraftId: clearBfBlock ? null : (savedDraftId ?? this.savedDraftId),
+      floatPosition: clearBfBlock ? null : (floatPosition ?? this.floatPosition),
+      checkingFloat: checkingFloat ?? this.checkingFloat,
     );
   }
 }
@@ -620,7 +720,31 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
     state = state.copyWith(eligibilityPassed: false, eligibilityFailureReason: reason);
   }
 
-  void setLoanDetails({
+  /// Step 3, and the gate.
+  ///
+  /// THE AMOUNT AND THE COLLECTING AGENT ARE BOTH DECIDED HERE, which is the
+  /// earliest moment the question "can this loan be funded" has an answer.
+  /// It used to be asked at the very end, inside the write, after a guarantor
+  /// and a LIVE photo -- a photo that by rule cannot be re-used and has to be
+  /// taken again. Reported from a handset as "why letting user to fill all
+  /// the details and then showing error".
+  ///
+  /// So the answer is fetched here and the step does not advance without it.
+  /// Returns true when the wizard moved on.
+  ///
+  /// THIS DOES NOT REPLACE THE SERVER'S CHECK, and must not: money moves
+  /// between this call and the submit -- another agent's collection, another
+  /// loan from the same float -- and app.create_loan_with_bf_check holds the
+  /// row lock that makes its answer binding. This is the early warning; that
+  /// is the authority.
+  ///
+  /// A FAILURE TO ASK IS NOT A REFUSAL. If the position cannot be read at all
+  /// -- no signal at a doorstep, which is the normal condition this app works
+  /// in -- the wizard advances. Blocking a loan because a phone could not
+  /// reach the server would turn a network blip into a refused customer, and
+  /// the server still refuses at the end if the float really is short.
+  Future<bool> setLoanDetails({
+    required String businessId,
     required int repaymentAmount,
     required int interest,
     required int processingFee,
@@ -630,7 +754,7 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
     required String effectiveDate,
     required String collectionAgentId,
     required String collectionAgentName,
-  }) {
+  }) async {
     state = state.copyWith(
       repaymentAmount: repaymentAmount,
       interest: interest,
@@ -641,7 +765,81 @@ class LoanWizardNotifier extends Notifier<LoanWizardState> {
       effectiveDate: effectiveDate,
       collectionAgentId: collectionAgentId,
       collectionAgentName: collectionAgentName,
+      checkingFloat: true,
+      clearBfBlock: true,
+      clearError: true,
+    );
+
+    final needed = state.amountGiven;
+    ManaFloatPosition? position;
+    try {
+      position = await ref.read(loanApiServiceProvider).floatPosition(
+            businessId: businessId,
+            collectionAgentMembershipId: collectionAgentId,
+          );
+    } catch (_) {
+      // Deliberately swallowed -- see the note above. Advancing is the safe
+      // direction here, because the binding check still runs at the end.
+    }
+
+    if (position != null && position.agentAvailable < needed) {
+      state = state.copyWith(
+        checkingFloat: false,
+        floatPosition: position,
+        bfAvailable: position.agentAvailable,
+        bfRequired: needed,
+      );
+      return false;
+    }
+
+    state = state.copyWith(
+      checkingFloat: false,
+      floatPosition: position,
       step: LoanWizardStep.guarantor,
+    );
+    return true;
+  }
+
+  /// The Owner's remedy: move cash from the business till into the collecting
+  /// agent's hand, and carry on.
+  ///
+  /// WHY THIS EXISTS AT ALL. The refusal offered one remedy -- ask the Owner
+  /// -- to everybody, so an Owner who is also the collecting agent was invited
+  /// to send themselves a request. On the Stf book that is exactly what
+  /// happened, and the Owner called it a blunder, correctly: a request needs
+  /// somebody else to grant it.
+  ///
+  /// app.grant_agent_bf is Owner-only and raises when the business itself is
+  /// short, so the second empty till is refused by the server rather than
+  /// guessed at here.
+  Future<bool> topUpAgentBf({required String businessId, required int amount}) async {
+    final agentId = state.collectionAgentId;
+    if (agentId == null) return false;
+    state = state.copyWith(checkingFloat: true, clearError: true);
+    try {
+      await ref.read(loanApiServiceProvider).topUpAgentBf(
+            agentMembershipId: agentId,
+            amount: amount,
+          );
+    } catch (e) {
+      state = state.copyWith(checkingFloat: false, error: e.toString());
+      return false;
+    }
+    // READ THE NUMBER BACK, rather than assuming the top-up landed where it
+    // was aimed. The money rule in CLAUDE.md is explicit about this, and a
+    // grant that silently did nothing would let the wizard walk on to a
+    // photo it is about to waste.
+    return setLoanDetails(
+      businessId: businessId,
+      repaymentAmount: state.repaymentAmount!,
+      interest: state.interest ?? 0,
+      processingFee: state.processingFee ?? 0,
+      repaymentType: state.repaymentType,
+      durationValue: state.durationValue!,
+      installmentAmount: state.installmentAmount!,
+      effectiveDate: state.effectiveDate,
+      collectionAgentId: agentId,
+      collectionAgentName: state.collectionAgentName ?? '',
     );
   }
 

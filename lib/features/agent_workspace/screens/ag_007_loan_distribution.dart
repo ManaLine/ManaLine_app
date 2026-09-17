@@ -5,6 +5,7 @@ import '../../../design/tokens/colors.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
+import '../../../shared/float_gate_card.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_label_value_row.dart';
@@ -463,7 +464,8 @@ class _AgentLoanWizardFlowState extends ConsumerState<_AgentLoanWizardFlow> {
       case LoanWizardStep.eligibility:
         return const _AgStep2Eligibility();
       case LoanWizardStep.loanDetails:
-        return _AgStep3LoanDetails(agentId: widget.agentId);
+        return _AgStep3LoanDetails(
+            agentId: widget.agentId, businessId: widget.businessId);
       case LoanWizardStep.guarantor:
         return const _AgStep4Guarantor();
       case LoanWizardStep.livePhoto:
@@ -589,7 +591,12 @@ class _AgStep2Eligibility extends ConsumerWidget {
 
 class _AgStep3LoanDetails extends ConsumerStatefulWidget {
   final String agentId;
-  const _AgStep3LoanDetails({required this.agentId});
+
+  /// Needed by the float gate, which asks the business what cash exists
+  /// before this step advances. It was not carried here before because
+  /// nothing on this step talked to the server.
+  final String businessId;
+  const _AgStep3LoanDetails({required this.agentId, required this.businessId});
 
 
   @override
@@ -635,11 +642,13 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
       (int.tryParse(_duration.text) ?? 0) > 0 &&
       (int.tryParse(_installment.text) ?? 0) > 0;
 
-  void _submit(String agentId) {
+  /// AWAITED, because the gate can refuse -- see OW-005's copy of this.
+  Future<void> _submit(String agentId) async {
     // Collection Agent = this Agent (self) — an Agent issuing a loan
     // remotely is its own collection agent, unlike OW-005's Owner-side
     // picker which selects among the workforce.
-    ref.read(loanWizardProvider.notifier).setLoanDetails(
+    await ref.read(loanWizardProvider.notifier).setLoanDetails(
+          businessId: widget.businessId,
           repaymentAmount: int.parse(_repaymentAmount.text),
           interest: int.tryParse(_interest.text) ?? 0,
           processingFee: int.tryParse(_processingFee.text) ?? 0,
@@ -654,6 +663,9 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
 
   @override
   Widget build(BuildContext context) {
+    // Watched, not read: this step draws the float gate and disables its own
+    // Continue while the check is in flight.
+    final state = ref.watch(loanWizardProvider);
     final agentId = widget.agentId;
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
@@ -745,9 +757,28 @@ class _AgStep3LoanDetailsState extends ConsumerState<_AgStep3LoanDetails> {
         ),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
-          onPressed: _canSubmit ? () => _submit(agentId) : null,
+          onPressed: (_canSubmit && !state.checkingFloat) ? () => _submit(agentId) : null,
           child: ManaText.raw(ref.t('continue_label')),
         ),
+        // THE GATE. Shown here, at the end of step 3, because this is the
+        // first moment the amount and the collecting agent are both known --
+        // and because the alternative was learning it after a guarantor and a
+        // LIVE photo that by rule has to be taken again.
+        if (state.blockedOnBf && state.floatPosition != null) ...[
+          const SizedBox(height: ManaSpacing.md),
+          ManaFloatGateCard(
+            position: state.floatPosition!,
+            needed: state.bfRequired ?? state.amountGiven,
+            agentName: state.collectionAgentName ?? '',
+            savedDraftId: state.savedDraftId,
+            onTopUp: (amount) => ref
+                .read(loanWizardProvider.notifier)
+                .topUpAgentBf(businessId: widget.businessId, amount: amount),
+            onRequest: (amount, reason) => ref
+                .read(loanWizardProvider.notifier)
+                .requestBf(amount: amount, reason: reason),
+          ),
+        ],
       ],
     );
   }

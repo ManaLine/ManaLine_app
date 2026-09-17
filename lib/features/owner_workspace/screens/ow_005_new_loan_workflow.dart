@@ -7,11 +7,11 @@ import '../../../design/tokens/spacing.dart';
 import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../shared/float_gate_card.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/live_face_capture_screen.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/translation_service.dart';
-import '../../../shared/bf_request_card.dart';
 import '../../../shared/loan_customer_search.dart';
 import '../state/loan_wizard_state.dart';
 import '../state/owner_api_service.dart';
@@ -445,8 +445,12 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
     }
   }
 
-  void _submit() {
-    ref.read(loanWizardProvider.notifier).setLoanDetails(
+  /// AWAITED, because the gate can refuse. setLoanDetails asks what cash
+  /// exists before it advances, so a loan that cannot be funded is stopped
+  /// here rather than after a guarantor and a live photo.
+  Future<void> _submit() async {
+    await ref.read(loanWizardProvider.notifier).setLoanDetails(
+          businessId: widget.businessId,
           repaymentAmount: int.parse(_repaymentAmount.text),
           interest: int.tryParse(_interest.text) ?? 0,
           processingFee: int.tryParse(_processingFee.text) ?? 0,
@@ -461,6 +465,9 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
 
   @override
   Widget build(BuildContext context) {
+    // Watched, not read: this step draws the float gate and disables its own
+    // Continue while the check is in flight.
+    final state = ref.watch(loanWizardProvider);
     return ListView(
       padding: const EdgeInsets.all(ManaSpacing.lg),
       children: [
@@ -556,9 +563,28 @@ class _Step3LoanDetailsState extends ConsumerState<_Step3LoanDetails> {
         ),
         const SizedBox(height: ManaSpacing.lg),
         ElevatedButton(
-          onPressed: _canSubmit ? _submit : null,
+          onPressed: (_canSubmit && !state.checkingFloat) ? _submit : null,
           child: ManaText.raw(ref.t('continue_button')),
         ),
+        // THE GATE. Shown here, at the end of step 3, because this is the
+        // first moment the amount and the collecting agent are both known --
+        // and because the alternative was learning it after a guarantor and a
+        // LIVE photo that by rule has to be taken again.
+        if (state.blockedOnBf && state.floatPosition != null) ...[
+          const SizedBox(height: ManaSpacing.md),
+          ManaFloatGateCard(
+            position: state.floatPosition!,
+            needed: state.bfRequired ?? state.amountGiven,
+            agentName: state.collectionAgentName ?? '',
+            savedDraftId: state.savedDraftId,
+            onTopUp: (amount) => ref
+                .read(loanWizardProvider.notifier)
+                .topUpAgentBf(businessId: widget.businessId, amount: amount),
+            onRequest: (amount, reason) => ref
+                .read(loanWizardProvider.notifier)
+                .requestBf(amount: amount, reason: reason),
+          ),
+        ],
       ],
     );
   }
@@ -768,7 +794,18 @@ class _Step5Confirm extends ConsumerWidget {
   Future<void> _confirm(BuildContext context, WidgetRef ref) async {
     final loanNumber = await NetworkErrorHandler.run(context, () async {
       final n = await ref.read(loanWizardProvider.notifier).confirm(businessId: businessId);
-      if (n == null) throw Exception(ref.read(loanWizardProvider).error ?? 'Loan could not be created.');
+      if (n == null) {
+        // NOTHING WENT WRONG. A float refusal is a requirement that is not
+        // met, and it already has a card on screen saying so and offering the
+        // way out. Throwing here put "Something went wrong. Please try again."
+        // over the top of it -- reported from a handset as "it's not an error
+        // it's a requirement that's not met. so don't show unnecessary errors
+        // with no proper wording."
+        //
+        // Anything else that returns null IS a failure and still throws.
+        if (ref.read(loanWizardProvider).blockedOnBf) return null;
+        throw Exception(ref.read(loanWizardProvider).error ?? 'Loan could not be created.');
+      }
       return n;
     });
     if (loanNumber == null) return;
@@ -809,13 +846,28 @@ class _Step5Confirm extends ConsumerWidget {
         // A float refusal is not the same kind of failure as a bad figure, so
         // it does not get the same red box. Nothing here is wrong -- the till
         // is empty -- and what the Agent needs is a way to ask, not a warning.
+        // THE SAME GATE AT THE END. The step-3 one is an early warning; this
+        // is the server's binding answer, because money can move between the
+        // two -- another loan off the same float, a collection landing.
         if (state.blockedOnBf) ...[
           const SizedBox(height: ManaSpacing.md),
-          ManaBfRequestCard(
-            available: state.bfAvailable ?? 0,
-            required: state.bfRequired ?? 0,
+          ManaFloatGateCard(
+            position: state.floatPosition ??
+                // A refusal that arrived from the server without the gate
+                // having run: treat the viewer as an Agent, which is the
+                // branch that asks rather than the one that spends.
+                const ManaFloatPosition(
+                    agentAvailable: 0,
+                    businessBf: 0,
+                    hasAssignment: true,
+                    viewerIsOwner: false),
+            needed: state.bfRequired ?? 0,
+            agentName: state.collectionAgentName ?? '',
             savedDraftId: state.savedDraftId,
-            onSend: (amount, reason) =>
+            onTopUp: (amount) => ref
+                .read(loanWizardProvider.notifier)
+                .topUpAgentBf(businessId: businessId, amount: amount),
+            onRequest: (amount, reason) =>
                 ref.read(loanWizardProvider.notifier).requestBf(amount: amount, reason: reason),
           ),
         ] else if (state.error != null) ...[

@@ -200,6 +200,7 @@ const manaAppFunctions = <String>{
   'purge_person_hard', 'purge_record', 'purge_records',
   'reactivate_own_account', 'recompute_agent_bf', 'recompute_business_bf',
   'recompute_day_ledger', 'recompute_day_ledger_onward',
+  'loan_float_position',
   'refresh_business_figures',
   'recompute_ledger_chain', 'record_cheti_payment', 'record_collection',
   'record_day_closure_adjustment', 'record_expense', 'record_investment',

@@ -72,7 +72,7 @@ List<ManaDrawerSection> _ownerDrawerSections(
     ),
     ManaDrawerSection(
       icon: Icons.badge_outlined,
-      labelKey: 'workforce',
+      labelKey: 'agents',
       actions: [
         ManaDrawerAction(
           labelKey: 'workforce_management',
@@ -99,16 +99,19 @@ List<ManaDrawerSection> _ownerDrawerSections(
     // "who is in this business" could only be answered three screens at a
     // time. Opens Business Management on its Members tab -- the roster that
     // already exists, rather than a second one to keep in step with it.
+    // A DESTINATION, NOT A GROUP. This was a section holding exactly one
+    // action, labelled the same word as the section -- so tapping Members
+    // opened a list whose only entry was Members, and the roster was two taps
+    // away. Reported from a handset: "no need of dropdown and again showing
+    // members to select, direct tap on members show the list."
+    //
+    // ManaDrawerSection.onTap already existed for this and says so in its own
+    // doc: "giving it a chevron that opens a list containing only itself
+    // would be two taps to do one thing." This row simply never used it.
     ManaDrawerSection(
       icon: Icons.groups_outlined,
       labelKey: 'members',
-      actions: [
-        ManaDrawerAction(
-          labelKey: 'members',
-          onTap: () =>
-              context.push('/ow-012?tab=members', extra: businessId),
-        ),
-      ],
+      onTap: () => context.push('/ow-012?tab=members', extra: businessId),
     ),
     // --- Everything below was the header's overflow (kebab) menu ---------
     //
@@ -1774,7 +1777,7 @@ class _QuickActionsState extends ConsumerState<_QuickActions> {
         ],
       ),
       (
-        ref.t('workforce'),
+        ref.t('agents'),
         [
             // 'Register New Agent' and 'Add Existing Agent' removed (item
             // 5.1) — both already exist as header actions inside Workforce
@@ -1851,9 +1854,46 @@ class _QuickActionsState extends ConsumerState<_QuickActions> {
           ],
         ),
         const SizedBox(height: ManaSpacing.sm),
-        _QuickActionGroup(
-          businessId: businessId,
-          actions: groups[index].$2,
+        // SWIPEABLE, as asked -- and a DRAG rather than a PageView.
+        //
+        // A PageView demands a bounded height, and these groups do not share
+        // one: Customers has four actions and Investors six. Worse,
+        // ManaActionGrid decides its own column count by device -- 4 up on a
+        // phone, 5 or 6 on something larger -- so anything that computed a
+        // height here would be a second copy of that rule, wrong on a tablet
+        // and wrong again at 2.0x. The first draft of this did exactly that.
+        //
+        // A horizontal drag costs none of it: the group below stays a plain
+        // child that sizes itself, and AnimatedSwitcher sizes to whichever
+        // one is showing.
+        //
+        // The chips stay. A swipe with nothing saying there is somewhere to
+        // swipe TO is a gesture nobody finds, and the chips are also what an
+        // Owner uses when they already know which group they want.
+        GestureDetector(
+          // Vertical drags must still reach the ListView behind this, or the
+          // dashboard stops scrolling wherever a quick-action panel is under
+          // the thumb.
+          onHorizontalDragEnd: (details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v == 0) return;
+            // Drag left (negative velocity) moves forward, the way a page
+            // does. Clamped rather than wrapped: an Owner who swipes past the
+            // end of a three-item set should find the end, not the beginning.
+            final next = (v < 0 ? index + 1 : index - 1)
+                .clamp(0, groups.length - 1);
+            if (next != index) setState(() => _selected = next);
+          },
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            // Keyed by index, or AnimatedSwitcher sees one _QuickActionGroup
+            // and rebuilds it in place with no transition at all.
+            child: _QuickActionGroup(
+              key: ValueKey(index),
+              businessId: businessId,
+              actions: groups[index].$2,
+            ),
+          ),
         ),
       ],
     );
@@ -1864,7 +1904,7 @@ class _QuickActionGroup extends StatelessWidget {
   final String businessId;
   final List<(IconData, String, String, String?)> actions;
   const _QuickActionGroup(
-      {required this.businessId, required this.actions});
+      {super.key, required this.businessId, required this.actions});
 
   @override
   Widget build(BuildContext context) {

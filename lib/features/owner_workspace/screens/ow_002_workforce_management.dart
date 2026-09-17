@@ -10,7 +10,6 @@ import '../../../design/components/mana_member_roster.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/components/mana_skeleton.dart';
-import '../../../design/components/mana_stat_strip.dart';
 import '../../../design/components/mana_amount.dart' show manaRupees;
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/ledger_history_view.dart';
@@ -89,7 +88,16 @@ class _WorkforceManagementScreenState
               ? const ManaSkeletonList()
               : ManaMemberRoster(
                   heading: ref.t('agents'),
-                  header: _DashboardStrip(state: state),
+                  // THE SUMMARY STRIP IS GONE. Six counts across a sideways
+                  // scroller, above a list of one agent -- and the labels did
+                  // not fit, so it read "Pending Invitat..." on the handset.
+                  // Reported as "remove those slides showing on top".
+                  //
+                  // Nothing is lost that the list does not say better: the
+                  // filter dropdown right below already narrows by status,
+                  // and every row carries its own. A count of six states over
+                  // a book with three people is a dashboard borrowed from a
+                  // business that does not exist yet.
                   members: [
                     for (final a in state.filtered)
                       MemberEntry(
@@ -176,32 +184,6 @@ class _WorkforceManagementScreenState
         builder: (_) =>
             AgentProfileScreen(businessId: widget.businessId, agent: agent),
       ),
-    );
-  }
-}
-
-// --- C2 Dashboard summary strip ------------------------------------------
-
-class _DashboardStrip extends ConsumerWidget {
-  final WorkforceState state;
-  const _DashboardStrip({required this.state});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final stats = <(String, int, ManaStatus)>[
-      (ref.t('active'), state.totalActive, ManaStatus.good),
-      (ref.t('pending_invitation_status'), state.pendingInvitations, ManaStatus.warn),
-      (ref.t('pending_acceptance_status'), state.pendingAcceptance, ManaStatus.warn),
-      (ref.t('disabled'), state.disabled, ManaStatus.neutral),
-      (ref.t('suspended'), state.suspended, ManaStatus.bad),
-      (ref.t('removed'), state.removed, ManaStatus.neutral),
-    ];
-    return ManaStatStrip(
-      valueFontSize: 20,
-      stats: [
-        for (final (label, value, status) in stats)
-          ManaStat(value: '$value', label: label, status: status),
-      ],
     );
   }
 }

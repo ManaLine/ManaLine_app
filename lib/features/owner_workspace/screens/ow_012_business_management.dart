@@ -554,6 +554,17 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
             // OW-018 — for a business that was already running before it
             // joined. Lives here rather than on OW-001 because it is a
             // one-off setup act, not daily work.
+            // ADD A USER, FIRST. The body used to carry this as a full-width
+            // outlined button sharing a row with the sort, which is a lot of
+            // a 360dp screen spent on an action that is not what an Owner
+            // opens this tab to do -- they open it to look at people. The
+            // header is where every other screen in this app puts its add.
+            IconButton(
+              tooltip: ref.t('add_a_user'),
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              onPressed: () =>
+                  context.push('/ow-search', extra: widget.businessId),
+            ),
             IconButton(
               tooltip: ref.t('pre_existing_business'),
               icon: const Icon(Icons.move_to_inbox_outlined),
@@ -1504,6 +1515,14 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
   /// The no-village group is LAST and named rather than hidden. Somebody with
   /// no current address on file is a real state, and dropping them from a
   /// village-sorted roster would quietly shorten the book.
+  /// Which role the roster is narrowed to, or null for everybody.
+  ///
+  /// A PERSON, NOT A MEMBERSHIP, is still the row -- somebody who is both an
+  /// Agent and a Customer appears under either filter, once. The filter asks
+  /// "does this person do that here", which is the question an Owner is
+  /// actually asking when they pick one.
+  String? _roleFilter;
+
   List<Widget> _villageGroups(List<MemberSummary> members, bool migrationOpen) {
     final byVillage = <String, List<MemberSummary>>{};
     for (final m in members) {
@@ -1593,8 +1612,14 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
     // thing waiting on somebody else rather than a state of the membership,
     // and it needs words rather than a colour.
     const shown = {'Active', 'Suspended', 'Removed'};
-    final roster =
-        members.where((m) => shown.contains(m.membershipStatus)).toList();
+    final roster = members
+        .where((m) => shown.contains(m.membershipStatus))
+        // The role filter narrows MEMBERSHIPS, which is what makes it narrow
+        // people correctly: manaRosterByPerson groups whatever it is given,
+        // so filtering first means a person with two roles appears under
+        // either filter and once under All.
+        .where((m) => _roleFilter == null || m.role == _roleFilter)
+        .toList();
     // Unknown counts as locked. The missed-entry door is only meaningful
     // while a migration is open, and offering it on a business whose detail
     // has not loaded would put a dead link in front of the Owner.
@@ -1616,12 +1641,41 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         Row(
           children: [
             Flexible(
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    context.push('/ow-search', extra: widget.businessId),
-                icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
-                label: ManaText.raw(ref.t('add_a_user'),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              // THE ROLE FILTER, where the Add button used to be. An Owner
+              // opening this tab is looking for somebody, and "which kind"
+              // narrows two hundred rows faster than any sort does.
+              //
+              // ALL IS KEPT AND IS THE DEFAULT. The Owner named three
+              // options; without a fourth the screen would lose the one thing
+              // it could do before, which is show the whole book at once --
+              // and an Owner counting heads against a page counts everybody.
+              child: DropdownButtonFormField<String?>(
+                initialValue: _roleFilter,
+                isExpanded: true,
+                isDense: true,
+                decoration: InputDecoration(
+                  labelText: ref.t('role'),
+                  isDense: true,
+                ),
+                items: [
+                  DropdownMenuItem(
+                      value: null, child: ManaText.raw(ref.t('all'))),
+                  for (final r in const ['Customer', 'Agent', 'Investor'])
+                    DropdownMenuItem(
+                        value: r,
+                        child: ManaText.raw(
+                            ref.t(switch (r) {
+                              'Customer' => 'customers',
+                              'Agent' => 'agents',
+                              _ => 'investors',
+                            }),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
+                ],
+                onChanged: (v) => setState(() {
+                  _roleFilter = v;
+                  _openVillage = null;
+                }),
               ),
             ),
             const SizedBox(width: ManaSpacing.sm),
@@ -1731,20 +1785,6 @@ class ManaRosterPerson {
 
   String get personId => any.personId;
   String get status => any.membershipStatus;
-
-  /// C, A, I -- never translated.
-  ///
-  /// A notation rather than words, the way an MLID is. The Owner asked for
-  /// these letters; an abbreviated Telugu noun is not a letter. An Owner gets
-  /// none, because the Owner row is not actionable and already reads as one.
-  String get roleLetters {
-    const order = ['Customer', 'Agent', 'Investor'];
-    final letters = [
-      for (final role in order)
-        if (memberships.any((m) => m.role == role)) role[0],
-    ];
-    return letters.join(' & ');
-  }
 
   bool get isOwner => memberships.any((m) => m.role == 'Owner');
 }
@@ -2055,12 +2095,18 @@ class _MemberRow extends ConsumerWidget {
                 const SizedBox(width: ManaSpacing.sm),
                 ManaTrailingStatus(label: person.status, status: _statusKind),
               ],
-              if (person.roleLetters.isNotEmpty) ...[
-                const SizedBox(width: ManaSpacing.sm),
-                ManaText.raw(person.roleLetters,
-                    style: ManaType.strong
-                        .copyWith(color: ManaColors.textSecondary)),
-              ],
+              // THE C / A / I LETTERS ARE GONE, one build after they were
+              // added. They were the Owner's own request and they read
+              // correctly on the handset -- and then the role moved into a
+              // filter above the list, which says the same thing in words and
+              // does something with it. A letter repeating what the dropdown
+              // already states is two answers to one question.
+              //
+              // ManaRosterPerson.roleLetters went with them. It had one
+              // reader and this was it; the filter reasons about
+              // MemberSummary.role directly. Keeping a getter nothing calls
+              // because it was written yesterday is how dead code gets a
+              // sentimental defence.
             ],
           ),
           // NO TRAILING WIDGET AT ALL. The three-dot button that lived here

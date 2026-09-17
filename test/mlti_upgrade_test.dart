@@ -65,8 +65,13 @@ void main() {
       expect(find.textContaining('live photo is required'), findsNothing);
     });
 
-    testWidgets('with a full Aadhaar it asks for the photo next',
-        (tester) async {
+    testWidgets('a full Aadhaar alone is enough to submit', (tester) async {
+      // REVERSED FROM THE FIRST VERSION OF THIS TEST, which asserted the form
+      // demanded a photo next. The Owner settled it the other way: "MLPI
+      // generates once Aadhar number (only) provided, along with that other
+      // profile or kyc update is user's choice." That also restores the rule
+      // the database always had -- app.mint_person_mlid asks for a gender
+      // digit and an Aadhaar and nothing else.
       await pumpManaScreen(
         tester,
         Builder(
@@ -83,9 +88,36 @@ void main() {
       await tester.enterText(find.byType(TextField), '999988887777');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Make Permanent'));
+      await tester.pump();
+
+      // It got past validation. No "required" message of any kind is shown --
+      // the call itself fails in a test with no Supabase behind it, which is
+      // not what this asserts.
+      expect(find.textContaining('is required'), findsNothing);
+      expect(find.textContaining('12 digits'), findsNothing);
+    });
+
+    testWidgets('the two optional fields say they are optional',
+        (tester) async {
+      // A field with no marker reads as required on a form where another field
+      // is. Saying "Optional" is what makes skipping them a choice rather than
+      // a guess.
+      await pumpManaScreen(
+        tester,
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => MltiUpgradeSheet.open(context,
+                person: _person(), businessId: 'b1'),
+            child: const Text('open'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('live photo is required'), findsOneWidget);
+      expect(find.text('Optional'), findsNWidgets(2));
+      // And the Aadhaar keeps its required marker, since it genuinely is.
+      expect(find.textContaining('Aadhaar Number *'), findsOneWidget);
     });
 
     testWidgets('the sheet names the person and their temporary ID',

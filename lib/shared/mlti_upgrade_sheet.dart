@@ -87,19 +87,18 @@ class _MltiUpgradeSheetState extends ConsumerState<MltiUpgradeSheet> {
   }
 
   Future<void> _submit() async {
-    // Checked here AND in the RPC. This one exists to say which field is
-    // missing before a round trip; the server's exists because a client check
-    // is not a rule.
+    // THE AADHAAR IS THE ONLY REQUIREMENT, and this is the second version of
+    // this method. The first demanded a photograph and a date of birth too,
+    // which was a stricter standard than the app applies to the 34 people who
+    // already hold a permanent ID -- 30 of them have no date of birth and 28
+    // no photograph. The Owner settled it: "MLPI generates once Aadhar number
+    // (only) provided, along with that other profile or kyc update is user's
+    // choice."
+    //
+    // Checked here AND in the RPC. This one says which field is missing before
+    // a round trip; the server's exists because a client check is not a rule.
     if (_digits.length != 12) {
       setState(() => _error = ref.t('aadhaar_12_digits'));
-      return;
-    }
-    if (_photo == null) {
-      setState(() => _error = ref.t('photo_required_for_permanent'));
-      return;
-    }
-    if (_dob == null) {
-      setState(() => _error = ref.t('dob_required_for_permanent'));
       return;
     }
 
@@ -108,16 +107,20 @@ class _MltiUpgradeSheetState extends ConsumerState<MltiUpgradeSheet> {
       _error = null;
     });
     try {
-      // The photo goes up first and the RPC is told its PATH, not the bytes.
-      // If the conversion then fails, an orphaned object is the cost -- which
-      // is the right way round: the alternative is converting the identity and
-      // then losing the photograph that was taken to justify it.
-      final path = await LivePhotoUpload.upload(
-        bytes: _photo!,
-        businessId: widget.businessId,
-        pathSegment: 'persons/${widget.person.personId}',
-        preset: ManaPhotoPreset.profile,
-      );
+      // Only when one was taken. The photo goes up before the RPC and the RPC
+      // is told its PATH, not the bytes: if the conversion then fails, an
+      // orphaned object is the cost, which is the right way round -- the
+      // alternative is converting the identity and then losing a photograph
+      // that had to be taken in person.
+      String? path;
+      if (_photo != null) {
+        path = await LivePhotoUpload.upload(
+          bytes: _photo!,
+          businessId: widget.businessId,
+          pathSegment: 'persons/${widget.person.personId}',
+          preset: ManaPhotoPreset.profile,
+        );
+      }
       final mlid = await ref.read(mltiUpgradeApiServiceProvider).convert(
             personId: widget.person.personId,
             businessId: widget.businessId,
@@ -200,10 +203,10 @@ class _MltiUpgradeSheetState extends ConsumerState<MltiUpgradeSheet> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.cake_outlined),
-                title: ManaText.raw('${ref.t('date_of_birth')} *'),
-                subtitle: _dob == null
-                    ? null
-                    : ManaText.raw(_dobFmt.format(_dob!), style: ManaType.note),
+                title: ManaText.raw(ref.t('date_of_birth')),
+                subtitle: ManaText.raw(
+                    _dob == null ? ref.t('optional') : _dobFmt.format(_dob!),
+                    style: ManaType.note),
                 trailing: _dob == null
                     ? const Icon(Icons.chevron_right)
                     : Icon(Icons.check_circle, color: ManaColors.statusGood),
@@ -213,11 +216,11 @@ class _MltiUpgradeSheetState extends ConsumerState<MltiUpgradeSheet> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.camera_alt_outlined),
                 title: ManaText.raw(_photo == null
-                    ? '${ref.t('take_live_photo')} *'
+                    ? ref.t('take_live_photo')
                     : ref.t('photo_captured')),
-                subtitle: _photo == null
-                    ? null
-                    : ManaText.raw(ref.t('retake'), style: ManaType.note),
+                subtitle: ManaText.raw(
+                    _photo == null ? ref.t('optional') : ref.t('retake'),
+                    style: ManaType.note),
                 trailing: _photo == null
                     ? const Icon(Icons.chevron_right)
                     : Icon(Icons.check_circle, color: ManaColors.statusGood),

@@ -869,6 +869,7 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'id_now_permanent': {'English': '{name} now has a permanent ID: {mlid}', 'Telugu': '{name}కు ఇప్పుడు శాశ్వత ID ఉంది: {mlid}'},
   'photo_required_for_permanent': {'English': 'A live photo is required.', 'Telugu': 'లైవ్ ఫోటో అవసరం.'},
   'dob_required_for_permanent': {'English': 'A date of birth is required.', 'Telugu': 'పుట్టిన తేదీ అవసరం.'},
+  'optional': {'English': 'Optional', 'Telugu': 'ఐచ్ఛికం'},
   'temporary_ids_pending': {'English': '{n} still have a temporary ID', 'Telugu': '{n} మందికి ఇంకా తాత్కాలిక ID ఉంది'},
   // The Line Pending List (design document 2.6.1.1), added 2026-09-17.
   // Vendored like everything else here because translated width is data: the

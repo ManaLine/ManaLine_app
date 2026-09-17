@@ -216,6 +216,22 @@ void main() {
       overrides: [recordBookProvider.overrideWith(_SeededRecordBookNotifier.new)],
     );
     expect(find.textContaining('07 Aug 2026'), findsWidgets);
+
+    // SCROLLED TO, since 2026-09-17. A day is drawn as the two-column account
+    // sheet now -- credits, debits, both totals and the carried closing --
+    // which is taller than the thirteen figures in a wrap that it replaced.
+    // Two days no longer fit one screen at 1.0x, and that is the format the
+    // Owner asked for rather than a regression.
+    //
+    // The assertion is unchanged in what it proves: the SECOND row renders.
+    // No `.first` on the target: it is evaluated eagerly and throws "Bad
+    // state: No element" on a finder that has not been scrolled into
+    // existence yet, which is the whole reason this call is here.
+    await tester.scrollUntilVisible(
+      find.textContaining('06 Aug 2026'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.textContaining('06 Aug 2026'), findsWidgets);
   });
 }

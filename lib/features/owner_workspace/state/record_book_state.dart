@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'account_sheet_rows.dart' show ManaDayLoanIncome;
+
 /// OW-009 Daily Record Book — real Supabase wiring over Module 8 §8.2
 /// (day_ledger). `day_ledger` is system-derived and never directly written
 /// by any client call except `remarks` (BR-097, and confirmed here: that
@@ -20,8 +22,8 @@ class RecordBookApiService {
     String? status,
   }) async {
     var q = _db.from('day_ledger').select().eq('business_id', businessId);
-    if (dateFrom != null) q = q.gte('business_date', _isoDate(dateFrom));
-    if (dateTo != null) q = q.lte('business_date', _isoDate(dateTo));
+    if (dateFrom != null) q = q.gte('business_date', manaIsoDate(dateFrom));
+    if (dateTo != null) q = q.lte('business_date', manaIsoDate(dateTo));
     if (status != null) q = q.eq('status', status);
     // PERF: the ledger rows and the penalty totals are independent, so both
     // go out together instead of one waiting on the other.
@@ -34,6 +36,40 @@ class RecordBookApiService {
     return rows.map((r) => _rowFromMap(r as Map<String, dynamic>, penalties)).toList();
   }
 
+  /// What each day's loans were made of, keyed by ISO business date.
+  ///
+  /// SEPARATE FROM THE LEDGER ROW, deliberately. day_ledger holds the NET
+  /// cash a day's loans cost (total_loan_distribution, the sum of
+  /// amount_given); this is the decomposition of that same figure into face,
+  /// interest and fee. Folding it into DayLedgerRow would put interest beside
+  /// the cash columns, which is the shape that invites somebody to add it to
+  /// one -- the double count CLAUDE.md keeps a test against.
+  ///
+  /// Days with no loans are simply absent, and read as zero.
+  Future<Map<String, ManaDayLoanIncome>> fetchLoanIncome({
+    required String businessId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final rows = await _db.schema('app').rpc('day_loan_income', params: {
+      'p_business_id': businessId,
+      // A null range would be a NULL comparison in BETWEEN, which matches
+      // nothing. The defaults cover any book this app will hold.
+      'p_from': manaIsoDate(from ?? DateTime(2000)),
+      'p_to': manaIsoDate(to ?? DateTime(2099)),
+    });
+    final out = <String, ManaDayLoanIncome>{};
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      out[r['business_date'] as String] = ManaDayLoanIncome(
+        face: (r['face'] as num?)?.round() ?? 0,
+        interest: (r['interest'] as num?)?.round() ?? 0,
+        fee: (r['fee'] as num?)?.round() ?? 0,
+        net: (r['net'] as num?)?.round() ?? 0,
+      );
+    }
+    return out;
+  }
+
   /// Recognised penalty totals keyed by ISO business date. One call for the
   /// whole range rather than per row — the RPC returns only days that
   /// actually have penalties, so absent days read as zero.
@@ -44,8 +80,8 @@ class RecordBookApiService {
   }) async {
     final rows = await _db.schema('app').rpc('penalty_collected_by_day', params: {
       'p_business_id': businessId,
-      'p_from': from == null ? null : _isoDate(from),
-      'p_to': to == null ? null : _isoDate(to),
+      'p_from': from == null ? null : manaIsoDate(from),
+      'p_to': to == null ? null : manaIsoDate(to),
     });
     return {
       for (final r in (rows as List).cast<Map<String, dynamic>>())
@@ -77,7 +113,7 @@ class RecordBookApiService {
     required String businessId,
     required DateTime businessDate,
   }) async {
-    final date = _isoDate(businessDate);
+    final date = manaIsoDate(businessDate);
 
     // PERF: all six reads are scoped to the same business and date and none
     // depends on another, so they go out as one batch instead of six
@@ -166,11 +202,16 @@ class RecordBookApiService {
         .from('day_ledger')
         .update({'remarks': remarks})
         .eq('business_id', businessId)
-        .eq('business_date', _isoDate(businessDate));
+        .eq('business_date', manaIsoDate(businessDate));
   }
 }
 
-String _isoDate(DateTime d) =>
+/// The key day_ledger and app.day_loan_income are both keyed by.
+///
+/// Public because the screen matches a ledger row to its loan decomposition
+/// with it, and two copies of a date format is how two maps come to disagree
+/// about which day it is.
+String manaIsoDate(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 /// One row per Business Date, per BR-094 (`day_ledger` UNIQUE(business_id,
@@ -320,6 +361,15 @@ final recordBookApiServiceProvider = Provider<RecordBookApiService>((ref) {
 
 class RecordBookState {
   final List<DayLedgerRow> rows;
+
+  /// Each day's loans broken into face, interest and fee, keyed by ISO date.
+  ///
+  /// EMPTY IS NOT ZERO. An empty map means the decomposition was not
+  /// fetched -- or could not be -- and the sheet then draws Karchu as the
+  /// ledger's net figure and offers neither Vaddi nor the fee, because it
+  /// does not know them. A day that genuinely had no loans is absent from a
+  /// map that HAS been fetched, which reads as zero and is correct.
+  final Map<String, ManaDayLoanIncome> loanIncome;
   final bool loading;
   final String? error;
   final String? statusFilter;
@@ -331,6 +381,7 @@ class RecordBookState {
 
   const RecordBookState({
     this.rows = const [],
+    this.loanIncome = const {},
     this.loading = false,
     this.error,
     this.statusFilter,
@@ -342,6 +393,7 @@ class RecordBookState {
 
   RecordBookState copyWith({
     List<DayLedgerRow>? rows,
+    Map<String, ManaDayLoanIncome>? loanIncome,
     bool? loading,
     String? error,
     bool clearError = false,
@@ -357,6 +409,7 @@ class RecordBookState {
   }) {
     return RecordBookState(
       rows: rows ?? this.rows,
+      loanIncome: loanIncome ?? this.loanIncome,
       loading: loading ?? this.loading,
       error: clearError ? null : (error ?? this.error),
       statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
@@ -381,13 +434,24 @@ class RecordBookNotifier extends Notifier<RecordBookState> {
     state = state.copyWith(loading: true, clearError: true, statusFilter: status);
     try {
       final api = ref.read(recordBookApiServiceProvider);
-      final rows = await api.fetchLedgerRows(
-        businessId: businessId,
-        dateFrom: dateFrom,
-        dateTo: dateTo,
-        status: status,
+      // Both together. The decomposition is independent of the ledger rows,
+      // so making one wait on the other would double the time an Owner
+      // spends looking at a skeleton on a village connection.
+      final results = await Future.wait<dynamic>([
+        api.fetchLedgerRows(
+          businessId: businessId,
+          dateFrom: dateFrom,
+          dateTo: dateTo,
+          status: status,
+        ),
+        api.fetchLoanIncome(
+            businessId: businessId, from: dateFrom, to: dateTo),
+      ]);
+      state = state.copyWith(
+        rows: results[0] as List<DayLedgerRow>,
+        loanIncome: results[1] as Map<String, ManaDayLoanIncome>,
+        loading: false,
       );
-      state = state.copyWith(rows: rows, loading: false);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
     }

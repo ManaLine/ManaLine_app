@@ -1,3 +1,6 @@
+import '../state/account_sheet_rows.dart';
+import '../../../design/components/mana_account_sheet.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,6 +42,7 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(recordBookProvider.notifier).load(widget.businessId);
+      _restoreShown();
     });
   }
 
@@ -91,18 +95,146 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
                         ),
                       ],
                     )
-                  : ListView.separated(
+                  : Column(children: [
+                      // ADD ROW LIVES IN THE BODY, not the header.
+                      //
+                      // It went in the app bar first and pushed it 34 pixels
+                      // over at 2.0x in Telugu -- the bar already carries a
+                      // back button, a title, a filter, restore, the bell, the
+                      // + and search, and a sixth action is one too many at
+                      // any large text size. The layout tests caught it; the
+                      // handset would have.
+                      //
+                      // Here it also sits where it is understood: directly
+                      // above the sheets it changes, and it is the only thing
+                      // on screen saying the optional rows exist.
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(ManaSpacing.lg,
+                              ManaSpacing.sm, ManaSpacing.lg, 0),
+                          child: TextButton.icon(
+                            onPressed: () => _chooseRows(context),
+                            icon: const Icon(Icons.playlist_add, size: 18),
+                            label: ManaText.raw(ref.t('add_row')),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.separated(
                       padding: const EdgeInsets.all(ManaSpacing.lg),
                       itemCount: state.rows.length,
                       separatorBuilder: (_, __) => const SizedBox(height: ManaSpacing.sm),
                       itemBuilder: (context, i) => _LedgerRowCard(
                         row: state.rows[i],
+                        income: state.loanIncome[
+                            manaIsoDate(state.rows[i].businessDate)],
+                        shown: _shown,
                         onTap: () => _openDayDetails(context, state.rows[i]),
                       ),
-                    ),
+                        ),
+                      ),
+                    ]),
         ),
       ),
     );
+  }
+
+  /// The optional lines the Owner has added, remembered between visits.
+  ///
+  /// PER BUSINESS. Two books are run differently -- one takes chetis, one
+  /// does not -- and carrying one book's sheet into the other would be the
+  /// app telling somebody what their business does.
+  ///
+  /// flutter_secure_storage rather than a new preferences dependency: the
+  /// same call appearance_state.dart makes and already justifies, and the
+  /// same one the camera lens uses. Heavier than this needs, already present,
+  /// and not worth another build-compatibility risk on AGP 9 for one set of
+  /// enum names.
+  Set<ManaSheetLine> _shown = {};
+  static const _shownKey = 'mana_sheet_rows_';
+  static const _shownStore = FlutterSecureStorage();
+
+  Future<void> _restoreShown() async {
+    try {
+      final saved =
+          await _shownStore.read(key: _shownKey + widget.businessId);
+      if (saved == null || !mounted) return;
+      final names = saved.split(',').where((e) => e.isNotEmpty).toSet();
+      setState(() {
+        _shown = ManaSheetLine.values
+            .where((l) => !l.isFixed && names.contains(l.name))
+            .toSet();
+      });
+    } catch (_) {
+      // A preference that could not be read is a sheet with fewer optional
+      // rows on it. It must never be a screen that does not load.
+    }
+  }
+
+  Future<void> _rememberShown() async {
+    try {
+      await _shownStore.write(
+        key: _shownKey + widget.businessId,
+        value: _shown.map((e) => e.name).join(','),
+      );
+    } catch (_) {
+      // Costs a re-add next time, never the sheet in front of them.
+    }
+  }
+
+  /// Choose which optional rows appear.
+  ///
+  /// THE THREE FIXED ONES ARE NOT IN THE LIST. They cannot be removed -- the
+  /// Owner's instruction -- so offering them with a tick that does nothing
+  /// would be a control that lies.
+  ///
+  /// A row that is carrying money is drawn whether or not it is ticked here;
+  /// see manaAccountSheetRows. What this chooses is what appears when the
+  /// figure is ZERO, plus the two lines that re-express Karchu.
+  Future<void> _chooseRows(BuildContext context) async {
+    final working = {..._shown};
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: ManaText.raw(ref.t('rows_to_show'),
+                    style: ManaType.sheetTitle),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final line in ManaSheetLine.values
+                        .where((l) => !l.isFixed))
+                      CheckboxListTile(
+                        value: working.contains(line),
+                        title: ManaText.raw(ref.t(_lineKey(line))),
+                        onChanged: (v) => setSheetState(() {
+                          if (v == true) {
+                            working.add(line);
+                          } else {
+                            working.remove(line);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _shown = working);
+    await _rememberShown();
   }
 
   Future<void> _openDayDetails(BuildContext context, DayLedgerRow row) async {
@@ -119,8 +251,26 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
 
 class _LedgerRowCard extends ConsumerWidget {
   final DayLedgerRow row;
+
+  /// What this day's loans were made of, or null when the decomposition was
+  /// not fetched.
+  ///
+  /// NULL IS NOT ZERO. Null means the sheet does not KNOW the split, so it
+  /// falls back to the ledger's own net figure for Karchu and offers neither
+  /// Vaddi nor the fee. Drawing them as zero would tell an Owner a day earned
+  /// no interest, which is a different statement from not having asked.
+  final ManaDayLoanIncome? income;
+
+  /// Which optional lines the Owner has asked to see.
+  final Set<ManaSheetLine> shown;
+
   final VoidCallback onTap;
-  const _LedgerRowCard({required this.row, required this.onTap});
+  const _LedgerRowCard({
+    required this.row,
+    required this.income,
+    required this.shown,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -157,34 +307,52 @@ class _LedgerRowCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: ManaSpacing.sm),
-              Wrap(
-                spacing: ManaSpacing.lg,
-                runSpacing: ManaSpacing.xs,
-                children: [
-                  _figure(ref, ref.t('opening_bf'), row.openingBalance),
-                  _figure(ref, ref.t('collections'), row.totalCollections),
-                  // Sits beside Collections, not inside it — these rupees
-                  // arrived as part of ordinary collections and are already
-                  // counted there and in Closing. This line classifies them
-                  // as penalty income; it is not a separate inflow.
-                  _figure(ref, ref.t('penalty_collected'), row.penaltyCollected),
-                  _figure(ref, ref.t('loan_dist'), row.totalLoanDistribution),
-                  _figure(ref, ref.t('investor_dep'), row.investorDeposits),
-                  _figure(ref, ref.t('investor_wd'), row.investorWithdrawals),
-                  _figure(ref, ref.t('expenses'), row.totalExpenses),
-                  // Cash moved into and out of chetis. Kept separate from
-                  // Expenses on purpose: a cheti instalment is recoverable
-                  // (it comes back as the availed lumpsum), so it is an asset
-                  // movement, not a cost. Folding it into Expenses would sink
-                  // line profit every period and then show one phantom gain.
-                  _figure(ref, ref.t('cheti_paid'), row.chetiPaid),
-                  _figure(ref, ref.t('cheti_received'), row.chetiReceived),
-                  _figure(ref, ref.t('short'), row.shortAmount, warn: row.shortAmount > 0),
-                  _figure(ref, ref.t('excess'), row.excessAmount, warn: row.excessAmount > 0),
-                  _figure(ref, ref.t('difference'), row.difference),
-                  _figure(ref, ref.t('closing'), row.closingBalance),
-                ],
+              // THE SHEET, not thirteen figures in a wrap.
+              //
+              // The wrap had no axis: Opening BF, Collections, Loan Dist. and
+              // Expenses sat side by side with nothing saying which of them
+              // was money IN. Reported from a handset as "it looks messey",
+              // and the Owner sent the sheet their business has used all
+              // along -- credits left, debits right, each side totalled, the
+              // difference carried into tomorrow.
+              ManaAccountSheet(
+                creditsLabel: ref.t('credits'),
+                debitsLabel: ref.t('debits'),
+                closing: row.closingBalance,
+                closingNote: ref.t('next_bf'),
+                rows: manaAccountSheetRows(
+                  ledger: row,
+                  // The fallback: face = the ledger's net, no interest, no
+                  // fee. manaAccountSheetRows then computes Karchu as
+                  // face - 0 - 0, which is the net -- exactly what the old
+                  // screen showed.
+                  income: income ??
+                      ManaDayLoanIncome(
+                        face: row.totalLoanDistribution,
+                        interest: 0,
+                        fee: 0,
+                        net: row.totalLoanDistribution,
+                      ),
+                  shown: income == null
+                      ? shown.difference(
+                          {ManaSheetLine.vaddi, ManaSheetLine.processingFee})
+                      : shown,
+                  label: (line) => ref.t(_lineKey(line)),
+                ),
               ),
+              // PENALTY AS A NOTE, NOT A ROW. It is already inside Vasool --
+              // it arrived as part of ordinary collections -- and this sheet
+              // adds its columns up, so a penalty line in Credits would
+              // overstate the day by exactly the penalties collected. The old
+              // wrap could keep that straight in a comment because nothing
+              // summed it.
+              if (row.penaltyCollected > 0) ...[
+                const SizedBox(height: ManaSpacing.xs),
+                ManaText.raw(
+                    ref.t('of_which_penalty').replaceAll(
+                        '{amount}', manaRupees(row.penaltyCollected)),
+                    style: ManaType.note),
+              ],
               if (row.remarks != null && row.remarks!.isNotEmpty) ...[
                 const SizedBox(height: ManaSpacing.xs),
                 ManaText.raw(row.remarks!,
@@ -197,20 +365,6 @@ class _LedgerRowCard extends ConsumerWidget {
     );
   }
 
-  Widget _figure(WidgetRef ref, String label, int amount, {bool warn = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ManaText.raw(label, style: ManaType.note),
-        ManaAmount(
-          amount,
-          size: ManaAmountSize.compact,
-          tone: warn ? ManaAmountTone.caution : ManaAmountTone.neutral,
-          semanticLabel: label,
-        ),
-      ],
-    );
-  }
 }
 
 /// VIEW DAY DETAILS — Collections/Loans/Expenses/Deposits/Withdrawals/
@@ -537,3 +691,23 @@ class _AuditList extends ConsumerWidget {
     );
   }
 }
+
+/// The translation key for each sheet line.
+///
+/// A top-level switch rather than a getter on the enum: ManaSheetLine lives in
+/// state/ and must not know about translation keys, which are a UI concern --
+/// and both the card that draws the sheet and the chooser that edits it need
+/// the same answer, so it cannot sit on either.
+String _lineKey(ManaSheetLine line) => switch (line) {
+      ManaSheetLine.broughtForward => 'brought_forward',
+      ManaSheetLine.vasool => 'vasool',
+      ManaSheetLine.karchu => 'karchu',
+      ManaSheetLine.vaddi => 'vaddi',
+      ManaSheetLine.processingFee => 'processing_fee',
+      ManaSheetLine.investorDeposit => 'investor_dep',
+      ManaSheetLine.investorWithdrawal => 'investor_wd',
+      ManaSheetLine.chetiReceived => 'cheti_received',
+      ManaSheetLine.chetiPaid => 'cheti_paid',
+      ManaSheetLine.expenses => 'expenses',
+      ManaSheetLine.shortExcess => 'short_excess',
+    };

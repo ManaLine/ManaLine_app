@@ -839,6 +839,32 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   // The three providers, added 2026-09-17 with payment_mode_enum. Vendored
   // here for the same reason as everything else in this file: translated
   // width is data, and a chip row that fits in English may not in Telugu.
+  // The Line Pending List (design document 2.6.1.1), added 2026-09-17.
+  // Vendored like everything else here because translated width is data: the
+  // filter rail is four chips across 360dp and Telugu is the language that
+  // overflows it.
+  'line_pending_list': {'English': 'Line Pending List', 'Telugu': 'లైన్ పెండింగ్ జాబితా'},
+  'min_balance': {'English': 'Min. Balance', 'Telugu': 'కనీస నిల్వ'},
+  'pending_periods': {'English': 'Pending', 'Telugu': 'పెండింగ్'},
+  'any_amount': {'English': 'Any Amount', 'Telugu': 'ఏ మొత్తమైనా'},
+  'any_age': {'English': 'Any', 'Telugu': 'ఏదైనా'},
+  // 'all_dates' and 'total_outstanding' already existed here and in the
+  // database; my migration's copies were no-ops under ON CONFLICT DO NOTHING.
+  // The older wording wins, which is right -- one word per concept.
+  'sort_newest': {'English': 'Newest First', 'Telugu': 'కొత్తవి ముందు'},
+  'sort_oldest': {'English': 'Oldest First', 'Telugu': 'పాతవి ముందు'},
+  'sort_last_paid': {'English': 'Longest Unpaid', 'Telugu': 'ఎక్కువ కాలం చెల్లించనివి'},
+  'sort_amount': {'English': 'Highest Balance', 'Telugu': 'అత్యధిక నిల్వ'},
+  'sort_village_pin': {'English': 'Village & PIN', 'Telugu': 'గ్రామం & పిన్'},
+  'last_paid': {'English': 'Last Paid', 'Telugu': 'చివరిగా చెల్లించినది'},
+  'never_paid': {'English': 'Never Paid', 'Telugu': 'ఎప్పుడూ చెల్లించలేదు'},
+  'periods_overdue': {'English': '{n} {unit} pending', 'Telugu': '{n} {unit} పెండింగ్'},
+  'unit_days': {'English': 'days', 'Telugu': 'రోజులు'},
+  'unit_weeks': {'English': 'weeks', 'Telugu': 'వారాలు'},
+  'unit_months': {'English': 'months', 'Telugu': 'నెలలు'},
+  'nothing_pending': {'English': 'Nothing pending. Every loan on this book is settled.', 'Telugu': 'పెండింగ్ ఏమీ లేదు. ఈ పుస్తకంలోని ప్రతి అప్పు తీరిపోయింది.'},
+  'no_rows_for_filters': {'English': 'No loans match these filters.', 'Telugu': 'ఈ వడపోతలకు సరిపోయే అప్పులు లేవు.'},
+  'could_not_load_pull_to_retry': {'English': 'Could not load this list. Pull down to try again.', 'Telugu': 'ఈ జాబితాను లోడ్ చేయలేకపోయాం. మళ్లీ ప్రయత్నించడానికి కిందికి లాగండి.'},
   'gpay': {'English': 'GPay', 'Telugu': 'జీపే'},
   'phonepe': {'English': 'PhonePe', 'Telugu': 'ఫోన్‌పే'},
   'paytm': {'English': 'Paytm', 'Telugu': 'పేటీఎం'},

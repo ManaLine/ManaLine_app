@@ -19,6 +19,7 @@ import '../../../shared/payment_modes.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../state/record_book_state.dart';
+import 'ow_line_pending_list.dart';
 
 final _dateFmt = DateFormat('dd MMM yyyy');
 
@@ -109,6 +110,21 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
             ],
             icon: const Icon(Icons.filter_list),
           ),
+          // THE PENDING LIST HANGS OFF THE ACCOUNT SHEET, because the design
+          // document puts it there -- 2.6.1.1, beneath 2.6 Account Sheet. An
+          // Owner reading today's closing is exactly who wants to know who
+          // has not paid, and it saves inventing a screen ID for a view the
+          // spec numbered as a child.
+          IconButton(
+            tooltip: ref.t('line_pending_list'),
+            icon: const Icon(Icons.pending_actions_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    LinePendingListScreen(businessId: widget.businessId),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: ref.t('recent_deletes'),
             icon: const Icon(Icons.restore_from_trash),
@@ -141,11 +157,15 @@ class _DailyRecordBookScreenState extends ConsumerState<DailyRecordBookScreen> {
                       // ADD ROW LIVES IN THE BODY, not the header.
                       //
                       // It went in the app bar first and pushed it 34 pixels
-                      // over at 2.0x in Telugu -- the bar already carries a
-                      // back button, a title, a filter, restore, the bell, the
-                      // + and search, and a sixth action is one too many at
-                      // any large text size. The layout tests caught it; the
-                      // handset would have.
+                      // over at 2.0x in Telugu. The cause was its LABEL, not
+                      // the number of actions: a TextButton.icon grows with
+                      // text scale and an IconButton does not. The pending-list
+                      // action added later is a sixth icon in that bar and the
+                      // same tests pass at 2.0x in Telugu -- so the rule is
+                      // "no labelled controls in this bar", not "no more than
+                      // five". The first version of this comment said the
+                      // latter, which would have argued against a change that
+                      // turned out to be fine.
                       //
                       // Here it also sits where it is understood: directly
                       // above the sheets it changes, and it is the only thing

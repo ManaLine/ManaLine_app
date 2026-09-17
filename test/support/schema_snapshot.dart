@@ -208,6 +208,7 @@ const manaAppFunctions = <String>{
   'active_account_dates',
   'day_payment_modes',
   'online_payment_modes',
+  'line_pending_list',
   'loan_float_position',
   'refresh_business_figures',
   'transferable_agents',

@@ -109,6 +109,27 @@ class MltiUpgradeApiService {
     );
   }
 
+  /// How complete each customer's profile is, keyed by customer_id.
+  ///
+  /// Five things make a complete record: a permanent ID, a mobile number, a
+  /// date of birth, a live photo and a current village. The ring around a
+  /// customer's photo closes as they are filled in -- the Owner's request,
+  /// and the reason this is a fraction rather than a flag.
+  ///
+  /// One call for the whole round rather than one per row. On the live book
+  /// that is 58 customers in a single query instead of 58.
+  Future<Map<String, double>> fetchCompleteness(String businessId) async {
+    final rows = await _db
+        .schema('app')
+        .rpc('profile_completeness', params: {'p_business_id': businessId});
+    return {
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        r['customer_id'] as String:
+            ((r['filled'] as num).toDouble() / (r['total'] as num).toDouble())
+                .clamp(0.0, 1.0),
+    };
+  }
+
   /// Returns the new MLID.
   ///
   /// Every failure here is a sentence written for a person — a duplicate

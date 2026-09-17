@@ -95,12 +95,35 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
   /// screen on top of whatever the user has since navigated to.
   bool _focusHandled = false;
 
+  /// customer_id -> how complete their record is, 0.0 to 1.0.
+  ///
+  /// Empty until it arrives, and a missing entry draws the ordinary ring
+  /// rather than an empty one -- see ManaDueRow.completeness.
+  Map<String, double> _completeness = const {};
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(collectionModeProvider.notifier).load(widget.businessId);
+      _loadCompleteness();
     });
+  }
+
+  /// SEPARATE FROM THE ROUND, and deliberately not awaited with it. The round
+  /// is what an agent came for; a ring that has not arrived yet costs them
+  /// nothing, and making them wait on a second query before seeing who to
+  /// visit would cost them a doorstep.
+  Future<void> _loadCompleteness() async {
+    try {
+      final map = await ref
+          .read(mltiUpgradeApiServiceProvider)
+          .fetchCompleteness(widget.businessId);
+      if (mounted) setState(() => _completeness = map);
+    } catch (_) {
+      // A ring nobody can draw is a ring that stays whole. This must never
+      // take the round down with it.
+    }
   }
 
   /// Villages as a dropdown rather than a row of chips.
@@ -437,6 +460,7 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                             key: ValueKey(row.loanId),
                             row: row,
                             businessId: widget.businessId,
+                            completeness: _completeness[row.customerId],
                             onDone: () => ref
                                 .read(collectionModeProvider.notifier)
                                 .load(widget.businessId),
@@ -475,6 +499,14 @@ class ManaDueRow extends ConsumerStatefulWidget {
   final CollectionDueRow row;
   final String businessId;
 
+  /// How complete this customer's record is, 0.0 to 1.0, or null when it has
+  /// not been loaded. The ring around their photo closes as it fills.
+  ///
+  /// NULL IS NOT ZERO. Null draws the ordinary whole ring, because "we have
+  /// not asked" and "we know nothing about this person" are different
+  /// statements and only one of them is about the customer.
+  final double? completeness;
+
   /// Something was recorded against this loan -- a payment, a visit without
   /// one, an extension, or a penalty. The round reloads: the balance, what is
   /// due and today's outcome have all moved.
@@ -485,6 +517,7 @@ class ManaDueRow extends ConsumerStatefulWidget {
     required this.row,
     required this.businessId,
     required this.onDone,
+    this.completeness,
   });
 
   @override
@@ -616,6 +649,15 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
               children: [
                 Row(
                   children: [
+                    // THE RING, and how far round it goes is how complete this
+                    // customer's record is. Colour still means what it has
+                    // always meant; the sweep is a separate channel.
+                    ManaVerificationRing(
+                      isVerified: true,
+                      size: 32,
+                      completeness: widget.completeness,
+                    ),
+                    const SizedBox(width: ManaSpacing.sm),
                     // Expanded and two lines, so the whole name shows.
                     //
                     // It shared one line with a Penalty tag and a Collect

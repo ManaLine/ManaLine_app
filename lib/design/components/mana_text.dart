@@ -157,23 +157,50 @@ class ManaVerificationRing extends StatelessWidget {
   /// which of the two they are looking at.
   final Color? ringColor;
 
+  /// How much of the ring is drawn, 0.0 to 1.0. Null draws the whole circle.
+  ///
+  /// A THIRD CHANNEL, NOT A THIRD COLOUR. The Owner asked for the ring to show
+  /// how complete a customer's profile is -- "circle completely closes when
+  /// profile is 100 % complete" -- and the note above records why that could
+  /// not be another colour: this circle already means verification on
+  /// twenty-two screens and membership status on the roster. Sweep is
+  /// independent of both. A half-drawn green ring still says verified; it just
+  /// also says half-known.
+  ///
+  /// Starts at the top and travels clockwise, because that is how a person
+  /// reads a gauge.
+  final double? completeness;
+
   const ManaVerificationRing({
     super.key,
     required this.isVerified,
     this.photo,
     this.size = 44,
     this.ringColor,
+    this.completeness,
   });
 
   @override
   Widget build(BuildContext context) {
     final ringColor = this.ringColor ??
         (isVerified ? ManaColors.ringVerified : ManaColors.ringUnverified);
+
+    // A partial ring is PAINTED; a whole one keeps the border it always had.
+    // Two reasons not to paint both: the full circle is twenty-two screens'
+    // worth of established pixels and does not need re-deriving, and a
+    // CustomPaint on every avatar in a list costs more than a BoxDecoration
+    // for a shape that never changes.
+    final sweep = completeness;
     return Container(
       width: size,
       height: size,
       padding: const EdgeInsets.all(2.5),
-      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: ringColor, width: 2.5)),
+      foregroundDecoration: sweep == null
+          ? null
+          : _RingSweep(colour: ringColor, fraction: sweep.clamp(0.0, 1.0)),
+      decoration: sweep != null
+          ? const BoxDecoration(shape: BoxShape.circle)
+          : BoxDecoration(shape: BoxShape.circle, border: Border.all(color: ringColor, width: 2.5)),
       child: CircleAvatar(
         backgroundColor: ManaColors.inkFaint,
         backgroundImage: photo,
@@ -182,5 +209,59 @@ class ManaVerificationRing extends StatelessWidget {
             : null,
       ),
     );
+  }
+}
+
+/// The ring, drawn only as far round as a profile is filled in.
+///
+/// A Decoration rather than a CustomPainter widget so it can sit in the same
+/// Container the whole-circle version uses, as `foregroundDecoration` — over
+/// the avatar, not behind it. A painter widget would have meant a Stack and a
+/// second layout pass for every row of a collection round.
+///
+/// The UNFILLED part is drawn too, faintly. A ring that simply stopped would
+/// read as a rendering fault at four fifths; a faint remainder reads as
+/// something with more to go, which is what it is.
+class _RingSweep extends Decoration {
+  final Color colour;
+  final double fraction;
+
+  const _RingSweep({required this.colour, required this.fraction});
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) =>
+      _RingSweepPainter(colour, fraction);
+}
+
+class _RingSweepPainter extends BoxPainter {
+  final Color colour;
+  final double fraction;
+
+  _RingSweepPainter(this.colour, this.fraction);
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final size = configuration.size!;
+    // Inset by half the stroke so the ring sits inside its box exactly where
+    // Border.all would have put it, and the two versions line up if a screen
+    // ever shows both.
+    final rect = (offset & size).deflate(1.25);
+
+    final track = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..color = colour.withValues(alpha: 0.18);
+    canvas.drawArc(rect, 0, 6.283185307179586, false, track);
+
+    if (fraction <= 0) return;
+
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round
+      ..color = colour;
+    // -pi/2 starts at twelve o'clock; a positive sweep runs clockwise.
+    canvas.drawArc(rect, -1.5707963267948966,
+        6.283185307179586 * fraction, false, arc);
   }
 }

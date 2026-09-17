@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design/components/mana_amount.dart';
 import '../design/components/mana_text.dart';
+import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/tokens/typography.dart';
 import '../features/owner_workspace/state/customer_state.dart';
@@ -72,7 +73,25 @@ class ManaCustomerRow extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ManaVerificationRing(isVerified: true, size: 40),
+              // THE RING TELLS THE TRUTH NOW. It was `isVerified: true`,
+              // hardcoded, so every customer on this list wore a verified
+              // ring -- while on the live books 8 people are GREEN and 91 are
+              // RED. The app's signature motif was saying the opposite of the
+              // truth about 91 of 99 people.
+              //
+              // A NULL IS NOT A RED. Four paths build a CustomerSummary
+              // without asking for verification_ring -- search results,
+              // pre-membership hits, the dashboard -- and defaulting those to
+              // unverified would swap one confident lie for its opposite. A
+              // neutral ring claims nothing, which is the honest answer when
+              // the column was never fetched.
+              ManaVerificationRing(
+                isVerified: customer.isVerified ?? false,
+                ringColor: customer.isVerified == null
+                    ? ManaColors.textSecondary
+                    : null,
+                size: 40,
+              ),
               const SizedBox(width: ManaSpacing.md),
               Expanded(
                 child: Column(

@@ -56,6 +56,7 @@ class AgentCustomerApiService {
           customer_id, customer_status, membership_id,
           business_members!customers_membership_id_fkey!inner(business_id, membership_status),
           persons!inner(full_name, father_husband_name, mobile_number, mlid,
+            verification_ring,
             person_addresses(village_id, is_current, locations(village_town_name))),
           loans(loan_id, loan_status, installment_amount, remaining_balance)
         ''')
@@ -88,6 +89,7 @@ class AgentCustomerApiService {
         lineRepaymentIndex: 0, // see customer_state.dart's identical KNOWN SIMPLIFICATION note
         customerStatus: m['customer_status'] as String,
         membershipStatus: (m['business_members'] as Map<String, dynamic>)['membership_status'] as String,
+        isVerified: person['verification_ring'] == 'GREEN',
       );
     }).toList();
   }
@@ -99,6 +101,7 @@ class AgentCustomerApiService {
           customer_id, customer_status, occupation, customer_since, membership_id,
           business_members!customers_membership_id_fkey!inner(membership_status),
           persons!inner(full_name, father_husband_name, mobile_number, mlid,
+            verification_ring,
             person_addresses(village_id, is_current, locations(village_town_name))),
           loans(loan_id, loan_number, effective_date, repayment_amount, remaining_balance,
             installment_amount, loan_status),
@@ -139,6 +142,7 @@ class AgentCustomerApiService {
         lineRepaymentIndex: 0,
         customerStatus: row['customer_status'] as String,
         membershipStatus: (row['business_members'] as Map<String, dynamic>)['membership_status'] as String,
+        isVerified: person['verification_ring'] == 'GREEN',
       ),
       occupation: row['occupation'] as String?,
       address: village,

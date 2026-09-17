@@ -55,6 +55,7 @@ class CustomerApiService {
           customer_id, customer_status, membership_id, person_id,
           business_members!customers_membership_id_fkey!inner(business_id, membership_status),
           persons!inner(full_name, father_husband_name, mobile_number, mlid,
+            verification_ring,
             person_addresses(village_id, is_current, locations(village_town_name))),
           loans(loan_id, loan_status, installment_amount, remaining_balance, repayment_amount)
         ''')
@@ -95,6 +96,7 @@ class CustomerApiService {
         lineRepaymentIndex: 0, // requires loan_schedule join — see method doc above
         customerStatus: m['customer_status'] as String,
         membershipStatus: (m['business_members'] as Map<String, dynamic>)['membership_status'] as String,
+        isVerified: person['verification_ring'] == 'GREEN',
       );
     }).where((c) {
       if (search == null || search.trim().isEmpty) return true;
@@ -349,6 +351,7 @@ class CustomerApiService {
           customer_id, customer_status, occupation, customer_since, membership_id,
           business_members!customers_membership_id_fkey!inner(membership_status),
           persons!inner(full_name, father_husband_name, mobile_number, mlid,
+            verification_ring,
             person_addresses(village_id, is_current, locations(village_town_name))),
           loans(loan_id, loan_number, effective_date, repayment_amount, remaining_balance,
             installment_amount, loan_status),
@@ -402,6 +405,7 @@ class CustomerApiService {
       lineRepaymentIndex: 0,
       customerStatus: row['customer_status'] as String,
       membershipStatus: (row['business_members'] as Map<String, dynamic>)['membership_status'] as String,
+      isVerified: person['verification_ring'] == 'GREEN',
     );
 
     return CustomerProfile(
@@ -534,6 +538,21 @@ class CustomerSummary {
   final String customerStatus; // Active | Inactive | Deceased (global)
   final String membershipStatus; // Active | Suspended | Removed (per-business)
 
+  /// persons.verification_ring, as a boolean. NULL means NOT LOADED.
+  ///
+  /// The row drew its ring with isVerified hardcoded to `true` until
+  /// 2026-09-18 -- every customer on the list wore a verified ring. On the
+  /// live books 8 people are GREEN and 91 are RED, so the list was telling an
+  /// Owner the opposite of the truth about 91 of 99 people, in the app's own
+  /// signature motif.
+  ///
+  /// Nullable rather than defaulting to false, because four other paths build
+  /// a CustomerSummary without asking for this column -- search results,
+  /// pre-membership hits, the dashboard. Defaulting to false would swap one
+  /// confident lie for the opposite confident lie. Null draws a neutral ring
+  /// that claims nothing.
+  final bool? isVerified;
+
   CustomerSummary({
     required this.customerId,
     this.membershipId,
@@ -550,6 +569,7 @@ class CustomerSummary {
     required this.lineRepaymentIndex,
     required this.customerStatus,
     required this.membershipStatus,
+    this.isVerified,
   });
 }
 

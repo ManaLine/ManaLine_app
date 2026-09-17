@@ -652,8 +652,16 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
                     // THE RING, and how far round it goes is how complete this
                     // customer's record is. Colour still means what it has
                     // always meant; the sweep is a separate channel.
+                    // NEUTRAL, NOT GREEN. The sweep here is truthful -- it is
+                    // fetched -- but the round never asks for
+                    // persons.verification_ring, so a green ring would be
+                    // claiming something this screen does not know. That is
+                    // the same defect as customer_row's hardcoded
+                    // `isVerified: true`, and it was written into this file a
+                    // few hours before that one was fixed.
                     ManaVerificationRing(
-                      isVerified: true,
+                      isVerified: false,
+                      ringColor: ManaColors.textSecondary,
                       size: 32,
                       completeness: widget.completeness,
                     ),

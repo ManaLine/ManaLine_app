@@ -855,6 +855,21 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'rows_to_show': {'English': 'Rows To Show', 'Telugu': 'చూపవలసిన వరుసలు'},
   'of_which_penalty': {'English': 'Includes {amount} penalty', 'Telugu': '{amount} జరిమానా ఇందులో ఉంది'},
   'no_accounts_yet': {'English': 'No accounts yet. A day appears here once it has a collection, a loan or an expense on it.', 'Telugu': 'ఇంకా ఖాతాలు లేవు. ఒక రోజున వసూల్, అప్పు లేదా ఖర్చు నమోదైన తర్వాత అది ఇక్కడ కనిపిస్తుంది.'},
+  // Making a temporary ID permanent (migrations 20260917220949 / 221309).
+  'temporary_ids': {'English': 'Temporary IDs', 'Telugu': 'తాత్కాలిక IDలు'},
+  'temporary_id': {'English': 'Temporary ID', 'Telugu': 'తాత్కాలిక ID'},
+  'make_permanent': {'English': 'Make Permanent', 'Telugu': 'శాశ్వతం చేయండి'},
+  'temporary_id_explainer': {'English': 'These customers were entered from a paper book and have a temporary ID. Adding their Aadhaar number gives them a permanent one.', 'Telugu': 'ఈ కస్టమర్లు కాగితం పుస్తకం నుండి నమోదు చేయబడ్డారు, వారికి తాత్కాలిక ID ఉంది. వారి ఆధార్ నంబర్ జోడిస్తే శాశ్వత ID వస్తుంది.'},
+  'no_temporary_ids': {'English': 'Every customer on this book has a permanent ID.', 'Telugu': 'ఈ పుస్తకంలోని ప్రతి కస్టమర్‌కు శాశ్వత ID ఉంది.'},
+  'aadhaar_12_digits': {'English': 'Aadhaar must be 12 digits.', 'Telugu': 'ఆధార్ 12 అంకెలు ఉండాలి.'},
+  'date_of_birth': {'English': 'Date of Birth', 'Telugu': 'పుట్టిన తేదీ'},
+  'take_live_photo': {'English': 'Take Live Photo', 'Telugu': 'లైవ్ ఫోటో తీయండి'},
+  'photo_captured': {'English': 'Photo Captured', 'Telugu': 'ఫోటో తీయబడింది'},
+  'retake': {'English': 'Retake', 'Telugu': 'మళ్లీ తీయండి'},
+  'id_now_permanent': {'English': '{name} now has a permanent ID: {mlid}', 'Telugu': '{name}కు ఇప్పుడు శాశ్వత ID ఉంది: {mlid}'},
+  'photo_required_for_permanent': {'English': 'A live photo is required.', 'Telugu': 'లైవ్ ఫోటో అవసరం.'},
+  'dob_required_for_permanent': {'English': 'A date of birth is required.', 'Telugu': 'పుట్టిన తేదీ అవసరం.'},
+  'temporary_ids_pending': {'English': '{n} still have a temporary ID', 'Telugu': '{n} మందికి ఇంకా తాత్కాలిక ID ఉంది'},
   // The Line Pending List (design document 2.6.1.1), added 2026-09-17.
   // Vendored like everything else here because translated width is data: the
   // filter rail is four chips across 360dp and Telugu is the language that

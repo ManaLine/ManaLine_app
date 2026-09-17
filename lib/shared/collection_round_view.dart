@@ -15,6 +15,8 @@ import '../design/tokens/typography.dart';
 import '../features/owner_workspace/state/collection_mode_state.dart';
 import 'apply_penalty_sheet.dart';
 import 'collect_sheet.dart';
+import 'mlti_upgrade_sheet.dart';
+import 'mlti_upgrade_state.dart';
 import 'mana_time.dart';
 import 'network_error_handler.dart';
 import 'translation_service.dart';
@@ -490,6 +492,47 @@ class ManaDueRow extends ConsumerStatefulWidget {
 }
 
 class _ManaDueRowState extends ConsumerState<ManaDueRow> {
+  /// True when this customer is still on a temporary ID.
+  ///
+  /// Read off the MLID the row already prints rather than fetched: an MLTI is
+  /// literally what the prefix says, so asking the server would be a round
+  /// trip to learn something already on screen.
+  bool get _isTemporary => widget.row.mlid.startsWith('MLTI');
+
+  /// Fill in what a temporary identity is missing, at the door.
+  ///
+  /// THIS IS WHY IT IS HERE and not only on the Owner's list. An Aadhaar card
+  /// is in the customer's house. The agent is the only person who is ever
+  /// standing next to it, and the moment they are standing there is the moment
+  /// they are collecting.
+  Future<void> _fillIdentity() async {
+    final person = await ref
+        .read(mltiUpgradeApiServiceProvider)
+        .fetchOneByCustomer(widget.row.customerId);
+    if (!mounted) return;
+    if (person == null) {
+      // Converted by somebody else between this round loading and this tap.
+      // The row is stale rather than wrong, so reload instead of complaining.
+      widget.onDone();
+      return;
+    }
+    final mlid = await MltiUpgradeSheet.open(
+      context,
+      person: person,
+      businessId: widget.businessId,
+    );
+    if (mlid == null || !mounted) return;
+    // The MLID on this row has just changed, so the round is reloaded rather
+    // than patched -- the row prints the old one until it is.
+    widget.onDone();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: ManaText.raw(ref
+          .t('id_now_permanent')
+          .replaceAll('{name}', person.fullName)
+          .replaceAll('{mlid}', mlid)),
+    ));
+  }
+
   Future<void> _collect() async {
     final recorded = await showCollectSheet(
       context,
@@ -642,11 +685,38 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
                 const SizedBox(height: 2),
                 // How this customer is named at a door: the ID on the card
                 // they carry, and where they are.
-                ManaText.raw(
-                  [row.mlid, row.village].where((x) => x.isNotEmpty).join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ManaType.note,
+                //
+                // AND, ON A TEMPORARY ID, THE WAY TO FIX IT. The badge sits
+                // against the MLTI itself because that is the thing it is
+                // about -- an icon in the corner of the card would be a
+                // symbol with no subject. Flexible on the text so the badge
+                // is never the fixed child that pushes a long village name
+                // over the edge.
+                Row(
+                  children: [
+                    Flexible(
+                      child: ManaText.raw(
+                        [row.mlid, row.village]
+                            .where((x) => x.isNotEmpty)
+                            .join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ManaType.note,
+                      ),
+                    ),
+                    if (_isTemporary) ...[
+                      const SizedBox(width: ManaSpacing.xs),
+                      InkWell(
+                        onTap: _fillIdentity,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Icon(Icons.badge_outlined,
+                              size: 16, color: ManaColors.statusWarn),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 // Correcting an entry is a long press, and a gesture nobody
                 // is told about is a gesture nobody uses. Only on the rows it

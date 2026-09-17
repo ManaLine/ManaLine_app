@@ -9,6 +9,7 @@ import '../../../design/tokens/spacing.dart';
 import '../../../shared/customer_row.dart';
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/customer_collections_tab.dart';
+import '../../../shared/mlti_upgrade_sheet.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_label_value_row.dart';
@@ -121,6 +122,14 @@ class _AgentCustomerManagementScreenState extends ConsumerState<AgentCustomerMan
             ? const ManaSkeletonList()
             : Column(
                 children: [
+                  // Counted off the list already in hand -- an MLTI is what
+                  // the prefix says -- so this costs no query.
+                  MltiUpgradeBanner(
+                    count: state.customers
+                        .where((c) => c.mlid.startsWith('MLTI'))
+                        .length,
+                    businessId: widget.businessId,
+                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
                         ManaSpacing.lg, ManaSpacing.lg, ManaSpacing.lg, 0),

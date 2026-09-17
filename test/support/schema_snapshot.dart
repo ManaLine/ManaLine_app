@@ -209,6 +209,7 @@ const manaAppFunctions = <String>{
   'day_payment_modes',
   'online_payment_modes',
   'line_pending_list',
+  'convert_customer_to_mlpi',
   'loan_float_position',
   'refresh_business_figures',
   'transferable_agents',

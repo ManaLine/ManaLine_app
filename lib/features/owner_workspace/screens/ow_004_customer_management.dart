@@ -22,6 +22,7 @@ import '../../../shared/widgets/confirm_delete_dialog.dart';
 import '../../../shared/document_viewer.dart';
 import '../../../shared/customer_row.dart';
 import '../../../shared/customer_collections_tab.dart';
+import '../../../shared/mlti_upgrade_sheet.dart';
 import '../../../shared/translation_service.dart';
 import '../state/customer_state.dart';
 import '../../../design/components/mana_call_button.dart';
@@ -223,7 +224,18 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
       body: SafeArea(
         child: state.loading && state.customers.isEmpty
             ? const ManaSkeletonList(itemHeight: 96)
-            : RefreshIndicator(
+            : Column(children: [
+                // Counted off the roster already in hand -- an MLTI is what
+                // the prefix says -- so this costs no query. It draws nothing
+                // once every customer has a permanent ID.
+                MltiUpgradeBanner(
+                  count: state.customers
+                      .where((c) => c.mlid.startsWith('MLTI'))
+                      .length,
+                  businessId: widget.businessId,
+                ),
+                Expanded(
+            child: RefreshIndicator(
                 onRefresh: () => ref.read(customerListProvider.notifier).load(widget.businessId),
                 // CONTROLLED roster: this screen's notifier already filters
                 // AND sorts (customer_state's `sorted`), so the roster renders
@@ -293,6 +305,8 @@ class _CustomerManagementScreenState extends ConsumerState<CustomerManagementScr
                   },
                 ),
               ),
+                ),
+              ]),
       ),
     );
   }

@@ -398,6 +398,9 @@ class _ManaVillageSearchFieldState
           : ManaText.raw(subtitle,
               style: ManaType.note, maxLines: 2, overflow: TextOverflow.ellipsis),
       onTap: () {
+        // Same rule as the PIN picker: the box shows what was picked, not
+        // what was half-typed on the way to it.
+        _village.text = v.name;
         setState(() => _picked = v);
         widget.onPicked(v);
       },

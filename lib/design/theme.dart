@@ -130,6 +130,19 @@ class ManaTheme {
           // Outlined = secondary action. Blue reads as interactive without
           // competing with the amber filled button for primary attention.
           foregroundColor: ManaColors.brandDeep,
+          // A DISABLED OUTLINE HAS TO LOOK DISABLED, and this one did not.
+          //
+          // `side` here is a plain BorderSide, which styleFrom applies in
+          // EVERY state -- so a disabled secondary button kept its full 1.2px
+          // brand-blue border and only the label greyed. Against the white
+          // page the border is what reads as "this is a button", so the
+          // control looked pressable and did nothing when pressed. The
+          // elevated theme two blocks up has had disabled colours all along;
+          // this one was never given any.
+          //
+          // Found while chasing "Add Only when clicked not working, not
+          // showing any error". It is app-wide, not one screen's bug.
+          disabledForegroundColor: ManaColors.textDisabled,
           side: BorderSide(color: ManaColors.brandDeep, width: 1.2),
           textStyle: textTheme.labelLarge,
           padding: const EdgeInsets.symmetric(
@@ -138,6 +151,14 @@ class ManaTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(ManaRadius.sm),
           ),
+        ).copyWith(
+          // styleFrom's `side` is state-blind, so the disabled edge has to be
+          // resolved explicitly -- otherwise the paragraph above is a comment
+          // about a colour that never applies.
+          side: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.disabled)
+                  ? BorderSide(color: ManaColors.inkFaint, width: 1.2)
+                  : BorderSide(color: ManaColors.brandDeep, width: 1.2)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

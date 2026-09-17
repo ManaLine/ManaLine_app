@@ -423,6 +423,56 @@ class _VillageFilterDropdown extends ConsumerWidget {
 /// OW-004's own FAB, the header's + on every Owner and Agent screen, and
 /// AG-004, whose Create Customer was a snackbar reading "TODO: wire shared
 /// sheet".
+/// What was typed into Add Customer, kept until it is used or thrown away.
+///
+/// THE FINDING, in the Owner's words: "i added a person and then mobile number
+/// attached to other person error appeared, then pressed back entire form
+/// which is filled gone and again on click add customer it shows new - but it
+/// will be time waste so app needs to remember or show the last entered
+/// details until discarded."
+///
+/// The sheet's State owns eight TextEditingControllers and dies when the sheet
+/// pops, which is what a State is supposed to do -- so the fix is not to make
+/// the widget live longer, it is to put the typing somewhere the widget is not.
+///
+/// IN MEMORY, AND NOT ON DISK, deliberately. This holds a mobile number and an
+/// Aadhaar number. Persisting those to the handset would outlive the session,
+/// the person and the reason -- a different decision from "do not retype what
+/// you just typed", and not one a convenience feature gets to make. A draft
+/// survives a back press and a wrong-number error; it does not survive the app
+/// being closed.
+///
+/// PER BUSINESS, because the Owner of two books adding somebody to each should
+/// not find one book's half-typed customer in the other's form.
+class ManaAddCustomerDraft {
+  static final Map<String, ManaAddCustomerDraft> _byBusiness = {};
+
+  String fullName = '';
+  String fatherHusband = '';
+  String mobile = '';
+  String aadhaar = '';
+  String doorNo = '';
+  String? gender;
+  String? villageId;
+  String? villagePinCode;
+  String? villageLabel;
+
+  /// Nothing has been typed. The difference between Discard and Close.
+  bool get isEmpty =>
+      fullName.trim().isEmpty &&
+      fatherHusband.trim().isEmpty &&
+      mobile.trim().isEmpty &&
+      aadhaar.trim().isEmpty &&
+      doorNo.trim().isEmpty &&
+      gender == null &&
+      villageId == null;
+
+  static ManaAddCustomerDraft of(String businessId) =>
+      _byBusiness.putIfAbsent(businessId, ManaAddCustomerDraft.new);
+
+  static void clear(String businessId) => _byBusiness.remove(businessId);
+}
+
 class ManaAddCustomerSheet extends ConsumerStatefulWidget {
   final String businessId;
   /// Opened from the "Existing Customers" header action — a miss stays on
@@ -489,6 +539,11 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
   // use-after-dispose, which is worse than the leak.
   @override
   void dispose() {
+    // The draft is copied out FIRST, because the controllers below are about
+    // to be thrown away. dispose runs on a back press, on a drag-dismiss and
+    // after a successful create alike -- and the success path clears the
+    // draft before popping, so this finds nothing to put back there.
+    _saveDraft();
     _query.dispose();
     _fullName.dispose();
     _fatherHusband.dispose();
@@ -508,6 +563,107 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
       _query.text = q;
       _fullName.text = q;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadVillages());
+    _restoreDraft();
+  }
+
+  ManaAddCustomerDraft get _draft => ManaAddCustomerDraft.of(widget.businessId);
+
+  /// A customer was created from this sheet, so there is nothing to remember.
+  /// Read by [_saveDraft], which dispose calls after the pop.
+  bool _created = false;
+
+  /// Put back what was typed last time, and open on the form when there IS
+  /// something to put back -- landing on the search stage over a half-filled
+  /// Create New form would hide the thing being restored.
+  void _restoreDraft() {
+    final d = _draft;
+    if (d.isEmpty) return;
+    if (d.fullName.isNotEmpty) _fullName.text = d.fullName;
+    _fatherHusband.text = d.fatherHusband;
+    _mobile.text = d.mobile;
+    _aadhaar.text = d.aadhaar;
+    _doorNo.text = d.doorNo;
+    _gender = d.gender;
+    _villageId = d.villageId;
+    _villagePinCode = d.villagePinCode;
+    _selectedVillageLabel = d.villageLabel;
+    _stage = _AddCustomerStage.createNew;
+  }
+
+  /// Copy the fields out before this State dies.
+  ///
+  /// Called from dispose, which runs on a back press, on a drag-dismiss and on
+  /// a successful create alike -- so the successful path clears the draft
+  /// first, and this finds nothing to save.
+  void _saveDraft() {
+    if (_created) return;
+    final d = _draft;
+    d.fullName = _fullName.text;
+    d.fatherHusband = _fatherHusband.text;
+    d.mobile = _mobile.text;
+    d.aadhaar = _aadhaar.text;
+    d.doorNo = _doorNo.text;
+    d.gender = _gender;
+    d.villageId = _villageId;
+    d.villagePinCode = _villagePinCode;
+    d.villageLabel = _selectedVillageLabel;
+  }
+
+  /// ITEM 13: the word depends on whether there is anything to lose.
+  ///
+  /// "Discard" over an untouched form is a threat about nothing, and it makes
+  /// somebody stop and read a button that should have just closed. Enabled in
+  /// both states -- it is the way out either way -- but the word changes.
+  void _discardOrClose() {
+    if (!_isDirty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _fullName.clear();
+      _fatherHusband.clear();
+      _mobile.clear();
+      _aadhaar.clear();
+      _doorNo.clear();
+      _gender = null;
+      _villageId = null;
+      _villagePinCode = null;
+      _selectedVillageLabel = null;
+      _villageFieldKey = UniqueKey();
+    });
+    ManaAddCustomerDraft.clear(widget.businessId);
+  }
+
+  /// Anything typed, in the form or in the draft behind it.
+  bool get _isDirty =>
+      _fullName.text.trim().isNotEmpty ||
+      _fatherHusband.text.trim().isNotEmpty ||
+      _mobile.text.trim().isNotEmpty ||
+      _aadhaar.text.trim().isNotEmpty ||
+      _doorNo.text.trim().isNotEmpty ||
+      _gender != null ||
+      _villageId != null;
+
+  /// ITEM 6: does this book work anywhere yet?
+  ///
+  /// A customer's address is a village, and a village only counts if it is in
+  /// one of the business's operating areas -- that is what decides whose
+  /// round they fall into and whether an agent ever reaches their door. This
+  /// screen never asked. An Owner on a brand new book could fill seven fields
+  /// and only then discover there was nowhere to put the person.
+  ///
+  /// Asked once, on open, and the answer drives two things: the gate below,
+  /// and the shortlist of villages offered above the national search.
+  List<ManaVillage>? _businessVillages;
+
+  Future<void> _loadVillages() async {
+    final villages = await NetworkErrorHandler.run(
+      context,
+      () => ref.read(locationApiServiceProvider).businessVillages(widget.businessId),
+    );
+    if (!mounted || villages == null) return;
+    setState(() => _businessVillages = villages);
   }
 
   _AddCustomerStage _stage = _AddCustomerStage.search;
@@ -674,14 +830,39 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
   // (customer_state.dart), and _createNew below force-unwraps _villageId —
   // without this check that unwrap crashes on every customer added before a
   // village is chosen, which is the normal in-progress state of this form.
-  bool get _canCreateNew =>
-      _fullName.text.trim().length >= 2 &&
-      _fatherHusband.text.trim().length >= 2 &&
-      _gender != null &&
-      _villageId != null &&
-      // Filled or empty, never half-typed.
-      (_mobile.text.trim().isEmpty || _mobile.text.trim().length == 10) &&
-      (_aadhaar.text.trim().isEmpty || _aadhaar.text.trim().length == 12);
+  /// The SAME rule as before, said out loud.
+  ///
+  /// It was a bool, so the form knew perfectly well which of six conditions
+  /// had failed and had no way to tell anybody. Returning the sentence
+  /// instead is the whole fix: the checks are unchanged, in the same order,
+  /// and the button that used to grey out now names the field.
+  ///
+  /// ORDERED THE WAY THE FORM IS READ, top to bottom, so the first thing it
+  /// names is the first thing missing rather than the last rule written.
+  String? _whatIsMissing() {
+    if (_fullName.text.trim().length < 2) return ref.t('full_name_required');
+    if (_fatherHusband.text.trim().length < 2) {
+      return ref.t('father_husband_name_required');
+    }
+    if (_gender == null) return ref.t('gender_required');
+    if (_villageId == null) return ref.t('village_required');
+    // Filled or empty, never half-typed.
+    if (_mobile.text.trim().isNotEmpty && _mobile.text.trim().length != 10) {
+      return ref.t('mobile_must_be_ten_digits');
+    }
+    if (_aadhaar.text.trim().isNotEmpty && _aadhaar.text.trim().length != 12) {
+      return ref.t('aadhaar_must_be_twelve_digits');
+    }
+    // The rule _createNew already enforced, moved up here so it is answered
+    // by the same sentence as everything else rather than by a snackbar that
+    // only appears after the button is believed to work.
+    if (!widget.migrationEntry &&
+        _mobile.text.trim().isEmpty &&
+        _aadhaar.text.trim().isEmpty) {
+      return ref.t('customer_needs_phone_or_aadhaar');
+    }
+    return null;
+  }
 
   /// True when Create New was stopped because somebody already on file looks
   /// like the same person. The matches are in [_results].
@@ -806,6 +987,16 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
     if (!mounted) return;
     setState(() => _submitting = false);
     if (id == null || !mounted) return;
+    // The person exists now, so the typing that made them is spent.
+    //
+    // A FLAG, NOT A CLEAR, and the difference is a bug I wrote and the test
+    // suite caught. Clearing here does nothing: dispose runs afterwards,
+    // _saveDraft calls ManaAddCustomerDraft.of() which re-creates the entry,
+    // and it saves the controllers -- which still hold everything, because
+    // _createNew pops rather than blanking the form. The next Add Customer
+    // would have opened pre-filled with the customer just added.
+    _created = true;
+    ManaAddCustomerDraft.clear(widget.businessId);
     await _announceCreated(id);
     if (!mounted) return;
     // "Add Only" used to add the person and close, silently. The sheet
@@ -852,9 +1043,26 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
             child: ListView(
               shrinkWrap: true,
               children: [
-                ManaText.raw(
-                    ref.t(widget.existingOnly ? 'existing_customers' : 'add_customer'),
-                    style: ManaType.sheetTitle),
+                // THE WAY OUT SITS BESIDE THE TITLE, and its word depends on
+                // whether there is anything to lose. "Discard" over an
+                // untouched form is a threat about nothing; "Close" over a
+                // filled one would throw away work without saying so.
+                Row(
+                  children: [
+                    Expanded(
+                      child: ManaText.raw(
+                          ref.t(widget.existingOnly
+                              ? 'existing_customers'
+                              : 'add_customer'),
+                          style: ManaType.sheetTitle),
+                    ),
+                    TextButton(
+                      onPressed: _discardOrClose,
+                      child: ManaText.raw(
+                          _isDirty ? ref.t('discard') : ref.t('close')),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: ManaSpacing.lg),
                 if (_stage == _AddCustomerStage.search) ..._searchStage(),
                 if (_stage == _AddCustomerStage.found) ..._foundStage(),
@@ -954,7 +1162,8 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
         // it one button meant finding the customer again on another screen.
         _AddEndings(
           submitting: _submitting,
-          enabled: _foundIdentity != null,
+          blockedReason: () =>
+              _foundIdentity == null ? ref.t('pick_a_person_first') : null,
           onAddOnly: () => _linkExisting(),
           onAddAndLend: () => _linkExisting(thenLoan: true),
         ),
@@ -1075,11 +1284,52 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ManaSpacing.md),
+        // THE VILLAGES THIS BOOK ACTUALLY WORKS, offered before the national
+        // register. A business works a dozen villages out of 768,529, and the
+        // person being added almost always lives in one of them -- so the
+        // common case is a tap rather than a PIN plus three letters.
+        //
+        // With the PIN beside each name, which is what was asked for: two
+        // villages of the same name in one district is ordinary, and the PIN
+        // is what separates them.
+        if (_businessVillages != null && _businessVillages!.isNotEmpty) ...[
+          ManaText.raw(ref.t('villages_this_business_works'),
+              style: ManaType.note),
+          const SizedBox(height: ManaSpacing.xs),
+          Wrap(
+            spacing: ManaSpacing.xs,
+            runSpacing: ManaSpacing.xs,
+            children: [
+              for (final v in _businessVillages!)
+                ChoiceChip(
+                  selected: _villageId == v.locationId,
+                  label: ManaText.raw(
+                      v.pinCode.isEmpty ? v.name : '${v.name} (${v.pinCode})'),
+                  onSelected: (_) => _onVillagePicked(v),
+                ),
+            ],
+          ),
+          const SizedBox(height: ManaSpacing.sm),
+        ],
         ManaVillageSearchField(
           key: _villageFieldKey,
           label: ref.t('search_village_town'),
           initialPin: _geocodedPin,
           onPicked: _onVillagePicked,
+        ),
+        // ADD A VILLAGE FROM HERE, because this is where somebody discovers
+        // they need one. It goes to Operating Areas rather than creating a
+        // location inline: a village is not a customer's field, it is a
+        // decision about where this book works, and it belongs with the other
+        // ones.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => context.push('/ow-012?tab=areas',
+                extra: widget.businessId),
+            icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+            label: ManaText.raw(ref.t('add_new_village')),
+          ),
         ),
         if (_selectedVillageLabel != null) ...[
           const SizedBox(height: ManaSpacing.xs),
@@ -1089,7 +1339,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
         const SizedBox(height: ManaSpacing.lg),
         _AddEndings(
           submitting: _submitting,
-          enabled: _canCreateNew,
+          blockedReason: _whatIsMissing,
           migrationEntry: widget.migrationEntry,
           onAddOnly: () => _createNew(),
           onAddAndLend: () => _createNew(thenLoan: true),
@@ -1105,7 +1355,6 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
 /// screen should carry it.
 class _AddEndings extends ConsumerWidget {
   final bool submitting;
-  final bool enabled;
   final VoidCallback onAddOnly;
   final VoidCallback onAddAndLend;
 
@@ -1122,13 +1371,39 @@ class _AddEndings extends ConsumerWidget {
   /// ui_translations, written and never wired to anything.
   final bool migrationEntry;
 
+  /// What is missing, in the Owner's words, or null when nothing is.
+  ///
+  /// THE WHOLE POINT OF THIS PARAMETER. These two buttons used to be disabled
+  /// whenever the form was incomplete, and a disabled button at a doorstep is
+  /// indistinguishable from a broken one -- more so here, because the
+  /// secondary button kept its full brand-blue border in the disabled state
+  /// (fixed in theme.dart this pass, app-wide). Reported from a handset:
+  /// "add & issue loan & add only - both on tap not working, not showing any
+  /// error why it's not happening. either it should work or it should show
+  /// any error."
+  ///
+  /// So they are always pressable and they always answer.
+  final String? Function() blockedReason;
+
   const _AddEndings({
     required this.submitting,
-    required this.enabled,
+    required this.blockedReason,
     required this.onAddOnly,
     required this.onAddAndLend,
     this.migrationEntry = false,
   });
+
+  /// Act, or say why not. Never nothing.
+  void _press(BuildContext context, VoidCallback action) {
+    final why = blockedReason();
+    if (why == null) {
+      action();
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: ManaText.raw(why)));
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1153,7 +1428,7 @@ class _AddEndings extends ConsumerWidget {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: enabled ? onAddAndLend : null,
+            onPressed: () => _press(context, onAddAndLend),
             child: ManaText.raw(ref
                 .t(migrationEntry ? 'add_existing_loan' : 'add_and_issue_loan')),
           ),
@@ -1162,7 +1437,7 @@ class _AddEndings extends ConsumerWidget {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton(
-            onPressed: enabled ? onAddOnly : null,
+            onPressed: () => _press(context, onAddOnly),
             child: ManaText.raw(ref.t('add_only')),
           ),
         ),

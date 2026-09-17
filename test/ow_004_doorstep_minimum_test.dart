@@ -92,6 +92,11 @@ class _SeededCustomerList extends CustomerListNotifier {
 }
 
 void main() {
+  // The Add Customer draft is static on purpose -- it is what survives a back
+  // press -- so it also survives from one test to the next, and test two would
+  // open on the half-filled form test one left behind.
+  setUp(() => ManaAddCustomerDraft.clear('b1'));
+
   // Everything is scoped to the sheet. The screen BEHIND it has its own
   // search box, so an unscoped find.byType(TextField) types into the wrong
   // one and the sheet never leaves its first stage.
@@ -112,6 +117,11 @@ void main() {
       const CustomerManagementScreen(businessId: 'b1', initialAction: 'register'),
       overrides: [
         customerListProvider.overrideWith(_SeededCustomerList.new),
+        // EVERY test needs this now, not just the one that picks a village:
+        // the sheet asks which villages this business works the moment it
+        // opens, and without the override that reaches a Supabase client no
+        // test has initialised.
+        locationApiServiceProvider.overrideWithValue(_oneVillageService()),
         ...extraOverrides,
       ],
       surfaceSize: const Size(360, 900),
@@ -160,9 +170,7 @@ void main() {
   /// PIN, so all four are checked together here.
   testWidgets('name + father/husband + gender + a picked village creates a customer',
       (tester) async {
-    await openSheet(tester, extraOverrides: [
-      locationApiServiceProvider.overrideWithValue(_oneVillageService()),
-    ]);
+    await openSheet(tester);
     await gotoCreateNew(tester);
 
     final fields = inSheet(find.byType(TextField));
@@ -227,16 +235,39 @@ void main() {
     await tester.enterText(fields.at(2), '9493509919');
     await tester.pumpAndSettle();
 
-    // No village picked. Before the fix, _canCreateNew did not check
-    // _villageId at all, so this button would be enabled here -- and
-    // tapping it force-unwraps a null _villageId in _createNew and crashes.
+    // No village picked. Before the FIRST fix here, _canCreateNew did not
+    // check _villageId at all, so tapping force-unwrapped a null and crashed.
+    //
+    // THIS TEST CHANGED SHAPE ON 2026-09-17 and did not loosen. It asserted
+    // the button was DISABLED, which was how the rule was enforced then --
+    // and a disabled button at a doorstep turned out to be its own bug:
+    // reported from a handset as "both on tap not working, not showing any
+    // error why it's not happening". The button is pressable now and REFUSES
+    // out loud. The rule it guards -- an incomplete form never reaches
+    // _createNew -- is unchanged, and pressing is a sharper way to prove it
+    // than reading a null onPressed, because it exercises the refusal.
     final btn = await revealCreate(tester);
-    expect(
-      tester.widget<OutlinedButton>(btn).onPressed,
-      isNull,
-      reason: 'a village must be picked before Add Only can be pressed -- '
-          '_createNew force-unwraps _villageId unconditionally',
-    );
+    expect(tester.widget<OutlinedButton>(btn).onPressed, isNotNull,
+        reason: 'the way out of this form must never be a dead control');
+
+    await tester.tap(btn, warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 750));
+    // THE KEY, NOT THE ENGLISH. The harness carries a vendored translation
+    // fixture (for width, deliberately) which does not hold keys added after
+    // it was captured, so ref.t returns the key itself here. That the key
+    // RESOLVES in production is translation_keys_exist_test's job, and it
+    // checks every migration for it.
+    expect(find.text('village_required'), findsOneWidget,
+        reason: 'a village must be picked before Add Only can act -- '
+            '_createNew force-unwraps _villageId unconditionally -- and the '
+            'Owner has to be told which field it is');
+    // Let the snackbar's own dismiss timer run out. A SnackBar schedules one,
+    // and a Timer still pending when the tree is disposed fails the test on
+    // its way out -- with an error about timers rather than about the thing
+    // being tested.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
   });
 
   testWidgets('a half-typed mobile is still refused', (tester) async {
@@ -254,14 +285,54 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Male').last, warnIfMissed: false);
     await tester.pumpAndSettle();
+    // CHECKED, because both taps above are allowed to miss in silence and a
+    // gender that never landed would make this test refuse for the wrong
+    // reason -- silent_tap_guard_test exists for exactly that.
+    expect(
+        tester.widget<DropdownButtonFormField<String>>(gender.first).initialValue,
+        '1',
+        reason: 'the gender pick must have landed');
+
+    // A VILLAGE IS PICKED FIRST, which this test did not used to need.
+    //
+    // The refusal names the FIRST missing thing, reading the form top to
+    // bottom, and the village sits above the mobile number. Without one this
+    // test would assert the mobile rule and be shown the village rule --
+    // passing or failing for the wrong reason either way.
+    await tester.enterText(inSheet(find.byType(TextField)).at(5), '532221');
+    await tester.enterText(inSheet(find.byType(TextField)).at(6), 'pal');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Palasa').first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    // CHECKED, and it doubles as the autofill assertion: since 2026-09-17 the
+    // village box shows what was PICKED rather than what was typed on the way
+    // to it, so "Palasa" in a box that was typed "pal" proves both that the
+    // tap landed and that the box followed it.
+    expect(
+        tester.widget<TextField>(inSheet(find.byType(TextField)).at(6)).controller?.text,
+        'Palasa',
+        reason: 'the village pick must have landed, and the box must show it');
 
     // Optional does not mean unvalidated: four digits is a typo, not a
     // decision to leave it blank.
     await tester.enterText(fields.at(2), '9493');
     await tester.pumpAndSettle();
 
+    // Same change of shape as the village test above, same reason.
     final btn = await revealCreate(tester);
-    expect(tester.widget<OutlinedButton>(btn).onPressed, isNull,
-        reason: 'a partial mobile number must still block the save');
+    expect(tester.widget<OutlinedButton>(btn).onPressed, isNotNull);
+
+    await tester.tap(btn, warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 750));
+    expect(find.text('mobile_must_be_ten_digits'), findsOneWidget,
+        reason: 'a partial mobile number must still block the save, and say '
+            'that it is the mobile number doing the blocking');
+    // Let the snackbar's own dismiss timer run out. A SnackBar schedules one,
+    // and a Timer still pending when the tree is disposed fails the test on
+    // its way out -- with an error about timers rather than about the thing
+    // being tested.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
   });
 }

@@ -223,6 +223,15 @@ class _ManaVillagePickerFieldState
                 ? null
                 : ManaText.raw(v.placeLabel, style: ManaType.note),
             onTap: () {
+              // THE BOX SHOWS WHAT WAS PICKED. It used to keep whatever had
+              // been typed -- "Pan" above a selected "Panagal" -- so the one
+              // field a person reads back to check themselves disagreed with
+              // the choice underneath it. Reported from a handset as "village
+              // selected - should auto fill in village name field".
+              //
+              // Set before onPicked, so a caller that rebuilds this widget in
+              // response still finds the box agreeing with the selection.
+              _query.text = v.name;
               setState(() => _picked = v);
               widget.onPicked(v);
             },

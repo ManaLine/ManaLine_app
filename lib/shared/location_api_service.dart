@@ -214,6 +214,41 @@ class LocationApiService {
   /// Writing all fifty villages the moment a PIN is typed would fill
   /// `locations` with places nobody operates in, so the write waits for a
   /// decision.
+  /// The villages THIS business actually works, with their ids.
+  ///
+  /// BulkOnboardingService.operatingVillages already read these and formatted
+  /// them as display strings -- "Uranduru (517640)" -- which is right for a
+  /// spreadsheet dropdown and useless to a form that needs a location_id.
+  /// Parsing that string back into data is how a spelling variant quietly
+  /// becomes a different village, so this returns the rows instead.
+  ///
+  /// WHY A FORM WANTS THEM. A book works a dozen villages out of a national
+  /// register of 768,529, and the customer being added almost always lives in
+  /// one of them. Offering those twelve first turns a search into a tap, and
+  /// it is also what makes the check in item 6 possible: a business with none
+  /// of these cannot have a customer added to it yet, and saying so beats
+  /// letting somebody fill a form that has nowhere to put an address.
+  Future<List<ManaVillage>> businessVillages(String businessId) async {
+    final rows = await _db
+        .from('operating_area_locations')
+        .select(
+            'locations!inner(location_id, village_town_name, pin_code, mandal, district, state)')
+        .eq('business_id', businessId)
+        .isFilter('removed_at', null);
+    final byId = <String, ManaVillage>{};
+    for (final r in rows as List) {
+      final l = (r as Map<String, dynamic>)['locations'] as Map<String, dynamic>?;
+      if (l == null) continue;
+      final v = ManaVillage.fromRow(l);
+      if (v.locationId.isEmpty || v.name.isEmpty) continue;
+      // Distinct by id: one village can sit in more than one operating area.
+      byId[v.locationId] = v;
+    }
+    final list = byId.values.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
+  }
+
   Future<String> resolveId(ManaVillage village) async {
     if (village.locationId.isNotEmpty) return village.locationId;
     final created = await addIfMissing(

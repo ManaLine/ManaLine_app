@@ -37,6 +37,10 @@ class InboxState {
   List<InboxAction> get withdrawals =>
       actions.where((a) => a.kind == InboxActionKind.withdrawal).toList();
 
+  /// Float an Agent has asked the Owner for.
+  List<InboxAction> get bfRequests =>
+      actions.where((a) => a.kind == InboxActionKind.bfRequest).toList();
+
   /// What the bell badges. Actionable items only — an unread informational
   /// notice is not something the person has to do, and badging both would
   /// train people to ignore the badge.
@@ -124,6 +128,15 @@ class InboxNotifier extends Notifier<InboxState> {
                 'Rejecting a withdrawal needs a reason — open Withdrawal Requests.');
           }
           await _svc.payOutWithdrawal(requestId: action.itemId);
+        case InboxActionKind.bfRequest:
+          // Both answers are offered here, unlike the two above. A refusal
+          // costs the Agent nothing they had -- they are still at whatever
+          // float they were at -- so it needs no reason screen to be honest.
+          await _svc.decideBfRequest(
+            requestId: action.itemId,
+            approve: yes,
+            amount: (action.amount ?? 0).toInt(),
+          );
       }
     } catch (_) {
       // The spinner comes off here and nowhere else. Whatever went wrong,

@@ -46,7 +46,17 @@ enum InboxActionKind {
 
   /// An Investor has asked to take money out. Paying it moves cash, so this
   /// is the Owner's decision and it belongs on the same bell as the rest.
-  withdrawal('withdrawal');
+  withdrawal('withdrawal'),
+
+  /// An Agent has asked the Owner for float.
+  ///
+  /// app.request_agent_bf has always written a notification -- "they cannot
+  /// issue loans until it is granted" -- and it has always reached the bell.
+  /// Then it stopped: this was not a kind, so the only things an Owner could
+  /// do with it were Ignore and Close. An agent at zero float cannot issue a
+  /// single loan, and the one person who could unblock them was being shown a
+  /// sentence with two dismiss buttons.
+  bfRequest('bf_request');
 
   const InboxActionKind(this.wire);
   final String wire;
@@ -266,6 +276,28 @@ class InboxService {
   /// Pays a withdrawal request. The split -- unpaid interest first, then
   /// principal -- is the server's, along with every check that it is
   /// affordable and not already paid.
+  /// Grant an Agent the float they asked for, or refuse it.
+  ///
+  /// THE AMOUNT IS THE ASK. app.decide_agent_bf_request takes a decided
+  /// amount separately -- an Owner may grant less than was requested -- and
+  /// the inbox card does not offer that, deliberately: a card with a number
+  /// box on it stops being a yes/no and becomes a form. Granting a different
+  /// figure is Workforce Management's job, where the agent's whole position
+  /// is on screen. From here the answer is the whole ask or nothing.
+  Future<bool> decideBfRequest({
+    required String requestId,
+    required bool approve,
+    required int amount,
+  }) async {
+    await _withDeadline(_db.schema('app').rpc('decide_agent_bf_request', params: {
+      'p_request_id': requestId,
+      'p_approve': approve,
+      'p_amount': approve ? amount : null,
+      'p_note': null,
+    }));
+    return true;
+  }
+
   Future<bool> payOutWithdrawal({required String requestId}) async {
     // Keyed on the request, because an inbox row is a request id -- the
     // amount and the investment both come from it. One payout path, shared

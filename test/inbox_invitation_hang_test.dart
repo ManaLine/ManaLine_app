@@ -59,6 +59,17 @@ class _FailingInbox implements InboxService {
   }) async =>
       throw error;
 
+  /// Added with the fifth inbox kind. `implements` rather than `extends`, so
+  /// a new method on InboxService is a compile error here rather than a silent
+  /// hole -- which is the point of writing the fake this way.
+  @override
+  Future<bool> decideBfRequest({
+    required String requestId,
+    required bool approve,
+    required int amount,
+  }) async =>
+      throw error;
+
   @override
   Future<bool> payOutWithdrawal({required String requestId}) async =>
       throw error;

@@ -134,6 +134,26 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           )));
     }
 
+    if (state.bfRequests.isNotEmpty) {
+      // WITH THE OTHER MONEY DECISIONS, above invitations. An Agent waiting
+      // for float is standing in a village unable to lend, which is a harder
+      // stop than any of the rows below.
+      rows.add(_SectionHeader(
+        label: ref.t('float_requests_waiting'),
+        count: state.bfRequests.length,
+      ));
+      rows.addAll(state.bfRequests.map((a) => _ActionCard(
+            action: a,
+            busy: state.busyItemId == a.itemId,
+            yesLabel: ref.t('grant'),
+            // BOTH ANSWERS HERE, unlike the settlement and withdrawal cards
+            // above. Refusing costs the Agent nothing they already had --
+            // they stay at whatever float they were at -- so it needs no
+            // reason screen to be an honest answer.
+            noLabel: ref.t('decline'),
+          )));
+    }
+
     if (state.invitations.isNotEmpty) {
       rows.add(_SectionHeader(
         label: ref.t('invitations_to_you'),
@@ -234,6 +254,7 @@ class _ActionCard extends ConsumerWidget {
       InboxActionKind.approval => action.personName ?? '',
       InboxActionKind.settlement => action.personName ?? '',
       InboxActionKind.withdrawal => action.personName ?? '',
+      InboxActionKind.bfRequest => action.personName ?? '',
       InboxActionKind.invitation => action.businessName,
     };
     final detail = switch (action.kind) {
@@ -249,6 +270,13 @@ class _ActionCard extends ConsumerWidget {
       // The figure again: this is what leaves the business if it is paid.
       InboxActionKind.withdrawal => ref
           .t('wants_to_withdraw_note')
+          .replaceAll('{amount}', manaRupees((action.amount ?? 0).toInt())),
+      // THE CONSEQUENCE, not just the ask. An Owner reading "asked for
+      // Rs 9,800" has to work out for themselves what happens if they do
+      // nothing; an agent at zero float cannot issue a single loan, and that
+      // is the fact that decides how urgent this is.
+      InboxActionKind.bfRequest => ref
+          .t('asked_for_float_note')
           .replaceAll('{amount}', manaRupees((action.amount ?? 0).toInt())),
       InboxActionKind.invitation =>
         ref.t('invited_you_as_note').replaceAll('{role}', action.role),

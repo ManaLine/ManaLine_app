@@ -146,16 +146,29 @@ class ManaVerificationRing extends StatelessWidget {
   final bool isVerified; // GREEN vs RED, per persons.verification_ring
   final double size;
 
+  /// A ring colour that means something OTHER than identity verification.
+  ///
+  /// The business roster asked for the ring to carry membership status --
+  /// green active, red suspended, orange removed. That is a second meaning
+  /// for the same circle, and the twenty-two other call sites all mean the
+  /// first one, so it is an explicit opt-in rather than a reinterpretation of
+  /// `isVerified`. A screen passing this is saying "on this list the ring
+  /// means status", and a reader of any other screen is not left guessing
+  /// which of the two they are looking at.
+  final Color? ringColor;
+
   const ManaVerificationRing({
     super.key,
     required this.isVerified,
     this.photo,
     this.size = 44,
+    this.ringColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final ringColor = isVerified ? ManaColors.ringVerified : ManaColors.ringUnverified;
+    final ringColor = this.ringColor ??
+        (isVerified ? ManaColors.ringVerified : ManaColors.ringUnverified);
     return Container(
       width: size,
       height: size,

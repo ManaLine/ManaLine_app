@@ -88,7 +88,7 @@ void main() {
     });
 
     test('a tap that cannot open an entry says which reason applies', () {
-      final tap = source.substring(source.indexOf('void _tap(BuildContext'));
+      final tap = source.substring(source.indexOf('Future<void> _tap(BuildContext'));
       final body = tap.substring(0, tap.indexOf('/// Suspend, remove'));
       expect(body, contains("ref.t('entry_needs_mlid_note')"));
       expect(body, contains("ref.t('entry_closed_note')"),

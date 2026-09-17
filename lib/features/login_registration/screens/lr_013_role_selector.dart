@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/business_suspension_gate.dart';
+import '../../../design/tokens/icons.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -325,7 +326,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
   Widget _roleTile(String role) {
     final icon = switch (role) {
       'Owner' => Icons.storefront,
-      'Investor' => Icons.savings_outlined,
+      'Investor' => ManaIcons.investor,
       'Agent' => Icons.badge_outlined,
       'Customer' => Icons.person_outline,
       _ => Icons.person_outline,

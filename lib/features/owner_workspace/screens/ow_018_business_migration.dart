@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../design/tokens/icons.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -407,7 +408,7 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
                           const SizedBox(height: ManaSpacing.sm),
                           OutlinedButton.icon(
                             onPressed: _openChetis,
-                            icon: const Icon(Icons.savings_outlined),
+                            icon: const Icon(ManaIcons.cheti),
                             label: ManaText.raw(
                                 ref.t('chetis_you_are_already_paying')),
                           ),

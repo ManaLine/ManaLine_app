@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../design/tokens/icons.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -250,7 +251,7 @@ class _BusinessSummaryCard extends ConsumerWidget {
                       icon: Icons.badge_outlined,
                       label: ref.t('agents_count_note').replaceAll('{count}', '${business.activeAgents}')),
                   _StatChip(
-                      icon: Icons.savings_outlined,
+                      icon: ManaIcons.investor,
                       label: ref.t('investors_count_note').replaceAll('{count}', '${business.activeInvestors}')),
                 ],
               ),
@@ -569,7 +570,7 @@ class _BusinessDetailScreenState extends ConsumerState<_BusinessDetailScreen> {
             // same reason: it is the business's financing, not daily work.
             IconButton(
               tooltip: ref.t('cheti'),
-              icon: const Icon(Icons.savings_outlined),
+              icon: const Icon(ManaIcons.cheti),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => ChetiManagementScreen(businessId: widget.businessId),
@@ -1527,7 +1528,8 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
                 subtitle: ManaText.raw(
                   ref
                       .t('members_count_note')
-                      .replaceAll('{count}', '${byVillage[name]!.length}'),
+                      .replaceAll('{count}',
+                          '${manaRosterByPerson(byVillage[name]!).length}'),
                   style: ManaType.note,
                 ),
                 trailing: Icon(_openVillage == name
@@ -1537,9 +1539,9 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
                     () => _openVillage = _openVillage == name ? null : name),
               ),
               if (_openVillage == name)
-                ...byVillage[name]!.map((m) => _MemberRow(
+                ...manaRosterByPerson(byVillage[name]!).map((who) => _MemberRow(
                       businessId: widget.businessId,
-                      member: m,
+                      person: who,
                       migrationOpen: migrationOpen,
                     )),
             ],
@@ -1577,7 +1579,22 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
     final members = _sorted(state.members);
     final pendingInvitations = members.where((m) => m.membershipStatus == 'Pending Invitation').toList();
     final pendingAcceptance = members.where((m) => m.membershipStatus == 'Pending Acceptance').toList();
-    final active = members.where((m) => m.membershipStatus == 'Active').toList();
+    // ITEM 4, AND THE HALF OF IT THAT IS NOT A WORD.
+    //
+    // "Active Members" was literally true and quietly useless: the list was
+    // filtered to Active, so suspending somebody made them VANISH from the
+    // only screen that lists members. There was no orange row to look at
+    // because there was no row at all, and an Owner who suspended the wrong
+    // person had nowhere to go and undo it.
+    //
+    // The heading is "Members" now and the list is everybody whose state the
+    // ring can show -- active, suspended, removed. The two Pending sections
+    // above keep their own headings, because an unanswered invitation is a
+    // thing waiting on somebody else rather than a state of the membership,
+    // and it needs words rather than a colour.
+    const shown = {'Active', 'Suspended', 'Removed'};
+    final roster =
+        members.where((m) => shown.contains(m.membershipStatus)).toList();
     // Unknown counts as locked. The missed-entry door is only meaningful
     // while a migration is open, and offering it on a business whose detail
     // has not loaded would put a dead link in front of the Owner.
@@ -1646,26 +1663,32 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         // deciding it belongs in the inbox.
         if (pendingInvitations.isNotEmpty) ...[
           ManaText.raw(ref.t('pending_invitations_header'), style: ManaType.strong),
-          ...pendingInvitations.map((m) => _MemberRow(businessId: widget.businessId, member: m, migrationOpen: migrationOpen)),
+          ...manaRosterByPerson(pendingInvitations).map((who) => _MemberRow(
+              businessId: widget.businessId,
+              person: who,
+              migrationOpen: migrationOpen)),
           const SizedBox(height: ManaSpacing.lg),
         ],
         if (pendingAcceptance.isNotEmpty) ...[
           ManaText.raw(ref.t('pending_acceptance_status'), style: ManaType.strong),
-          ...pendingAcceptance.map((m) => _MemberRow(businessId: widget.businessId, member: m, migrationOpen: migrationOpen)),
+          ...manaRosterByPerson(pendingAcceptance).map((who) => _MemberRow(
+              businessId: widget.businessId,
+              person: who,
+              migrationOpen: migrationOpen)),
           const SizedBox(height: ManaSpacing.lg),
         ],
-        ManaText.raw(ref.t('active_members'), style: ManaType.strong),
+        ManaText.raw(ref.t('members'), style: ManaType.strong),
         // THE ONE PLACE THE GESTURES ARE NAMED. Taking the three dots off
         // every row also took away the only thing on screen saying suspend
         // and remove exist, and a gesture nobody is told about is a feature
         // nobody has. Said once, here, rather than drawn on two hundred rows
         // -- and only when there are rows for it to describe.
-        if (active.isNotEmpty) ...[
+        if (roster.isNotEmpty) ...[
           const SizedBox(height: ManaSpacing.xs),
           ManaText.raw(ref.t('members_gesture_hint'), style: ManaType.note),
           const SizedBox(height: ManaSpacing.xs),
         ],
-        if (active.isEmpty)
+        if (roster.isEmpty)
           ManaText.raw(ref.t('no_active_members_yet'), style: ManaType.secondary)
         else if (_byVillage)
           // SORTED BY VILLAGE MEANS THE VILLAGES ARE THE LIST.
@@ -1675,33 +1698,91 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
           // rows with the village repeated down the side, and no answer to
           // "how many are in Someswaram". The villages come first now, each
           // with its count, and open to show who is in them.
-          ..._villageGroups(active, migrationOpen)
+          ..._villageGroups(roster, migrationOpen)
         else
-          ...active.map((m) => _MemberRow(businessId: widget.businessId, member: m, migrationOpen: migrationOpen)),
+          ...manaRosterByPerson(roster).map((who) => _MemberRow(
+              businessId: widget.businessId,
+              person: who,
+              migrationOpen: migrationOpen)),
       ],
     );
   }
 }
 
+/// One person on the roster, with every role they hold on this book.
+class ManaRosterPerson {
+  /// Everybody one person is on this book, as one row.
+  ///
+  /// ONE ROW PER PERSON, NOT PER MEMBERSHIP. business_members is keyed
+  /// (person_id, business_id, role), so somebody who is both an Agent and a
+  /// Customer has two rows in the table -- and had two rows on this screen,
+  /// identical but for one word. Six people on the live books hold more than
+  /// one role and every Owner is also an Agent, so this was not a corner.
+  ///
+  /// The roles collapse into letters instead: C, A, I, joined by "&", which
+  /// is the Owner's own notation.
+  final List<MemberSummary> memberships;
+  const ManaRosterPerson(this.memberships);
+
+  /// The membership every person-level fact is read from -- name, MLID,
+  /// village, care-of, status. All of this person's memberships carry the
+  /// same value for each, because they are facts about the person.
+  MemberSummary get any => memberships.first;
+
+  String get personId => any.personId;
+  String get status => any.membershipStatus;
+
+  /// C, A, I -- never translated.
+  ///
+  /// A notation rather than words, the way an MLID is. The Owner asked for
+  /// these letters; an abbreviated Telugu noun is not a letter. An Owner gets
+  /// none, because the Owner row is not actionable and already reads as one.
+  String get roleLetters {
+    const order = ['Customer', 'Agent', 'Investor'];
+    final letters = [
+      for (final role in order)
+        if (memberships.any((m) => m.role == role)) role[0],
+    ];
+    return letters.join(' & ');
+  }
+
+  bool get isOwner => memberships.any((m) => m.role == 'Owner');
+}
+
+/// Groups a roster into one entry per person, keeping the order it arrived in.
+///
+/// The list is already sorted -- by name, or by village then name -- and both
+/// orders put one person's memberships next to each other, so preserving
+/// insertion order preserves the sort.
+///
+/// Public because the guard test builds a roster and asserts the letters.
+List<ManaRosterPerson> manaRosterByPerson(List<MemberSummary> members) {
+  final byPerson = <String, List<MemberSummary>>{};
+  for (final m in members) {
+    byPerson.putIfAbsent(m.personId, () => []).add(m);
+  }
+  return [for (final e in byPerson.values) ManaRosterPerson(e)];
+}
+
 class _MemberRow extends ConsumerWidget {
   final String businessId;
-  final MemberSummary member;
+  final ManaRosterPerson person;
 
   /// Whether this book is still being migrated. The missed-entry door is
   /// offered only while it is: once the migration is locked there is no
-  /// pre-existing entry left to add, and the menu item would be a dead link.
+  /// pre-existing entry left to add, and the door would be a dead link.
   final bool migrationOpen;
   const _MemberRow({
     required this.businessId,
-    required this.member,
+    required this.person,
     this.migrationOpen = false,
   });
 
-  /// Which stage of the one-by-one door this person belongs to.
+  /// Which stage of the one-by-one door a given membership belongs to.
   ///
   /// Null for an Owner and for anyone whose MLID did not come back, because
   /// the door is keyed by MLID and has nothing to open without one.
-  ManaEntryStage? get _entryStage {
+  ManaEntryStage? _entryStageOf(MemberSummary member) {
     if (!migrationOpen || member.mlid.isEmpty) return null;
     return switch (member.role) {
       'Agent' => ManaEntryStage.agents,
@@ -1718,7 +1799,8 @@ class _MemberRow extends ConsumerWidget {
   /// walking the wizard's seven pages again -- and nothing in the app passed
   /// one. This is the caller. A member roster is where an Owner notices
   /// somebody was missed, so it is where the way to fix it belongs.
-  void _openEntry(BuildContext context, ManaEntryStage stage) {
+  void _openEntry(BuildContext context, ManaEntryStage stage,
+      MemberSummary member) {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => OneByOneMigrationScreen(
         businessId: businessId,
@@ -1728,14 +1810,66 @@ class _MemberRow extends ConsumerWidget {
     ));
   }
 
-  ManaStatus get _statusKind => switch (member.membershipStatus) {
+  /// The ring's colour on THIS list, which is membership status rather than
+  /// identity verification.
+  ///
+  /// The Owner's rule, in their words: active green, suspended red, removed
+  /// orange. The ring was already on every row and already green, so this is
+  /// the circle finally saying something -- and it is what let the word
+  /// "Active" come off the heading. A heading saying Active over rows that
+  /// include suspended people is worse than one saying nothing.
+  Color get _ringColor => switch (person.status) {
+        'Active' => ManaColors.statusGood,
+        'Suspended' => ManaColors.statusBad,
+        'Removed' => ManaColors.statusWarn,
+        _ => ManaColors.textSecondary,
+      };
+
+  ManaStatus get _statusKind => switch (person.status) {
         'Active' => ManaStatus.good,
-        'Pending Invitation' || 'Pending Acceptance' || 'Pending Approval' => ManaStatus.warn,
+        'Pending Invitation' || 'Pending Acceptance' || 'Pending Approval' =>
+          ManaStatus.warn,
         'Suspended' || 'Removed' => ManaStatus.bad,
         _ => ManaStatus.neutral,
       };
 
-  Future<void> _changeStatus(BuildContext context, WidgetRef ref, String status) async {
+  /// Which of this person's roles the action is about.
+  ///
+  /// Asked only when it is a real question. Suspending somebody who is both
+  /// an Agent and a Customer is two different decisions -- an Owner may well
+  /// want to stop them collecting and go on lending to them -- and choosing
+  /// one silently would make the other unreachable. With a single role there
+  /// is nothing to ask and no sheet is shown.
+  Future<MemberSummary?> _pickRole(
+    BuildContext context,
+    WidgetRef ref,
+    List<MemberSummary> among,
+  ) async {
+    if (among.isEmpty) return null;
+    if (among.length == 1) return among.first;
+    return showModalBottomSheet<MemberSummary>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: ManaText.raw(ref.t('which_role'), style: ManaType.strong),
+            ),
+            const Divider(height: 1),
+            for (final m in among)
+              ListTile(
+                title: ManaText.raw(m.role),
+                onTap: () => Navigator.pop(sheetContext, m),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _changeStatus(BuildContext context, WidgetRef ref,
+      String status, MemberSummary member) async {
     // WARN, DO NOT BLOCK, when the Owner is removing their own Agent role.
     //
     // It is authorised and it is legitimate: business_members_owner_all lets
@@ -1782,24 +1916,29 @@ class _MemberRow extends ConsumerWidget {
   ///
   /// THE TAP IS THE ERRAND. An Owner opens this roster while entering a book
   /// from paper, and the thing they are doing to nine rows out of ten is
-  /// finishing somebody's entry. That is the tap; the three-dot menu that used
-  /// to hold it is gone.
+  /// finishing somebody's entry. That is the tap; the three-dot menu that
+  /// used to hold it is gone.
   ///
   /// When there is nowhere to go it says which of the two reasons applies.
-  /// Silence on a tap reads as a broken row, and the reasons are different
-  /// enough to matter: a locked migration is the book being finished, and a
-  /// missing MLID is one person's record being incomplete.
-  void _tap(BuildContext context, WidgetRef ref) {
-    final stage = _entryStage;
-    if (stage != null) {
-      _openEntry(context, stage);
+  /// Silence on a tap reads as a broken row, and the reasons differ: a locked
+  /// migration is the BOOK being finished, a missing MLID is one PERSON's
+  /// record being incomplete.
+  Future<void> _tap(BuildContext context, WidgetRef ref) async {
+    final open = [
+      for (final m in person.memberships)
+        if (_entryStageOf(m) != null) m,
+    ];
+    if (open.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: ManaText.raw(person.any.mlid.isEmpty
+            ? ref.t('entry_needs_mlid_note')
+            : ref.t('entry_closed_note')),
+      ));
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: ManaText.raw(member.mlid.isEmpty
-          ? ref.t('entry_needs_mlid_note')
-          : ref.t('entry_closed_note')),
-    ));
+    final chosen = await _pickRole(context, ref, open);
+    if (chosen == null || !context.mounted) return;
+    _openEntry(context, _entryStageOf(chosen)!, chosen);
   }
 
   /// Suspend, remove, reactivate -- behind a three-second hold.
@@ -1818,7 +1957,7 @@ class _MemberRow extends ConsumerWidget {
   /// read and dismissed, and on a row that IS active it invites the thought
   /// that they might not be.
   Future<void> _holdActions(BuildContext context, WidgetRef ref) async {
-    final active = member.membershipStatus == 'Active';
+    final active = person.status == 'Active';
     final choice = await showModalBottomSheet<String>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -1826,10 +1965,9 @@ class _MemberRow extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: ManaText.raw(member.fullName,
+              title: ManaText.raw(person.any.fullName,
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: ManaText.raw(member.membershipStatus,
-                  style: ManaType.note),
+              subtitle: ManaText.raw(person.status, style: ManaType.note),
             ),
             const Divider(height: 1),
             // Remove first, then Suspend: the Owner's own order.
@@ -1839,7 +1977,7 @@ class _MemberRow extends ConsumerWidget {
               title: ManaText.raw(ref.t('remove')),
               onTap: () => Navigator.pop(sheetContext, 'Removed'),
             ),
-            if (member.membershipStatus != 'Suspended')
+            if (person.status != 'Suspended')
               ListTile(
                 leading: const Icon(Icons.pause_circle_outline),
                 title: ManaText.raw(ref.t('suspend')),
@@ -1857,61 +1995,74 @@ class _MemberRow extends ConsumerWidget {
       ),
     );
     if (choice == null || !context.mounted) return;
-    await _changeStatus(context, ref, choice);
+    final which = await _pickRole(context, ref, person.memberships);
+    if (which == null || !context.mounted) return;
+    await _changeStatus(context, ref, choice, which);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The Owner's own row is exempt from both gestures — never offer to
+    // The Owner's own row is exempt from both gestures -- never offer to
     // suspend or remove yourself, and an Owner has no pre-existing entry.
-    final owner = member.role == 'Owner';
+    final owner = person.isOwner;
+    final member = person.any;
     return Card(
       child: _HoldForActions(
         enabled: !owner,
         onTap: owner ? null : () => _tap(context, ref),
         onHold: () => _holdActions(context, ref),
         child: ListTile(
-        leading: const ManaVerificationRing(isVerified: true, size: 36),
-        // THE NAME GETS THE ROW. It used to share it with the status pill and
-        // the menu, both in `trailing`, and ListTile hands trailing its
-        // intrinsic width FIRST -- so "Pending Invitation" plus a 48dp menu
-        // button left the title about one character wide and "Ashok Goud"
-        // came down the screen a letter per line. The shared roster's own
-        // comment warns about exactly this: "ListTile's trailing slot assumes
-        // a bounded width".
-        //
-        // The pill moved to the subtitle, where it sits beside the role and
-        // village it qualifies, and the menu stays trailing because it is a
-        // fixed 48dp and genuinely belongs at the edge. One line, ellipsised:
-        // a name that does not fit is cut, not folded.
-        title: ManaText.raw(
-          member.fullName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        // Role and village, joined from the parts that exist. The village is
-        // what the Village sort orders by, and a sort you cannot see the key
-        // of looks like it did nothing.
-        subtitle: Row(
-          children: [
-            Flexible(
-              child: ManaText.raw(
-                [
-                  member.role,
-                  if (member.village.isNotEmpty) member.village,
-                ].join(' · '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+          leading: ManaVerificationRing(
+              isVerified: true, size: 36, ringColor: _ringColor),
+          // THE NAME GETS THE ROW. It used to share it with the status pill
+          // and the menu, both in `trailing`, and ListTile hands trailing its
+          // intrinsic width FIRST -- so "Pending Invitation" plus a 48dp menu
+          // button left the title about one character wide and "Ashok Goud"
+          // came down the screen a letter per line. One line, ellipsised: a
+          // name that does not fit is cut, not folded.
+          title: ManaText.raw(
+            member.fullName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          // C/O AND VILLAGE, NOT THE ROLE. The role used to be the first
+          // thing on this line and is a letter at the end of it now, which
+          // frees the words for what actually identifies somebody: in a
+          // village where three men are called Ramesh the care-of name is
+          // the only thing that separates them. The village stays because it
+          // is what the Village sort orders by, and a sort you cannot see
+          // the key of looks like it did nothing.
+          subtitle: Row(
+            children: [
+              Flexible(
+                child: ManaText.raw(
+                  [
+                    if (member.fatherHusbandName.isNotEmpty)
+                      '${ref.t('care_of')} ${member.fatherHusbandName}',
+                    if (member.village.isNotEmpty) member.village,
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            const SizedBox(width: ManaSpacing.sm),
-            // Capped at 120dp by the shared component, so a long status in
-            // Telugu cannot push the role off its own line.
-            ManaTrailingStatus(
-                label: member.membershipStatus, status: _statusKind),
-          ],
-        ),
+              // THE STATUS PILL ONLY WHEN IT IS NOT ACTIVE. The ring carries
+              // the state now and the Owner asked for the word "Active" to
+              // go. Suspended and Removed keep their words, because a colour
+              // on its own is a legend nobody was given -- and those are the
+              // two rows where being sure matters.
+              if (person.status != 'Active') ...[
+                const SizedBox(width: ManaSpacing.sm),
+                ManaTrailingStatus(label: person.status, status: _statusKind),
+              ],
+              if (person.roleLetters.isNotEmpty) ...[
+                const SizedBox(width: ManaSpacing.sm),
+                ManaText.raw(person.roleLetters,
+                    style: ManaType.strong
+                        .copyWith(color: ManaColors.textSecondary)),
+              ],
+            ],
+          ),
           // NO TRAILING WIDGET AT ALL. The three-dot button that lived here
           // is what item 5 asked to be rid of, and nothing replaces it: the
           // row's whole width is the tap target for the errand, and the hold
@@ -1923,18 +2074,6 @@ class _MemberRow extends ConsumerWidget {
   }
 }
 
-/// Tap for the errand, hold three seconds for the rest.
-///
-/// WHY THREE SECONDS AND NOT FLUTTER'S 500ms. This is the gate in front of
-/// suspending and removing somebody, and the Owner asked for it by that
-/// duration. A half-second press is something a thumb does by accident on a
-/// scrolling list; three is a decision.
-///
-/// WHICH MEANS IT HAS TO SHOW PROGRESS. A three-second hold with no feedback
-/// is indistinguishable from a dead row for the first two of them -- somebody
-/// would let go at one second, twice, and conclude the list does not respond.
-/// The bar under the row fills as the hold runs, so letting go early is
-/// visibly stopping something rather than finding nothing.
 class _HoldForActions extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../design/tokens/icons.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -2061,7 +2062,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
             _chetisAsked = false;
             unawaited(_refreshChetis());
           },
-          icon: const Icon(Icons.savings_outlined),
+          icon: const Icon(ManaIcons.cheti),
           label: ManaText.raw(ref.t('chetis_you_are_already_paying')),
         ),
         if (_planGaps.isNotEmpty) ...[

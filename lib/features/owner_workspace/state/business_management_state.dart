@@ -581,7 +581,7 @@ class BusinessManagementApiService {
     // (person_id AND invited_by_person_id) — an unqualified persons!inner
     // embed is ambiguous and PostgREST throws PGRST201 ("more than one
     // relationship was found") rather than guessing, on every single call.
-    var query = _db.from('business_members').select('membership_id, person_id, role, membership_status, persons!business_members_person_id_fkey(full_name, mlid)').eq('business_id', businessId);
+    var query = _db.from('business_members').select('membership_id, person_id, role, membership_status, persons!business_members_person_id_fkey(full_name, mlid, father_husband_name)').eq('business_id', businessId);
     if (role != null) query = query.eq('role', role);
     if (status != null) query = query.eq('membership_status', status);
     final rows = await query;
@@ -624,6 +624,9 @@ class BusinessManagementApiService {
         fullName: titleCaseName(
             (r['persons'] as Map<String, dynamic>?)?['full_name'] as String? ?? ''),
         mlid: (r['persons'] as Map<String, dynamic>?)?['mlid'] as String? ?? '',
+        fatherHusbandName: titleCaseName((r['persons'] as Map<String, dynamic>?)?[
+                'father_husband_name'] as String? ??
+            ''),
         role: r['role'] as String,
         membershipStatus: r['membership_status'] as String,
         village: villageByPerson[personId] ?? '',
@@ -1201,6 +1204,14 @@ class MemberSummary {
   /// Carried on the existing persons embed rather than a second query -- the
   /// row was already being read for the name.
   final String mlid;
+  /// The care-of name -- persons.father_husband_name.
+  ///
+  /// It is the line under the name on the roster now. In a village where
+  /// three men are called Ramesh it is the only thing that separates them,
+  /// and the roster previously showed the role there instead -- which every
+  /// row already says with its own letter.
+  final String fatherHusbandName;
+
   final String role; // 'Agent' | 'Investor' | 'Customer'
   final String membershipStatus;
 
@@ -1214,6 +1225,7 @@ class MemberSummary {
     required this.personId,
     required this.fullName,
     this.mlid = '',
+    this.fatherHusbandName = '',
     required this.role,
     required this.membershipStatus,
     this.village = '',

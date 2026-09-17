@@ -6,6 +6,7 @@ import '../../../shared/auto_refresh.dart';
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/translation_service.dart';
 import '../../../design/tokens/colors.dart';
+import '../../../design/components/mana_label_value_row.dart';
 import '../../../design/components/mana_collapsible_section.dart';
 import '../../../design/components/mana_amount.dart';
 import '../../../design/tokens/typography.dart';
@@ -791,46 +792,29 @@ class _SectionCard extends StatelessWidget {
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Neither side was flexible — a long real value (business name,
-            // assigned route, owner name) overflowed the Row outright, not
-            // just at a scaled-up text size, and a first fix that only made
-            // the value flexible still overflowed on long LABELS
-            // ("Pending Customer Requests") at larger text scales. Both
-            // sides now Flexible: the label may wrap to a second line, the
-            // value stays single-line with an ellipsis safety net.
-            ...rows.map((r) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: ManaText.raw(r.label,
-                            style: TextStyle(
-                                fontSize: 13, color: ManaColors.textSecondary)),
-                      ),
-                      const SizedBox(width: ManaSpacing.sm),
-                      // MONEY IS NOT A STRING HERE ANY MORE. Thirteen of these
-                      // rows are rupee figures and the rest are counts, names
-                      // and routes; a (String, String) tuple could not tell
-                      // them apart, so every figure rendered at 13sp -- under
-                      // the 16sp floor -- with proportional digits, so a column
-                      // of them did not line up.
-                      if (r.amount != null)
-                        ManaAmount(r.amount!,
-                            size: ManaAmountSize.compact,
-                            semanticLabel: r.label)
-                      else
-                        Flexible(
-                          child: ManaText.raw(r.text ?? '',
-                              textAlign: TextAlign.right,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w600)),
-                        ),
-                    ],
-                  ),
+            // ELLIPSISED THE ANSWER. This row was a private copy of
+            // ManaLabelValueRow that had drifted: both sides Flexible, same
+            // 4:6 intent -- and `maxLines: 1, overflow: ellipsis` on the
+            // value, which the shared one does not have.
+            //
+            // Reported from a handset: an Agent's Workspace Information
+            // showed the business and the owner as "Sri Satyanaraya..." and
+            // "Karri Siri Manik...". Those two rows are the whole point of
+            // that section -- an Agent opens it to check WHICH book they are
+            // working -- and a name cut at fifteen characters is exactly the
+            // question it was asked. Two of this book's businesses begin
+            // "Sri " and share a prefix, so the dots were not a cosmetic
+            // loss.
+            //
+            // Delegated rather than patched, for the reason Tier 2 and Tier 3
+            // record: a second copy of a rule about drawing a label beside a
+            // value drifts from the first, and this is what that drift looks
+            // like. The shared row wraps to as many lines as the value needs.
+            ...rows.map((r) => ManaLabelValueRow(
+                  label: r.label,
+                  value: r.text ?? '',
+                  amount: r.amount,
+                  dense: true,
                 )),
           ]),
     );

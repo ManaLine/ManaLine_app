@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/auto_refresh.dart';
+import '../../../design/tokens/icons.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/typography.dart';
 import '../../../design/tokens/spacing.dart';
@@ -84,7 +85,7 @@ List<ManaDrawerSection> _ownerDrawerSections(
       ],
     ),
     ManaDrawerSection(
-      icon: Icons.savings_outlined,
+      icon: ManaIcons.investor,
       labelKey: 'investors',
       actions: [
         ManaDrawerAction(
@@ -1779,7 +1780,7 @@ class _QuickActionsState extends ConsumerState<_QuickActions> {
             '/ow-003',
             'filter=Pending%20Acceptance'
           ),
-          (Icons.savings_outlined, ref.t('investor_management'), '/ow-003', null),
+          (ManaIcons.investor, ref.t('investor_management'), '/ow-003', null),
           // After the investor entries, per the Owner: the whole book's people
           // in one place, sortable by name or by village.
           (Icons.groups_outlined, ref.t('members'), '/ow-012', 'tab=members'),

@@ -115,7 +115,11 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
   }
 
   Future<void> _openBulkOnboarding() async {
-    await context.push('/ow-bulk-onboarding', extra: widget.businessId);
+    // THE SIGNPOST, not the wizard (2026-09-18). Bringing a whole book across
+    // means downloading a spreadsheet, filling it in and uploading it back,
+    // which has no comfortable home on a phone. This sends the Owner to the
+    // web build, where that route still runs the real wizard.
+    await context.push('/ow-bulk-onboarding-web', extra: widget.businessId);
     await _load();
   }
 

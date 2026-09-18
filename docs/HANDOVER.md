@@ -439,6 +439,21 @@ suspect them before you suspect the old code.
   balance and a minimum number of overdue periods. "Pending weeks" means
   instalments **overdue**, not instalments remaining — the easy reading
   calls a daily loan 984 weeks pending.
+- **Bulk onboarding is a WEB-ONLY journey now** (2026-09-18). The wizard is
+  seven pages of spreadsheet grids -- download a workbook, fill it in, upload
+  it back -- and the Owner judged that "difficult and messy and may go wrong"
+  on a phone. It was not deleted: it always ran on the web build, and that is
+  now the only place the app leads you. On the handset, OW-018 pushes
+  `/ow-bulk-onboarding-web`, a signpost that opens `https://manaline.in/app/`
+  and names the menu item to look for.
+
+  **`/ow-bulk-onboarding` is still registered on Android and still builds the
+  real wizard.** That is not an oversight and do not "finish the job" by
+  removing it: `web_router_guard_test.dart` requires every web route to exist
+  on Android AND a shared path to resolve to the SAME widget class on both,
+  which is what makes a bug fixed once fixed everywhere a screen is reachable.
+  The removal is a cut LINK, not a forked screen, and a test asserts that
+  nothing outside the two routers and `lib/features/web/` navigates there.
 - **A customer can be shown where to pay** (2.2.1). The Owner sets a QR and
   UPI IDs under Business Management → Payment Details; the agent taps **Show
   To Pay** at the front of the collection round's filter rail and turns the

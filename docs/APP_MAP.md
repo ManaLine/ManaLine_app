@@ -24,12 +24,12 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 
 | | |
 |---|---|
-| Routes declared | 84 |
-| Routes that build a screen | 83 |
+| Routes declared | 85 |
+| Routes that build a screen | 84 |
 | Routes that only redirect | 1 |
-| Distinct screen widgets | 74 |
-| Literal navigation call sites | 379 |
-| On the handset only | 52 |
+| Distinct screen widgets | 75 |
+| Literal navigation call sites | 381 |
+| On the handset only | 53 |
 | On the restricted web build | 32 |
 
 ## Login & Registration
@@ -54,7 +54,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | Route | Screen | File | Takes | On | Reached from | Test |
 |---|---|---|---|---|---|---|
 | `/ow-000` | `FirstBusinessSetupScreen` | `features/owner_workspace/screens/ow_000_first_business_setup.dart` | extra | handset | 6 via path | yes |
-| `/ow-001` | `OwnerHomeDashboardScreen` | `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart` | — | handset | 30 via path | yes |
+| `/ow-001` | `OwnerHomeDashboardScreen` | `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart` | — | handset | 31 via path | yes |
 | `/ow-002` | `WorkforceManagementScreen` | `features/owner_workspace/screens/ow_002_workforce_management.dart` | `?agent` | handset | 8 via path | yes |
 | `/ow-003` | `InvestorManagementScreen` | `features/owner_workspace/screens/ow_003_investor_management.dart` | `?open`<br>`?filter` | handset | 6 via path | yes |
 | `/ow-004` | `CustomerManagementScreen` | `features/owner_workspace/screens/ow_004_customer_management.dart` | `?action` | handset | 7 via path | yes |
@@ -75,6 +75,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | `/ow-018` | `BusinessMigrationScreen` | `features/owner_workspace/screens/ow_018_business_migration.dart` | — | both | 4 via path<br>1 direct | yes |
 | `/ow-019` | `ChetiManagementScreen` | `features/owner_workspace/screens/ow_019_cheti_management.dart` | — | handset | 3 direct | yes |
 | `/ow-bulk-onboarding` | `BulkOnboardingWizardScreen` | `features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart` | — | both | 3 via path | yes |
+| `/ow-bulk-onboarding-web` | `BulkOnboardingOnWebScreen` | `features/owner_workspace/screens/ow_bulk_onboarding_on_web.dart` | — | handset | 1 via path | yes |
 | `/ow-loan-requests` | `LoanRequestsScreen` | `features/owner_workspace/screens/loan_requests_screen.dart` | — | handset | 2 via path | yes |
 | `/ow-search` | `UniversalSearchScreen` | `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart` | `?role` | handset | 9 via path | yes |
 | `/ow-settings` | `SettingsScreen` | `shared/settings_screen.dart` | extra: `String` | both | 4 via path | yes |
@@ -541,7 +542,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/login_registration/screens/lr_012_business_selector.dart:265` (`push`)
 - `features/login_registration/screens/lr_012_business_selector.dart:450` (`push`)
 
-**`/ow-001`** — 30 call sites
+**`/ow-001`** — 31 call sites
 
 - `app/web_router.dart:210` (`listed`)
 - `features/customer_workspace/screens/cw_006_my_profile_memberships.dart:322` (`go`)
@@ -561,6 +562,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/ow_016_profile.dart:281` (`push`)
 - `features/owner_workspace/screens/ow_017_statement_screen.dart:112` (`listed`)
 - `features/owner_workspace/screens/ow_017_transaction_history.dart:23` (`listed`)
+- `features/owner_workspace/screens/ow_bulk_onboarding_on_web.dart:70` (`listed`)
 - `features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart:994` (`listed`)
 - `features/owner_workspace/screens/ow_line_pending_list.dart:74` (`listed`)
 - `shared/mana_back_handler.dart:48` (`listed`)
@@ -677,7 +679,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:147` (`listed`)
 - `features/login_registration/state/auth_flow_state.dart:153` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:288` (`push`)
-- `features/web/screens/web_home_screen.dart:108` (`listed`)
+- `features/web/screens/web_home_screen.dart:115` (`listed`)
 - `shared/settings_screen.dart:83` (`listed`)
 
 **`/ow-017`** — 1 call site
@@ -699,7 +701,11 @@ proves a screen unreachable — only that nobody wrote its path.
 
 - `app/web_router.dart:68` (`listed`)
 - `app/web_router.dart:153` (`listed`)
-- `features/owner_workspace/screens/ow_018_business_migration.dart:118` (`push`)
+- `features/web/screens/web_home_screen.dart:113` (`listed`)
+
+**`/ow-bulk-onboarding-web`** — 1 call site
+
+- `features/owner_workspace/screens/ow_018_business_migration.dart:122` (`push`)
 
 **`/ow-loan-requests`** — 2 call sites
 
@@ -715,7 +721,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/ow_003_investor_management.dart:148` (`push`)
 - `features/owner_workspace/screens/ow_012_business_management.dart:568` (`push`)
 - `features/owner_workspace/screens/ow_012_business_management.dart:1294` (`push`)
-- `features/owner_workspace/screens/ow_018_business_migration.dart:295` (`push`)
+- `features/owner_workspace/screens/ow_018_business_migration.dart:299` (`push`)
 - `shared/widgets/workspace_actions.dart:203` (`listed`)
 
 **`/ow-settings`** — 4 call sites
@@ -757,7 +763,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 - `app/web_router.dart:68` (`listed`)
 - `app/web_router.dart:161` (`listed`)
-- `features/web/screens/web_home_screen.dart:107` (`listed`)
+- `features/web/screens/web_home_screen.dart:114` (`listed`)
 - `shared/settings_screen.dart:426` (`push`)
 
 **`/web-home`** — 8 call sites

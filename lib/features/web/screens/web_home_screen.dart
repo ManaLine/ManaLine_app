@@ -104,6 +104,13 @@ class ManaWebHomeScreen extends ConsumerWidget {
         return [
           _Destination(icon: Icons.fact_check_outlined, title: ref.t('account_review'), onTap: () => go('/ow-013')),
           _Destination(icon: Icons.move_to_inbox_outlined, title: ref.t('pre_existing_business'), onTap: () => go('/ow-018')),
+          // ITS OWN CARD ON THE MENU, from 2026-09-18. The handset no longer
+          // runs the wizard -- it shows a signpost here instead -- so this is
+          // the only place it exists, and an Owner arriving from that signpost
+          // is looking for these words. Reaching it only through OW-018 would
+          // mean the instruction "choose Bulk Onboarding from the menu" was
+          // not true of the menu they land on.
+          _Destination(icon: Icons.table_chart_outlined, title: ref.t('bulk_onboarding'), onTap: () => go('/ow-bulk-onboarding')),
           _Destination(icon: Icons.workspace_premium_outlined, title: ref.t('subscription'), onTap: () => go('/subscription')),
           profile('/ow-016'),
           settings,

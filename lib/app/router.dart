@@ -40,6 +40,7 @@ import '../features/owner_workspace/screens/ow_017_transaction_history.dart';
 import '../features/owner_workspace/screens/ow_trash_screen.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/ow_019_cheti_management.dart';
+import '../features/owner_workspace/screens/ow_bulk_onboarding_on_web.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart';
 import '../features/owner_workspace/screens/backup_screen.dart';
 import '../features/owner_workspace/screens/import_screen.dart';
@@ -466,9 +467,35 @@ final manaRouter = GoRouter(
     ),
     // Not a spec screen ID: reached from OW-018 (Business Migration) the same
     // way /import is reached from Settings.
+    //
+    // REGISTERED BUT NO LONGER LINKED TO FROM ANYWHERE IN THIS BUILD
+    // (2026-09-18). The Owner asked for the wizard to come off the handset --
+    // "difficult and messy and may go wrong" -- because it is seven pages of
+    // spreadsheet grids that asks somebody to download a workbook, fill it in
+    // and upload it back, on a phone, once, against a real book.
+    //
+    // It stays REGISTERED here, and still builds the real wizard, because
+    // test/web_router_guard_test.dart requires two things this route cannot
+    // escape: every web route must also exist on Android, and a path present
+    // on both must resolve to the SAME widget class on both. Making this
+    // build a different screen broke the second rule, which exists so that a
+    // bug fixed once is fixed everywhere the screen is reachable -- a real
+    // safeguard, not an obstacle.
+    //
+    // So the removal is done where it actually belongs: OW-018 now pushes
+    // /ow-bulk-onboarding-web instead, and nothing in the app navigates here.
     GoRoute(
       path: '/ow-bulk-onboarding',
       builder: (c, s) => BulkOnboardingWizardScreen(businessId: _resolveBusinessId(s)),
+    ),
+    // The signpost. Android only -- deliberately absent from
+    // kManaWebAllowedRoutes, because on the web build the wizard itself is
+    // right there and telling somebody to go to the website they are already
+    // on would be absurd. The guard only constrains web -> Android, so an
+    // Android-only route is allowed.
+    GoRoute(
+      path: '/ow-bulk-onboarding-web',
+      builder: (c, s) => BulkOnboardingOnWebScreen(businessId: _resolveBusinessId(s)),
     ),
     // Not a spec screen ID: Backup is reached from Settings, which is itself
     // shared across all four workspaces, so it has no OW-nnn of its own.

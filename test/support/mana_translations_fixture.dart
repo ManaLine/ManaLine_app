@@ -855,6 +855,14 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'rows_to_show': {'English': 'Rows To Show', 'Telugu': 'చూపవలసిన వరుసలు'},
   'of_which_penalty': {'English': 'Includes {amount} penalty', 'Telugu': '{amount} జరిమానా ఇందులో ఉంది'},
   'no_accounts_yet': {'English': 'No accounts yet. A day appears here once it has a collection, a loan or an expense on it.', 'Telugu': 'ఇంకా ఖాతాలు లేవు. ఒక రోజున వసూల్, అప్పు లేదా ఖర్చు నమోదైన తర్వాత అది ఇక్కడ కనిపిస్తుంది.'},
+  // The bulk onboarding wizard moving to the web (2026-09-18).
+  'bulk_onboarding_is_on_the_web': {'English': 'Bring your book across on the website', 'Telugu': 'మీ పుస్తకాన్ని వెబ్‌సైట్‌లో తీసుకురండి'},
+  'bulk_onboarding_is_on_the_web_body': {'English': 'This step means downloading a spreadsheet, filling it in and uploading it back. That is work for a computer: a bigger screen, a real spreadsheet program, and a file that does not have to survive being edited on a phone.', 'Telugu': 'ఈ దశలో స్ప్రెడ్‌షీట్ డౌన్‌లోడ్ చేసి, పూరించి, తిరిగి అప్‌లోడ్ చేయాలి. ఇది కంప్యూటర్‌కు సరిపోయే పని: పెద్ద స్క్రీన్, నిజమైన స్ప్రెడ్‌షీట్ ప్రోగ్రామ్, మరియు ఫోన్‌లో ఎడిట్ చేయవలసిన అవసరం లేని ఫైల్.'},
+  'bulk_onboarding_web_steps': {'English': 'Sign in with the same MLID and password, then choose Bulk Onboarding from the menu.', 'Telugu': 'అదే MLID మరియు పాస్‌వర్డ్‌తో సైన్ ఇన్ చేసి, మెనూ నుండి బల్క్ ఆన్‌బోర్డింగ్ ఎంచుకోండి.'},
+  'open_the_website': {'English': 'Open The Website', 'Telugu': 'వెబ్‌సైట్ తెరవండి'},
+  'copy_link': {'English': 'Copy Link', 'Telugu': 'లింక్ కాపీ చేయండి'},
+  'no_browser_on_this_device': {'English': 'No browser on this device. The address is {url}', 'Telugu': 'ఈ పరికరంలో బ్రౌజర్ లేదు. చిరునామా {url}'},
+  'one_by_one_still_works_here': {'English': 'Adding people one at a time still works here, and is the better door for a handful.', 'Telugu': 'ఒక్కొక్కరిగా చేర్చడం ఇక్కడే పని చేస్తుంది, కొద్ది మందికి అదే మంచి మార్గం.'},
   // Showing a customer where to pay (design document 2.2.1).
   'show_to_pay': {'English': 'Show To Pay', 'Telugu': 'చెల్లించడానికి చూపండి'},
   'payment_qr': {'English': 'Payment QR', 'Telugu': 'చెల్లింపు QR'},

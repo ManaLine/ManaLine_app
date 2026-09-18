@@ -8,7 +8,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/router.dart';
 import 'shared/appearance_state.dart';
 import 'shared/mana_back_handler.dart';
-import 'design/components/mana_web_frame.dart';
 import 'design/theme.dart';
 import 'design/tokens/colors.dart';
 import 'design/tokens/spacing.dart';
@@ -183,8 +182,7 @@ class ManaLineApp extends ConsumerWidget {
     // left to MaterialApp, because ManaColors is global state and the ~840
     // token call sites read it at build time — the theme and the tokens have
     // to be told the same thing, in that order, before anything renders.
-    final platformDark =
-        MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final platformDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     final wantDark = switch (appearance.theme) {
       ManaThemeChoice.dark => true,
       ManaThemeChoice.light => false,
@@ -225,8 +223,7 @@ class ManaLineApp extends ConsumerWidget {
         final deviceFactor = MediaQuery.textScalerOf(context).scale(100) / 100;
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler:
-                TextScaler.linear(deviceFactor * appearance.textSize.scale),
+            textScaler: TextScaler.linear(deviceFactor * appearance.textSize.scale),
           ),
           // NO SelectionArea here.
           //
@@ -242,18 +239,22 @@ class ManaLineApp extends ConsumerWidget {
           // live happens; without this the queue waits for somebody to open
           // it and press retry, which is a worse promise than the one made.
           child: ManaOutboxWatcher(
-            child: ManaWebFrame(
-              // BOTH, and the second one is the one that works. This builder
-              // runs ABOVE the Navigator, where currentConfiguration has no
-              // matches yet -- it answers '' here, and this builder is not
-              // re-run on navigation, so it stays ''. Every route matched
-              // nothing for months. routeInformationProvider is populated at
-              // this level and notifies; see the note on ManaWebFrame.
-              currentLocation: () =>
-                  router.routerDelegate.currentConfiguration.uri.path,
-              routeListenable: router.routeInformationProvider,
-              child: child!,
-            ),
+            // ManaWebFrame USED TO BE HERE, and it is gone.
+            //
+            // It clamped every web page to a measure from up here, above the
+            // Navigator -- which is exactly why its route check never worked:
+            // the configuration has no matches at this level, so the path it
+            // matched against was the empty string for the whole of its life.
+            //
+            // Both jobs moved into web_router.dart, where the route is the
+            // thing that selected the builder and cannot be unknown:
+            // ManaWebShell frames the twenty-one signed-in pages and
+            // ManaAuthShell the twelve signed-out ones. That also fixed a
+            // second problem this position made unavoidable -- a measure
+            // applied here wrapped the navigation rail as well as the
+            // content, leaving the whole assembly floating in the middle of
+            // a wide monitor.
+            child: child!,
           ),
         );
       },
@@ -280,16 +281,13 @@ class _MisconfiguredBuildScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.build_circle_outlined,
-                    size: 48, color: ManaColors.accent),
+                Icon(Icons.build_circle_outlined, size: 48, color: ManaColors.accent),
                 const SizedBox(height: ManaSpacing.md),
                 Text(
                   'Build not configured',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      color: ManaColors.textOnDark,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold),
+                      color: ManaColors.textOnDark, fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: ManaSpacing.sm),
                 Text(

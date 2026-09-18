@@ -2368,6 +2368,8 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'launches_global_workflow_note': {'English': r'Launches OW-014 Global Workflow.', 'Telugu': r'OW-014 గ్లోబల్ వర్క్‌ఫ్లో ప్రారంభిస్తుంది.'},
   'who_works_village_note': {'English': r'Who works {village}?', 'Telugu': r'{village}లో ఎవరు పని చేస్తారు?'},
   'no_active_agents_found': {'English': r'No active agents found.', 'Telugu': r'యాక్టివ్ ఏజెంట్లు కనుగొనబడలేదు.'},
+  'auth_panel_lead': {'English': r'The ledger for a lending business that, until now, lived in one notebook.', 'Telugu': r'ఇప్పటివరకు ఒక నోట్‌బుక్‌లో ఉన్న రుణ వ్యాపార ఖాతా, ఇప్పుడు ఇక్కడ.'},
+  'auth_panel_site_link': {'English': r'About MANA LINE', 'Telugu': r'MANA LINE గురించి'},
   'web_home_lead': {'English': r'The desk half of MANA LINE. Paperwork, records and setup happen here; collections and the daily round happen in the app on your phone.', 'Telugu': r'MANA LINE యొక్క డెస్క్ భాగం. కాగితపు పని, రికార్డులు, సెటప్ ఇక్కడ; వసూళ్లు, రోజువారీ రౌండ్ మీ ఫోన్‌లోని యాప్‌లో.'},
   'bulk_menu_lead': {'English': r'Download the sheets your book needs, fill them in at your own pace, then bring them back one step at a time.', 'Telugu': r'మీ పుస్తకానికి కావలసిన షీట్లను డౌన్‌లోడ్ చేసుకోండి, మీ వీలు ప్రకారం నింపండి, తర్వాత ఒక్కో దశగా తిరిగి తీసుకురండి.'},
   'bulk_menu_cutoff': {'English': r'Cut-Off Date', 'Telugu': r'కట్-ఆఫ్ తేదీ'},

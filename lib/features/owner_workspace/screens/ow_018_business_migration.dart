@@ -1,5 +1,6 @@
 import 'ow_019_cheti_management.dart';
 import 'ow_one_by_one_migration.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -115,11 +116,27 @@ class _BusinessMigrationScreenState extends ConsumerState<BusinessMigrationScree
   }
 
   Future<void> _openBulkOnboarding() async {
-    // THE SIGNPOST, not the wizard (2026-09-18). Bringing a whole book across
-    // means downloading a spreadsheet, filling it in and uploading it back,
-    // which has no comfortable home on a phone. This sends the Owner to the
-    // web build, where that route still runs the real wizard.
-    await context.push('/ow-bulk-onboarding-web', extra: widget.businessId);
+    // TWO DESTINATIONS, because THIS SCREEN RUNS ON BOTH BUILDS. OW-018 is in
+    // kManaWebAllowedRoutes, so an Owner can be standing on it in a browser.
+    //
+    // Bringing a whole book across means downloading a spreadsheet, filling it
+    // in and uploading it back, which has no comfortable home on a phone -- so
+    // on the handset this leads to a signpost that points at the website.
+    //
+    // THAT SIGNPOST IS ANDROID-ONLY, deliberately: telling somebody to visit
+    // the website they are already on would be absurd, so it is absent from
+    // the web allowlist. Pushing it unconditionally therefore sent a web Owner
+    // to the route-unavailable screen -- "This Screen Is in the App", offering
+    // to install the app, from inside the app's own website, one click from
+    // the wizard they were trying to reach. Reported from the live site.
+    //
+    // I introduced that when the signpost was added and did not check who else
+    // built this screen. It is the exact failure CLAUDE.md opens its
+    // "not breaking the thing next to the thing you fixed" section with.
+    await context.push(
+      kIsWeb ? '/ow-bulk-onboarding-menu' : '/ow-bulk-onboarding-web',
+      extra: widget.businessId,
+    );
     await _load();
   }
 

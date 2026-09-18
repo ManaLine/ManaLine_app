@@ -28,40 +28,47 @@ String _routerSource() => _code('lib/app/web_router.dart');
 
 void main() {
   group('the router puts every signed-in route inside the shell', () {
-    test('and leaves every signed-out route outside it', () {
+    test('and every signed-out route inside the auth shell', () {
+      // EVERY web route is inside one of the two shells, and which one is
+      // decided by the /lr- prefix. Nothing sits outside them any more:
+      // ManaWebFrame, which used to measure the leftovers from above the
+      // Navigator, is gone.
       final src = _routerSource();
-      final shellAt = src.indexOf('ShellRoute(');
-      expect(shellAt, isNonNegative, reason: 'the ShellRoute has gone');
+      final authAt = src.indexOf('ManaAuthShell(');
+      final webAt = src.indexOf('ManaWebShell(');
+      expect(authAt, isNonNegative, reason: 'the auth ShellRoute has gone');
+      expect(webAt, greaterThan(authAt),
+          reason: 'this test reads the file positionally: the auth shell is '
+              'declared first, then the signed-in shell');
 
-      // Everything after the ShellRoute opens is inside it, because it is the
-      // last entry in the routes list. A path declared before it is outside.
-      final before = src.substring(0, shellAt);
-      final inside = src.substring(shellAt);
+      final inAuth = src.substring(authAt, webAt);
+      final inWeb = src.substring(webAt);
 
       for (final route in kManaWebAllowedRoutes) {
         final declared = "path: '$route'";
         if (route.startsWith('/lr-')) {
-          expect(before, contains(declared),
-              reason: '$route is signed-out and must stay OUT of the shell: '
-                  'every destination in the rail needs a session, so a rail '
-                  'on the login page is a list of links back to the login '
-                  'page');
-          expect(inside, isNot(contains(declared)));
+          expect(inAuth, contains(declared),
+              reason: '$route is a signed-out page with no front door on it. '
+                  'It cannot go in the other shell: every destination in '
+                  'that rail needs a session, so a rail on the login page '
+                  'is twelve links back to the login page');
+          expect(inWeb, isNot(contains(declared)));
         } else {
-          expect(inside, contains(declared),
+          expect(inWeb, contains(declared),
               reason: '$route is signed-in and has no navigation on it — a '
                   'page with no way off it but the browser Back button is '
-                  'the thing this shell exists to stop');
+                  'the thing that shell exists to stop');
+          expect(inAuth, isNot(contains(declared)));
         }
       }
     });
 
-    test('the split is 12 signed-out and 21 signed-in', () {
+    test('the split is 12 signed-out and 23 signed-in', () {
       // Stated as a number so adding a route makes somebody decide which
       // side it belongs on rather than inheriting whichever is nearer.
       final out = kManaWebAllowedRoutes.where((r) => r.startsWith('/lr-'));
       expect(out, hasLength(12));
-      expect(kManaWebAllowedRoutes.length - out.length, 21);
+      expect(kManaWebAllowedRoutes.length - out.length, 23);
     });
   });
 

@@ -4,6 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import 'router.dart'
     show manaSessionRedirect, manaRootNavigatorKey, manaSelectableRoute;
+import '../shared/widgets/workspace_actions.dart' show ManaMemberKind;
+// UniversalSearchScreen LIVES IN THE DASHBOARD FILE, which is the one screen
+// Plan 3a most deliberately kept off the web. Importing the class does not
+// bring the dashboard with it -- nothing here registers /ow-001 and Dart drops
+// what no route builds -- but a shared screen living inside another screen's
+// file is a structural wart, and this is the second router to trip over it.
+// Worth its own file the next time somebody is in there.
+import '../features/owner_workspace/screens/ow_001_owner_home_dashboard.dart'
+    show UniversalSearchScreen;
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
@@ -20,10 +29,12 @@ import '../features/login_registration/screens/lr_012_business_selector.dart';
 import '../features/login_registration/screens/lr_013_role_selector.dart';
 import '../features/login_registration/state/auth_flow_state.dart' show ManaSession;
 import '../shared/login_nav_args.dart';
+import '../features/owner_workspace/screens/ow_000_first_business_setup.dart';
 import '../features/owner_workspace/screens/ow_013_account_review.dart';
 import '../features/owner_workspace/screens/ow_016_profile.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_menu.dart';
+import '../features/web/widgets/mana_auth_shell.dart';
 import '../features/web/widgets/mana_web_shell.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart';
 import '../features/owner_workspace/screens/import_screen.dart';
@@ -78,6 +89,15 @@ const kManaWebAllowedRoutes = <String>{
   '/lr-012',
   '/lr-013',
   '/web-home',
+  // FIRST BUSINESS SETUP. LR-012 sends an Owner with no business here, and
+  // it was not on this list -- so somebody who registered in a browser hit
+  // "This Screen Is in the App" and could not finish signing up at all.
+  '/ow-000',
+  // UNIVERSAL SEARCH, which is how OW-000 adds an agent while setting the
+  // business up. Registering /ow-000 without it swapped one dead end for
+  // another one page further in -- the "walk the path a fix just made
+  // reachable" rule, caught by the guard rather than by a person.
+  '/ow-search',
   '/ow-013',
   '/ow-016',
   '/ow-018',
@@ -111,6 +131,38 @@ const kWebRoleHomeRoutes = <String, String>{
   'Customer': '/web-home',
 };
 
+/// The four workspace dashboards do not exist on the web, and a great many
+/// screens' Home button points at them.
+///
+/// FOUND BY A GUARD, after the Owner reported one instance of it. Plan 3a
+/// removed `/ow-001`, `/ag-001`, `/cw-001` and `/iw-001` from the web build --
+/// collections, loans, day closure and reports all happen on the handset --
+/// but the screens that were KEPT still push them. Six separate Home and
+/// "back to my workspace" buttons across five screens therefore landed a web
+/// visitor on "This Screen Is in the App", offering to install the Android
+/// app from inside the app's own website.
+///
+/// MAPPED CENTRALLY RATHER THAN AT SIX CALL SITES. Each of those buttons
+/// means "take me to my workspace's front page", and on the web that IS
+/// `/web-home` -- the same intent, a different address. Editing six callers
+/// would leave the seventh, written next month, still broken; this cannot.
+///
+/// Routes that are genuinely absent from this build keep falling through to
+/// [_WebRouteUnavailableScreen], which is the right answer for them: it names
+/// the screen, explains that it lives in the app, and offers a way back.
+const _kWebHomeStandIns = <String, String>{
+  '/ow-001': '/web-home',
+  '/ag-001': '/web-home',
+  '/cw-001': '/web-home',
+  '/iw-001': '/web-home',
+};
+
+String? _webRedirect(BuildContext context, GoRouterState state) {
+  final standIn = _kWebHomeStandIns[state.uri.path];
+  if (standIn != null) return standIn;
+  return manaSessionRedirect(context, state);
+}
+
 final manaWebRouter = GoRouter(
   navigatorKey: manaRootNavigatorKey,
   initialLocation: '/lr-001',
@@ -118,52 +170,68 @@ final manaWebRouter = GoRouter(
   // to /lr-001 and a signed-in one with no business to /lr-012, both of
   // which are in the allowlist above, and it never names a dashboard route
   // that is missing here.
-  redirect: manaSessionRedirect,
+  redirect: _webRedirect,
   routes: <RouteBase>[
-    GoRoute(path: '/lr-001', builder: (c, s) => const SystemStartupScreen()),
-    GoRoute(path: '/lr-002', builder: (c, s) => const WorkspaceChoiceScreen()),
-    GoRoute(path: '/lr-004', builder: (c, s) => const RegistrationFormScreen()),
-    GoRoute(
-      path: '/lr-005',
-      builder: (c, s) {
-        final extra = s.extra;
-        if (extra is OtpEntryArgs) {
-          return OtpVerificationScreen(purpose: extra.purpose, membershipId: extra.membershipId);
-        }
-        return OtpVerificationScreen(purpose: (extra as OtpPurpose?) ?? OtpPurpose.registration);
-      },
+    // THE SIGNED-OUT PAGES GET A FRONT DOOR, in the same way and for the
+    // same reason as the signed-in ones below: a ShellRoute, so a route added
+    // here is framed by construction rather than by somebody remembering.
+    //
+    // A DIFFERENT SHELL, though, not the same one. ManaWebShell's rail is a
+    // list of destinations that every one of them needs a session to reach,
+    // so putting it on a login page would offer twelve links back to the
+    // login page. What these need is the opposite: something that says what
+    // the product is, and room for the form.
+    ShellRoute(
+      builder: (context, state, child) => ManaAuthShell(location: state.uri.path, child: child),
+      routes: [
+        GoRoute(path: '/lr-001', builder: (c, s) => const SystemStartupScreen()),
+        GoRoute(path: '/lr-002', builder: (c, s) => const WorkspaceChoiceScreen()),
+        GoRoute(path: '/lr-004', builder: (c, s) => const RegistrationFormScreen()),
+        GoRoute(
+          path: '/lr-005',
+          builder: (c, s) {
+            final extra = s.extra;
+            if (extra is OtpEntryArgs) {
+              return OtpVerificationScreen(
+                  purpose: extra.purpose, membershipId: extra.membershipId);
+            }
+            return OtpVerificationScreen(
+                purpose: (extra as OtpPurpose?) ?? OtpPurpose.registration);
+          },
+        ),
+        GoRoute(path: '/lr-006', builder: (c, s) => const RegistrationResultScreen()),
+        GoRoute(
+          path: '/lr-007',
+          builder: (c, s) {
+            final args = s.extra as LoginStepDownArgs?;
+            return DailyLoginScreen(
+              startInPasswordMode: true,
+              stepDownFromFailedPin: args?.stepDownFromFailedPin ?? false,
+              prefilledMobile: args?.prefilledMobile,
+              successToast: args?.successToast,
+              redirectAfterSuccess: args?.redirectAfterSuccess,
+            );
+          },
+        ),
+        GoRoute(path: '/lr-008', builder: (c, s) => CreatePinScreen(isUpgrade: s.extra == true)),
+        GoRoute(path: '/lr-009', builder: (c, s) => const DailyLoginScreen()),
+        GoRoute(path: '/lr-010', builder: (c, s) => const ForgotPasswordScreen()),
+        GoRoute(path: '/lr-011', builder: (c, s) => const ForgotPinScreen()),
+        GoRoute(
+          path: '/lr-012',
+          builder: (c, s) =>
+              BusinessSelectorScreen(alwaysPick: s.uri.queryParameters['pick'] == '1'),
+        ),
+        // The one place this router disagrees with manaRouter's DEFAULT, not
+        // its route set — LR-013 is still LR-013, but it is handed
+        // kWebRoleHomeRoutes so "one role, straight in" lands on /web-home
+        // instead of a dashboard this build does not have.
+        GoRoute(
+          path: '/lr-013',
+          builder: (c, s) => const RoleSelectorScreen(roleHomeRoutes: kWebRoleHomeRoutes),
+        ),
+      ],
     ),
-    GoRoute(path: '/lr-006', builder: (c, s) => const RegistrationResultScreen()),
-    GoRoute(
-      path: '/lr-007',
-      builder: (c, s) {
-        final args = s.extra as LoginStepDownArgs?;
-        return DailyLoginScreen(
-          startInPasswordMode: true,
-          stepDownFromFailedPin: args?.stepDownFromFailedPin ?? false,
-          prefilledMobile: args?.prefilledMobile,
-          successToast: args?.successToast,
-          redirectAfterSuccess: args?.redirectAfterSuccess,
-        );
-      },
-    ),
-    GoRoute(path: '/lr-008', builder: (c, s) => CreatePinScreen(isUpgrade: s.extra == true)),
-    GoRoute(path: '/lr-009', builder: (c, s) => const DailyLoginScreen()),
-    GoRoute(path: '/lr-010', builder: (c, s) => const ForgotPasswordScreen()),
-    GoRoute(path: '/lr-011', builder: (c, s) => const ForgotPinScreen()),
-    GoRoute(
-      path: '/lr-012',
-      builder: (c, s) => BusinessSelectorScreen(alwaysPick: s.uri.queryParameters['pick'] == '1'),
-    ),
-    // The one place this router disagrees with manaRouter's DEFAULT, not
-    // its route set — LR-013 is still LR-013, but it is handed
-    // kWebRoleHomeRoutes so "one role, straight in" lands on /web-home
-    // instead of a dashboard this build does not have.
-    GoRoute(
-      path: '/lr-013',
-      builder: (c, s) => const RoleSelectorScreen(roleHomeRoutes: kWebRoleHomeRoutes),
-    ),
-
     // EVERY SIGNED-IN PAGE GETS THE SITE'S NAVIGATION, and it is a ShellRoute
     // that puts it there rather than twenty-one edited builders.
     //
@@ -191,6 +259,28 @@ final manaWebRouter = GoRouter(
         GoRoute(
           path: '/ow-013',
           builder: (c, s) => AccountReviewScreen(businessId: _resolveBusinessId(s)),
+        ),
+        // FIRST BUSINESS SETUP, on the web since 2026-09-18. LR-012 sends an
+        // Owner with no business here, and it was not registered -- so
+        // somebody who registered in a browser reached "This Screen Is in
+        // the App" and could not finish signing up at all. The one dead link
+        // of the fifteen that was not merely inconvenient.
+        GoRoute(
+          path: '/ow-search',
+          builder: (c, s) => UniversalSearchScreen(
+            businessId: _resolveBusinessId(s),
+            fixedRole: switch (s.uri.queryParameters['role']) {
+              'customer' => ManaMemberKind.customer,
+              'agent' => ManaMemberKind.agent,
+              'investor' => ManaMemberKind.investor,
+              _ => null,
+            },
+          ),
+        ),
+        GoRoute(
+          path: '/ow-000',
+          builder: (c, s) =>
+              FirstBusinessSetupScreen(isAdditionalBusiness: s.extra == true),
         ),
         GoRoute(path: '/ow-016', builder: (c, s) => const OwnerProfileScreen()),
         GoRoute(

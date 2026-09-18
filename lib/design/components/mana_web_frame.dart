@@ -1,46 +1,68 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../tokens/breakpoints.dart';
 import '../tokens/colors.dart';
 
-/// Renders the app as a centred, phone-width column when the window is wider
-/// than a phone.
+/// Gives every web page a measure, so a screen drawn for a 360dp phone is
+/// legible in a desktop browser without being laid out again.
 ///
-/// WHY A CLAMP AND NOT A RESPONSIVE PASS: the app is ~85 screens, all built
-/// and tested against a 360x640 surface. Dropped into a 1440px window a
-/// full-width Column stretches its buttons to 1400px and its cards into
-/// unreadable bands. Laying all of them out again would re-open the overflow
-/// bug class that has shipped four times here. Clamping makes every screen
-/// legible on day one, from ONE edit, with no per-screen step to forget.
+/// TWO THINGS ABOUT THIS WIDGET WERE WRONG, and both were found on the same
+/// afternoon by deploying it and looking at the page.
 ///
-/// The route check is how a screen escapes: once a workflow has actually been
-/// laid out for a wide window, its path goes in [kManaWideRoutes] and this
-/// widget stops constraining it. Opt-in, so an unconverted screen cannot
-/// accidentally be let out.
+/// ONE: THE ROUTE CHECK NEVER WORKED. `main.dart` hands [currentLocation] the
+/// expression `router.routerDelegate.currentConfiguration.uri.path`, and this
+/// widget lives in `MaterialApp.builder` -- ABOVE the Navigator, where that
+/// configuration has not been parsed yet. It returns the empty string, and
+/// the builder is not re-run on navigation, so it stays empty. Every route
+/// therefore matched nothing in the opt-out list, including `/ow-013`, which
+/// had been believed responsive on the web since Plan 2a and has been
+/// rendering as a 480px phone column the whole time.
 ///
-/// [currentLocation] is injected rather than read from the global router
-/// because this widget sits ABOVE the Navigator, where `GoRouterState.of`
-/// does not resolve — and because a callback is what makes it testable
-/// without standing up a router.
+/// `mana_web_frame_test.dart` passed throughout, because it injects
+/// [currentLocation] as a literal string -- it proves this widget's logic and
+/// says nothing about the wiring. `web_frame_real_router_test.dart` now
+/// drives it from a real GoRouter, wired exactly as `main.dart` wires it, and
+/// fails if the string goes empty again.
 ///
-/// [isWeb] defaults to the real `kIsWeb` and exists for the same reason
-/// [currentLocation] is a callback rather than a global read: so a test can
-/// supply a value without needing a web test target. This is also the
-/// property this widget is FOR — width alone is an assumption about today's
-/// device fleet (every targeted Android handset sits under
-/// [ManaBreakpoints.compact]), not a mechanism, and an Android tablet or an
-/// unfolded foldable in portrait can exceed it. Gating on [isWeb] too is what
-/// makes "the clamp cannot change the Android build" true by construction.
+/// The fix is [routeListenable]: `GoRouter.routeInformationProvider` IS a
+/// ValueListenable<RouteInformation> that is populated and that notifies, so
+/// a ValueListenableBuilder around it both gets the right answer and rebuilds
+/// when it changes.
+///
+/// TWO: THE DEFAULT WAS BACKWARDS. Clamping everything to 480px and letting
+/// screens out one at a time was right when the web build was a courtesy;
+/// three routes escaped in the project's life, and the Owner's verdict on
+/// seeing it live was "it looks like a mobile device screen". The default is
+/// inverted now: a web page gets [kManaWebReadingMeasure], which is wide
+/// enough to read as a page and narrow enough that a button drawn full-width
+/// for a phone does not become a 1,400px band. [kManaWideRoutes] keeps its
+/// meaning but changes direction -- it now names the screens that have a
+/// BESPOKE wide layout and want the full [kManaDeskContentMax], rather than
+/// the only ones allowed out of a cell.
+///
+/// [isWeb] defaults to the real `kIsWeb`. This is the property the widget is
+/// FOR: width alone is an assumption about today's device fleet, not a
+/// mechanism, and an unfolded foldable can exceed it. Gating on [isWeb] is
+/// what makes "cannot change the Android build" true by construction.
 class ManaWebFrame extends StatelessWidget {
   final Widget child;
   final String Function() currentLocation;
   final bool Function() isWeb;
 
+  /// Notifies when the route changes, and unlike `currentConfiguration` it
+  /// is populated above the Navigator. `main.dart` passes
+  /// `router.routeInformationProvider`.
+  ///
+  /// Nullable so the widget still works with [currentLocation] alone, which
+  /// is how the unit tests drive it.
+  final ValueListenable<RouteInformation>? routeListenable;
+
   const ManaWebFrame({
     super.key,
     required this.child,
     required this.currentLocation,
+    this.routeListenable,
     this.isWeb = _realIsWeb,
   });
 
@@ -51,18 +73,35 @@ class ManaWebFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final listenable = routeListenable;
+    if (listenable == null) return _framed(context, currentLocation());
+    return ValueListenableBuilder<RouteInformation>(
+      valueListenable: listenable,
+      builder: (context, info, _) {
+        // The provider's uri is the whole location; the list holds paths.
+        final path = info.uri.path.isEmpty ? currentLocation() : info.uri.path;
+        return _framed(context, path);
+      },
+    );
+  }
+
+  Widget _framed(BuildContext context, String location) {
     final width = MediaQuery.sizeOf(context).width;
-    if (!isWeb() ||
-        width < ManaBreakpoints.compact ||
-        kManaWideRoutes.contains(currentLocation())) {
-      return child;
-    }
+    // A phone browser is already the width every screen was drawn for.
+    if (!isWeb() || width < ManaBreakpoints.compact) return child;
+
+    // A bespoke wide layout gets the desk measure; everything else gets the
+    // reading measure. NOTHING gets the whole window: a form field or a row
+    // of buttons run edge to edge across 2,560px is its own unreadable.
+    final measure = kManaWideRoutes.contains(location)
+        ? kManaDeskContentMax
+        : kManaWebReadingMeasure;
 
     return ColoredBox(
       color: ManaColors.surfaceMuted,
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: ManaBreakpoints.columnMax),
+          constraints: BoxConstraints(maxWidth: measure),
           child: child,
         ),
       ),

@@ -243,8 +243,15 @@ class ManaLineApp extends ConsumerWidget {
           // it and press retry, which is a worse promise than the one made.
           child: ManaOutboxWatcher(
             child: ManaWebFrame(
+              // BOTH, and the second one is the one that works. This builder
+              // runs ABOVE the Navigator, where currentConfiguration has no
+              // matches yet -- it answers '' here, and this builder is not
+              // re-run on navigation, so it stays ''. Every route matched
+              // nothing for months. routeInformationProvider is populated at
+              // this level and notifies; see the note on ManaWebFrame.
               currentLocation: () =>
                   router.routerDelegate.currentConfiguration.uri.path,
+              routeListenable: router.routeInformationProvider,
               child: child!,
             ),
           ),

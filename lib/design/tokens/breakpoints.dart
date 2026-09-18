@@ -96,3 +96,22 @@ final Set<String> kManaWideRoutes = <String>{
 /// unreadable, and the eye loses the start of the next line. 1200 is about
 /// three comfortable card columns plus gutters.
 const kManaDeskContentMax = 1200.0;
+
+/// The measure a web page gets when nobody has laid it out for a desk.
+///
+/// THE DEFAULT, since 2026-09-18. It used to be [ManaBreakpoints.columnMax] --
+/// 480px, a phone column centred in the window, which is what the Owner was
+/// looking at when they said "it looks like a mobile device screen".
+///
+/// 840 rather than the full [kManaDeskContentMax] because these screens have
+/// NOT been laid out for width. They are single columns of full-width rows and
+/// buttons drawn against 360dp; given 1200 they become 1200px-wide buttons,
+/// which is a different kind of wrong from being too narrow and an uglier one.
+/// 840 fills a desk window like a page, keeps a form field the width of a
+/// form field, and needs no per-screen work to be true.
+///
+/// A screen that earns more says so by joining [kManaWideRoutes], which is
+/// the same list as before pointing the other way: it used to name the only
+/// screens allowed OUT of a cell, and now names the ones with a bespoke wide
+/// layout.
+const kManaWebReadingMeasure = 840.0;

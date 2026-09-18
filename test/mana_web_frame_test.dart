@@ -36,17 +36,31 @@ void main() {
     expect(await widthOfChildAt(tester, 360), 360);
   });
 
-  testWidgets('a desktop width is clamped and centred', (tester) async {
-    expect(await widthOfChildAt(tester, 1440), ManaBreakpoints.columnMax);
+  testWidgets('a desktop width gets the reading measure, not a phone column',
+      (tester) async {
+    // INVERTED 2026-09-18. This asserted ManaBreakpoints.columnMax -- 480px,
+    // a phone column centred in a desk window, which is what the Owner was
+    // looking at when they said "it looks like a mobile device screen".
+    //
+    // Still a measure, though, and that is the half worth keeping: these
+    // screens are single columns of full-width rows drawn against 360dp, and
+    // handed the whole window their buttons become 1,400px bands.
+    expect(await widthOfChildAt(tester, 1440), kManaWebReadingMeasure);
   });
 
-  testWidgets('a route in kManaWideRoutes keeps the full width', (tester) async {
-    // Plan 2 opts each responsive workflow out by adding its path here. Until
-    // a screen has actually been laid out for a wide window, being clamped is
-    // the correct outcome, not a limitation.
+  testWidgets('a route in kManaWideRoutes gets the wider desk measure',
+      (tester) async {
+    // The list kept its name and changed direction. It used to name the only
+    // screens ALLOWED OUT of the phone column; it now names the ones with a
+    // bespoke wide layout, which get more room than the default.
+    //
+    // Neither then nor now does anything get the raw window width. 1440 was
+    // what this asserted, and a form field 1,440px wide is not a thing this
+    // app should ever draw.
     kManaWideRoutes.add('/test-wide');
     addTearDown(() => kManaWideRoutes.remove('/test-wide'));
-    expect(await widthOfChildAt(tester, 1440, location: '/test-wide'), 1440);
+    expect(await widthOfChildAt(tester, 1440, location: '/test-wide'),
+        kManaDeskContentMax);
   });
 
   testWidgets('a desktop-width window is untouched off the web — I2', (tester) async {

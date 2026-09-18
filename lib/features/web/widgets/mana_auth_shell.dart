@@ -8,6 +8,7 @@ import '../../../design/tokens/breakpoints.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
+import '../../../shared/mana_site.dart';
 import '../../../shared/translation_service.dart';
 
 /// The front door: what wraps login, registration, OTP, PIN and the two
@@ -172,7 +173,11 @@ class _BrandPanel extends ConsumerWidget {
                 // login form.
                 TextButton(
                   onPressed: () async {
-                    final uri = Uri.parse('https://manaline.in/');
+                    // The site this build was deployed with — see
+                    // mana_site.dart. Hardcoding the intended
+                    // domain here put a dead link on the live
+                    // sign-in page.
+                    final uri = Uri.parse(manaSiteUrl);
                     try {
                       await launchUrl(uri, mode: LaunchMode.platformDefault);
                     } catch (_) {

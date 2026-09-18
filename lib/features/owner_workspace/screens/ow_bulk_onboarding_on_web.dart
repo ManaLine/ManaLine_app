@@ -8,6 +8,7 @@ import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
+import '../../../shared/mana_site.dart';
 import '../../../shared/translation_service.dart';
 
 /// Where the handset sends an Owner who wants to bring a whole book across.
@@ -39,7 +40,12 @@ class BulkOnboardingOnWebScreen extends ConsumerWidget {
   /// them to the front door and naming the menu item is the honest route, and
   /// it is the one the instruction described: "website - login - menu showing
   /// bulk onboarding".
-  static const websiteUrl = 'https://manaline.in/app/';
+  /// FROM ONE CONSTANT, not typed here. This said
+  /// `https://manaline.in/app/` and shipped inside the APK -- to a domain
+  /// that is not registered and resolves to nothing. An Owner tapping "Open
+  /// The Website" on the phone went precisely nowhere, and the screen looked
+  /// perfect the whole time.
+  static String get websiteUrl => manaSiteAppUrl;
 
   Future<void> _open(BuildContext context, WidgetRef ref) async {
     // canLaunchUrl answers false on devices that would in fact open a
@@ -104,8 +110,10 @@ class BulkOnboardingOnWebScreen extends ConsumerWidget {
                 // the laptop they are about to do the work on anyway.
                 TextButton.icon(
                   onPressed: () async {
+                    // Not const: websiteUrl is a build-time define now, so
+                    // it is a getter rather than a literal.
                     await Clipboard.setData(
-                        const ClipboardData(text: websiteUrl));
+                        ClipboardData(text: websiteUrl));
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: ManaText.raw(ref.t('copied'))),

@@ -417,7 +417,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:187` (`listed`)
 - `features/login_registration/screens/lr_008_create_pin.dart:89` (`go`)
 - `features/login_registration/screens/lr_009_daily_login.dart:306` (`go`)
-- `features/web/widgets/mana_auth_shell.dart:63` (`listed`)
+- `features/web/widgets/mana_auth_shell.dart:64` (`listed`)
 - `shared/mana_back_handler.dart:61` (`listed`)
 
 **`/lr-002`** — 4 call sites
@@ -425,7 +425,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:80` (`listed`)
 - `app/web_router.dart:188` (`listed`)
 - `features/login_registration/screens/lr_001_system_startup.dart:117` (`listed`)
-- `features/web/widgets/mana_auth_shell.dart:48` (`listed`)
+- `features/web/widgets/mana_auth_shell.dart:49` (`listed`)
 
 **`/lr-004`** — 3 call sites
 
@@ -447,7 +447,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:83` (`listed`)
 - `app/web_router.dart:202` (`listed`)
 - `features/login_registration/screens/lr_005_otp_verification.dart:131` (`go`)
-- `features/web/widgets/mana_auth_shell.dart:48` (`listed`)
+- `features/web/widgets/mana_auth_shell.dart:49` (`listed`)
 
 **`/lr-007`** — 8 call sites
 
@@ -518,7 +518,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/login_registration/screens/lr_013_role_selector.dart:139` (`go`)
 - `features/login_registration/screens/lr_013_role_selector.dart:270` (`listed`)
 - `features/login_registration/screens/lr_013_role_selector.dart:284` (`listed`)
-- `features/web/widgets/mana_auth_shell.dart:48` (`listed`)
+- `features/web/widgets/mana_auth_shell.dart:49` (`listed`)
 - `shared/business_suspension_gate.dart:196` (`go`)
 
 **`/lr-013`** — 8 call sites
@@ -530,7 +530,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:106` (`go`)
 - `features/login_registration/screens/lr_012_business_selector.dart:222` (`push`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:290` (`go`)
-- `features/web/widgets/mana_auth_shell.dart:48` (`listed`)
+- `features/web/widgets/mana_auth_shell.dart:49` (`listed`)
 
 **`/notifications`** — 3 call sites
 
@@ -574,7 +574,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/ow_016_profile.dart:281` (`push`)
 - `features/owner_workspace/screens/ow_017_statement_screen.dart:112` (`listed`)
 - `features/owner_workspace/screens/ow_017_transaction_history.dart:23` (`listed`)
-- `features/owner_workspace/screens/ow_bulk_onboarding_on_web.dart:70` (`listed`)
+- `features/owner_workspace/screens/ow_bulk_onboarding_on_web.dart:76` (`listed`)
 - `features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart:948` (`listed`)
 - `features/owner_workspace/screens/ow_line_pending_list.dart:74` (`listed`)
 - `shared/mana_back_handler.dart:48` (`listed`)

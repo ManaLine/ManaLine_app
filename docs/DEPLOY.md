@@ -305,6 +305,21 @@ is live:
 
 ## Re-verified 2026-09-18
 
+**THE APP NO LONGER LINKS TO IT.** Two screens hardcoded the intended domain
+-- the handset signpost (`https://manaline.in/app/`, shipped inside the APK)
+and the sign-in page's "About MANA LINE" link -- so both led nowhere. They read
+`manaSiteUrl` from `lib/shared/mana_site.dart` now, which defaults to the
+origin actually serving. `test/site_url_guard_test.dart` fails if the literal
+comes back.
+
+**When the domain is registered and attached, the switch is a build flag:**
+
+```bash
+flutter build web -t lib/main_web.dart --base-href /app/ --dart-define=MANA_SITE_URL=https://manaline.in --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
+```
+
+The Android build takes the same define. Nothing else changes.
+
 **Still not deployed. `manaline.in` does not resolve** — checked from this
 machine on 2026-09-18, `curl` returns "Could not resolve host". There is no
 Cloudflare Pages project behind it yet, so the first run of this procedure is

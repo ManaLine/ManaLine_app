@@ -142,8 +142,15 @@ void main() {
     final screen = File(
             'lib/features/owner_workspace/screens/ow_bulk_onboarding_on_web.dart')
         .readAsStringSync();
-    expect(screen, contains("websiteUrl = 'https://manaline.in/app/'"));
-    expect(screen, isNot(contains('app/#/ow-bulk-onboarding')));
+    // The FRONT DOOR is still the rule; only where the address comes from
+    // has changed. It used to be typed here as https://manaline.in/app/ --
+    // a domain that is not registered, so the signpost's one job led
+    // nowhere. It reads manaSiteAppUrl now (see site_url_guard_test).
+    expect(screen, contains('manaSiteAppUrl'));
+    expect(screen, isNot(contains('app/#/ow-bulk-onboarding')),
+        reason: 'still the front door, not a deep link: the handset session '
+            'does not travel to the browser, so a deep link lands on login '
+            'and loses the destination on the way through');
   });
 
   test('the signpost offers a way out when no browser answers', () {

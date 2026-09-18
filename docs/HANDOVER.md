@@ -155,7 +155,7 @@ powershell -ExecutionPolicy Bypass -File tool\verify_rebuild.ps1 -Keep
 ```
 
 That builds a disposable Postgres on port 5433 — trust auth, no password,
-no Docker — applies `supabase/rebuild_bootstrap.sql` and then all 472
+no Docker — applies `supabase/rebuild_bootstrap.sql` and then all 479
 migration files to it. The bootstrap is not optional and its own header
 says why: two enum types and `loan_templates` exist in production and in
 no migration, so the migrations alone do NOT rebuild from nothing. It cannot reach
@@ -168,8 +168,11 @@ which reads like a broken script rather than a missing shell. None of the four
 .ps1 files in `tool/` uses 7-only syntax, so Windows PowerShell 5.1 runs
 all of them. Checked 2026-09-18, when it wasted ten minutes.
 
-**Verified 2026-09-18: bootstrap + all 472 migrations rebuild from nothing,
-cleanly.**
+**Verified 2026-09-19: bootstrap + all 479 migrations rebuild from nothing,
+cleanly.** The 2026-09-18 figure was 472 and it went stale the same week: at
+479 files the rebuild stopped at 473, on a migration whose closing assertion
+needed a business to exist. Re-run the script after any batch of migrations —
+reading this line is not the same as running it.
 
 ---
 
@@ -303,12 +306,12 @@ somebody should take, not a side effect.
 
 **9. The cluster that was not ready yet.**
 `tool\verify_rebuild.ps1 -Keep` starts Postgres on 5433 and *then* applies
-472 migrations. The port answers long before the schema exists. Run the
+479 migrations. The port answers long before the schema exists. Run the
 SQL tests the moment the port opens and you get failures from a half-built
 database — on 2026-09-18 that produced a convincing "4 assertions failed,
 schema_integrity is broken" that was entirely my own impatience, and it
 left state behind that poisoned the next run too. **Wait for the script to
-print `ALL 472 MIGRATIONS APPLIED CLEANLY`, not for the port.** Run against
+print `ALL 479 MIGRATIONS APPLIED CLEANLY`, not for the port.** Run against
 the finished cluster it is 22 of 22.
 
 **And the one with no guard at all:** judgement regressions — correct code
@@ -385,7 +388,7 @@ Verified 2026-09-18 by running the counts, not by recalling them.
 | Dart files | 246 in `lib/`, 228 under `test/` (225 `*_test.dart` + 3 in `test/support/`) |
 | Tests | **2,762 passing**, no credentials needed |
 | Screens | 73 files across 8 feature directories (7 workspaces + `web`); 84 routes over two routers (52 handset-only, 32 on the restricted web build) |
-| Migration files | 472 local, matching 472 applied in the ledger exactly |
+| Migration files | **479 local, 487 applied in the ledger** — 8 applied versions have no local file (measured 2026-09-19, see below) |
 | Edge Functions | 13 directories = 12 functions + `_shared`; 9 `auth-*`, 3 `admin-*` |
 | Public tables | 82, all 82 with RLS |
 | `flutter analyze` | **0 issues** |
@@ -592,11 +595,20 @@ is worth more than any staging fixture.
   `trg_loans_status_follows_balance` rather than where you would look for
   it. If a loan's status surprises you, that trigger is the first place
   to read.
-- **Migration ledger drift is closed** — re-checked 2026-09-18 and listed
-  here because the plan and my own notes still call it open. 472 applied
-  versions, 472 local files, and the md5 of the sorted version list matches
-  on both sides. Keep it that way: after applying through the MCP tool,
-  write the local file with the exact stamped version.
+- **Migration ledger drift is OPEN AGAIN** — it was closed on 2026-09-18 at
+  472 = 472 with matching md5s, and that line is what made it worth
+  re-measuring rather than re-reading. On 2026-09-19 the ledger holds **487
+  applied versions against 479 local files**: eight migrations, `20260918223810
+  _the_operating_areas_screen_leads_with_the_areas` through `20260919032146
+  _words_for_making_two_villages_into_one`, are applied to production and exist
+  in no branch of this repo. Their SQL is still in
+  `supabase_migrations.schema_migrations.statements`, one statement each, so
+  they are recoverable — but nothing in the repo rebuilds them today, which
+  means `verify_rebuild.ps1` going green proves the repo rebuilds *the repo*,
+  not production. Closing this is writing those eight files with their exact
+  stamped versions. Not done here; it is the Owner's call which branch they
+  belong on. The rule that stops it recurring is unchanged: after applying
+  through the MCP tool, write the local file with the exact stamped version.
 
 ---
 

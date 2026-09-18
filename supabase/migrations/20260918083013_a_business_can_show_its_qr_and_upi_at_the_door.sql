@@ -99,7 +99,7 @@ CREATE POLICY business_payment_qr_member_select ON storage.objects
   );
 
 DO $$
-DECLARE v_n INT; v_refused BOOLEAN := FALSE;
+DECLARE v_n INT;
 BEGIN
   SELECT count(*) INTO v_n FROM information_schema.columns
    WHERE table_schema='public' AND table_name='businesses'
@@ -137,14 +137,42 @@ BEGIN
     RAISE EXCEPTION 'an empty list must be allowed -- it is the default';
   END IF;
 
-  -- And the constraint itself must fire, not merely exist.
-  BEGIN
-    UPDATE businesses SET upi_ids = ARRAY['broken']
-     WHERE business_id = (SELECT business_id FROM businesses LIMIT 1);
-  EXCEPTION WHEN check_violation THEN
-    v_refused := TRUE;
-  END;
-  IF NOT v_refused THEN
-    RAISE EXCEPTION 'the CHECK did not fire on a bad handle';
+  -- And the constraint must be ON the table, wired to that function.
+  --
+  -- EDITED 2026-09-19, and this is the only edit this file has had. It
+  -- originally proved the CHECK fires by UPDATEing `(SELECT business_id FROM
+  -- businesses LIMIT 1)` to a bad handle and catching check_violation. On
+  -- production that works, because production has books. On a database
+  -- rebuilt from nothing there are none: the subquery is NULL, the UPDATE
+  -- matches zero rows, nothing is checked, and the assertion raised -- which
+  -- stopped tool/verify_rebuild.ps1 at this file, 473 of 479, and meant the
+  -- seven migrations after it had never been applied to an empty database by
+  -- anything.
+  --
+  -- This is the same defect test/sql_tests_wired_test.dart already fails
+  -- supabase/tests/*.sql for -- "builds its own fixtures rather than adopting
+  -- a real row" -- which simply did not cover migrations. It does now:
+  -- test/migration_fixture_independence_test.dart.
+  --
+  -- The replacement asserts the same thing without needing a row. A CHECK
+  -- named here, on this table, whose definition calls app.upi_ids_are_valid,
+  -- IS the constraint firing: the function's own behaviour is asserted five
+  -- times directly above, and PostgreSQL does not hold a CHECK it will not
+  -- enforce. Fabricating a business inside a SAVEPOINT would have kept the
+  -- literal probe, at the price of an INSERT in a file that runs against real
+  -- books; that trade was not worth making.
+  --
+  -- The schema this file creates is unchanged. Nothing below this comment
+  -- writes anything.
+  SELECT count(*) INTO v_n FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+   WHERE n.nspname = 'public'
+     AND t.relname = 'businesses'
+     AND c.conname = 'businesses_upi_ids_look_like_vpas'
+     AND c.contype = 'c'
+     AND pg_get_constraintdef(c.oid) LIKE '%upi_ids_are_valid%';
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'the upi_ids CHECK is not on businesses, or does not call app.upi_ids_are_valid';
   END IF;
 END $$;

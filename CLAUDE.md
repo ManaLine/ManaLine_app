@@ -315,10 +315,18 @@ and then reports the schema as broken — which is worse than not existing,
 because somebody will go looking for the wrong bug. Treat a first execution as
 finding defects in the test, not in the system, until proven otherwise.
 
-**The seventh is real and is open:** SP-001 business suspension is enforced in
-neither layer. No RLS policy references `business_status`, and
-`lib/shared/business_suspension_gate.dart` — written for exactly this — has no
-callers.
+**The seventh was real, and is now half closed.** SP-001 business suspension is
+enforced in the APP, fail-closed, and deliberately not in RLS.
+`lib/shared/business_suspension_gate.dart` has six call sites since a75e468
+(2026-09-15) — the `BusinessSuspendedScreen` route in `router.dart`, plus
+AG-009, CW-006, IW-005, LR-012 and LR-013 — and
+`test/business_suspension_gate_test.dart` covers it. No RLS policy references
+`business_status`, which remains true and remains a choice:
+`select count(*) from pg_policies where qual like '%business_status%'` is 0.
+
+This paragraph said "has no callers" for three days after it stopped being
+true, and `docs/HANDOVER.md` copied it into a week-two task. A stale note does
+not merely misinform — it invents work.
 
 Judgement regressions — correct code that reads as broken — still have no guard
 at all and are found on the handset.

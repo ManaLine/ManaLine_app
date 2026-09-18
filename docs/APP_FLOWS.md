@@ -265,6 +265,36 @@ entry cascades forward by design.
 `day_ledger` closing minus what the agents hold. Delete and restore both move
 BF correctly because neither has to remember to.
 
+**But a signed-off period does not move at all** (2026-09-17). The cascade
+above is why: deleting one six-month-old collection used to rewrite every
+closing balance from that day to today — including days already **closed**,
+whose `day_closures` row kept the counted cash and the zero difference it was
+signed off on. The two would disagree and nothing said so.
+
+`app.soft_delete_record` and `app.restore_record` now call
+`app.locked_period_reason()` **before any write**, and refuse when the record's
+business date falls on a `Closed` day or inside a `Submitted`/`Approved`/`Locked`
+account period. Both directions are guarded: restoring moves the same money the
+other way through the same recompute, so guarding only the delete would leave
+the hole open in reverse — delete while the period is open, restore once it is
+settled.
+
+**Know the dead end before you meet it:** a settlement can be returned
+(`app.return_settlement`), but **there is no reopen for a business day**.
+`app.close_business_day` reads `reopened_at` and nothing in the schema ever
+sets it. So a closed day is currently uneditable rather than
+editable-after-a-deliberate-step. That is a known, named gap, not an oversight
+— and it is the first thing to build if anyone starts closing days.
+
+**A loan's status follows its balance** (2026-09-17), by a trigger rather than
+by any one RPC remembering to. Seven functions assign `remaining_balance` and
+only `close_loan` ever set a status, so a loan paid to zero stayed `Active` for
+ever and kept appearing in the round. `trg_loans_status_follows_balance` closes
+it at zero — recognising any pending penalty as income on the way, which is
+what `close_loan` did manually — and **reopens it** if a deleted collection
+gives the money back. `Cancelled` and `Defaulted` are never touched: those are
+decisions a person made, not facts about a balance.
+
 ---
 
 ## 8. Customer, investor, and asking to join
@@ -311,7 +341,10 @@ only by selecting `principal_amount` after the call and reading it.
 
 These govern every screen in the app. They are here rather than repeated per screen
 because a per-screen description of button positions is the fastest-rotting
-document anybody could write, and the screen file is 200 readable lines.
+document anybody could write, and the screen file itself is the better read.
+(Do not expect it to be short: across the 73 screen files the median is 408
+lines and nine are over 1,000 — `ow_012_business_management.dart` is 2,392.
+The long ones are the oldest and the most worth splitting.)
 
 **Chrome is assembled by components, never by the screen.**
 
@@ -337,11 +370,24 @@ independent meanings** (BR-191/GC-002, `ManaVerificationRing` in
 `lib/design/components/mana_text.dart`):
 
 1. **Colour, by default, means identity verification** — green or red, from
-   `persons.verification_ring`. Twenty-two call sites mean this one.
-2. **`ringColor`, opt-in, means membership status** on the business roster —
-   green active, red suspended, orange removed. Explicitly opt-in rather
-   than a reinterpretation, so a reader is never left guessing which of the
-   two a screen means.
+   `persons.verification_ring`. Twenty-two call sites; eight take the
+   default.
+2. **`ringColor`, opt-in, overrides that colour.** Fourteen sites pass it,
+   and they mean two different things — so read which before you copy one:
+   **thirteen** pass `ManaColors.textSecondary` for *verification unknown*
+   (the model never fetched the column, and `null` must not be drawn as
+   "unverified"), and **one**, `ow_012_business_management.dart:2067`, uses
+   it for membership status on the business roster — green active, red
+   suspended, orange removed.
+3. **Sweep, opt-in, means how complete the record is** — `completeness`
+   0.0–1.0 from `app.profile_completeness`, drawn as an arc that closes at
+   five of five. Independent of colour, which is the whole reason it is a
+   sweep: a half-drawn green ring says verified AND half-known.
+
+   Do not add a fourth meaning as a colour. The note in `mana_text.dart`
+   records why sweep was chosen instead, and sixteen sites once drew the
+   colour from a hardcoded `isVerified: true` — the failure that costs most
+   here is a ring that asserts something nobody asked the database.
 3. **`completeness`, 0.0–1.0, is a third channel, not a third colour** — how
    complete a profile is, drawn clockwise from the top like a gauge. A
    half-drawn green ring still says verified; it also says half-known.

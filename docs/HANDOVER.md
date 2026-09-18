@@ -1,6 +1,6 @@
 # HANDOVER — MANA LINE
 
-Written 2026-09-18, at build 14.13, by the developer handing this over.
+Written 2026-09-18, at build 14.14, by the developer handing this over.
 For the person taking it from here.
 
 This is not a summary of the README. The README tells you what is true.
@@ -27,7 +27,7 @@ Do these in this order. Do not skip to the code.
 | 5 | `docs/APP_MAP.md` | Generated inventory: every route → file → arguments → who reaches it → whether it is tested. Regenerate with `dart run tool/gen_app_map.dart`; `test/app_map_sync_test.dart` fails if it drifts. |
 | 6 | `lib/app/router.dart` | The handset's whole surface in one file, one route per locked screen ID. Read `_resolveBusinessId`. `lib/app/web_router.dart` is the restricted web subset, and its header says why a second router is allowed to exist. |
 | 7 | `lib/shared/mana_time.dart`, `lib/design/tokens/` | Two small things that constrain everything: time, and visual language. The colour file explains every choice. |
-| 8 | `docs/superpowers/plans/2026-09-15-production-readiness.md` | The live plan. 17 steps done, 13 open. Your roadmap, already argued through. |
+| 8 | `docs/superpowers/plans/2026-09-15-production-readiness.md` | The live plan. 17 steps done, 12 open. Your roadmap, already argued through. |
 | 9 | `docs/decisions/` (3 files) | Offline, analytics, visual identity — decided, with reasoning. Do not re-open without reading. |
 
 Then, and only then: `flutter test`. Watch it go green. That suite is the
@@ -95,7 +95,7 @@ notifier → `*_api_service.dart` → Supabase. API method signatures are free
 to reshape; the layering is not.
 
 **Time is IST, always, via `manaTimestamp()`.** Never a bare
-`DateTime.now()`. All 87 timestamp columns are naive
+`DateTime.now()`. All 126 timestamp columns are naive
 `timestamp without time zone`, coherent only because every writer agrees.
 One wrong clock previously wrote an audit row 5½ hours in the future and
 ran a 24h cooldown for 29.5h.
@@ -155,17 +155,21 @@ powershell -ExecutionPolicy Bypass -File tool\verify_rebuild.ps1 -Keep
 ```
 
 That builds a disposable Postgres on port 5433 — trust auth, no password,
-no Docker — and applies all 472 migration files to it. It cannot reach
+no Docker — applies `supabase/rebuild_bootstrap.sql` and then all 472
+migration files to it. The bootstrap is not optional and its own header
+says why: two enum types and `loan_templates` exist in production and in
+no migration, so the migrations alone do NOT rebuild from nothing. It cannot reach
 production because it makes its own server. It is the safest place to
 learn.
 
 **The docs used to say `pwsh`, and `pwsh` is PowerShell 7, which is not
 installed on this machine.** Typing it gives `CommandNotFoundException`,
-which reads like a broken script rather than a missing shell. Neither .ps1
-in `tool/` uses 7-only syntax, so Windows PowerShell 5.1 runs both. Checked
-2026-09-18, when it wasted ten minutes.
+which reads like a broken script rather than a missing shell. None of the four
+.ps1 files in `tool/` uses 7-only syntax, so Windows PowerShell 5.1 runs
+all of them. Checked 2026-09-18, when it wasted ten minutes.
 
-**Verified 2026-09-18: all 472 migrations rebuild from nothing, cleanly.**
+**Verified 2026-09-18: bootstrap + all 472 migrations rebuild from nothing,
+cleanly.**
 
 ---
 
@@ -209,14 +213,16 @@ bitten this project once.
 
 **When you find a regression, ask "what would have failed?"** — then add
 that, rather than another rule. Prose is weakest exactly when sessions get
-long, which is when regressions happen. Twenty guard tests exist because
-twenty prose rules did not hold. When a guard reports a violation, fix the
+long, which is when regressions happen. Eighteen files match `test/*_guard_test.dart`, and
+`schema_snapshot_test.dart` and `consumer_census_test.dart` do the same job
+without the name — call it twenty. Each exists because a prose rule did not
+hold. When a guard reports a violation, fix the
 code or sharpen the rule with the reason written down. Never loosen it to
 get green.
 
 ---
 
-## 5. The seven ways this project has cost days
+## 5. The nine ways this project has cost days
 
 Every one has actually happened here, most more than once. This section is
 the real value of the handover — read it before your first change, not
@@ -255,8 +261,16 @@ the screen just says it could not load. There are **eleven** such pairs.
 `test/ambiguous_embed_guard_test.dart`.
 
 **5. The overflow.** A bare unflexible child beside a flexible one. It has
-shipped four times. It is invisible to `flutter analyze` and to looking at
-one phone at one font size. The harness checks it at text scales
+**shipped four times, and been written at least twice more since** — both
+caught by the layout tests before any build, one of them at 1.0x in
+English, which would have been broken on every phone. Take that as
+evidence the guard earns its runtime, not that the habit is cured: the
+warning comments in `mana_money_row.dart`, `mana_label_value_row.dart`,
+`breakpoints.dart` and six other files — nine in all — were written by
+somebody who knew the rule. (Those comments disagree with each other about the count —
+some say four, some five. Believe the guard, not the prose.) It is
+invisible to `flutter analyze` and to looking at one phone at one font
+size. The harness checks it at text scales
 `[1.0, 1.3, 1.6, 2.0]` on 360×640, in English *and Telugu* — Telugu is the
 one that overflows, because its rendered strings run consistently longer
 than the English the layout was drawn against. On device the only reliable
@@ -274,14 +288,37 @@ people into an approval flow that had never run and a screen that crashed
 on a null embed. When a fix makes a previously unreachable path reachable,
 walk the whole path.
 
+**8. The working tree that changed under you (Windows only).** Switch
+branches and come back — `git checkout main`, then back again — and every
+file is re-materialised with CRLF, because `core.autocrlf=true` and
+`.gitattributes` pins only `*.sql` and `docs/APP_MAP.md` to LF. Five tests
+that read source files and match multi-line snippets then fail, having
+passed all day. They were never checking what you just changed; they are
+Windows-fragile and CI never sees it, because Linux checks out LF. Three
+of them now normalise line endings where they read. **If a test you did
+not touch fails right after a branch switch, check this before you check
+your change.** Pinning `*.dart text eol=lf` would end the whole class and
+rewrite every Dart file in the working tree once — a deliberate decision
+somebody should take, not a side effect.
+
+**9. The cluster that was not ready yet.**
+`tool\verify_rebuild.ps1 -Keep` starts Postgres on 5433 and *then* applies
+472 migrations. The port answers long before the schema exists. Run the
+SQL tests the moment the port opens and you get failures from a half-built
+database — on 2026-09-18 that produced a convincing "4 assertions failed,
+schema_integrity is broken" that was entirely my own impatience, and it
+left state behind that poisoned the next run too. **Wait for the script to
+print `ALL 472 MIGRATIONS APPLIED CLEANLY`, not for the port.** Run against
+the finished cluster it is 22 of 22.
+
 **And the one with no guard at all:** judgement regressions — correct code
 that reads as broken to the person holding the phone. Those are found on
 the handset, by a human, and nowhere else.
 
 ### The guards, and what each stops
 
-All run under `flutter test`. Twenty of them. Worth knowing by name on day
-one:
+All run under `flutter test`. Eighteen are named `*_guard_test.dart`; two
+more do the same job under other names. Worth knowing by name on day one:
 
 | Guard | Stops |
 |---|---|
@@ -343,28 +380,84 @@ Verified 2026-09-18 by running the counts, not by recalling them.
 
 | | |
 |---|---|
-| Branch | `web-on-the-web`, identical to `main`, in sync with origin |
-| Build | 0.1.0+14 (commits say build 14.13) |
-| Dart files | 246 in `lib/`, 227 test files |
+| Branch | `web-on-the-web`, in sync with origin. It is normally identical to `main` and is fast-forwarded there after each build — check with `git rev-list --left-right --count main...HEAD` rather than believing this row |
+| Build | 0.1.0+14 (commits say build 14.14; the `+14` is Android's versionCode and the `.14` is `manaBuildRevision` — 15 is reserved for "testing finished", when the four-column rating is due) |
+| Dart files | 246 in `lib/`, 228 under `test/` (225 `*_test.dart` + 3 in `test/support/`) |
 | Tests | **2,762 passing**, no credentials needed |
-| Screens | 73 files across 7 workspaces; 84 routes over two routers (52 handset-only, 32 on the restricted web build) |
+| Screens | 73 files across 8 feature directories (7 workspaces + `web`); 84 routes over two routers (52 handset-only, 32 on the restricted web build) |
 | Migration files | 472 local, matching 472 applied in the ledger exactly |
-| Edge Functions | 14 directories (auth only) |
+| Edge Functions | 13 directories = 12 functions + `_shared`; 9 `auth-*`, 3 `admin-*` |
 | Public tables | 82, all 82 with RLS |
 | `flutter analyze` | **0 issues** |
-| CI | `.github/workflows/ci.yml` runs analyze + the full suite on every push |
+| CI | `.github/workflows/ci.yml` runs analyze + the full suite on pushes to `main` and `web-on-the-web`, and on pull requests |
 
 **README's Status table was behind reality and has been corrected**
 (2026-09-18) — it had said 66 screens, 329 migrations and 2,083 tests, and
 its Design section described a palette the code does not use. **CLAUDE.md
-still says 757 tests and 67 public tables**, both stale; fix those in your
-first week. Nobody lied — they are snapshots that stopped being updated,
-and that is the most common rot in this repo. `docs/APP_MAP.md` is
-generated and guarded so the route inventory cannot join them.
+was corrected in the same batch** and now says 2,762 tests and 82 public
+tables, both re-counted against the repo and the database.
+
+Nobody lied — they were snapshots that stopped being updated, and that is
+the most common rot in this repo. This document caught itself doing it
+within a day: an earlier draft of this very section told you CLAUDE.md was
+still stale, and by then it was not. **Re-verify a count before repeating
+it — including every count below.** `docs/APP_MAP.md` is generated and
+guarded so the route inventory, at least, cannot join them.
+
+### Landed on the last two days — newest, least worn in
+
+These are real, tested and on the handset, but they have had the least
+time in front of a human. If something behaves oddly in these areas,
+suspect them before you suspect the old code.
+
+- **The Daily Record Book is an account sheet** (OW-009). Credits left,
+  debits right, both totalled, the closing carried into tomorrow as the
+  next BF — the shape the owner's paper book has always used. Only days
+  with an account appear (`app.active_account_dates`); one account fills
+  the screen and the next is a page to the left. Tap a row for the day's
+  entries, tap the date for a calendar of the days that exist. Vasool,
+  Karchu and Vaddi are the owner's words, not translations.
+- **Karchu can be drawn two ways** — net cash, or the face amount with
+  interest and fee credited back. `app.day_loan_income` decomposes it.
+  Both forms must net to the same closing; `account_sheet_rows_test.dart`
+  is the invariant, and it is the thing to run if a figure looks wrong.
+- **Payment modes name the app** — `payment_mode_enum` has seven labels:
+  Cash, GPay, PhonePe, Paytm, Bank Transfer, Cheque, and the historical
+  UPI (kept, not offered). `lib/shared/payment_modes.dart` is the single
+  vocabulary and `payment_mode_vocabulary_test.dart` holds it to the
+  database enum. It exists because five separate places bucketed payments
+  by a hardcoded `'UPI'`, and two of them were SQL functions that would
+  have made a day impossible to close.
+- **The Line Pending List**, reached from the record book. (The code and
+  two migrations cite "design document 2.6.1.1" — that is the owner's own
+  PDF, which is NOT in this repo. Ask for it; several screens are built
+  from it, including the account sheet on page 9 and the QR/UPI display
+  on page 5 that is specified and not built.) `app.line_pending_list` with a date range, a minimum
+  balance and a minimum number of overdue periods. "Pending weeks" means
+  instalments **overdue**, not instalments remaining — the easy reading
+  calls a daily loan 984 weeks pending.
+- **Temporary IDs can be made permanent.** A customer entered from a paper
+  book has an MLTI; adding an Aadhaar mints an MLPI.
+  `app.convert_customer_to_mlpi` does it, writing `person_id_history`,
+  which had existed unused since the schema was written. Reachable from
+  the Owner's customer list and from a badge on the agent's collection
+  row, because the Aadhaar card is at the customer's house. **The MLID is
+  a login identifier**, so a conversion changes what that person would
+  type to sign in.
+- **The ring around a photo now means two things at once.** Its colour is
+  identity verification, as it always was; how far round it is drawn is
+  how complete the record is (`app.profile_completeness` — permanent ID,
+  mobile, date of birth, live photo, village). Do not add a third colour:
+  the note in `mana_text.dart` explains why sweep was chosen instead.
+- **Every ring tells the truth about verification.** Sixteen sites drew it
+  from a literal `isVerified: true`. On the live books 8 people of 99 are
+  verified; the lists had been showing all 99 as verified. Fixed, with a
+  guard in `customer_ring_tells_the_truth_test.dart`, and `null` means
+  "not fetched" rather than "not verified".
 
 ### Real, and proven on a handset
 
-One business carries a migrated paper ledger — 57 loans, 353 collections —
+One business carries a migrated paper ledger — 59 loans, 353 collections —
 worked end to end from a phone: loans issued, collections taken door to
 door, expenses recorded, an account submitted and approved. That path used
 to be the biggest gap and is now where most bugs get found. **Use it.** It
@@ -396,11 +489,21 @@ is worth more than any staging fixture.
   `admin_delete_loan`, `admin_delete_collection`, `admin_delete_business`
   exist and are gated, but have never run to completion — so test rows
   created against production stay there.
-- **SP-001 business suspension is enforced in neither layer.** No RLS
-  policy references `business_status`, and
-  `lib/shared/business_suspension_gate.dart` — written for exactly this —
-  has **no callers**. Settled decision: enforce in the app, fail-closed;
-  deliberately not in RLS. A real, open, security-shaped gap.
+- **SP-001 business suspension: the app half is DONE, the RLS half is
+  not.** An earlier draft of this document said the gate had "no callers"
+  and sent you to wire it. That was wrong, and it is the most expensive
+  kind of wrong — a whole task invented out of a stale note.
+  `lib/shared/business_suspension_gate.dart` has six call sites, landed
+  2026-09-15 in a75e468: `router.dart` (the `BusinessSuspendedScreen`
+  route), `ag_009_profile.dart`, `cw_006_my_profile_memberships.dart`,
+  `iw_005_my_profile_memberships.dart`, `lr_012_business_selector.dart`
+  and `lr_013_role_selector.dart`, with
+  `test/business_suspension_gate_test.dart` covering it.
+  What remains is only the database half, and it was a deliberate
+  decision not to do it:
+  `select count(*) from pg_policies where qual like '%business_status%'`
+  returns 0. Enforcement is in the app, fail-closed, on purpose. **Verify
+  before you act on this bullet** — that is the lesson, not the gate.
 - **Known-live test credentials — deliberate, do not "fix" without
   asking.** The admin password is `siri1234` on production, and
   `generateOtpCode()` in `supabase/functions/_shared/hashing.ts` returns a
@@ -409,12 +512,30 @@ is worth more than any staging fixture.
   **Understand the consequence before leaving it another week:** on a live
   book, anyone who knows a mobile number can take over that account. It
   can be turned off without a deploy by setting `MANA_OTP_CODE=random`.
-- **13 `catch (_) { return false; }` sites** still discard why a write
-  failed, mostly in `agent_customer_state.dart`. Was around 30.
+- **10 `catch (_) { return false; }` sites** still discard why a write
+  failed, spread over 7 files — 6 in `owner_workspace/state/`, 1 in
+  `ow_001_owner_home_dashboard.dart`, 3 in `agent_customer_state.dart`. Was around 30. (Counted 2026-09-18
+  with a multiline grep: a line-based one finds 1, because most of these
+  wrap onto the next line. That is worth knowing before you believe any
+  count of them, including this one.)
 - **iOS has never been compiled.** `docs/IOS_HANDOVER.md` is a complete,
   ready-to-run brief for doing it on a Mac.
 - **Nothing is deployed.** No APK published, no store listings, and
   `docs/DEPLOY.md` has never been executed by anyone.
+- **No reopen for a business day.** `app.close_business_day` reads
+  `reopened_at` and nothing in the schema ever sets it. That did not
+  matter while deleting an old entry silently rewrote history; since
+  2026-09-17 a delete or restore inside a `Closed` day is refused, so a
+  closed day is now genuinely uneditable. Nobody has closed a day yet
+  (all 83 `day_ledger` rows are `Open`, `day_closures` is empty), so this
+  costs nothing today — and it is the first thing to build the moment
+  anyone starts closing days. A settlement, by contrast, can be returned.
+- **`record_collection` does not close a loan; a trigger does.** That is
+  deliberate — seven functions move `remaining_balance` and only one ever
+  set a status — but it means loan lifecycle now lives in
+  `trg_loans_status_follows_balance` rather than where you would look for
+  it. If a loan's status surprises you, that trigger is the first place
+  to read.
 - **Migration ledger drift is closed** — re-checked 2026-09-18 and listed
   here because the plan and my own notes still call it open. 472 applied
   versions, 472 local files, and the md5 of the sorted version list matches
@@ -428,7 +549,7 @@ is worth more than any staging fixture.
 This order is not a guess — it comes out of the build-12 rating (UI 5, UX
 6, Code 7, Production readiness 4, overall 6) and the plan that followed
 it. Read `docs/superpowers/plans/2026-09-15-production-readiness.md`
-before starting; 17 of its 30 steps are done and the rest are argued
+before starting; 17 of its 29 steps are done and the rest are argued
 through there.
 
 **Week 1 — build nothing new.**
@@ -436,10 +557,12 @@ through there.
 1. **Get it running on a real phone, against the real book.** Build with
    the defines, install, take a collection. Until you have done that you
    do not know this app. Half a day.
-2. **Fix the stale numbers in `CLAUDE.md`** — 757 tests and 67 public
-   tables, against a real 2,762 and 82. README was corrected on
-   2026-09-18; CLAUDE.md was not. Ten minutes, and it is the first thing
-   that will mislead you again.
+2. **Re-run the counts in §6 and correct whatever has moved.** CLAUDE.md
+   and README were both corrected on 2026-09-18, so there is nothing
+   outstanding on day one — which is exactly why this is worth doing
+   again in week one rather than trusting it. Every number in §6 has a
+   command beside it in this repo; none of them takes longer than a
+   minute. The rot is never in the prose, it is in the figures.
 3. **Add the two CI secrets.** You presumably have the repository access I
    did not. This turns the APK job on and makes CI mean something.
 4. **Pass a `SENTRY_DSN` into one build.** Telemetry wired but never
@@ -451,9 +574,13 @@ through there.
 
 **Week 2 — the real work, in value order.**
 
-6. **Close SP-001.** `business_suspension_gate.dart` exists and has no
-   callers; wire it fail-closed. Small, bounded, and the one open item
-   with a security shape.
+6. **Decide whether SP-001 needs its RLS half.** The app-layer gate is
+   already wired at six call sites and tested — see §6. No RLS policy
+   references `business_status`, which was a deliberate choice, so this
+   is a decision to re-examine rather than code to write. If you conclude
+   the app layer is enough, say so and date it; an open item nobody
+   closes gets re-discovered every few months, which is exactly how this
+   one came to be described as unwired.
 7. **Task 7: the offline collection queue.** The contract is decided, the
    scaffolding is built, and there is one consumer where there should be
    several. Largest gain available for this app's actual users, and the
@@ -518,8 +645,9 @@ When two sources disagree, believe the one higher in this list.
 1. **The database** — `pg_proc`, `pg_constraint`, `enum_range`,
    `supabase_migrations.schema_migrations`. A function you have actually
    invoked beats one you have read.
-2. **The tests**, especially the twenty guards. Executable claims, and
-   they run.
+2. **The tests**, especially the guards (`ls test/*_guard_test.dart`, plus
+   `schema_snapshot_test.dart` and `consumer_census_test.dart`).
+   Executable claims, and they run.
 3. **The code, and the comments at the top of files.**
 4. **Commit messages** — the *why*.
 5. **`CHANGELOG.md`** — the plain-English why, per session.
@@ -541,6 +669,9 @@ The temptation will be to move faster by skipping that. You can, for a
 while. The four overflow shipments, the five duplicate functions and the
 three invented enum literals are what it looks like when you do — every
 one of them was written by somebody who knew the rule and was in a hurry.
+Two more overflows were written on the last day of my time here and caught
+by the tests within minutes. The rule does not stop you writing the bug;
+the guard stops you shipping it. That is the whole argument for guards.
 
 Keep writing down *why*. Prefer a guard over a rule. Run the thing before
 you say it works.

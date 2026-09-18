@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../design/components/mana_amount.dart';
 import '../../../design/components/mana_text.dart';
@@ -118,6 +119,29 @@ class _VillageBookListState extends ConsumerState<VillageBookList> {
           ),
           const SizedBox(height: ManaSpacing.sm),
         ],
+        // THE WAY OUT WHEN THE VILLAGE IS NOT LISTED.
+        //
+        // The Owner: "show first village to select and a add option for new
+        // leads to operating area to create". This book is a list of the
+        // villages the business already works, which is the right thing to
+        // show first -- but somebody working down a paper book will reach a
+        // village that is not on it, and without a door here the only way on
+        // is to remember where areas are configured.
+        //
+        // It goes to Operating Areas rather than creating a location inline,
+        // for the same reason the add-customer sheet does: a village is not a
+        // customer's field, it is a decision about where this book works, and
+        // it belongs with the other ones.
+        const SizedBox(height: ManaSpacing.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => context.push('/ow-012?tab=areas',
+                extra: widget.businessId),
+            icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+            label: ManaText.raw(ref.t('add_new_village')),
+          ),
+        ),
       ],
     );
   }

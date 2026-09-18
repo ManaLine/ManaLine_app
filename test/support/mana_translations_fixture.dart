@@ -2380,6 +2380,8 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'village_back_to_list': {'English': r'Back to the list', 'Telugu': r'జాబితాకు తిరిగి వెళ్లండి'},
   'village_none_yet': {'English': r'No villages yet. Add the first one below.', 'Telugu': r'ఇంకా గ్రామాలు లేవు.'},
   'add_customer_here': {'English': r'Add a customer here', 'Telugu': r'ఇక్కడ కస్టమర్‌ను జోడించండి'},
+  'remaining_emis_short': {'English': r'R. EMIs', 'Telugu': r'మిగిలిన EMIలు'},
+  'show_to_pay_tooltip': {'English': r'Show where to pay', 'Telugu': r'ఎక్కడ చెల్లించాలో చూపండి'},
   'web_home_lead': {'English': r'The desk half of MANA LINE. Paperwork, records and setup happen here; collections and the daily round happen in the app on your phone.', 'Telugu': r'MANA LINE యొక్క డెస్క్ భాగం. కాగితపు పని, రికార్డులు, సెటప్ ఇక్కడ; వసూళ్లు, రోజువారీ రౌండ్ మీ ఫోన్‌లోని యాప్‌లో.'},
   'bulk_menu_lead': {'English': r'Download the sheets your book needs, fill them in at your own pace, then bring them back one step at a time.', 'Telugu': r'మీ పుస్తకానికి కావలసిన షీట్లను డౌన్‌లోడ్ చేసుకోండి, మీ వీలు ప్రకారం నింపండి, తర్వాత ఒక్కో దశగా తిరిగి తీసుకురండి.'},
   'bulk_menu_cutoff': {'English': r'Cut-Off Date', 'Telugu': r'కట్-ఆఫ్ తేదీ'},

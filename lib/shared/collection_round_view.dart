@@ -325,6 +325,20 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
         // thing the conditional leading used to say.
         onBack: widget.onBack,
         title: ref.t('collection_mode'),
+        // Before the standard trailing actions by construction: ManaAppBar
+        // composes `actions` first and its own notifications/add/search
+        // after, so this lands exactly where it was asked for -- after the
+        // name, before the bell.
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_2_outlined),
+            tooltip: ref.t('show_to_pay_tooltip'),
+            onPressed: () => PaymentDetailsSheet.open(
+              context,
+              businessId: widget.businessId,
+            ),
+          ),
+        ],
         // No search action up here. The header carries Universal Search on
         // every Owner and Agent screen now, and this screen's own search
         // narrows THIS round -- two different questions that were about to
@@ -369,30 +383,16 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                     }),
                   ),
                   filters: [
-                    // SHOW TO PAY -- design document 2.2.1. The slip on page 4
-                    // carries `* QR  * UPI` in this header row, beside the
-                    // route and the agent's name, and this is that.
-                    //
-                    // It sits at the FRONT of the rail rather than among the
-                    // filters because it is not one: the rest of this row
-                    // narrows the round, and this one turns the phone around
-                    // and shows a customer where to send money. First position
-                    // also means it stays reachable with a thumb when the rail
-                    // scrolls sideways.
-                    ActionChip(
-                      avatar: const Icon(Icons.qr_code_2_outlined, size: 18),
-                      // NO ELLIPSIS. ManaFilterRail scrolls horizontally, so
-                      // a chip is the width of its own label and has nothing
-                      // to be cut off by -- and "Show To Pay" in Telugu is
-                      // exactly the kind of longer string that would lose its
-                      // last word to one. What does not fit scrolls, which is
-                      // the whole reason the rail was built that way.
-                      label: ManaText.raw(ref.t('show_to_pay')),
-                      onPressed: () => PaymentDetailsSheet.open(
-                        context,
-                        businessId: widget.businessId,
-                      ),
-                    ),
+                    // SHOW TO PAY MOVED TO THE HEADER (2026-09-18). It was
+                    // the first chip in this rail, on the argument that it
+                    // stayed reachable when the rail scrolled. The Owner's
+                    // instruction was "move qr (small qr symbol on tap show)
+                    // to header before notification and after header name" --
+                    // and they are right for a reason the old note missed:
+                    // everything else in this rail NARROWS THE ROUND, and this
+                    // one turns the phone around. A control that does a
+                    // different kind of thing sitting among filters reads as a
+                    // filter, and it can be scrolled out of sight besides.
                     _orderChip(),
                     _villageDropdown(state.sorted),
                     _sortChip(),
@@ -589,6 +589,19 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
           .replaceAll('{name}', person.fullName)
           .replaceAll('{mlid}', mlid)),
     ));
+  }
+
+  /// Instalments still to be paid, or null when the question has no answer.
+  ///
+  /// Rounded UP, because a part instalment is still a visit: a balance of
+  /// Rs 2,500 against a Rs 1,000 instalment is three more doors, not two and a
+  /// half. Null when the instalment is zero -- a loan with no schedule has no
+  /// count, and printing nought would say it is finished.
+  int? _remainingEmis(CollectionDueRow row) {
+    if (row.installmentAmount <= 0) return null;
+    if (row.outstandingBalance <= 0) return 0;
+    return (row.outstandingBalance + row.installmentAmount - 1) ~/
+        row.installmentAmount;
   }
 
   Future<void> _collect() async {
@@ -859,6 +872,32 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
                           ManaAmount(row.installmentAmount,
                               size: ManaAmountSize.standard,
                               semanticLabel: ref.t('emi')),
+                          // HOW MANY MORE. An agent is asked this at every
+                          // door, and the answer was a division nobody should
+                          // do standing up.
+                          //
+                          // A COUNT, NOT AN AMOUNT: ManaAmount would print it
+                          // with a rupee sign, and "3" instalments beside
+                          // "Rs 3" is the kind of confusion that gets money
+                          // wrong. Hidden entirely when the instalment is zero
+                          // -- a loan with no schedule has no remaining count,
+                          // and a dash there invites somebody to read it as
+                          // nought.
+                          //
+                          // NO ELLIPSIS, deliberately. no_word_is_cut_guard
+                          // counts every clip in this file as a backlog item
+                          // and it caught this one going 10 -> 11. The string
+                          // is four characters and a number; if the Telugu
+                          // needs two lines it can have two lines, which is
+                          // strictly better than "మిగిలిన EM..." on the one
+                          // figure an agent is being asked about.
+                          if (_remainingEmis(row) != null)
+                            ManaText.raw(
+                              '${ref.t('remaining_emis_short')}: '
+                              '${_remainingEmis(row)}',
+                              textAlign: TextAlign.end,
+                              style: ManaType.fine,
+                            ),
                         ],
                       ),
                     ),

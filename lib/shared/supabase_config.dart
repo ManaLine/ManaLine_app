@@ -28,7 +28,25 @@ class SupabaseConfig {
   /// device whose network was completely fine. Nothing anywhere said the
   /// build was misconfigured.
   ///
+  /// EMPTY COUNTS TOO, and it used to not.
+  ///
+  /// `--dart-define=SUPABASE_URL=$URL` with `$URL` unset in the shell does
+  /// not omit the define -- it supplies it as the EMPTY STRING. Dart then
+  /// returns '' rather than the default, the REPLACE-ME literal is folded
+  /// away as unreachable, and `''.contains('REPLACE-ME')` is false. So the
+  /// one guard written to catch a misconfigured build waved through the
+  /// commonest way to produce one, and `Supabase.initialize(url: '')` failed
+  /// somewhere further downstream with a message about nothing in
+  /// particular.
+  ///
+  /// Caught on a real build, by grepping the bundle for the project ref and
+  /// finding neither it NOR the placeholder -- which is the signature of this
+  /// exact case and of nothing else.
+  ///
   /// See run.ps1.txt for the correct command.
   static bool get isPlaceholder =>
-      url.contains('REPLACE-ME') || anonKey.contains('REPLACE-ME');
+      url.trim().isEmpty ||
+      anonKey.trim().isEmpty ||
+      url.contains('REPLACE-ME') ||
+      anonKey.contains('REPLACE-ME');
 }

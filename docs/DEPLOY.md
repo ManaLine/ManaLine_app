@@ -109,6 +109,31 @@ flutter build web -t lib/main_web.dart --base-href /app/ \
   without re-verifying the CSP — the script-src/connect-src rules below are
   shaped around CanvasKit's specific loading behavior.
 
+### Check the artefact before uploading it
+
+Two defines decide whether the deployed app works at all, and BOTH can be
+silently wrong in a way the build output does not mention. Grep the bundle:
+
+```bash
+grep -c '<project-ref>' build/web/main.dart.js      # expect >= 1
+grep -c 'REPLACE-ME' build/web/main.dart.js         # expect 0
+grep -c 'manaline.in' build/web/main.dart.js        # expect 0 until the domain resolves
+```
+
+**A bundle with NEITHER the project ref NOR the placeholder is the empty-define
+case.** `--dart-define=SUPABASE_URL=$URL` with `$URL` unset in the shell
+supplies the define as an EMPTY STRING rather than omitting it: Dart returns
+'' instead of the declared default, dart2js folds the unreachable REPLACE-ME
+literal out, and until 2026-09-18 `SupabaseConfig.isPlaceholder` was false for
+it -- so the "Build not configured" screen did not appear either. It is fixed
+in code now, and this check is still worth doing because it costs a second and
+reads the thing that is actually being uploaded.
+
+This happened twice in one session, in both directions: once with the
+credentials set and MANA_SITE_URL pointing at an unregistered domain, once
+with the site URL right and the credentials blank. PowerShell does not warn
+about an unset variable.
+
 ### The static half
 
 `site/` needs no build step. Upload it as-is — it is already the deploy

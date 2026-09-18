@@ -119,7 +119,12 @@ class _BrandPanel extends ConsumerWidget {
                   'assets/images/logo.png',
                   width: 520,
                   height: 520,
-                  filterQuality: FilterQuality.medium,
+                  // Same reasoning as the rail's mark: hand the decoder the
+                  // size it will be drawn at rather than scaling 1024px on
+                  // the GPU every frame.
+                  cacheWidth: 520 * 2,
+                  cacheHeight: 520 * 2,
+                  filterQuality: FilterQuality.high,
                   // A missing asset must never take a LOGIN page down.
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 ),

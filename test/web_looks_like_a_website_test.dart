@@ -130,6 +130,37 @@ void main() {
       expect(File('web/favicon.png').existsSync(), isTrue);
     });
 
+    test('the static site has a real icon, not an HTML page', () {
+      // /favicon.ico IS REQUESTED WHETHER OR NOT ANYTHING LINKS IT, and site/
+      // had no icon at all -- so Cloudflare answered that request with 200 and
+      // 8,813 bytes of index.html. A browser cannot read an icon out of that,
+      // and a 200 is worse than a 404 because nothing downstream can tell the
+      // difference between "missing" and "here it is".
+      expect(File('site/favicon.ico').existsSync(), isTrue,
+          reason: 'the implicit /favicon.ico request needs a real answer');
+      expect(File('site/favicon.png').existsSync(), isTrue);
+      for (final page in Directory('site')
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.html'))) {
+        expect(page.readAsStringSync(), contains('rel="icon"'),
+            reason: '${page.uri.pathSegments.last} has no icon link');
+      }
+    });
+
+    test('and the icon URLs carry a version, so a change actually arrives', () {
+      // THE HALF THAT WAS ACTUALLY BROKEN. The new mark had been live for
+      // hours and the Owner's tab still showed the old one: Chrome caches a
+      // favicon hard, and by URL. Replacing the bytes at the same address
+      // changes nothing for anybody who has already been to the site.
+      final html = File('web/index.html').readAsStringSync();
+      final manifest = File('web/manifest.json').readAsStringSync();
+      expect(html, contains('favicon.png?v='));
+      expect(html, contains('manifest.json?v='));
+      expect(manifest, contains('Icon-192.png?v='),
+          reason: 'the install prompt caches its icon the same way');
+    });
+
     test('the source artwork it is generated from is still there', () {
       // The icons are derived, and the derivation is recorded in the commit
       // rather than in a script. If this file moves, regenerating them means

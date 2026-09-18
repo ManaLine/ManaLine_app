@@ -187,21 +187,37 @@ class _RailBrand extends StatelessWidget {
   const _RailBrand();
 
   @override
-  Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.only(
-          top: ManaSpacing.lg,
-          bottom: ManaSpacing.md,
-        ),
-        child: SizedBox(
-          height: 44,
-          width: 44,
-          child: Image(
-            image: AssetImage('assets/images/logo.png'),
-            fit: BoxFit.contain,
-            // The mark is a 1024px circle; without this it is resampled on
-            // every frame at 44px.
-            filterQuality: FilterQuality.medium,
+  Widget build(BuildContext context) {
+    // DECODED AT THE SIZE IT IS DRAWN. Without cacheWidth/cacheHeight Flutter
+    // decodes the full 1024px bitmap and squeezes it into 44dp with a GPU
+    // filter, which is what made the mark look soft -- 23x down in one step,
+    // on artwork whose finest features are a ring of micro-text. Giving the
+    // DECODER the target size makes it box-filter the whole way down instead,
+    // which is both sharper and far less memory.
+    //
+    // My previous comment here claimed filterQuality alone prevented the
+    // resample. It does not; it only chooses which filter does it.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final px = (44 * dpr).round();
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: ManaSpacing.lg,
+        bottom: ManaSpacing.md,
+      ),
+      child: SizedBox(
+        height: 44,
+        width: 44,
+        child: Image(
+          image: ResizeImage(
+            const AssetImage('assets/images/logo.png'),
+            width: px,
+            height: px,
+            policy: ResizeImagePolicy.fit,
           ),
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
         ),
-      );
+      ),
+    );
+  }
 }

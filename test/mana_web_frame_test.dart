@@ -15,7 +15,7 @@ void main() {
   Future<double> widthOfChildAt(
     WidgetTester tester,
     double surface, {
-    String location = '/ow-001',
+    String location = '/lr-009',
     bool isWeb = true,
   }) async {
     tester.view.physicalSize = Size(surface, 800);
@@ -48,19 +48,27 @@ void main() {
     expect(await widthOfChildAt(tester, 1440), kManaWebReadingMeasure);
   });
 
-  testWidgets('a route in kManaWideRoutes gets the wider desk measure',
-      (tester) async {
-    // The list kept its name and changed direction. It used to name the only
-    // screens ALLOWED OUT of the phone column; it now names the ones with a
-    // bespoke wide layout, which get more room than the default.
+  testWidgets('a signed-in route is left entirely alone', (tester) async {
+    // NARROWED 2026-09-18. web_router wraps all twenty-one signed-in routes
+    // in a ShellRoute that puts the navigation against the window's edge and
+    // measures the content beside it. Measuring again here would measure the
+    // RAIL too, and the whole assembly would float in the middle of a wide
+    // monitor -- the exact complaint that started this work.
+    expect(await widthOfChildAt(tester, 1440, location: '/ow-013'), 1440);
+    expect(await widthOfChildAt(tester, 1440, location: '/web-home'), 1440);
+  });
+
+  testWidgets('a signed-out page keeps the reading measure whatever list it '
+      'is on', (tester) async {
+    // The measure is the point, and it does not get spent. A login form
+    // 1,440px wide is not a thing this app should ever draw.
     //
-    // Neither then nor now does anything get the raw window width. 1440 was
-    // what this asserted, and a form field 1,440px wide is not a thing this
-    // app should ever draw.
-    kManaWideRoutes.add('/test-wide');
-    addTearDown(() => kManaWideRoutes.remove('/test-wide'));
-    expect(await widthOfChildAt(tester, 1440, location: '/test-wide'),
-        kManaDeskContentMax);
+    // NOTE it must be an /lr- path: this widget only touches signed-out
+    // pages now, so a wide route anywhere else never reaches the branch.
+    kManaWideRoutes.add('/lr-test-wide');
+    addTearDown(() => kManaWideRoutes.remove('/lr-test-wide'));
+    expect(await widthOfChildAt(tester, 1440, location: '/lr-test-wide'),
+        kManaWebReadingMeasure);
   });
 
   testWidgets('a desktop-width window is untouched off the web — I2', (tester) async {

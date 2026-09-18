@@ -790,8 +790,29 @@ GoRoute manaSelectable(GoRoute r) => GoRoute(
       builder: r.builder == null
           ? null
           : (context, state) => SelectionArea(child: r.builder!(context, state)),
-      routes: [
-        for (final child in r.routes)
-          if (child is GoRoute) manaSelectable(child) else child,
-      ],
+      routes: r.routes.map(manaSelectableRoute).toList(),
     );
+
+/// [manaSelectable] for any [RouteBase], including a [ShellRoute].
+///
+/// The web router wraps its twenty-one signed-in routes in a ShellRoute to
+/// give them the site navigation. Before this existed, the recursion above
+/// said `if (child is GoRoute) ... else child` -- so a ShellRoute would have
+/// been passed through untouched and every page inside it would have lost
+/// text selection, silently, with nothing failing. On a screen whose whole
+/// reason for being selectable is that somebody has to copy a 12-digit MLID
+/// rather than retype it, that is not a cosmetic loss.
+RouteBase manaSelectableRoute(RouteBase r) {
+  if (r is GoRoute) return manaSelectable(r);
+  if (r is ShellRoute) {
+    return ShellRoute(
+      builder: r.builder,
+      pageBuilder: r.pageBuilder,
+      navigatorKey: r.navigatorKey,
+      observers: r.observers,
+      restorationScopeId: r.restorationScopeId,
+      routes: r.routes.map(manaSelectableRoute).toList(),
+    );
+  }
+  return r;
+}

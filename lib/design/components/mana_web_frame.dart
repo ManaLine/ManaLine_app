@@ -90,18 +90,23 @@ class ManaWebFrame extends StatelessWidget {
     // A phone browser is already the width every screen was drawn for.
     if (!isWeb() || width < ManaBreakpoints.compact) return child;
 
-    // A bespoke wide layout gets the desk measure; everything else gets the
-    // reading measure. NOTHING gets the whole window: a form field or a row
-    // of buttons run edge to edge across 2,560px is its own unreadable.
-    final measure = kManaWideRoutes.contains(location)
-        ? kManaDeskContentMax
-        : kManaWebReadingMeasure;
+    // SIGNED-IN PAGES ARE NOT THIS WIDGET'S JOB ANY MORE. web_router wraps
+    // all twenty-one of them in a ShellRoute that puts the site navigation
+    // against the window's edge and measures the content beside it. Clamping
+    // here as well would measure the RAIL too, leaving the whole assembly
+    // floating in the middle of a wide monitor -- which is the exact
+    // complaint that started this work.
+    //
+    // A PREFIX, NOT A LIST. The signed-out screens are `/lr-*` by the screen
+    // ID contract, so there is no second copy of the router's route set here
+    // to drift out of step with it.
+    if (!location.startsWith('/lr-')) return child;
 
     return ColoredBox(
       color: ManaColors.surfaceMuted,
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: measure),
+          constraints: const BoxConstraints(maxWidth: kManaWebReadingMeasure),
           child: child,
         ),
       ),

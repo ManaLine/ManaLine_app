@@ -36,20 +36,40 @@ class ManaAdaptiveShell extends StatelessWidget {
   final Widget child;
   final PreferredSizeWidget? appBar;
 
+  /// The width from which the rail replaces the bottom bar.
+  ///
+  /// [ManaBreakpoints.expanded] by default, which is the tablet-protecting
+  /// rule argued above. THE WEB PASSES [ManaBreakpoints.compact] instead, and
+  /// the reasoning above is exactly why that is not a contradiction: the
+  /// argument for keeping a rail off a 820px tablet is that the bottom bar it
+  /// would replace is already there. On the web there is no bottom bar to
+  /// fall back to -- the alternative is no navigation at all -- so the
+  /// trade-off it weighs does not exist.
+  final double railFrom;
+
+  /// How wide the content beside the rail may get.
+  ///
+  /// The rail itself is deliberately OUTSIDE this: it belongs against the
+  /// window's edge, the way a page's navigation sits against the edge of the
+  /// browser. Measuring the rail and the content together produces a block
+  /// floating in the middle of a wide monitor, which is the thing the Owner
+  /// objected to in the first place.
+  final double contentMax;
+
   const ManaAdaptiveShell({
     super.key,
     required this.items,
     required this.currentIndex,
     required this.child,
     this.appBar,
+    this.railFrom = ManaBreakpoints.expanded,
+    this.contentMax = kManaDeskContentMax,
   });
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final isExpanded = ManaBreakpoints.of(width) == ManaWidthClass.expanded;
-
-    if (!isExpanded) {
+    if (width < railFrom) {
       return Scaffold(
         appBar: appBar,
         body: child,
@@ -69,44 +89,64 @@ class ManaAdaptiveShell extends StatelessWidget {
           // not a sidebar. Long labels wrap inside it instead.
           SizedBox(
             width: 168,
-            child: NavigationRail(
-              selectedIndex: currentIndex,
-              labelType: NavigationRailLabelType.all,
-              backgroundColor: ManaColors.surface,
-              indicatorColor: ManaColors.brandFaint,
-              useIndicator: true,
-              minWidth: 72,
-              groupAlignment: -1,
-              // THE MARK AT THE HEAD OF THE RAIL. Logo top-left above the
-              // navigation is what nearly every web application does, and its
-              // absence is a good part of why this page read as an app window
-              // rather than a site. It is chrome -- the same category as the
-              // rail itself -- so it does not cross the "shape, not content"
-              // line this widget's doc draws above.
-              //
-              // Only here, in the expanded branch: a phone already shows the
-              // brand in its launcher and its app bar, and a bottom nav has
-              // nowhere to put it.
-              leading: const _RailBrand(),
-              selectedIconTheme: IconThemeData(color: ManaColors.brandDeep),
-              unselectedIconTheme: IconThemeData(color: ManaColors.textSecondary),
-              selectedLabelTextStyle:
-                  TextStyle(color: ManaColors.brandDeep, fontWeight: FontWeight.w700),
-              unselectedLabelTextStyle: TextStyle(color: ManaColors.textSecondary),
-              // Re-navigating to the current destination pushes a duplicate
-              // route and breaks Back — same rule ManaBottomNav's `_NavButton`
-              // follows, kept here so both renderings behave identically.
-              onDestinationSelected: (i) {
-                if (i != currentIndex) items[i].onTap();
-              },
-              destinations: [
-                for (final item in items)
-                  NavigationRailDestination(
-                    icon: Icon(item.icon),
-                    selectedIcon: Icon(item.selectedIcon),
-                    label: ManaText(item.label),
+            // THE RAIL SCROLLS, and it has to. NavigationRail lays its
+            // destinations out in a Column with no scrolling of its own, so
+            // nine of them at a 2.0x text scale overflowed the bottom of a
+            // 900px window by 56 pixels -- found by the layout sweep the
+            // moment the rail went onto every page, which is the whole
+            // reason that sweep runs at four scales.
+            //
+            // This is Flutter's own documented shape for it: a scroll view
+            // whose child is forced to at least the viewport height, so the
+            // rail still fills the window when it fits and scrolls when it
+            // does not.
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: NavigationRail(
+                      selectedIndex: currentIndex,
+                      labelType: NavigationRailLabelType.all,
+                      backgroundColor: ManaColors.surface,
+                      indicatorColor: ManaColors.brandFaint,
+                      useIndicator: true,
+                      minWidth: 72,
+                      groupAlignment: -1,
+                      // THE MARK AT THE HEAD OF THE RAIL. Logo top-left above the
+                      // navigation is what nearly every web application does, and its
+                      // absence is a good part of why this page read as an app window
+                      // rather than a site. It is chrome -- the same category as the
+                      // rail itself -- so it does not cross the "shape, not content"
+                      // line this widget's doc draws above.
+                      //
+                      // Only here, in the expanded branch: a phone already shows the
+                      // brand in its launcher and its app bar, and a bottom nav has
+                      // nowhere to put it.
+                      leading: const _RailBrand(),
+                      selectedIconTheme: IconThemeData(color: ManaColors.brandDeep),
+                      unselectedIconTheme: IconThemeData(color: ManaColors.textSecondary),
+                      selectedLabelTextStyle:
+                          TextStyle(color: ManaColors.brandDeep, fontWeight: FontWeight.w700),
+                      unselectedLabelTextStyle: TextStyle(color: ManaColors.textSecondary),
+                      // Re-navigating to the current destination pushes a duplicate
+                      // route and breaks Back — same rule ManaBottomNav's `_NavButton`
+                      // follows, kept here so both renderings behave identically.
+                      onDestinationSelected: (i) {
+                        if (i != currentIndex) items[i].onTap();
+                      },
+                      destinations: [
+                        for (final item in items)
+                          NavigationRailDestination(
+                            icon: Icon(item.icon),
+                            selectedIcon: Icon(item.selectedIcon),
+                            label: ManaText(item.label),
+                          ),
+                      ],
+                    ),
                   ),
-              ],
+                ),
+              ),
             ),
           ),
           VerticalDivider(width: 1, thickness: 1, color: ManaColors.divider),
@@ -119,7 +159,7 @@ class ManaAdaptiveShell extends StatelessWidget {
             child: Align(
               alignment: Alignment.topLeft,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: kManaDeskContentMax),
+                constraints: BoxConstraints(maxWidth: contentMax),
                 // SizedBox.expand, because Align hands its child LOOSE
                 // constraints in both axes -- so without this the body
                 // shrink-wraps to the height of its content. That is

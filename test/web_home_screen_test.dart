@@ -20,7 +20,6 @@
 // stable, un-mistakable string to assert against.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mana_line/design/components/mana_header.dart';
 import 'package:mana_line/features/login_registration/state/auth_flow_state.dart';
 import 'package:mana_line/features/web/screens/web_home_screen.dart';
 
@@ -103,22 +102,31 @@ void main() {
     });
   });
 
-  testWidgets('Agent app card is rendered as the primary destination — first after Home in the nav', (tester) async {
+  testWidgets('the Agent app card leads, because it is the whole answer',
+      (tester) async {
     await pumpForRole(tester, 'Agent');
 
-    // Primary means first in the shared destinations list, which is also
-    // what feeds the shell's nav — ManaAdaptiveShell's own doc comment is
-    // explicit that nav and body must come from one list, not two. At
-    // compact width (390) that shared list renders as ManaBottomNav.
-    final navLabels = tester
-        .widgetList<Text>(find.descendant(of: find.byType(ManaBottomNav), matching: find.byType(Text)))
+    // THIS USED TO READ THE NAV BAR, and the nav has moved out from under
+    // it: the rail is drawn by ManaWebShell around every signed-in route
+    // now, not by this screen. Pumping the screen alone therefore has no
+    // nav to inspect, which is correct rather than broken.
+    //
+    // The fact being pinned is unchanged and still lives here -- the app
+    // card is FIRST for an Agent, because an Agent's whole job is field work
+    // and the card is the answer rather than a fallback. Ordering is checked
+    // where it is decided (manaWebDestinations) and rendering where it is
+    // rendered; web_navigation_test covers the rail.
+    final cards = tester
+        .widgetList<Text>(find.byType(Text))
         .map((t) => t.data)
+        .whereType<String>()
         .toList();
-    final homeIndex = navLabels.indexOf('Home');
-    final appIndex = navLabels.indexOf('web_home_agent_app_title');
-    expect(homeIndex, isNonNegative, reason: 'expected a Home tab in the nav');
-    expect(appIndex, isNonNegative, reason: 'expected the app card in the nav');
-    expect(appIndex, homeIndex + 1, reason: 'the app card is the first destination after Home');
+    final appIndex = cards.indexOf('web_home_agent_app_title');
+    final profileIndex = cards.indexOf('Profile');
+    expect(appIndex, isNonNegative, reason: 'expected the app card');
+    expect(profileIndex, isNonNegative, reason: 'expected the profile card');
+    expect(appIndex, lessThan(profileIndex),
+        reason: 'the app card leads for an Agent');
   });
 
   group('layout', () {

@@ -122,13 +122,17 @@ void main() {
   test('the web menu offers it by name', () {
     // The signpost tells an Owner to "choose Bulk Onboarding from the menu".
     // If the menu does not say that, the instruction is false.
+    // In web_destinations.dart since 2026-09-18, not web_home_screen.dart.
+    // The list stopped being the home page's furniture when the navigation
+    // rail went onto every page -- the cards and the rail are two renderings
+    // of one list now, and this is where that list lives.
     final home =
-        File('lib/features/web/screens/web_home_screen.dart').readAsStringSync();
+        File('lib/features/web/state/web_destinations.dart').readAsStringSync();
     expect(home, contains("ref.t('bulk_onboarding')"));
     // To the MENU, not straight into page 1 of the wizard. Page 1 asks what
     // the book contains, which answers a different question from "what do I
     // do here", and the sheets are all on the menu.
-    expect(home, contains("go('/ow-bulk-onboarding-menu')"));
+    expect(home, contains("route: '/ow-bulk-onboarding-menu'"));
   });
 
   test('the signpost sends people to the front door, not a deep link', () {

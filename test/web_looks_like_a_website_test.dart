@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mana_line/design/components/mana_form_grid.dart';
 import 'package:mana_line/design/tokens/breakpoints.dart';
 import 'package:mana_line/features/web/screens/web_home_screen.dart';
+import 'package:mana_line/features/web/widgets/mana_web_shell.dart';
 
 import 'support/mana_harness.dart';
 
@@ -41,7 +42,10 @@ void main() {
         (tester) async {
       await pumpManaScreen(
         tester,
-        const ManaWebHomeScreen(),
+        const ManaWebShell(
+          location: '/web-home',
+          child: ManaWebHomeScreen(),
+        ),
         surfaceSize: const Size(1440, 900),
         location: '/web-home',
       );
@@ -65,7 +69,10 @@ void main() {
         (tester) async {
       await pumpManaScreen(
         tester,
-        const ManaWebHomeScreen(),
+        const ManaWebShell(
+          location: '/web-home',
+          child: ManaWebHomeScreen(),
+        ),
         surfaceSize: const Size(2560, 1440),
         location: '/web-home',
       );
@@ -84,7 +91,10 @@ void main() {
       for (final scale in kManaTextScales) {
         await pumpManaScreen(
           tester,
-          const ManaWebHomeScreen(),
+          const ManaWebShell(
+          location: '/web-home',
+          child: ManaWebHomeScreen(),
+        ),
           textScale: scale,
           location: '/web-home',
         );

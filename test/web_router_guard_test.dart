@@ -52,10 +52,23 @@ class _UntouchedBuildContext implements BuildContext {
 /// this project keeps getting bitten by — a copy that can go stale
 /// without anyone noticing.
 void main() {
-  Set<String> pathsOf(GoRouter router) => router.configuration.routes
-      .whereType<GoRoute>()
-      .map((r) => r.path)
-      .toSet();
+  /// RECURSIVE, and it has to be. This walked `configuration.routes` and
+  /// took the top-level GoRoutes only. On 2026-09-18 the web router moved its
+  /// twenty-one signed-in routes inside a ShellRoute -- to give every page
+  /// the site's navigation -- and all twenty-one vanished from this guard's
+  /// view at once. It failed loudly, which is the good outcome; had the shell
+  /// been introduced with a route ALREADY missing from the allowlist, a
+  /// non-recursive walk would have reported agreement between two routers it
+  /// could no longer see.
+  Iterable<GoRoute> allGoRoutes(Iterable<RouteBase> routes) sync* {
+    for (final r in routes) {
+      if (r is GoRoute) yield r;
+      yield* allGoRoutes(r.routes);
+    }
+  }
+
+  Set<String> pathsOf(GoRouter router) =>
+      allGoRoutes(router.configuration.routes).map((r) => r.path).toSet();
 
   final androidPaths = pathsOf(manaRouter);
   final webPaths = pathsOf(manaWebRouter);
@@ -129,9 +142,9 @@ void main() {
       return unwrapped.runtimeType;
     }
 
-    GoRoute routeAt(GoRouter router, String path) => router.configuration.routes
-        .whereType<GoRoute>()
-        .firstWhere((r) => r.path == path && r.builder != null);
+    GoRoute routeAt(GoRouter router, String path) =>
+        allGoRoutes(router.configuration.routes)
+            .firstWhere((r) => r.path == path && r.builder != null);
 
     final shared = webPaths.intersection(androidPaths); // /web-home excluded: web-only
     final mismatches = <String, String>{};

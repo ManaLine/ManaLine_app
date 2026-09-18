@@ -28,7 +28,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | Routes that build a screen | 85 |
 | Routes that only redirect | 1 |
 | Distinct screen widgets | 76 |
-| Literal navigation call sites | 387 |
+| Literal navigation call sites | 389 |
 | On the handset only | 53 |
 | On the restricted web build | 33 |
 
@@ -156,7 +156,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | `/recent-deletes` | `RecentDeletesScreen` | `shared/widgets/recent_deletes_screen.dart` | — | handset | **nothing** | **no** |
 | `/settings` | `SettingsScreen` | `shared/settings_screen.dart` | — | both | 11 via path | yes |
 | `/subscription` | `SubscriptionScreen` | `features/owner_workspace/screens/subscription_screen.dart` | — | both | 4 via path | yes |
-| `/web-home` | `ManaWebHomeScreen` | `features/web/screens/web_home_screen.dart` | — | web | 10 via path | yes |
+| `/web-home` | `ManaWebHomeScreen` | `features/web/screens/web_home_screen.dart` | — | web | 12 via path | yes |
 
 ## Who navigates where
 
@@ -171,8 +171,8 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/about`** — 3 call sites
 
-- `app/web_router.dart:75` (`listed`)
-- `app/web_router.dart:217` (`listed`)
+- `app/web_router.dart:100` (`listed`)
+- `app/web_router.dart:264` (`listed`)
 - `shared/settings_screen.dart:606` (`push`)
 
 **`/account-closure`** — 1 call site
@@ -195,7 +195,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ag-001`** — 15 call sites
 
-- `app/web_router.dart:221` (`listed`)
+- `app/web_router.dart:274` (`listed`)
 - `features/agent_workspace/screens/ag_002_collection_mode.dart:40` (`go`)
 - `features/agent_workspace/screens/ag_004_customer_management.dart:111` (`listed`)
 - `features/agent_workspace/screens/ag_006_owner_settlement.dart:67` (`listed`)
@@ -239,11 +239,11 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ag-009`** — 6 call sites
 
-- `app/web_router.dart:71` (`listed`)
-- `app/web_router.dart:176` (`listed`)
+- `app/web_router.dart:88` (`listed`)
+- `app/web_router.dart:222` (`listed`)
 - `features/agent_workspace/screens/ag_001_agent_home_dashboard.dart:220` (`push`)
 - `features/login_registration/state/auth_flow_state.dart:150` (`listed`)
-- `features/web/screens/web_home_screen.dart:87` (`listed`)
+- `features/web/state/web_destinations.dart:100` (`listed`)
 - `shared/settings_screen.dart:84` (`listed`)
 
 **`/ag-010`** — 2 call sites
@@ -253,14 +253,14 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ag-settings`** — 3 call sites
 
-- `app/web_router.dart:74` (`listed`)
-- `app/web_router.dart:221` (`listed`)
+- `app/web_router.dart:96` (`listed`)
+- `app/web_router.dart:272` (`listed`)
 - `features/agent_workspace/screens/ag_001_agent_home_dashboard.dart:224` (`push`)
 
 **`/appearance`** — 3 call sites
 
-- `app/web_router.dart:75` (`listed`)
-- `app/web_router.dart:218` (`listed`)
+- `app/web_router.dart:99` (`listed`)
+- `app/web_router.dart:265` (`listed`)
 - `shared/settings_screen.dart:574` (`push`)
 
 **`/backup`** — 1 call site
@@ -283,7 +283,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/cw-001`** — 15 call sites
 
-- `app/web_router.dart:222` (`listed`)
+- `app/web_router.dart:278` (`listed`)
 - `features/customer_workspace/screens/cw_002_find_a_business.dart:43` (`listed`)
 - `features/customer_workspace/screens/cw_002_find_a_business.dart:274` (`go`)
 - `features/customer_workspace/screens/cw_002_find_a_business.dart:298` (`go`)
@@ -313,8 +313,8 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/cw-004`** — 12 call sites
 
-- `app/web_router.dart:72` (`listed`)
-- `app/web_router.dart:185` (`listed`)
+- `app/web_router.dart:89` (`listed`)
+- `app/web_router.dart:231` (`listed`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:76` (`push`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:339` (`listed`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:342` (`listed`)
@@ -324,7 +324,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/customer_workspace/screens/cw_005_make_a_payment.dart:334` (`go`)
 - `features/customer_workspace/screens/cw_005_make_a_payment.dart:380` (`go`)
 - `features/customer_workspace/screens/cw_006_my_profile_memberships.dart:342` (`go`)
-- `features/web/screens/web_home_screen.dart:95` (`listed`)
+- `features/web/state/web_destinations.dart:106` (`listed`)
 
 **`/cw-005`** — 2 call sites
 
@@ -333,30 +333,30 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/cw-006`** — 8 call sites
 
-- `app/web_router.dart:72` (`listed`)
-- `app/web_router.dart:192` (`listed`)
+- `app/web_router.dart:90` (`listed`)
+- `app/web_router.dart:238` (`listed`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:94` (`push`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:106` (`push`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:349` (`listed`)
 - `features/login_registration/state/auth_flow_state.dart:151` (`listed`)
-- `features/web/screens/web_home_screen.dart:96` (`listed`)
+- `features/web/state/web_destinations.dart:107` (`listed`)
 - `shared/settings_screen.dart:85` (`listed`)
 
 **`/cw-settings`** — 3 call sites
 
-- `app/web_router.dart:74` (`listed`)
-- `app/web_router.dart:222` (`listed`)
+- `app/web_router.dart:97` (`listed`)
+- `app/web_router.dart:276` (`listed`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:110` (`push`)
 
 **`/import`** — 3 call sites
 
-- `app/web_router.dart:70` (`listed`)
-- `app/web_router.dart:167` (`listed`)
+- `app/web_router.dart:86` (`listed`)
+- `app/web_router.dart:213` (`listed`)
 - `shared/settings_screen.dart:473` (`push`)
 
 **`/iw-001`** — 11 call sites
 
-- `app/web_router.dart:223` (`listed`)
+- `app/web_router.dart:282` (`listed`)
 - `features/customer_workspace/screens/cw_006_my_profile_memberships.dart:328` (`go`)
 - `features/investor_workspace/screens/iw_002_find_a_business.dart:43` (`listed`)
 - `features/investor_workspace/screens/iw_002_find_a_business.dart:284` (`go`)
@@ -376,14 +376,14 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/iw-003`** — 8 call sites
 
-- `app/web_router.dart:73` (`listed`)
-- `app/web_router.dart:206` (`listed`)
+- `app/web_router.dart:91` (`listed`)
+- `app/web_router.dart:252` (`listed`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:70` (`push`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:345` (`listed`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:355` (`listed`)
 - `features/investor_workspace/screens/iw_004_request_withdrawal.dart:189` (`go`)
 - `features/investor_workspace/screens/iw_005_my_profile_memberships.dart:303` (`go`)
-- `features/web/screens/web_home_screen.dart:105` (`listed`)
+- `features/web/state/web_destinations.dart:116` (`listed`)
 
 **`/iw-004`** — 2 call sites
 
@@ -392,46 +392,46 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/iw-005`** — 8 call sites
 
-- `app/web_router.dart:73` (`listed`)
-- `app/web_router.dart:213` (`listed`)
+- `app/web_router.dart:92` (`listed`)
+- `app/web_router.dart:259` (`listed`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:84` (`push`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:104` (`push`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:358` (`listed`)
 - `features/login_registration/state/auth_flow_state.dart:152` (`listed`)
-- `features/web/screens/web_home_screen.dart:106` (`listed`)
+- `features/web/state/web_destinations.dart:117` (`listed`)
 - `shared/settings_screen.dart:86` (`listed`)
 
 **`/iw-settings`** — 3 call sites
 
-- `app/web_router.dart:74` (`listed`)
-- `app/web_router.dart:223` (`listed`)
+- `app/web_router.dart:98` (`listed`)
+- `app/web_router.dart:280` (`listed`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:108` (`push`)
 
 **`/lr-001`** — 6 call sites
 
-- `app/web_router.dart:66` (`listed`)
-- `app/web_router.dart:91` (`listed`)
-- `app/web_router.dart:98` (`listed`)
+- `app/web_router.dart:68` (`listed`)
+- `app/web_router.dart:116` (`listed`)
+- `app/web_router.dart:123` (`listed`)
 - `features/login_registration/screens/lr_008_create_pin.dart:89` (`go`)
 - `features/login_registration/screens/lr_009_daily_login.dart:306` (`go`)
 - `shared/mana_back_handler.dart:61` (`listed`)
 
 **`/lr-002`** — 3 call sites
 
-- `app/web_router.dart:66` (`listed`)
-- `app/web_router.dart:99` (`listed`)
+- `app/web_router.dart:69` (`listed`)
+- `app/web_router.dart:124` (`listed`)
 - `features/login_registration/screens/lr_001_system_startup.dart:117` (`listed`)
 
 **`/lr-004`** — 3 call sites
 
-- `app/web_router.dart:66` (`listed`)
-- `app/web_router.dart:100` (`listed`)
+- `app/web_router.dart:70` (`listed`)
+- `app/web_router.dart:125` (`listed`)
 - `features/login_registration/screens/lr_007_first_login.dart:541` (`push`)
 
 **`/lr-005`** — 6 call sites
 
-- `app/web_router.dart:66` (`listed`)
-- `app/web_router.dart:102` (`listed`)
+- `app/web_router.dart:71` (`listed`)
+- `app/web_router.dart:127` (`listed`)
 - `features/login_registration/screens/lr_004_registration_form.dart:355` (`push`)
 - `features/login_registration/screens/lr_007_first_login.dart:203` (`push`)
 - `features/login_registration/screens/lr_009_daily_login.dart:374` (`push`)
@@ -439,14 +439,14 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/lr-006`** — 3 call sites
 
-- `app/web_router.dart:66` (`listed`)
-- `app/web_router.dart:111` (`listed`)
+- `app/web_router.dart:72` (`listed`)
+- `app/web_router.dart:136` (`listed`)
 - `features/login_registration/screens/lr_005_otp_verification.dart:131` (`go`)
 
 **`/lr-007`** — 8 call sites
 
-- `app/web_router.dart:66` (`listed`)
-- `app/web_router.dart:113` (`listed`)
+- `app/web_router.dart:73` (`listed`)
+- `app/web_router.dart:138` (`listed`)
 - `features/login_registration/screens/lr_005_otp_verification.dart:140` (`go`)
 - `features/login_registration/screens/lr_006_registration_result.dart:40` (`go`)
 - `features/login_registration/screens/lr_009_daily_login.dart:692` (`listed`)
@@ -456,16 +456,16 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/lr-008`** — 5 call sites
 
-- `app/web_router.dart:66` (`listed`)
-- `app/web_router.dart:125` (`listed`)
+- `app/web_router.dart:74` (`listed`)
+- `app/web_router.dart:150` (`listed`)
 - `features/login_registration/screens/lr_007_first_login.dart:329` (`go`)
 - `features/login_registration/screens/lr_007_first_login.dart:334` (`go`)
 - `features/login_registration/screens/lr_009_daily_login.dart:404` (`go`)
 
 **`/lr-009`** — 14 call sites
 
-- `app/web_router.dart:67` (`listed`)
-- `app/web_router.dart:126` (`listed`)
+- `app/web_router.dart:75` (`listed`)
+- `app/web_router.dart:151` (`listed`)
 - `features/agent_workspace/screens/ag_001_agent_home_dashboard.dart:227` (`go`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:113` (`go`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:111` (`go`)
@@ -481,26 +481,26 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/lr-010`** — 5 call sites
 
-- `app/web_router.dart:67` (`listed`)
-- `app/web_router.dart:127` (`listed`)
+- `app/web_router.dart:76` (`listed`)
+- `app/web_router.dart:152` (`listed`)
 - `features/login_registration/screens/lr_005_otp_verification.dart:134` (`go`)
 - `features/login_registration/screens/lr_007_first_login.dart:494` (`push`)
 - `shared/settings_screen.dart:480` (`push`)
 
 **`/lr-011`** — 5 call sites
 
-- `app/web_router.dart:67` (`listed`)
-- `app/web_router.dart:128` (`listed`)
+- `app/web_router.dart:77` (`listed`)
+- `app/web_router.dart:153` (`listed`)
 - `features/login_registration/screens/lr_005_otp_verification.dart:137` (`go`)
 - `features/login_registration/screens/lr_009_daily_login.dart:694` (`listed`)
 - `shared/settings_screen.dart:485` (`push`)
 
 **`/lr-012`** — 16 call sites
 
-- `app/web_router.dart:67` (`listed`)
-- `app/web_router.dart:130` (`listed`)
-- `app/web_router.dart:201` (`listed`)
-- `app/web_router.dart:219` (`listed`)
+- `app/web_router.dart:78` (`listed`)
+- `app/web_router.dart:155` (`listed`)
+- `app/web_router.dart:247` (`listed`)
+- `app/web_router.dart:266` (`listed`)
 - `features/admin/admin_panel_screen.dart:27` (`listed`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:244` (`push`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:222` (`go`)
@@ -516,8 +516,8 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/lr-013`** — 7 call sites
 
-- `app/web_router.dart:67` (`listed`)
-- `app/web_router.dart:139` (`listed`)
+- `app/web_router.dart:79` (`listed`)
+- `app/web_router.dart:163` (`listed`)
 - `features/agent_workspace/screens/ag_001_agent_home_dashboard.dart:222` (`go`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:108` (`go`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:106` (`go`)
@@ -545,7 +545,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-001`** — 31 call sites
 
-- `app/web_router.dart:220` (`listed`)
+- `app/web_router.dart:270` (`listed`)
 - `features/customer_workspace/screens/cw_006_my_profile_memberships.dart:322` (`go`)
 - `features/investor_workspace/screens/iw_005_my_profile_memberships.dart:294` (`go`)
 - `features/login_registration/screens/lr_013_role_selector.dart:22` (`listed`)
@@ -652,12 +652,12 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-013`** — 6 call sites
 
-- `app/web_router.dart:69` (`listed`)
-- `app/web_router.dart:146` (`listed`)
+- `app/web_router.dart:81` (`listed`)
+- `app/web_router.dart:192` (`listed`)
 - `design/tokens/breakpoints.dart:86` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:83` (`push`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:1791` (`listed`)
-- `features/web/screens/web_home_screen.dart:116` (`listed`)
+- `features/web/state/web_destinations.dart:127` (`listed`)
 
 **`/ow-014`** — 2 call sites
 
@@ -676,11 +676,11 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-016`** — 6 call sites
 
-- `app/web_router.dart:69` (`listed`)
-- `app/web_router.dart:149` (`listed`)
+- `app/web_router.dart:82` (`listed`)
+- `app/web_router.dart:195` (`listed`)
 - `features/login_registration/state/auth_flow_state.dart:153` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:288` (`push`)
-- `features/web/screens/web_home_screen.dart:140` (`listed`)
+- `features/web/state/web_destinations.dart:146` (`listed`)
 - `shared/settings_screen.dart:83` (`listed`)
 
 **`/ow-017`** — 1 call site
@@ -693,23 +693,23 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-018`** — 4 call sites
 
-- `app/web_router.dart:69` (`listed`)
-- `app/web_router.dart:151` (`listed`)
+- `app/web_router.dart:83` (`listed`)
+- `app/web_router.dart:197` (`listed`)
 - `features/owner_workspace/screens/ow_000_first_business_setup.dart:638` (`push`)
-- `features/web/screens/web_home_screen.dart:120` (`listed`)
+- `features/web/state/web_destinations.dart:131` (`listed`)
 
 **`/ow-bulk-onboarding`** — 3 call sites
 
-- `app/web_router.dart:69` (`listed`)
-- `app/web_router.dart:163` (`listed`)
+- `app/web_router.dart:84` (`listed`)
+- `app/web_router.dart:209` (`listed`)
 - `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:139` (`push`)
 
 **`/ow-bulk-onboarding-menu`** — 4 call sites
 
-- `app/web_router.dart:69` (`listed`)
-- `app/web_router.dart:159` (`listed`)
+- `app/web_router.dart:85` (`listed`)
+- `app/web_router.dart:205` (`listed`)
 - `design/tokens/breakpoints.dart:88` (`listed`)
-- `features/web/screens/web_home_screen.dart:135` (`listed`)
+- `features/web/state/web_destinations.dart:141` (`listed`)
 
 **`/ow-bulk-onboarding-web`** — 1 call site
 
@@ -734,8 +734,8 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-settings`** — 4 call sites
 
-- `app/web_router.dart:74` (`listed`)
-- `app/web_router.dart:220` (`listed`)
+- `app/web_router.dart:95` (`listed`)
+- `app/web_router.dart:268` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:292` (`push`)
 - `features/owner_workspace/screens/ow_trash_screen.dart:148` (`listed`)
 
@@ -749,43 +749,45 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/profile`** — 3 call sites
 
-- `app/web_router.dart:74` (`listed`)
-- `app/web_router.dart:198` (`listed`)
+- `app/web_router.dart:93` (`listed`)
+- `app/web_router.dart:244` (`listed`)
 - `features/login_registration/state/auth_flow_state.dart:160` (`listed`)
 
 **`/settings`** — 11 call sites
 
-- `app/web_router.dart:74` (`listed`)
-- `app/web_router.dart:219` (`listed`)
+- `app/web_router.dart:94` (`listed`)
+- `app/web_router.dart:266` (`listed`)
 - `features/login_registration/screens/lr_012_business_selector.dart:391` (`push`)
 - `features/owner_workspace/screens/backup_screen.dart:74` (`listed`)
 - `features/owner_workspace/screens/business_transfer_screen.dart:169` (`listed`)
 - `features/owner_workspace/screens/import_screen.dart:115` (`listed`)
 - `features/owner_workspace/screens/subscription_screen.dart:29` (`listed`)
-- `features/web/screens/web_home_screen.dart:77` (`listed`)
+- `features/web/state/web_destinations.dart:92` (`listed`)
 - `shared/about_screen.dart:43` (`listed`)
 - `shared/account_closure_screen.dart:94` (`listed`)
 - `shared/appearance_screen.dart:31` (`listed`)
 
 **`/subscription`** — 4 call sites
 
-- `app/web_router.dart:70` (`listed`)
-- `app/web_router.dart:171` (`listed`)
-- `features/web/screens/web_home_screen.dart:139` (`listed`)
+- `app/web_router.dart:87` (`listed`)
+- `app/web_router.dart:217` (`listed`)
+- `features/web/state/web_destinations.dart:145` (`listed`)
 - `shared/settings_screen.dart:426` (`push`)
 
-**`/web-home`** — 10 call sites
+**`/web-home`** — 12 call sites
 
-- `app/web_router.dart:68` (`listed`)
-- `app/web_router.dart:83` (`listed`)
-- `app/web_router.dart:84` (`listed`)
-- `app/web_router.dart:85` (`listed`)
-- `app/web_router.dart:86` (`listed`)
-- `app/web_router.dart:143` (`listed`)
-- `app/web_router.dart:290` (`go`)
+- `app/web_router.dart:80` (`listed`)
+- `app/web_router.dart:108` (`listed`)
+- `app/web_router.dart:109` (`listed`)
+- `app/web_router.dart:110` (`listed`)
+- `app/web_router.dart:111` (`listed`)
+- `app/web_router.dart:189` (`listed`)
+- `app/web_router.dart:351` (`go`)
 - `design/components/mana_app_bar.dart:182` (`go`)
 - `design/tokens/breakpoints.dart:87` (`listed`)
 - `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:221` (`listed`)
+- `features/web/widgets/mana_web_shell.dart:66` (`go`)
+- `features/web/widgets/mana_web_shell.dart:90` (`listed`)
 
 ## Worth a look
 

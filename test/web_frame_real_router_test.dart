@@ -29,7 +29,7 @@ void main() {
     final router = GoRouter(
       initialLocation: initial,
       routes: [
-        for (final path in const ['/lr-001', '/web-home', '/ow-001'])
+        for (final path in const ['/lr-001', '/lr-009', '/web-home'])
           GoRoute(
             path: path,
             builder: (_, __) => Container(key: const Key('content')),
@@ -61,39 +61,33 @@ void main() {
     return tester.getSize(find.byKey(const Key('content'))).width;
   }
 
-  testWidgets('a wide route opened directly gets the desk measure',
+  testWidgets('a signed-out page opened directly gets the reading measure',
       (tester) async {
     // The case the Owner hit: type the URL, or reload on it. Before the fix
-    // this was 480 -- a route could be in kManaWideRoutes and still render
-    // as a phone, because the path being matched against was ''.
-    expect(await contentWidth(tester, initial: '/web-home'),
-        kManaDeskContentMax);
-  });
-
-  testWidgets('a wide route navigated TO gets it too', (tester) async {
-    // The other half: arriving from somewhere else, which is what happens
-    // after signing in.
-    expect(
-      await contentWidth(tester, initial: '/lr-001', thenGoTo: '/web-home'),
-      kManaDeskContentMax,
-    );
-  });
-
-  testWidgets('a route with no bespoke layout gets the reading measure',
-      (tester) async {
-    // Not the window, and not a phone column either. 840 is what a screen
-    // drawn for 360dp can be given without its buttons becoming bands.
-    expect(await contentWidth(tester, initial: '/ow-001'),
+    // this was 480 for every route alike, because the path being matched
+    // against was the empty string.
+    expect(await contentWidth(tester, initial: '/lr-009'),
         kManaWebReadingMeasure);
   });
 
-  testWidgets('leaving a wide route narrows back to the reading measure',
-      (tester) async {
-    // The half that proves the listener fires. Before the fix the builder
-    // ran once and never again, so a value read at startup was the only
-    // value it ever had.
+  testWidgets('a signed-in route is passed straight through', (tester) async {
+    // Its navigation and its measure come from the ShellRoute now. If this
+    // ever clamps again, the rail goes back to floating in the middle of a
+    // wide monitor.
+    expect(await contentWidth(tester, initial: '/web-home'), 1440);
+  });
+
+  testWidgets('navigating between the two switches correctly', (tester) async {
+    // THE HALF THAT PROVES THE LISTENER FIRES. Before the fix the builder ran
+    // once and never again, so whatever was read at startup was the only
+    // value it ever had -- which is why a route could be on the list and
+    // still render as a phone.
     expect(
-      await contentWidth(tester, initial: '/web-home', thenGoTo: '/ow-001'),
+      await contentWidth(tester, initial: '/lr-009', thenGoTo: '/web-home'),
+      1440,
+    );
+    expect(
+      await contentWidth(tester, initial: '/web-home', thenGoTo: '/lr-009'),
       kManaWebReadingMeasure,
     );
   });

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'router.dart' show manaSessionRedirect, manaRootNavigatorKey, manaSelectable;
+import 'router.dart'
+    show manaSessionRedirect, manaRootNavigatorKey, manaSelectableRoute;
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/components/mana_text.dart';
@@ -23,6 +24,7 @@ import '../features/owner_workspace/screens/ow_013_account_review.dart';
 import '../features/owner_workspace/screens/ow_016_profile.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_menu.dart';
+import '../features/web/widgets/mana_web_shell.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart';
 import '../features/owner_workspace/screens/import_screen.dart';
 import '../features/owner_workspace/screens/subscription_screen.dart';
@@ -63,16 +65,39 @@ import '../features/web/screens/web_home_screen.dart';
 /// a reimplementation — so a bug fixed in one place is fixed everywhere it
 /// is reachable.
 const kManaWebAllowedRoutes = <String>{
-  '/lr-001', '/lr-002', '/lr-004', '/lr-005', '/lr-006', '/lr-007', '/lr-008',
-  '/lr-009', '/lr-010', '/lr-011', '/lr-012', '/lr-013',
+  '/lr-001',
+  '/lr-002',
+  '/lr-004',
+  '/lr-005',
+  '/lr-006',
+  '/lr-007',
+  '/lr-008',
+  '/lr-009',
+  '/lr-010',
+  '/lr-011',
+  '/lr-012',
+  '/lr-013',
   '/web-home',
-  '/ow-013', '/ow-016', '/ow-018', '/ow-bulk-onboarding', '/ow-bulk-onboarding-menu',
-  '/import', '/subscription',
+  '/ow-013',
+  '/ow-016',
+  '/ow-018',
+  '/ow-bulk-onboarding',
+  '/ow-bulk-onboarding-menu',
+  '/import',
+  '/subscription',
   '/ag-009',
-  '/cw-004', '/cw-006',
-  '/iw-003', '/iw-005',
-  '/profile', '/settings', '/ow-settings', '/ag-settings', '/cw-settings', '/iw-settings',
-  '/appearance', '/about',
+  '/cw-004',
+  '/cw-006',
+  '/iw-003',
+  '/iw-005',
+  '/profile',
+  '/settings',
+  '/ow-settings',
+  '/ag-settings',
+  '/cw-settings',
+  '/iw-settings',
+  '/appearance',
+  '/about',
 };
 
 /// Every role lands on the web home rather than a dashboard, because none
@@ -94,7 +119,7 @@ final manaWebRouter = GoRouter(
   // which are in the allowlist above, and it never names a dashboard route
   // that is missing here.
   redirect: manaSessionRedirect,
-  routes: [
+  routes: <RouteBase>[
     GoRoute(path: '/lr-001', builder: (c, s) => const SystemStartupScreen()),
     GoRoute(path: '/lr-002', builder: (c, s) => const WorkspaceChoiceScreen()),
     GoRoute(path: '/lr-004', builder: (c, s) => const RegistrationFormScreen()),
@@ -128,8 +153,7 @@ final manaWebRouter = GoRouter(
     GoRoute(path: '/lr-011', builder: (c, s) => const ForgotPinScreen()),
     GoRoute(
       path: '/lr-012',
-      builder: (c, s) => BusinessSelectorScreen(
-          alwaysPick: s.uri.queryParameters['pick'] == '1'),
+      builder: (c, s) => BusinessSelectorScreen(alwaysPick: s.uri.queryParameters['pick'] == '1'),
     ),
     // The one place this router disagrees with manaRouter's DEFAULT, not
     // its route set — LR-013 is still LR-013, but it is handed
@@ -140,88 +164,125 @@ final manaWebRouter = GoRouter(
       builder: (c, s) => const RoleSelectorScreen(roleHomeRoutes: kWebRoleHomeRoutes),
     ),
 
-    GoRoute(path: '/web-home', builder: (c, s) => const ManaWebHomeScreen()),
+    // EVERY SIGNED-IN PAGE GETS THE SITE'S NAVIGATION, and it is a ShellRoute
+    // that puts it there rather than twenty-one edited builders.
+    //
+    // Not just to save the edits -- to make forgetting one impossible. A
+    // route added inside this list is wrapped by construction; a route added
+    // to a list of hand-wrapped builders is wrapped only if somebody
+    // remembers, and `web_navigation_test.dart` would then be the only thing
+    // between that and a page with no way off it.
+    //
+    // AND `state.uri.path` HERE IS POPULATED. That is the whole reason this
+    // is not done further up: ManaWebFrame reads the route from
+    // MaterialApp.builder, ABOVE the Navigator, where the configuration has
+    // no matches -- it read the empty string for months and silently matched
+    // nothing. A ShellRoute's builder runs BELOW the match, so the path is
+    // the thing that selected it.
+    //
+    // The /lr-* routes stay outside on purpose. Every destination in the rail
+    // needs a session, so a rail on the login screen would be a list of links
+    // that bounce you back to the login screen.
+    ShellRoute(
+      builder: (context, state, child) => ManaWebShell(location: state.uri.path, child: child),
+      routes: [
+        GoRoute(path: '/web-home', builder: (c, s) => const ManaWebHomeScreen()),
 
-    GoRoute(
-      path: '/ow-013',
-      builder: (c, s) => AccountReviewScreen(businessId: _resolveBusinessId(s)),
-    ),
-    GoRoute(path: '/ow-016', builder: (c, s) => const OwnerProfileScreen()),
-    GoRoute(
-      path: '/ow-018',
-      builder: (c, s) => BusinessMigrationScreen(businessId: _resolveBusinessId(s)),
-    ),
-    // The website's front page for bulk onboarding, and the one thing the
-    // handset signpost promises by name: download the sheets, then bring
-    // them back a step at a time. Registered on both routers building the
-    // same class, per the web/Android agreement above.
-    GoRoute(
-      path: '/ow-bulk-onboarding-menu',
-      builder: (c, s) => BulkOnboardingMenuScreen(businessId: _resolveBusinessId(s)),
-    ),
-    GoRoute(
-      path: '/ow-bulk-onboarding',
-      builder: (c, s) => BulkOnboardingWizardScreen(businessId: _resolveBusinessId(s)),
-    ),
-    GoRoute(
-      path: '/import',
-      builder: (c, s) => ImportScreen(businessId: _resolveBusinessId(s)),
-    ),
-    GoRoute(
-      path: '/subscription',
-      builder: (c, s) => SubscriptionScreen(businessId: _resolveBusinessId(s)),
-    ),
+        GoRoute(
+          path: '/ow-013',
+          builder: (c, s) => AccountReviewScreen(businessId: _resolveBusinessId(s)),
+        ),
+        GoRoute(path: '/ow-016', builder: (c, s) => const OwnerProfileScreen()),
+        GoRoute(
+          path: '/ow-018',
+          builder: (c, s) => BusinessMigrationScreen(businessId: _resolveBusinessId(s)),
+        ),
+        // The website's front page for bulk onboarding, and the one thing the
+        // handset signpost promises by name: download the sheets, then bring
+        // them back a step at a time. Registered on both routers building the
+        // same class, per the web/Android agreement above.
+        GoRoute(
+          path: '/ow-bulk-onboarding-menu',
+          builder: (c, s) => BulkOnboardingMenuScreen(businessId: _resolveBusinessId(s)),
+        ),
+        GoRoute(
+          path: '/ow-bulk-onboarding',
+          builder: (c, s) => BulkOnboardingWizardScreen(businessId: _resolveBusinessId(s)),
+        ),
+        GoRoute(
+          path: '/import',
+          builder: (c, s) => ImportScreen(businessId: _resolveBusinessId(s)),
+        ),
+        GoRoute(
+          path: '/subscription',
+          builder: (c, s) => SubscriptionScreen(businessId: _resolveBusinessId(s)),
+        ),
 
-    GoRoute(
-      path: '/ag-009',
-      builder: (c, s) => Ag009ProfileScreen(
-        personId: ManaSession.instance.currentPersonId ?? '',
-        agentId: ManaSession.instance.lastAgentId ?? '',
-        businessId: _resolveBusinessId(s),
-      ),
-    ),
+        GoRoute(
+          path: '/ag-009',
+          builder: (c, s) => Ag009ProfileScreen(
+            personId: ManaSession.instance.currentPersonId ?? '',
+            agentId: ManaSession.instance.lastAgentId ?? '',
+            businessId: _resolveBusinessId(s),
+          ),
+        ),
 
-    GoRoute(
-      path: '/cw-004',
-      builder: (c, s) => MyLoansScreen(
-        businessId: _resolveBusinessId(s),
-        customerId: ManaSession.instance.lastCustomerId ?? '',
-      ),
-    ),
-    GoRoute(
-      path: '/cw-006',
-      builder: (c, s) => cw006.MyProfileMembershipsScreen(
-          personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? ''),
-    ),
+        GoRoute(
+          path: '/cw-004',
+          builder: (c, s) => MyLoansScreen(
+            businessId: _resolveBusinessId(s),
+            customerId: ManaSession.instance.lastCustomerId ?? '',
+          ),
+        ),
+        GoRoute(
+          path: '/cw-006',
+          builder: (c, s) => cw006.MyProfileMembershipsScreen(
+              personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? ''),
+        ),
 
-    GoRoute(
-      path: '/profile',
-      builder: (c, s) => cw006.MyProfileMembershipsScreen(
-        personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? '',
-        homeRoute: '/lr-012',
-      ),
-    ),
+        GoRoute(
+          path: '/profile',
+          builder: (c, s) => cw006.MyProfileMembershipsScreen(
+            personId: (s.extra as String?) ?? ManaSession.instance.currentPersonId ?? '',
+            homeRoute: '/lr-012',
+          ),
+        ),
 
-    GoRoute(
-      path: '/iw-003',
-      builder: (c, s) => MyInvestmentsScreen(
-        businessId: _resolveBusinessId(s),
-        investorId: ManaSession.instance.lastInvestorId ?? '',
-      ),
-    ),
-    GoRoute(
-      path: '/iw-005',
-      builder: (c, s) => MyProfileMembershipsScreen(personId: ManaSession.instance.currentPersonId ?? ''),
-    ),
+        GoRoute(
+          path: '/iw-003',
+          builder: (c, s) => MyInvestmentsScreen(
+            businessId: _resolveBusinessId(s),
+            investorId: ManaSession.instance.lastInvestorId ?? '',
+          ),
+        ),
+        GoRoute(
+          path: '/iw-005',
+          builder: (c, s) =>
+              MyProfileMembershipsScreen(personId: ManaSession.instance.currentPersonId ?? ''),
+        ),
 
-    GoRoute(path: '/about', builder: (c, s) => const AboutScreen()),
-    GoRoute(path: '/appearance', builder: (c, s) => const AppearanceScreen()),
-    GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen(homeRoute: '/lr-012')),
-    GoRoute(path: '/ow-settings', builder: (c, s) => SettingsScreen(homeRoute: '/ow-001', businessId: s.extra as String?)),
-    GoRoute(path: '/ag-settings', builder: (c, s) => SettingsScreen(homeRoute: '/ag-001', businessId: s.extra as String?)),
-    GoRoute(path: '/cw-settings', builder: (c, s) => SettingsScreen(homeRoute: '/cw-001', businessId: s.extra as String?)),
-    GoRoute(path: '/iw-settings', builder: (c, s) => SettingsScreen(homeRoute: '/iw-001', businessId: s.extra as String?)),
-  ].map(manaSelectable).toList(),
+        GoRoute(path: '/about', builder: (c, s) => const AboutScreen()),
+        GoRoute(path: '/appearance', builder: (c, s) => const AppearanceScreen()),
+        GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen(homeRoute: '/lr-012')),
+        GoRoute(
+            path: '/ow-settings',
+            builder: (c, s) =>
+                SettingsScreen(homeRoute: '/ow-001', businessId: s.extra as String?)),
+        GoRoute(
+            path: '/ag-settings',
+            builder: (c, s) =>
+                SettingsScreen(homeRoute: '/ag-001', businessId: s.extra as String?)),
+        GoRoute(
+            path: '/cw-settings',
+            builder: (c, s) =>
+                SettingsScreen(homeRoute: '/cw-001', businessId: s.extra as String?)),
+        GoRoute(
+            path: '/iw-settings',
+            builder: (c, s) =>
+                SettingsScreen(homeRoute: '/iw-001', businessId: s.extra as String?)),
+      ],
+    ),
+  ].map(manaSelectableRoute).toList(),
   // A bookmarked or hand-typed /ow-006 (or any of the ~50 app-only routes)
   // must not read as a broken site — it is a real screen, just not one this
   // build carries. Named, explained, and given a way back rather than a

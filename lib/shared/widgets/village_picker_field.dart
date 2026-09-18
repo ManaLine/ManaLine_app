@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -89,6 +91,34 @@ class _ManaVillagePickerFieldState
   bool get _needsName =>
       _pin.text.trim().length == 6 &&
       _query.text.trim().length < LocationApiService.minVillageLetters;
+
+  /// Emptying the PIN takes the village with it.
+  ///
+  /// THE PRINCIPLE IS ALREADY WRITTEN, one widget over: ManaVillageSearchField
+  /// says "Changing an earlier step clears every later one". The cascade mode
+  /// obeys it; this one did not. `_search` cleared the internal SELECTION but
+  /// left the village name sitting in its box, so the screen showed a village
+  /// under a PIN that no longer existed and the only way out was backspacing
+  /// a name somebody had not typed twice.
+  ///
+  /// EMPTY, NOT MERELY INVALID, and the difference is the common case.
+  /// Deleting one digit to fix a typo leaves five, which is invalid — clearing
+  /// the name there would make every correction cost the village name as well.
+  /// Emptying the field is the unambiguous "start again", and it is the one
+  /// the Owner described: "removing pincode should remove the village
+  /// selected".
+  void _onPinChanged(String value) {
+    if (value.trim().isEmpty && _query.text.isNotEmpty) {
+      _query.clear();
+      setState(() {
+        _results = const [];
+        _similar = const [];
+        _pinOptions = const [];
+        _chosenOption = null;
+      });
+    }
+    unawaited(_search());
+  }
 
   Future<void> _search() async {
     // Unpick first: a selection made against the previous search must not
@@ -186,7 +216,7 @@ class _ManaVillagePickerFieldState
           keyboardType: TextInputType.number,
           maxLength: 6,
           decoration: InputDecoration(labelText: ref.t('pin_code_field')),
-          onChanged: (_) => _search(),
+          onChanged: _onPinChanged,
         ),
         TextField(
           controller: _query,

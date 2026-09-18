@@ -437,7 +437,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 - `app/web_router.dart:82` (`listed`)
 - `app/web_router.dart:191` (`listed`)
-- `features/login_registration/screens/lr_004_registration_form.dart:355` (`push`)
+- `features/login_registration/screens/lr_004_registration_form.dart:360` (`push`)
 - `features/login_registration/screens/lr_007_first_login.dart:203` (`push`)
 - `features/login_registration/screens/lr_009_daily_login.dart:374` (`push`)
 - `features/login_registration/screens/lr_013_role_selector.dart:215` (`listed`)
@@ -614,8 +614,8 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:1216` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:1775` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:2008` (`listed`)
-- `features/owner_workspace/screens/ow_004_customer_management.dart:1483` (`listed`)
-- `features/owner_workspace/screens/ow_004_customer_management.dart:1918` (`listed`)
+- `features/owner_workspace/screens/ow_004_customer_management.dart:1487` (`listed`)
+- `features/owner_workspace/screens/ow_004_customer_management.dart:1922` (`listed`)
 - `shared/widgets/workspace_nav.dart:51` (`listed`)
 
 **`/ow-005`** — 3 call sites
@@ -627,7 +627,7 @@ proves a screen unreachable — only that nobody wrote its path.
 **`/ow-006`** — 6 call sites
 
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:1772` (`listed`)
-- `features/owner_workspace/screens/ow_004_customer_management.dart:1553` (`push`)
+- `features/owner_workspace/screens/ow_004_customer_management.dart:1557` (`push`)
 - `features/owner_workspace/screens/ow_011_day_closure.dart:151` (`listed`)
 - `features/owner_workspace/screens/ow_011_day_closure.dart:159` (`listed`)
 - `features/owner_workspace/state/day_closure_state.dart:275` (`listed`)
@@ -635,7 +635,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-007`** — 3 call sites
 
-- `features/owner_workspace/screens/ow_004_customer_management.dart:1709` (`push`)
+- `features/owner_workspace/screens/ow_004_customer_management.dart:1713` (`push`)
 - `features/owner_workspace/screens/ow_009_daily_record_book.dart:732` (`listed`)
 - `features/owner_workspace/screens/ow_015_group_loan_management.dart:347` (`push`)
 
@@ -677,7 +677,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-014-complete-profile`** — 1 call site
 
-- `features/owner_workspace/screens/ow_014_global_workflow.dart:597` (`listed`)
+- `features/owner_workspace/screens/ow_014_global_workflow.dart:604` (`listed`)
 
 **`/ow-015`** — 3 call sites
 

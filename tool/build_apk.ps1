@@ -33,7 +33,7 @@
   the other. test/app_version_test.dart fails if they ever disagree.
 
 .EXAMPLE
-  pwsh tool/build_apk.ps1
+  powershell -ExecutionPolicy Bypass -File tool\build_apk.ps1
 #>
 [CmdletBinding()]
 param(

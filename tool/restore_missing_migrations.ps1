@@ -40,7 +40,7 @@
   ships inside every APK anyway, and a database password does not.
 
 .EXAMPLE
-  $env:MANA_DB_URL = '...'; pwsh tool/restore_missing_migrations.ps1 -WhatIf
+  $env:MANA_DB_URL = '...'; powershell -ExecutionPolicy Bypass -File tool\restore_missing_migrations.ps1 -WhatIf
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(

@@ -80,7 +80,7 @@
   and then reports the schema as broken.
 
 .EXAMPLE
-  pwsh tool/verify_rebuild.ps1
+  powershell -ExecutionPolicy Bypass -File tool\verify_rebuild.ps1
 #>
 [CmdletBinding()]
 param(
@@ -227,7 +227,7 @@ Write-Host 'files against it -- this cluster is the only place they can run,'
 Write-Host 'because they need a database with no books in it:'
 Write-Host ''
 Write-Host "  `$env:MANA_DB_URL = 'postgresql://postgres@localhost:$Port/$db'"
-Write-Host '  pwsh tool/run_sql_tests.ps1 -AllowNonEmpty'
+Write-Host '  powershell -ExecutionPolicy Bypass -File tool\run_sql_tests.ps1 -AllowNonEmpty'
 
 if (-not $Keep) {
   & "$PgBin\pg_ctl.exe" -D $data stop -m immediate 2>&1 | Out-Null

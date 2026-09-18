@@ -217,8 +217,13 @@ balance, and that reasoning is in the file.
 `supabase/tests/*.sql` had never been executed. They are wired now:
 
 ```bash
-pwsh tool/run_sql_tests.ps1
+powershell -ExecutionPolicy Bypass -File tool\run_sql_tests.ps1
 ```
+
+**`pwsh` is PowerShell 7 and is not installed on this machine** — typing it
+gives `CommandNotFoundException`, which reads like a broken script rather
+than a missing shell. Neither .ps1 here uses any 7-only syntax, so Windows
+PowerShell 5.1 (`powershell`) runs both. Verified 2026-09-18.
 
 It needs `MANA_DB_URL`, which is **not** in this repo and must not be —
 `run.ps1.txt` carries the anon key because that ships inside every APK
@@ -277,19 +282,22 @@ must not turn the read-only session off. And when `MANA_DB_URL` is set it
 shells out to the runner and asserts a zero exit; when it is not, it
 **prints a skip** rather than passing quietly.
 
-**They have all run, as of 2026-09-15.** `pwsh tool/verify_rebuild.ps1` makes
+**They have all run, as of 2026-09-15; re-run green 2026-09-18** — six of six
+files, 0 skipped, against a cluster rebuilt from all 472 migrations.
+`tool/verify_rebuild.ps1` makes
 a disposable Postgres cluster on port 5433 with trust auth — no password, no
 Docker, and it cannot reach production because it makes its own server — and
-all 427 migrations applied to it cleanly. **There are 472 migrations now**,
-and the rebuild has not been re-run since that date — so treat "they all
-apply" as true of 2026-09-15 and 427 files, not of today. Re-running it is
-the cheap way to find out. That cluster is the database with no books in it,
-so the five scratch files finally have a target:
+all 427 migrations applied to it cleanly. **Re-run 2026-09-18: all 472 now
+apply cleanly too**, from nothing, with `pg_cron` stubbed as designed. Re-run
+it after any batch of migrations rather than trusting this line — the whole
+point of the script is that it is cheap enough to re-run. That cluster is the
+database with no books in it, so the five scratch files finally have a
+target:
 
 ```bash
-pwsh tool/verify_rebuild.ps1 -Keep
+powershell -ExecutionPolicy Bypass -File tool\verify_rebuild.ps1 -Keep
 $env:MANA_DB_URL = 'postgresql://postgres@localhost:5433/mana_rebuild'
-pwsh tool/run_sql_tests.ps1 -AllowNonEmpty
+powershell -ExecutionPolicy Bypass -File tool\run_sql_tests.ps1 -AllowNonEmpty
 ```
 
 **On their first execution, six of the seven failures were the tests.** Each
@@ -369,7 +377,7 @@ flagging first.
 **Phase 4 — stop before shipping.** Once all fixes in the approved
 roadmap are done and `flutter analyze` is clean on every touched file,
 stop. If the batch touched SQL — a migration, an RPC, a view, RLS — run
-`pwsh tool/run_sql_tests.ps1` first and report the result; that is the only
+`tool/run_sql_tests.ps1` first and report the result; that is the only
 thing that executes the schema and data assertions. Do not push, build the APK, or install. Present a summary (fixed
 / flagged / deferred, table format) and wait for my explicit approval
 before running `flutter build apk` or `adb install`.

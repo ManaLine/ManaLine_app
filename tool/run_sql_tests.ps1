@@ -50,7 +50,7 @@
 
 .EXAMPLE
   $env:MANA_DB_URL = "postgresql://postgres:<password>@<host>:5432/postgres"
-  pwsh tool/run_sql_tests.ps1
+  powershell -ExecutionPolicy Bypass -File tool\run_sql_tests.ps1
 #>
 [CmdletBinding()]
 param(
@@ -69,7 +69,7 @@ if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
   Write-Host 'Set it to a libpq connection string and run this again:'
   Write-Host ''
   Write-Host '  $env:MANA_DB_URL = "postgresql://postgres:<password>@<host>:5432/postgres"'
-  Write-Host '  pwsh tool/run_sql_tests.ps1'
+  Write-Host '  powershell -ExecutionPolicy Bypass -File tool\run_sql_tests.ps1'
   exit 2
 }
 

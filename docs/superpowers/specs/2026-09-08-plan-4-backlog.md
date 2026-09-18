@@ -104,13 +104,18 @@ return with a visible error and a retry.
   owner; with two or more the picker appears every time. This is current
   intended behaviour, not a defect — but `lastBusinessId` is already persisted
   and unused for this, so "remember and skip" is a small feature if wanted.
-- **`CLAUDE.md` tells you to run `pwsh tool/run_sql_tests.ps1`.** `pwsh` is not
-  installed on the development machine — only Windows PowerShell 5.1 — so that
-  command fails with `CommandNotFoundException`. The scripts themselves run
-  fine under 5.1. Either install PowerShell 7 or correct the invocation in the
-  docs to `& .\tool\<script>.ps1`. Worth fixing: the SQL guards' whole history
-  is that they never ran, and a documented command that fails is how that
-  stays true.
+- ~~**`CLAUDE.md` tells you to run `pwsh tool/run_sql_tests.ps1`.**~~ **FIXED
+  2026-09-18.** `pwsh` is PowerShell 7 and is not installed on the development
+  machine — only Windows PowerShell 5.1 — so that command failed with
+  `CommandNotFoundException`. The scripts run fine under 5.1 and none uses
+  7-only syntax. `CLAUDE.md`, `docs/HANDOVER.md` and the four `tool/*.ps1`
+  scripts' own printed hints now say
+  `powershell -ExecutionPolicy Bypass -File tool\<script>.ps1`. It cost ten
+  minutes on the day it was fixed, ten days after being written down here —
+  which is the argument for correcting a bad documented command rather than
+  logging one. The original reasoning stands: the SQL guards' whole history is
+  that they never ran, and a documented command that fails is how that stays
+  true.
 - **BR-205's "New Device Login" notification was never implemented** —
   `supabase/functions/auth-login/index.ts:250` carries the TODO. A login from a
   new device currently alerts nobody.

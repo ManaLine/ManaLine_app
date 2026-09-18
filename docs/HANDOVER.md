@@ -151,13 +151,21 @@ coordinates.
 yourself. For schema work against a throwaway target:
 
 ```bash
-pwsh tool/verify_rebuild.ps1 -Keep
+powershell -ExecutionPolicy Bypass -File tool\verify_rebuild.ps1 -Keep
 ```
 
 That builds a disposable Postgres on port 5433 — trust auth, no password,
 no Docker — and applies all 472 migration files to it. It cannot reach
 production because it makes its own server. It is the safest place to
 learn.
+
+**The docs used to say `pwsh`, and `pwsh` is PowerShell 7, which is not
+installed on this machine.** Typing it gives `CommandNotFoundException`,
+which reads like a broken script rather than a missing shell. Neither .ps1
+in `tool/` uses 7-only syntax, so Windows PowerShell 5.1 runs both. Checked
+2026-09-18, when it wasted ten minutes.
+
+**Verified 2026-09-18: all 472 migrations rebuild from nothing, cleanly.**
 
 ---
 
@@ -300,9 +308,10 @@ it silently.
 `supabase/tests/*.sql` — six files, wired through:
 
 ```bash
-pwsh tool/run_sql_tests.ps1
+powershell -ExecutionPolicy Bypass -File tool\run_sql_tests.ps1
 ```
 
+**All six pass as of 2026-09-18**, 0 skipped, against the rebuilt cluster.
 Needs `MANA_DB_URL`, which is deliberately not in this repo. Every file
 declares `-- @target: production` (reads only, runs anywhere under
 `default_transaction_read_only=on`) or `scratch` (fabricates data, refused

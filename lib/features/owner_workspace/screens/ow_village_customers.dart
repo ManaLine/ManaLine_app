@@ -13,6 +13,7 @@ import '../../../shared/translation_service.dart';
 import '../state/bulk_onboarding_service.dart';
 import 'ow_pre_existing_loan_sheet.dart';
 import '../state/village_book_summary.dart';
+import 'ow_004_customer_management.dart';
 
 /// One village's customers, one per page, with their loans.
 ///
@@ -97,6 +98,40 @@ class _VillageCustomersScreenState
     setState(() => _positions = mine);
   }
 
+  /// Open the ordinary add-customer sheet, from here.
+  ///
+  /// THE SAME SHEET, not a second form. It already offers this business's
+  /// villages before the national register and it already owns every rule
+  /// about what a customer needs — a private copy here would be the tenth
+  /// village search in this app and the second place to fix anything.
+  ///
+  /// What arriving from a village changes is only that the answer to "where"
+  /// is already on screen above the form.
+  Future<void> _addCustomer() async {
+    await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => Padding(
+        padding: MediaQuery.of(context).viewInsets,
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, controller) => ManaAddCustomerSheet(
+            businessId: widget.businessId,
+            // Migration entry: somebody copied out of a paper book may have
+            // neither a phone nor an Aadhaar, and this screen is the
+            // one-by-one book. The RPC enforces the rule either way.
+            migrationEntry: true,
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    // Whatever happened, the village's own list is the thing that changed.
+    await _reload();
+  }
+
   Future<void> _addLoan(_Customer who) async {
     final saved = await manaEnterPreExistingLoan(
       context,
@@ -158,6 +193,21 @@ class _VillageCustomersScreenState
                   }),
                 ),
               ],
+      ),
+      // ADD SOMEBODY FROM INSIDE THE VILLAGE THEY LIVE IN.
+      //
+      // The Owner, on this exact screen: "inside village - enable to add a
+      // customer - creates a customer inside that selected village."
+      //
+      // Before this the only way in was the global Add a User, which opens on
+      // a blank form and asks WHERE as one question among several -- so
+      // somebody already standing in Someswaram's book had to say
+      // "Someswaram" again, by typing it, which is how the second spelling of
+      // a village gets made. Arriving from here the answer is already known.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addCustomer,
+        icon: const Icon(Icons.person_add_alt_1),
+        label: ManaText.raw(ref.t('add_customer_here')),
       ),
       body: SafeArea(
         child: all.isEmpty

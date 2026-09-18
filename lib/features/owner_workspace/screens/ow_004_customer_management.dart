@@ -1220,49 +1220,19 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
           style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.md),
-        TextField(
-          controller: _fullName,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(labelText: '${ref.t("full_name")} *'),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        TextField(
-          controller: _fatherHusband,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(labelText: '${ref.t("father_husband_name")} *'),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        DropdownButtonFormField<String>(
-          // isExpanded: a DropdownButton sizes to its widest item and
-          // overflows rather than shrinking -- measured at 1.0x on OW-002.
-          isExpanded: true,
-          initialValue: _gender,
-          decoration: InputDecoration(labelText: '${ref.t("gender")} *'),
-          items: [
-            DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
-            DropdownMenuItem(value: '0', child: ManaText.raw(ref.t('female'))),
-          ],
-          onChanged: (v) => setState(() => _gender = v),
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        TextField(
-          controller: _mobile,
-          keyboardType: TextInputType.phone,
-          maxLength: 10,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(labelText: ref.t('mobile_number')),
-          onChanged: (_) => setState(() {}),
-        ),
-        TextField(
-          controller: _aadhaar,
-          keyboardType: TextInputType.number,
-          maxLength: 12,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(labelText: ref.t('aadhaar_optional_note')),
-          onChanged: (_) => setState(() {}),
-        ),
+        // WHERE, BEFORE WHO. The Owner's instruction was "first ask to select
+        // village ... this reduces duplicates registration of user and
+        // villages both", and the mechanism is the ORDER rather than any new
+        // control. The villages this book already works were always offered
+        // above the national register -- but they sat below the name, the
+        // gender and the door number, so anybody filling the form top to
+        // bottom met a blank search first and typed a village that already
+        // existed under a slightly different spelling. "Panagal" and
+        // "Panagallu (Rural)" are one place, entered twice, for that reason.
+        //
+        // Nothing is forbidden here. A genuinely new village still has to be
+        // addable, and a picker that refuses is one people work around. What
+        // changed is which choice is in front of somebody first.
         const SizedBox(height: ManaSpacing.md),
         // Fills PIN and village from where the Owner is standing — which,
         // for this sheet, is the customer's doorstep. It does NOT capture
@@ -1355,6 +1325,51 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
           ManaText.raw(ref.t('selected_note').replaceAll('{label}', _selectedVillageLabel!),
               style: ManaType.note),
         ],
+
+        const SizedBox(height: ManaSpacing.md),
+        TextField(
+          controller: _fullName,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: '${ref.t("full_name")} *'),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        TextField(
+          controller: _fatherHusband,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: '${ref.t("father_husband_name")} *'),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        DropdownButtonFormField<String>(
+          // isExpanded: a DropdownButton sizes to its widest item and
+          // overflows rather than shrinking -- measured at 1.0x on OW-002.
+          isExpanded: true,
+          initialValue: _gender,
+          decoration: InputDecoration(labelText: '${ref.t("gender")} *'),
+          items: [
+            DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
+            DropdownMenuItem(value: '0', child: ManaText.raw(ref.t('female'))),
+          ],
+          onChanged: (v) => setState(() => _gender = v),
+        ),
+        const SizedBox(height: ManaSpacing.md),
+        TextField(
+          controller: _mobile,
+          keyboardType: TextInputType.phone,
+          maxLength: 10,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(labelText: ref.t('mobile_number')),
+          onChanged: (_) => setState(() {}),
+        ),
+        TextField(
+          controller: _aadhaar,
+          keyboardType: TextInputType.number,
+          maxLength: 12,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(labelText: ref.t('aadhaar_optional_note')),
+          onChanged: (_) => setState(() {}),
+        ),
         const SizedBox(height: ManaSpacing.lg),
         _AddEndings(
           submitting: _submitting,

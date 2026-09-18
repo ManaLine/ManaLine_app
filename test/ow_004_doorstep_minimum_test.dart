@@ -130,6 +130,59 @@ void main() {
   }
 
 
+  /// A field by its LABEL, not its position.
+  ///
+  /// These tests indexed fields by number and carried a comment spelling the
+  /// order out — "name(0), father/husband(1), mobile(2), aadhaar(3), door
+  /// no.(4)". The moment the form was reordered so the village is asked for
+  /// first, every index was wrong and three tests failed for a reason that
+  /// had nothing to do with what they were testing.
+  ///
+  /// A label survives reordering, which is the only kind of change this form
+  /// is likely to see.
+  /// BOTH SIDES NORMALISED to letters and digits only. The needle is a
+  /// translation KEY ('full_name') and the label is the rendered English
+  /// ("Full Name *"), so a plain contains() never matches — and the
+  /// separators differ anyway: 'father_husband' against "Father/Husband
+  /// Name *" shares no run of characters at all.
+  String squash(String v) =>
+      v.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  Finder fieldLabelled(String label) => inSheet(find.byWidgetPredicate((w) =>
+      w is TextField &&
+      squash(w.decoration?.labelText ?? '').contains(squash(label))));
+
+  /// Build it first if the list has not reached it yet. The sheet is a lazy
+  /// ListView, so a widget below the fold does not exist to be found.
+  ///
+  /// The scrollable is resolved defensively: `inSheet` scopes to BottomSheet,
+  /// and when the stage has not painted one yet that finder is empty --
+  /// scrollUntilVisible then throws "Bad state: No element" from inside
+  /// Flutter rather than failing on the thing being looked for, which is a
+  /// confusing way to learn that a field is missing.
+  Future<Finder> reveal(WidgetTester tester, Finder f) async {
+    // TWO DIFFERENT PROBLEMS, and only one of them is "not found".
+    //
+    // Below the fold, a lazy ListView has not BUILT the widget, so the finder
+    // is empty and scrolling is what creates it. But a widget can equally be
+    // built and simply off-screen — the finder then succeeds, the tap misses,
+    // and `warnIfMissed: false` swallows the miss. That is what happened when
+    // the village block moved to the top of this form: the gender dropdown
+    // was found, tapped at a position nothing occupied, never opened its
+    // menu, and the failure surfaced two lines later as "no element" while
+    // looking for 'Male'.
+    if (f.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        f,
+        200,
+        scrollable: inSheet(find.byType(Scrollable)).first,
+      );
+    }
+    await tester.ensureVisible(f.first);
+    await tester.pumpAndSettle();
+    return f;
+  }
+
   /// The sheet scrolls, so the create button is not built until it is reached.
   Future<Finder> revealCreate(WidgetTester tester) async {
     final btn = createButton();
@@ -173,15 +226,20 @@ void main() {
     await openSheet(tester);
     await gotoCreateNew(tester);
 
-    final fields = inSheet(find.byType(TextField));
-    expect(fields, findsWidgets, reason: 'the create-new form did not open');
+    expect(inSheet(find.byType(TextField)), findsWidgets,
+        reason: 'the create-new form did not open');
 
-    await tester.enterText(fields.at(0), 'Nagabhushanam Venkata Subba Reddy');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('full_name')),
+        'Nagabhushanam Venkata Subba Reddy');
     await tester.pumpAndSettle();
-    await tester.enterText(fields.at(1), 'Garikipati Venkata Subba Rami Reddy');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('father_husband')),
+        'Garikipati Venkata Subba Rami Reddy');
     await tester.pumpAndSettle();
 
-    final gender = inSheet(find.byType(DropdownButtonFormField<String>));
+    final gender = await reveal(
+        tester, inSheet(find.byType(DropdownButtonFormField<String>)));
     expect(gender, findsWidgets, reason: 'no gender control');
     await tester.tap(gender.first, warnIfMissed: false);
     await tester.pumpAndSettle();
@@ -192,13 +250,16 @@ void main() {
 
     // No mobile, no Aadhaar -- still optional. Only the village is picked,
     // via ManaVillageSearchField's PIN mode (defaults open, no mode switch
-    // needed): PIN then village name, then tap the one result. Field order
-    // on this stage is name(0), father/husband(1), mobile(2), aadhaar(3),
-    // door no.(4), then the village field's own PIN(5) and name(6) boxes.
-    final villagePin = inSheet(find.byType(TextField)).at(5);
-    final villageName = inSheet(find.byType(TextField)).at(6);
+    // needed): PIN then village name, then tap the one result.
+    final villagePin = await reveal(tester, fieldLabelled('pin_code'));
+    final villageName = await reveal(tester, fieldLabelled('village_name'));
     await tester.enterText(villagePin, '532221');
     await tester.enterText(villageName, 'pal');
+    await tester.pumpAndSettle();
+    // ensureVisible first: the result row is below the fold now that the
+    // village block leads the form, and a tap at a position nothing occupies
+    // is swallowed by warnIfMissed: false.
+    await tester.ensureVisible(find.text('Palasa').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Palasa').first, warnIfMissed: false);
     await tester.pumpAndSettle();
@@ -218,13 +279,17 @@ void main() {
     await openSheet(tester);
     await gotoCreateNew(tester);
 
-    final fields = inSheet(find.byType(TextField));
-    await tester.enterText(fields.at(0), 'Nagabhushanam Venkata Subba Reddy');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('full_name')),
+        'Nagabhushanam Venkata Subba Reddy');
     await tester.pumpAndSettle();
-    await tester.enterText(fields.at(1), 'Garikipati Venkata Subba Rami Reddy');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('father_husband')),
+        'Garikipati Venkata Subba Rami Reddy');
     await tester.pumpAndSettle();
 
-    final gender = inSheet(find.byType(DropdownButtonFormField<String>));
+    final gender = await reveal(
+        tester, inSheet(find.byType(DropdownButtonFormField<String>)));
     await tester.tap(gender.first, warnIfMissed: false);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Male').last, warnIfMissed: false);
@@ -232,7 +297,8 @@ void main() {
     expect(tester.widget<DropdownButtonFormField<String>>(gender.first).initialValue, '1',
         reason: 'the gender pick must have landed');
 
-    await tester.enterText(fields.at(2), '9493509919');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('mobile')), '9493509919');
     await tester.pumpAndSettle();
 
     // No village picked. Before the FIRST fix here, _canCreateNew did not
@@ -274,10 +340,11 @@ void main() {
     await openSheet(tester);
     await gotoCreateNew(tester);
 
-    final fields = inSheet(find.byType(TextField));
-    await tester.enterText(fields.at(0), 'Chalasani Ramana');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('full_name')), 'Chalasani Ramana');
     await tester.pumpAndSettle();
-    await tester.enterText(fields.at(1), 'Chalasani Rao');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('father_husband')), 'Chalasani Rao');
     await tester.pumpAndSettle();
 
     final gender = inSheet(find.byType(DropdownButtonFormField<String>));
@@ -299,8 +366,15 @@ void main() {
     // bottom, and the village sits above the mobile number. Without one this
     // test would assert the mobile rule and be shown the village rule --
     // passing or failing for the wrong reason either way.
-    await tester.enterText(inSheet(find.byType(TextField)).at(5), '532221');
-    await tester.enterText(inSheet(find.byType(TextField)).at(6), 'pal');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('pin_code')), '532221');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('village_name')), 'pal');
+    await tester.pumpAndSettle();
+    // ensureVisible first: the result row is below the fold now that the
+    // village block leads the form, and a tap at a position nothing occupies
+    // is swallowed by warnIfMissed: false.
+    await tester.ensureVisible(find.text('Palasa').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Palasa').first, warnIfMissed: false);
     await tester.pumpAndSettle();
@@ -309,13 +383,17 @@ void main() {
     // to it, so "Palasa" in a box that was typed "pal" proves both that the
     // tap landed and that the box followed it.
     expect(
-        tester.widget<TextField>(inSheet(find.byType(TextField)).at(6)).controller?.text,
+        tester
+            .widget<TextField>(fieldLabelled('village_name').first)
+            .controller
+            ?.text,
         'Palasa',
         reason: 'the village pick must have landed, and the box must show it');
 
     // Optional does not mean unvalidated: four digits is a typo, not a
     // decision to leave it blank.
-    await tester.enterText(fields.at(2), '9493');
+    await tester.enterText(
+        await reveal(tester, fieldLabelled('mobile')), '9493');
     await tester.pumpAndSettle();
 
     // Same change of shape as the village test above, same reason.

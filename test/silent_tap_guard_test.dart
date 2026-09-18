@@ -45,7 +45,20 @@ void main() {
         continue;
       }
 
-      final lines = entity.readAsStringSync().split('\n');
+      // COMMENT LINES BLANKED, NOT DROPPED, so a reported line number still
+      // points at the real line in the file.
+      //
+      // This guard matched its own subject matter: a test that EXPLAINED in
+      // prose why a silent tap had missed was reported as committing one. It
+      // is the eighth time in this repo a guard has matched a comment about
+      // the thing it guards — the prose documenting a rule is exactly the
+      // prose that quotes it — so it is fixed here rather than by rewording
+      // the comment and waiting for the ninth.
+      final lines = entity
+          .readAsStringSync()
+          .split('\n')
+          .map((l) => l.trimLeft().startsWith('//') ? '' : l)
+          .toList();
       for (var i = 0; i < lines.length; i++) {
         if (!lines[i].contains('warnIfMissed: false')) continue;
 

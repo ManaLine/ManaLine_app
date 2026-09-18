@@ -131,7 +131,15 @@ const _census = <String, int>{
 
   // The add-customer sheet, opened from several places with different
   // arguments.
-  'ManaAddCustomerSheet': 2,
+  //
+  // 2 -> 3 on 2026-09-18. The third is ow_village_customers.dart, which adds
+  // somebody from inside the village they live in ("inside village - enable
+  // to add a customer"). CHECKED, not just counted: it opens the same sheet
+  // with businessId and migrationEntry rather than rolling a form of its own,
+  // which is the contract that matters here -- the sheet owns every rule
+  // about what a customer needs, and a private copy would be the second place
+  // to fix any of them.
+  'ManaAddCustomerSheet': 3,
 
   // Where "my profile" resolves to when no workspace has been chosen.
   //

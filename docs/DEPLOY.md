@@ -5,9 +5,34 @@ site (`site/`); `/app/` is a restricted Flutter web build. They deploy
 together, in one upload, because Cloudflare Pages serves one project per
 domain and `_headers`/`_redirects` apply project-wide.
 
-**Nobody has run this procedure yet.** Follow it slowly the first time,
-diff every assumption against what actually happens, and update this file
-when reality disagrees with it.
+**FIRST RUN DONE, 2026-09-18.** The Pages project `manaline` exists and
+production is live at `https://manaline.pages.dev` — `/` serves the static
+site, `/app/` serves the Flutter build, both 200, both CSPs correct.
+`manaline.in` is NOT attached yet: the custom domain and its DNS are a
+dashboard step that has not been taken, so the public name still does not
+resolve.
+
+Two things this file got wrong, found by running it:
+
+1. **The build command does not work in Git Bash.** See the base-href trap
+   below. It fails silently — a warning, then a broken artifact.
+2. **`wrangler pages deploy` tags the deploy with your CURRENT GIT BRANCH**,
+   and a tag that is not the project's production branch produces a PREVIEW
+   deployment. Deploying from `web-on-the-web` put the whole site on
+   `web-on-the-web.manaline.pages.dev` while `manaline.pages.dev` answered
+   404, with nothing in the output calling that out — the word "preview"
+   never appears. Pass the branch explicitly:
+
+   ```bash
+   npx wrangler pages deploy build/publish --project-name manaline --branch main
+   ```
+
+   Then check `https://manaline.pages.dev/` rather than the URL wrangler
+   prints, which is the per-deployment hash either way and tells you nothing
+   about which environment it landed in.
+
+Keep following it slowly, diff every assumption against what actually
+happens, and update this file when reality disagrees with it.
 
 ## What is NOT ready — do not deploy assuming otherwise
 
@@ -173,9 +198,11 @@ against a real build — see Verification):
 **What was deliberately left out, and why:**
 - No `report-uri`/`report-to` — nothing is set up to receive CSP violation
   reports yet. Add one before relying on the policy to page anyone.
-- No `Strict-Transport-Security` — left for Cloudflare's own defaults
-  rather than duplicated here; confirm what Cloudflare Pages already sends
-  before adding a second one.
+- No `Strict-Transport-Security` — this was left "for Cloudflare's own
+  defaults"; **the defaults do not include it**. Checked on the live
+  deployment 2026-09-18: `strict-transport-security` comes back null. Turn it
+  on in the dashboard (SSL/TLS → Edge Certificates → HSTS) before a custom
+  domain carries a real login, or set it here — but not both.
 - The static site's policy has **no** `'unsafe-inline'` on `style-src` —
   `site/` has no inline `style=` attributes and no `<style>` blocks
   (verified by grep), so it doesn't need the allowance the app does.

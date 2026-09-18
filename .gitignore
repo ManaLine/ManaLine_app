@@ -194,3 +194,9 @@ supabase/.temp/cli-latest
 # limit, so committing them would fail the push outright.
 assets/India Pincodes/
 supabase/seed/
+
+# wrangler's local state, created by `wrangler pages deploy`. It carries
+# deployment bookkeeping and cached build output, not source, and it is what
+# made the first real deploy warn "your working directory has uncommitted
+# changes" on an otherwise clean tree.
+.wrangler/

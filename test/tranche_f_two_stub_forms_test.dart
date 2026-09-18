@@ -56,14 +56,24 @@ void main() {
           reason: 'the key the Edge Function ignores');
     });
 
-    test('gender offers all three values the enum has', () {
+    test('gender offers all three values the CHECK allows', () {
       // gender_digit has had three since Others was added a month before this
       // form was touched; a picker offering two makes somebody choose wrong.
+      //
+      // THE DIGITS ARE PART OF THE ASSERTION. This test used to pin
+      // '1'/'2'/'3', which is what put them in the form: Female stored '2'
+      // (which is Others) and Others stored '3', which
+      // persons_gender_digit_check -- CHECK (gender_digit = ANY
+      // (ARRAY['0','1','2'])), read off the live constraint -- rejects. A
+      // guard that pins the wrong value does not catch the bug, it writes it.
+      // The full three-picker check is in gender_digit_picker_guard_test.dart.
       final picker = ow014.substring(ow014.indexOf("ref.t('gender_field')"));
       final items = picker.substring(0, picker.indexOf('onChanged:'));
-      expect(items, contains("value: '1'"));
-      expect(items, contains("value: '2'"));
-      expect(items, contains("value: '3'"));
+      expect(items, contains("value: '1', child: ManaText.raw(ref.t('male'))"));
+      expect(items, contains("value: '0', child: ManaText.raw(ref.t('female'))"));
+      expect(items, contains("value: '2', child: ManaText.raw(ref.t('others'))"));
+      expect(items.contains("value: '3'"), isFalse,
+          reason: 'there is no gender digit 3; the CHECK rejects it');
     });
 
     test('Save is pressable and names what is missing', () {

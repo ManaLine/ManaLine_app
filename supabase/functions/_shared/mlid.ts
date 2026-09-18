@@ -1,6 +1,7 @@
 // MANA LINE — MLID generation (BR-181/182).
 //
-// BR-181: MLPI = "MLPI" + gender_digit(0=F,1=M) + last 8 digits of Aadhaar.
+// BR-181: MLPI = "MLPI" + gender_digit(0=F,1=M,2=Others) + last 8 digits of
+//   Aadhaar.
 //   Assigned only when Aadhaar is provided at registration.
 // BR-182: MLTI = "MLTI" + gender_digit + unique random 8-digit number.
 //   Assigned when Aadhaar is not provided at registration.
@@ -18,14 +19,20 @@
 // belongs in the members-creation endpoint (out of this batch's scope) —
 // flagged, not silently applied here.
 
-export function genderDigitOf(genderDigit: string): "0" | "1" {
-  if (genderDigit !== "0" && genderDigit !== "1") {
-    throw new Error("gender_digit must be '0' or '1'");
+// '2' (Others) is accepted because persons_gender_digit_check has allowed
+// ARRAY['0','1','2'] since Others was added, and bulk onboarding
+// (bulk_onboarding_service.dart's _genderDigits) has been minting Others
+// people from spreadsheets all along. This function was the reason the
+// one-at-a-time registration forms could not: it threw before the insert
+// ever reached the CHECK, so OW-014 and LR-004 could only ever offer two.
+export function genderDigitOf(genderDigit: string): "0" | "1" | "2" {
+  if (genderDigit !== "0" && genderDigit !== "1" && genderDigit !== "2") {
+    throw new Error("gender_digit must be '0', '1' or '2'");
   }
   return genderDigit;
 }
 
-export function buildMlpi(genderDigit: "0" | "1", aadhaarNumber: string): string {
+export function buildMlpi(genderDigit: "0" | "1" | "2", aadhaarNumber: string): string {
   const last8 = aadhaarNumber.slice(-8);
   return `MLPI${genderDigit}${last8}`;
 }
@@ -36,6 +43,6 @@ function randomDigits(length: number): string {
   return Array.from(bytes, (b) => (b % 10).toString()).join("");
 }
 
-export function buildMltiCandidate(genderDigit: "0" | "1"): string {
+export function buildMltiCandidate(genderDigit: "0" | "1" | "2"): string {
   return `MLTI${genderDigit}${randomDigits(8)}`;
 }

@@ -1240,9 +1240,13 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
           isExpanded: true,
           initialValue: _gender,
           decoration: InputDecoration(labelText: '${ref.t("gender")} *'),
+          // 1 Male, 0 Female, 2 Others -- persons_gender_digit_check allows
+          // exactly those three, and the MLID carries the digit verbatim.
+          // Others was bulk-importable long before it was registrable.
           items: [
             DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
             DropdownMenuItem(value: '0', child: ManaText.raw(ref.t('female'))),
+            DropdownMenuItem(value: '2', child: ManaText.raw(ref.t('others'))),
           ],
           onChanged: (v) => setState(() => _gender = v),
         ),

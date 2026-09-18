@@ -476,10 +476,17 @@ class _NotFoundStepState extends ConsumerState<_NotFoundStep> {
           initialValue: _gender,
           isExpanded: true,
           decoration: InputDecoration(labelText: ref.t('gender_field')),
+          // 1 Male, 0 Female, 2 Others. These were '1'/'2'/'3' -- three
+          // options with two of them wrong: Female stored '2', which IS
+          // Others, and Others stored '3', which persons_gender_digit_check
+          // (ARRAY['0','1','2']) rejects outright, so every Others
+          // registration from this form was a 23514 and every Female one was
+          // silently recorded as Others. The MLID carries the digit verbatim,
+          // so a wrong digit is minted into a permanent identifier.
           items: [
             DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
-            DropdownMenuItem(value: '2', child: ManaText.raw(ref.t('female'))),
-            DropdownMenuItem(value: '3', child: ManaText.raw(ref.t('others'))),
+            DropdownMenuItem(value: '0', child: ManaText.raw(ref.t('female'))),
+            DropdownMenuItem(value: '2', child: ManaText.raw(ref.t('others'))),
           ],
           onChanged: (v) => setState(() => _gender = v),
         ),

@@ -118,8 +118,10 @@ Deno.serve(async (req: Request) => {
   const errors: string[] = [];
   if (!body.surname?.trim()) errors.push("surname is required");
   if (!body.father_husband_name?.trim()) errors.push("father_husband_name is required");
-  if (body.gender_digit !== "0" && body.gender_digit !== "1") {
-    errors.push("gender_digit must be '0' or '1'");
+  // '2' is Others. The column's CHECK has allowed it since Others was added;
+  // this line is what kept it out of every one-at-a-time registration form.
+  if (body.gender_digit !== "0" && body.gender_digit !== "1" && body.gender_digit !== "2") {
+    errors.push("gender_digit must be '0', '1' or '2'");
   }
   // DOB. persons.dob stays nullable because every pre-existing row has a null
   // dob and a NOT NULL would need a backfill nobody can supply, so this is the

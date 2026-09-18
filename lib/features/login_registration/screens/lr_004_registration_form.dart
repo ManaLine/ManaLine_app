@@ -234,7 +234,12 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
     // examples, none of which map cleanly onto "person self-registered via
     // the public app before any business exists" — 'System' is the closest
     // fit but confirm this against actual product intent.
-    final genderDigit = _gender ?? '0';
+    // Non-null because _missingRequirements gates on it, the same way _dob!
+    // below is. The `?? '0'` that used to be here defaulted an unanswered
+    // question to Female; harmless while unreachable, and exactly the shape
+    // of default that becomes a wrong permanent MLID digit the moment
+    // somebody relaxes the gate.
+    final genderDigit = _gender!;
 
     // RegistrationBlockedException (SP-001 409 collision) must show its
     // OWN generic message, not NetworkErrorHandler's connectivity-worded
@@ -455,9 +460,15 @@ class _RegistrationFormScreenState extends ConsumerState<RegistrationFormScreen>
                 isExpanded: true,
                 initialValue: _gender,
                 decoration: const InputDecoration(labelText: 'Gender *'),
-                items: const [
-                  DropdownMenuItem(value: '1', child: Text('Male')),
-                  DropdownMenuItem(value: '0', child: Text('Female')),
+                // The VALUES are translated, unlike the field labels around
+                // them: a person choosing their own gender is choosing
+                // between these three words, and 'Male'/'Female' in English
+                // on a Telugu handset is a choice made blind. 1 Male,
+                // 0 Female, 2 Others -- the digit goes into the MLID.
+                items: [
+                  DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
+                  DropdownMenuItem(value: '0', child: ManaText.raw(ref.t('female'))),
+                  DropdownMenuItem(value: '2', child: ManaText.raw(ref.t('others'))),
                 ],
                 onChanged: (v) => setState(() => _gender = v),
               ),

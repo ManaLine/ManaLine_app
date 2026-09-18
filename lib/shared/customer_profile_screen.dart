@@ -368,6 +368,7 @@ class _ManaCustomerProfileScreenState
         // it untouched keeps the village they already have — _save falls back
         // to the stored id.
         ManaVillageSearchField(
+          businessId: widget.businessId,
           label: ref.t('village_name_field'),
           initialPin: p.pinCode.isEmpty ? null : p.pinCode,
           onPicked: (v) => setState(() => _village = v),

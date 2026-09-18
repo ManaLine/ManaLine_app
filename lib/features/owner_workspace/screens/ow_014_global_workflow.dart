@@ -517,6 +517,7 @@ class _NotFoundStepState extends ConsumerState<_NotFoundStep> {
         ),
         const SizedBox(height: ManaSpacing.md),
         ManaVillageSearchField(
+          businessId: widget.businessId,
           label: ref.t('search_village_town'),
           onPicked: _onVillagePicked,
         ),

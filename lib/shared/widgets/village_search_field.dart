@@ -40,6 +40,11 @@ class ManaVillageSearchField extends ConsumerStatefulWidget {
   /// mode itself is switched.
   final ValueChanged<ManaVillage?> onPicked;
 
+  /// Only used to order the district question by what this book already
+  /// works. Optional: without it the question is still asked, it just loses
+  /// its most-used-first ordering, which is a convenience and not the point.
+  final String? businessId;
+
   /// Shown above the mode switch. Null for none.
   final String? label;
 
@@ -51,7 +56,11 @@ class ManaVillageSearchField extends ConsumerStatefulWidget {
   final String? initialPin;
 
   const ManaVillageSearchField(
-      {super.key, required this.onPicked, this.label, this.initialPin});
+      {super.key,
+      required this.onPicked,
+      this.label,
+      this.initialPin,
+      this.businessId});
 
   @override
   ConsumerState<ManaVillageSearchField> createState() =>
@@ -397,13 +406,104 @@ class _ManaVillageSearchFieldState
           ? null
           : ManaText.raw(subtitle,
               style: ManaType.note, maxLines: 2, overflow: TextOverflow.ellipsis),
-      onTap: () {
-        // Same rule as the PIN picker: the box shows what was picked, not
-        // what was half-typed on the way to it.
-        _village.text = v.name;
-        setState(() => _picked = v);
-        widget.onPicked(v);
-      },
+      onTap: () => _choose(v),
+    );
+  }
+
+  /// Take a village, asking which district when the directory offers two.
+  ///
+  /// The Owner, item 11: "enable user to select mandal, district ... which is
+  /// correct if app fills it wrong or old data."
+  ///
+  /// THE OLD DATA WAS BEING CHOSEN BY SORT ORDER. `lgd_villages` carries the
+  /// 2022 district split as two rows per village, and the search kept the
+  /// alphabetically first -- so every village in Srikalahasti mandal was
+  /// stored as Chittoor, which it stopped being in 2022. Nothing asked and
+  /// nothing could have been noticed.
+  ///
+  /// ASKED ONLY WHEN IT MATTERS. 93% of villages have one district and are
+  /// taken without a question; the rest ask once, and once is once per
+  /// village -- a village already in use carries its answer in `locations`
+  /// and never reaches this path again.
+  Future<void> _choose(ManaVillage v) async {
+    var chosen = v;
+    if (v.districtIsAmbiguous) {
+      final district = await _askDistrict(v);
+      if (district == null || !mounted) return;
+      chosen = v.withDistrict(district);
+    }
+    // Same rule as the PIN picker: the box shows what was picked, not what
+    // was half-typed on the way to it.
+    _village.text = chosen.name;
+    setState(() => _picked = chosen);
+    widget.onPicked(chosen);
+  }
+
+  /// Which district, most-used first.
+  ///
+  /// "new & most used on top" is the Owner's ordering, and the most-used is
+  /// read from the villages this book already works rather than from a
+  /// preference nobody set. An Owner whose book is all in one district is
+  /// offered that one first, every time, and the question costs one tap.
+  Future<String?> _askDistrict(ManaVillage v) async {
+    final used = <String, int>{};
+    try {
+      for (final w in await ref
+          .read(locationApiServiceProvider)
+          .businessVillages(widget.businessId ?? '')) {
+        if (w.district.isEmpty) continue;
+        used[w.district] = (used[w.district] ?? 0) + 1;
+      }
+    } catch (_) {
+      // No business in hand, or the lookup failed. The question is still
+      // worth asking -- it just loses its ordering, which is a convenience
+      // and not the point.
+    }
+    final options = [...v.districtOptions]..sort((a, b) {
+        final byUse = (used[b] ?? 0) - (used[a] ?? 0);
+        return byUse != 0 ? byUse : a.compareTo(b);
+      });
+
+    if (!mounted) return null;
+    return showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: ManaText.raw(ref.t('which_district')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ManaText.raw(
+              ref
+                  .t('which_district_note')
+                  .replaceAll('{village}', v.name)
+                  .replaceAll('{mandal}', v.mandal),
+              style: ManaType.note,
+            ),
+            const SizedBox(height: ManaSpacing.sm),
+            for (final d in options)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.place_outlined, size: 18),
+                title: ManaText.raw(d),
+                subtitle: (used[d] ?? 0) > 0
+                    ? ManaText.raw(
+                        ref
+                            .t('already_used_here')
+                            .replaceAll('{count}', '${used[d]}'),
+                        style: ManaType.fine)
+                    : null,
+                onTap: () => Navigator.of(c).pop(d),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(),
+            child: ManaText.raw(ref.t('cancel')),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -439,6 +439,7 @@ class AgentCustomerProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: ManaSpacing.md),
                   ManaVillageSearchField(
+                    businessId: businessId,
                     label: ref.t('search_village_town_plain_field'),
                     onPicked: (v) async {
                       if (v == null) {

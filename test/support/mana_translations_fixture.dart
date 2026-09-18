@@ -2664,4 +2664,7 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'press_enter_to_find_people': {'English': 'To find a person, press Enter to search by phone, MLID, Aadhaar or name.', 'Telugu': 'ఒక వ్యక్తిని వెతకాలంటే Enter నొక్కి ఫోన్, MLID, ఆధార్ లేదా పేరుతో వెతకండి.'},
   'search_within_a_village': {'English': 'Search Within a Village', 'Telugu': 'ఒక గ్రామంలో వెతకండి'},
   'no_people_in_village': {'English': 'Nobody has been added to this village yet.', 'Telugu': 'ఈ గ్రామంలో ఇంకా ఎవరినీ చేర్చలేదు.'},
+  'which_district': {'English': 'Which District?', 'Telugu': 'ఏ జిల్లా?'},
+  'which_district_note': {'English': '{village} is in {mandal}, and the directory lists that mandal under two districts because of a district split. Pick the one your book uses.', 'Telugu': 'జిల్లాల విభజన కారణంగా {mandal} మండలం రెండు జిల్లాల కింద నమోదై ఉంది, అందులో {village} ఉంది. మీ పుస్తకం ఉపయోగించేదాన్ని ఎంచుకోండి.'},
+  'already_used_here': {'English': 'Already used by {count} of your villages', 'Telugu': 'మీ {count} గ్రామాలు ఇప్పటికే దీన్ని ఉపయోగిస్తున్నాయి'},
 };

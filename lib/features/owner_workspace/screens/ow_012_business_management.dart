@@ -735,7 +735,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     final result = await showModalBottomSheet<_NewArea>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _AddAreaSheet(),
+      builder: (_) => _AddAreaSheet(businessId: widget.businessId),
     );
     if (result == null || !mounted) return;
     await NetworkErrorHandler.run(context, () async {
@@ -760,7 +760,7 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
     final picked = await showModalBottomSheet<ManaVillage>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _VillagePickerSheet(areaName: area.name),
+      builder: (_) => _VillagePickerSheet(businessId: widget.businessId, areaName: area.name),
     );
     if (picked == null || !mounted) return;
     await NetworkErrorHandler.run(context, () async {
@@ -1204,7 +1204,9 @@ class _NewArea {
 /// it will do. Filling it in is the same rule, made visible and still
 /// editable for the day a second village joins the round.
 class _AddAreaSheet extends ConsumerStatefulWidget {
-  const _AddAreaSheet();
+  /// Only to order the district question by what this book already works.
+  final String businessId;
+  const _AddAreaSheet({required this.businessId});
 
   @override
   ConsumerState<_AddAreaSheet> createState() => _AddAreaSheetState();
@@ -1249,6 +1251,7 @@ class _AddAreaSheetState extends ConsumerState<_AddAreaSheet> {
             ManaText.raw(ref.t('add_area_step_village'), style: ManaType.note),
             const SizedBox(height: ManaSpacing.md),
             ManaVillageSearchField(
+          businessId: widget.businessId,
               label: ref.t('village_name_field'),
               onPicked: _onPicked,
             ),
@@ -1289,7 +1292,10 @@ class _AddAreaSheetState extends ConsumerState<_AddAreaSheet> {
 
 class _VillagePickerSheet extends ConsumerStatefulWidget {
   final String areaName;
-  const _VillagePickerSheet({required this.areaName});
+
+  /// Only to order the district question by what this book already works.
+  final String businessId;
+  const _VillagePickerSheet({required this.areaName, required this.businessId});
 
   @override
   ConsumerState<_VillagePickerSheet> createState() =>
@@ -1316,6 +1322,7 @@ class _VillagePickerSheetState extends ConsumerState<_VillagePickerSheet> {
                 style: ManaType.sheetTitle),
             const SizedBox(height: ManaSpacing.md),
             ManaVillageSearchField(
+          businessId: widget.businessId,
               label: ref.t('village_name_field'),
               onPicked: (v) => setState(() => _picked = v),
             ),

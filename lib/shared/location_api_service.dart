@@ -27,6 +27,24 @@ class ManaVillage {
   final String district;
   final String state;
 
+  /// Every district the directory lists this village under, when there is
+  /// more than one. Empty for a village already in use, which has an answer.
+  ///
+  /// WHY A VILLAGE HAS TWO DISTRICTS. Andhra Pradesh split its districts in
+  /// 2022 and `lgd_villages` carries both the old and the new name -- 56,163
+  /// villages are listed twice this way, Srikalahasti mandal among them.
+  ///
+  /// The app used to resolve that silently, and always wrongly in the same
+  /// direction: app.suggest_villages orders by district A to Z and the merge
+  /// loop below kept the first row it saw, so every village in Srikalahasti
+  /// was stored as CHITTOOR -- the pre-split answer -- while the mandal has
+  /// been in Tirupati since 2022. Nothing said so and nothing could have.
+  ///
+  /// The Owner, on item 11: "enable user to select mandal, district ... which
+  /// is correct if app fills it wrong or old data". Carrying the options this
+  /// far is what lets the question be asked instead of answered by sort order.
+  final List<String> districtOptions;
+
   const ManaVillage({
     required this.locationId,
     required this.name,
@@ -34,7 +52,21 @@ class ManaVillage {
     required this.mandal,
     required this.district,
     required this.state,
+    this.districtOptions = const [],
   });
+
+  /// True when the directory cannot say which district this is in.
+  bool get districtIsAmbiguous => districtOptions.length > 1;
+
+  ManaVillage withDistrict(String d) => ManaVillage(
+        locationId: locationId,
+        name: name,
+        pinCode: pinCode,
+        mandal: mandal,
+        district: d,
+        state: state,
+        districtOptions: districtOptions,
+      );
 
   factory ManaVillage.fromRow(Map<String, dynamic> r) => ManaVillage(
         locationId: (r['location_id'] ?? '').toString(),
@@ -226,19 +258,52 @@ class LocationApiService {
       return results;
     }
 
+    // EVERY DISTRICT THE REFERENCE OFFERS, not whichever came back first.
+    //
+    // This loop used to `continue` on a name it had already seen, which threw
+    // away the second row -- and the second row is the other district. Since
+    // suggest_villages orders by district A to Z, the one kept was always the
+    // alphabetically first, which for Srikalahasti is Chittoor: the district
+    // the mandal left in 2022.
+    final byName = <String, ManaVillage>{};
+    final districtsByName = <String, Set<String>>{};
     for (final r in reference) {
-      if (results.length >= limit) break;
       final name = ((r['village'] as String?) ?? '').trim();
       if (name.isEmpty) continue;
       if (lowerNeedle.isNotEmpty && !name.toLowerCase().contains(lowerNeedle)) continue;
-      if (!seen.add(name.toLowerCase())) continue;
+      final key = name.toLowerCase();
+      if (seen.contains(key)) continue;
+      final district = ((r['district'] as String?) ?? '').trim();
+      if (district.isNotEmpty) {
+        (districtsByName[key] ??= <String>{}).add(district);
+      }
+      byName.putIfAbsent(
+        key,
+        () => ManaVillage(
+          locationId: '', // suggestion — see resolveId
+          name: name,
+          pinCode: pin,
+          mandal: ((r['mandal'] as String?) ?? '').trim(),
+          district: district,
+          state: ((r['state'] as String?) ?? '').trim(),
+        ),
+      );
+    }
+    for (final entry in byName.entries) {
+      if (results.length >= limit) break;
+      final options = (districtsByName[entry.key] ?? const <String>{}).toList()
+        ..sort();
       results.add(ManaVillage(
-        locationId: '', // suggestion — see resolveId
-        name: name,
-        pinCode: pin,
-        mandal: ((r['mandal'] as String?) ?? '').trim(),
-        district: ((r['district'] as String?) ?? '').trim(),
-        state: ((r['state'] as String?) ?? '').trim(),
+        locationId: entry.value.locationId,
+        name: entry.value.name,
+        pinCode: entry.value.pinCode,
+        mandal: entry.value.mandal,
+        district: entry.value.district,
+        state: entry.value.state,
+        // Only when there is a real choice. One district is an answer, not an
+        // option, and a screen that asked anyway would be asking 93% of the
+        // time for nothing.
+        districtOptions: options.length > 1 ? options : const [],
       ));
     }
 

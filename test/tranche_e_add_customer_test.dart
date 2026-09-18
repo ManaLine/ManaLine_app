@@ -27,12 +27,22 @@ void main() {
       final tap = pin.substring(pin.indexOf('onTap: () {'));
       expect(tap.substring(0, tap.indexOf('},')), contains('_query.text = v.name;'));
 
+      // MOVED, NOT REMOVED. The cascade picker's tap became a call to
+      // _choose so it could ask which district first -- lgd_villages carries
+      // the 2022 split as two rows and the app had been resolving that by
+      // sort order. The rule this test exists for is unchanged and lives
+      // there now, which is why this reads _choose rather than an inline
+      // onTap. A scan for the old shape returned -1 and took the substring
+      // with it, so the failure was a RangeError rather than a sentence.
       final cascade = lib('shared/widgets/village_search_field.dart');
-      final cTap = cascade.substring(cascade.indexOf('      onTap: () {'));
-      expect(cTap.substring(0, cTap.indexOf('},')),
-          contains('_village.text = v.name;'),
+      final choose = cascade.substring(cascade.indexOf('Future<void> _choose('));
+      expect(choose.substring(0, choose.indexOf('widget.onPicked')),
+          contains('_village.text = chosen.name;'),
           reason: 'the two pickers must agree, or one screen autofills and '
               'the other does not');
+      // And what it writes is what was CHOSEN, district and all, not the row
+      // the search happened to return first.
+      expect(choose, contains('widget.onPicked(chosen)'));
     });
   });
 

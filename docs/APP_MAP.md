@@ -620,8 +620,8 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:1366` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:2013` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:2246` (`listed`)
-- `features/owner_workspace/screens/ow_004_customer_management.dart:1498` (`listed`)
-- `features/owner_workspace/screens/ow_004_customer_management.dart:1933` (`listed`)
+- `features/owner_workspace/screens/ow_004_customer_management.dart:1499` (`listed`)
+- `features/owner_workspace/screens/ow_004_customer_management.dart:1934` (`listed`)
 - `shared/app_actions.dart:73` (`listed`)
 - `shared/widgets/workspace_nav.dart:51` (`listed`)
 
@@ -635,7 +635,7 @@ proves a screen unreachable — only that nobody wrote its path.
 **`/ow-006`** — 7 call sites
 
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:2010` (`listed`)
-- `features/owner_workspace/screens/ow_004_customer_management.dart:1568` (`push`)
+- `features/owner_workspace/screens/ow_004_customer_management.dart:1569` (`push`)
 - `features/owner_workspace/screens/ow_011_day_closure.dart:151` (`listed`)
 - `features/owner_workspace/screens/ow_011_day_closure.dart:159` (`listed`)
 - `features/owner_workspace/state/day_closure_state.dart:275` (`listed`)
@@ -644,7 +644,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-007`** — 3 call sites
 
-- `features/owner_workspace/screens/ow_004_customer_management.dart:1724` (`push`)
+- `features/owner_workspace/screens/ow_004_customer_management.dart:1725` (`push`)
 - `features/owner_workspace/screens/ow_009_daily_record_book.dart:732` (`listed`)
 - `features/owner_workspace/screens/ow_015_group_loan_management.dart:347` (`push`)
 
@@ -692,7 +692,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-014-complete-profile`** — 1 call site
 
-- `features/owner_workspace/screens/ow_014_global_workflow.dart:608` (`listed`)
+- `features/owner_workspace/screens/ow_014_global_workflow.dart:609` (`listed`)
 
 **`/ow-015`** — 4 call sites
 
@@ -766,7 +766,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/ow_002_workforce_management.dart:163` (`push`)
 - `features/owner_workspace/screens/ow_003_investor_management.dart:148` (`push`)
 - `features/owner_workspace/screens/ow_012_business_management.dart:568` (`push`)
-- `features/owner_workspace/screens/ow_012_business_management.dart:1434` (`push`)
+- `features/owner_workspace/screens/ow_012_business_management.dart:1441` (`push`)
 - `features/owner_workspace/screens/ow_018_business_migration.dart:316` (`push`)
 - `shared/app_actions.dart:79` (`listed`)
 - `shared/app_actions.dart:92` (`listed`)

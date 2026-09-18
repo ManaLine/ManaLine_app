@@ -1301,6 +1301,7 @@ class _AddCustomerSheetState extends ConsumerState<ManaAddCustomerSheet> {
           const SizedBox(height: ManaSpacing.sm),
         ],
         ManaVillageSearchField(
+          businessId: widget.businessId,
           key: _villageFieldKey,
           label: ref.t('search_village_town'),
           initialPin: _geocodedPin,

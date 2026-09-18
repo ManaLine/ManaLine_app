@@ -303,7 +303,7 @@ is live:
    wrongly will pass step 2 from cache and still be broken for a fresh
    visitor.
 
-## Re-verified 2026-09-18, with one open question
+## Re-verified 2026-09-18
 
 **Still not deployed. `manaline.in` does not resolve** — checked from this
 machine on 2026-09-18, `curl` returns "Could not resolve host". There is no
@@ -320,31 +320,24 @@ was added (86 routes). What was checked, and what was not:
 | `build/publish` layout, served on 8082 | `/app/` loads, `<base href="/app/">`, workspace-choice screen renders |
 | Translations reach the browser | Real strings, not raw keys — so the `--dart-define` values are in the bundle |
 | Hash routing under `/app/` | `#/lr-002` and `#/settings` both resolve; a signed-out visit to `#/ow-bulk-onboarding-menu` redirects to the workspace choice, which is the guard doing its job |
+| The bootstrap exception | **Fixed** — see below |
 | The CSP | **Re-checked under `wrangler pages dev`.** Both policies apply, separately: `/` keeps the strict one, `/app/` gets its own, and the two are NOT comma-joined -- the `! Content-Security-Policy` removal does what it was added to do |
 | Bundle size | 46.7 MB for both halves together, CanvasKit included |
 
-**ONE UNCAUGHT DART EXCEPTION AT BOOTSTRAP, and it is not understood.**
-Loading `/app/` logs exactly one `Uncaught {dartException: ...}` from
-`main.dart.js` and then carries on: the app paints, routes and reads
-translations normally.
+**THE BOOTSTRAP EXCEPTION IS FIXED** (2026-09-18, commit "The bootstrap
+exception was the outbox"). It was `ManaOutboxWatcher` flushing a queue whose
+database the web build never opens -- at startup and then every sixty seconds,
+uncaught, for as long as a tab stayed open. The watcher no longer runs on the
+web and a closed outbox now reads as empty rather than throwing.
 
-**The "zero console errors" line in the third pass below is stale — do not
-rely on it.** I first saw this on a plain static server and hoped the
-difference was the missing CSP; it is not. Re-run under `wrangler pages dev`,
-with both real policies applied, it throws identically. It also reproduces on
-a build made BEFORE the bulk-onboarding menu existed, so it is not from that
-work either. Two things it is NOT: a CSP violation (the console carries no
-CSP text) and a load failure (nothing 404s).
+**How it was found, because the method is the reusable part.** The release
+build minifies the exception's class to `jd`, which names nothing. Wrapping
+`main_web.dart`'s `main` in a temporary `runZonedGuarded` that prints the error
+and stack, building, and reading the console gave the real message in one
+build -- far cheaper than resolving a source map. Revert the probe afterwards.
 
-Do not treat it as cosmetic because the app looks fine. A caught-and-ignored
-failure at startup is how an app ends up silently running without a piece of
-itself — `flutter_secure_storage` is the obvious suspect, it is `dart:html`
-based on web (the build says so), and `ManaSession` persists through it.
-
-To name the throwing frame, build with source maps (`--profile`, or dart2js
-source maps on a release build) and reproduce under
-`npx wrangler pages dev build/publish`. The `mana-publish-wrangler` entry in
-`.claude/launch.json` runs exactly that on port 8083.
+Re-verified in a clean browser tab: zero console errors at load, and still
+zero seventy seconds later, past the timer that used to fire the repeat.
 
 ## Rollback
 

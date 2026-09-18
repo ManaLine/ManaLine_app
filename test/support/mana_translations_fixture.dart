@@ -2660,4 +2660,8 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'no_duplicate_villages': {'English': 'No village on this book looks like it has been entered twice.', 'Telugu': 'ఈ పుస్తకంలో ఏ గ్రామమూ రెండుసార్లు నమోదైనట్టు కనిపించడం లేదు.'},
   'people_here': {'English': '{count} people', 'Telugu': '{count} మంది'},
   'merge_blocked': {'English': 'Cannot be merged', 'Telugu': 'విలీనం చేయలేరు'},
+  'actions_section': {'English': 'What You Can Do', 'Telugu': 'మీరు ఏమి చేయవచ్చు'},
+  'press_enter_to_find_people': {'English': 'To find a person, press Enter to search by phone, MLID, Aadhaar or name.', 'Telugu': 'ఒక వ్యక్తిని వెతకాలంటే Enter నొక్కి ఫోన్, MLID, ఆధార్ లేదా పేరుతో వెతకండి.'},
+  'search_within_a_village': {'English': 'Search Within a Village', 'Telugu': 'ఒక గ్రామంలో వెతకండి'},
+  'no_people_in_village': {'English': 'Nobody has been added to this village yet.', 'Telugu': 'ఈ గ్రామంలో ఇంకా ఎవరినీ చేర్చలేదు.'},
 };

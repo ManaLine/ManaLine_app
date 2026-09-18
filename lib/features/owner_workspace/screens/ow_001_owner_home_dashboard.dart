@@ -36,6 +36,8 @@ import 'ow_002_workforce_management.dart' show AgentProfileScreen;
 import '../../../shared/widgets/workspace_nav.dart';
 import '../../../shared/widgets/workspace_actions.dart'
     show ManaMemberKind;
+import '../../../shared/app_actions.dart';
+import '../../../shared/location_api_service.dart';
 import '../../../shared/translation_service.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/mana_time.dart';
@@ -577,7 +579,10 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
     super.initState();
     // Opening a search screen and then having to tap the field is a wasted
     // tap on the only thing this screen does.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focus.requestFocus();
+      _loadVillages();
+    });
   }
 
   @override
@@ -996,6 +1001,151 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
         MemberType.customer => ManaMemberKind.customer.workflowType,
       };
 
+  /// VILLAGE FIRST, THEN THE PERSON.
+  ///
+  /// The Owner: "Global search - while searching a user - select village first
+  /// - then search becomes easy and findable when the user count goes up."
+  ///
+  /// A name search across a whole book returns everyone called Lakshmi. Inside
+  /// one village it returns the one they mean, and with a dozen villages that
+  /// is a twelvefold cut for a single tap. It also answers the empty query:
+  /// pick a village and its people are listed without typing anything.
+  List<ManaVillage> _villages = const [];
+  ManaVillage? _village;
+  List<ManaVillagePerson> _villagePeople = const [];
+  bool _loadingVillage = false;
+
+  /// The village's people narrowed by what has been typed. Filtered in the
+  /// app, because they are already in hand and a village is seventeen rows,
+  /// not seventeen thousand.
+  List<ManaVillagePerson> get _villageMatches =>
+      [for (final p in _villagePeople) if (p.matches(_query.text)) p];
+
+  Future<void> _loadVillages() async {
+    final rows = await NetworkErrorHandler.run(
+      context,
+      () => ref.read(locationApiServiceProvider).businessVillages(widget.businessId),
+    );
+    if (!mounted) return;
+    setState(() => _villages = rows ?? const []);
+  }
+
+  Future<void> _pickVillage(ManaVillage? v) async {
+    setState(() {
+      _village = v;
+      _villagePeople = const [];
+      _loadingVillage = v != null;
+    });
+    if (v == null) return;
+    final people = await NetworkErrorHandler.run(
+      context,
+      () => ref.read(locationApiServiceProvider).peopleInVillage(
+            businessId: widget.businessId,
+            villageId: v.locationId,
+          ),
+    );
+    if (!mounted) return;
+    setState(() {
+      _villagePeople = people ?? const [];
+      _loadingVillage = false;
+    });
+  }
+
+  /// The app's own options matching what has been typed, recomputed on every
+  /// build because it is a scan of twenty-five consts and caching it would be
+  /// a second copy of the query to keep in step.
+  List<ManaAppAction> get _actions =>
+      manaSearchActions(_query.text, ref.t);
+
+  Widget _actionTile(ManaAppAction a) => ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(a.icon, color: ManaColors.brandDeep),
+        title: ManaText.raw(ref.t(a.labelKey)),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        // PUSHED, so Back returns to the search with the query still in the
+        // box. An Owner who opens the wrong one of two similar options should
+        // not have to retype three letters to try the other.
+        onTap: () => context.push(
+          a.path.contains('?')
+              ? '${a.path}&businessId=${widget.businessId}'
+              : '${a.path}?businessId=${widget.businessId}',
+          extra: widget.businessId,
+        ),
+      );
+
+  /// The villages this book works, offered before anything is typed.
+  ///
+  /// A dropdown rather than a row of chips: a dozen chips wrapped onto three
+  /// lines on a real handset and pushed the thing being searched below the
+  /// fold, which is the same mistake the collection round's village filter
+  /// already made and already fixed.
+  Widget _villageChooser() {
+    if (_villages.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: ManaSpacing.md),
+      child: DropdownButtonFormField<ManaVillage>(
+        initialValue: _village,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: ref.t('search_within_a_village'),
+          border: const OutlineInputBorder(),
+          prefixIcon: const Icon(Icons.place_outlined),
+        ),
+        items: [
+          for (final v in _villages)
+            DropdownMenuItem(value: v, child: ManaText.raw(v.name)),
+        ],
+        onChanged: _pickVillage,
+      ),
+    );
+  }
+
+  /// Which village is being looked in, and the way back out of it.
+  Widget _villageBar() => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            ManaSpacing.lg, ManaSpacing.sm, ManaSpacing.lg, ManaSpacing.sm),
+        // Wrap, not Row: a Telugu village name beside a Clear button does not
+        // share a 360dp line at a 2.0x text scale.
+        child: Wrap(
+          spacing: ManaSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Icon(Icons.place_outlined, size: 18, color: ManaColors.brandDeep),
+            ManaText.raw(_village!.name, style: ManaType.strong),
+            ManaText.raw(
+              ref
+                  .t('people_here')
+                  .replaceAll('{count}', '${_villagePeople.length}'),
+              style: ManaType.note,
+            ),
+            TextButton(
+              onPressed: () => _pickVillage(null),
+              child: ManaText.raw(ref.t('clear_selection')),
+            ),
+          ],
+        ),
+      );
+
+  Widget _villageTile(ManaVillagePerson p) => ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: ManaText.raw(p.fullName),
+        subtitle: ManaText.raw(
+          [p.careOf, p.mlid, if (p.mobile.isNotEmpty) p.mobile]
+              .where((x) => x.isNotEmpty)
+              .join('  •  '),
+          style: ManaType.fine,
+        ),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        // Straight into the search this screen already does, by MLID, which
+        // is the one thing about a person that is unique. That reuses every
+        // role-resolving branch below rather than growing a second one.
+        onTap: () {
+          _query.text = p.mlid;
+          _pickVillage(null);
+          _search();
+        },
+      );
+
   Future<void> _search() async {
     final query = _query.text.trim();
     if (query.isEmpty) return;
@@ -1238,6 +1388,13 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
               controller: _query,
               focusNode: _focus,
               textInputAction: TextInputAction.search,
+              // ACTIONS MATCH AS YOU TYPE, PEOPLE ON SUBMIT, and the split is
+              // not a style choice. Matching an action is a list comprehension
+              // over twenty-five consts; finding a person is a round trip on a
+              // village connection. Running the second one per keystroke would
+              // make the field stutter and the search fire five times for one
+              // query.
+              onChanged: (_) => setState(() {}),
               onSubmitted: (_) => _search(),
               decoration: InputDecoration(
                 hintText: ref.t('search_by_phone_mlid_aadhaar_name'),
@@ -1267,14 +1424,97 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
           ),
         ),
       ),
+      // THE VILLAGE IS OFFERED BEFORE ANYTHING IS TYPED, which is the whole
+      // point of it. My first version drew the chooser inside the branch that
+      // only renders once three characters have been entered -- a filter you
+      // have to discover by typing first reduces nothing, and "select village
+      // first" is what the Owner asked for. The layout test caught it.
       body: SafeArea(
-        child: _error != null
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_village == null && _villages.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(ManaSpacing.lg,
+                    ManaSpacing.sm, ManaSpacing.lg, 0),
+                child: _villageChooser(),
+              ),
+            Expanded(child: _searchBody()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchBody() {
+    return _error != null
             ? Padding(
                 padding: const EdgeInsets.all(ManaSpacing.lg),
                 child: ManaText.raw(_error!,
                     style:
                         ManaType.noteBad),
               )
+            : _village != null
+                // A VILLAGE IS CHOSEN, so this is its people and the box
+                // narrows them. The person search by phone/MLID/Aadhaar is
+                // still there on Enter; it is simply not what somebody who
+                // has just tapped a village is doing.
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _villageBar(),
+                      if (_loadingVillage)
+                        const Padding(
+                          padding: EdgeInsets.all(ManaSpacing.lg),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_villagePeople.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(ManaSpacing.lg),
+                          child: ManaText.raw(ref.t('no_people_in_village'),
+                              style: ManaType.secondary),
+                        )
+                      else
+                        Expanded(
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(ManaSpacing.lg,
+                                0, ManaSpacing.lg, ManaSpacing.lg),
+                            children: [
+                              for (final p in _villageMatches) _villageTile(p),
+                              if (_villageMatches.isEmpty)
+                                ManaText.raw(ref.t('no_identity_found'),
+                                    style: ManaType.secondary),
+                            ],
+                          ),
+                        ),
+                    ],
+                  )
+            : _actions.isNotEmpty && _found.isEmpty
+                // WHAT THE APP CAN DO, above what it knows about people.
+                //
+                // The Owner: "Global search - enable to search options that
+                // app offers like add a customer, add an agent, etc.. upon
+                // entering 3 show matches and on tap lead to that screen or
+                // flow."
+                //
+                // These sit alone while a person search has not been run,
+                // because until Enter is pressed there is nothing else to
+                // show and this screen used to answer three typed letters
+                // with an instruction to type.
+                ? ListView(
+                    padding: const EdgeInsets.all(ManaSpacing.lg),
+                    children: [
+                      ManaText.raw(ref.t('actions_section'),
+                          style: ManaType.strong),
+                      const SizedBox(height: ManaSpacing.xs),
+                      ..._actions.map(_actionTile),
+                      const SizedBox(height: ManaSpacing.md),
+                      // The person search is still there and still needs
+                      // Enter, so it is said rather than left to be guessed.
+                      ManaText.raw(ref.t('press_enter_to_find_people'),
+                          style: ManaType.note),
+                    ],
+                  )
             : _found.isEmpty
                 ? Padding(
                     // TOP, not centre. The answer to a search belongs where
@@ -1450,9 +1690,7 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                         ),
                       );
                     },
-                  ),
-      ),
-    );
+                  );
   }
 }
 

@@ -85,6 +85,47 @@ class ManaSimilarVillage {
   });
 }
 
+/// One person a business knows, as the village list shows them.
+///
+/// Deliberately thinner than CustomerSummary: this list exists to be scanned
+/// and tapped, so it carries the four things that tell two people called
+/// Lakshmi apart -- the name, who they are the daughter or wife of, the
+/// mobile, and the MLID -- and nothing that would need a second query.
+class ManaVillagePerson {
+  final int personId;
+  final String mlid;
+  final String fullName;
+  final String careOf;
+  final String mobile;
+
+  /// Every role they hold in this business. A person can be a Customer and an
+  /// Agent at once; showing one of the two sends the Owner to the wrong screen.
+  final Set<String> roles;
+
+  const ManaVillagePerson({
+    required this.personId,
+    required this.mlid,
+    required this.fullName,
+    required this.careOf,
+    required this.mobile,
+    required this.roles,
+  });
+
+  /// Does this person match what has been typed?
+  ///
+  /// Matched in the app, not the database: the village's people are already
+  /// in hand, and a round trip per keystroke inside a list of seventeen is
+  /// slower than the list itself.
+  bool matches(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return fullName.toLowerCase().contains(q) ||
+        careOf.toLowerCase().contains(q) ||
+        mobile.contains(q) ||
+        mlid.toLowerCase().contains(q);
+  }
+}
+
 class LocationApiService {
   final SupabaseClient _db;
   LocationApiService(this._db);
@@ -246,6 +287,76 @@ class LocationApiService {
     }
     final list = byId.values.toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
+  }
+
+  /// Who this business knows who lives in [villageId].
+  ///
+  /// The Owner, 2026-09-18: "Global search - while searching a user - select
+  /// village first - then search becomes easy and findable when the user
+  /// count goes up."
+  ///
+  /// A name search across a whole book returns everyone called Lakshmi. A
+  /// name search inside one village returns the one the Owner means, and with
+  /// twelve villages that is a twelvefold cut for a single tap. It also
+  /// answers the empty query: pick a village and you get its people without
+  /// typing anything, which is the state an Owner is usually in.
+  ///
+  /// TWO QUERIES, NOT ONE NESTED FILTER. Going
+  /// person_addresses -> persons -> business_members in a single select means
+  /// filtering on a doubly-nested embed, and the `business_members` -> `persons`
+  /// pair is one of the eleven that must name its foreign key or PostgREST
+  /// answers 300. Two plain round trips are legible and cannot be got wrong
+  /// quietly; the first returns at most a village's worth of ids.
+  Future<List<ManaVillagePerson>> peopleInVillage({
+    required String businessId,
+    required String villageId,
+  }) async {
+    final addresses = await _db
+        .from('person_addresses')
+        .select('person_id')
+        .eq('village_id', villageId)
+        .eq('is_current', true);
+    final ids = [
+      for (final r in addresses as List)
+        (r as Map<String, dynamic>)['person_id'] as int,
+    ];
+    if (ids.isEmpty) return const [];
+
+    // business_members -> persons has TWO foreign keys, person_id and
+    // invited_by_person_id, so this one is named or the query dies with
+    // PGRST201 and the screen just says it could not load.
+    final rows = await _db
+        .from('business_members')
+        .select('role, membership_status, '
+            'persons!business_members_person_id_fkey('
+            'person_id, mlid, full_name, father_husband_name, mobile_number)')
+        .eq('business_id', businessId)
+        .eq('membership_status', 'Active')
+        .inFilter('person_id', ids);
+
+    // One person can hold two roles in the same business -- the UNIQUE is on
+    // (person_id, business_id, role) -- so they arrive twice and are folded
+    // into one entry carrying both.
+    final byPerson = <int, ManaVillagePerson>{};
+    for (final r in rows as List) {
+      final m = r as Map<String, dynamic>;
+      final person = m['persons'] as Map<String, dynamic>?;
+      if (person == null) continue;
+      final id = (person['person_id'] as num).toInt();
+      final role = (m['role'] ?? '').toString();
+      final existing = byPerson[id];
+      byPerson[id] = ManaVillagePerson(
+        personId: id,
+        mlid: (person['mlid'] ?? '').toString(),
+        fullName: (person['full_name'] ?? '').toString(),
+        careOf: (person['father_husband_name'] ?? '').toString(),
+        mobile: (person['mobile_number'] ?? '').toString(),
+        roles: {...?existing?.roles, if (role.isNotEmpty) role},
+      );
+    }
+    final list = byPerson.values.toList()
+      ..sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
     return list;
   }
 

@@ -69,6 +69,16 @@ cluster on port 5433 with trust auth — no password, no Docker, and it cannot
 reach production or any local database you already have, because it makes its
 own server. **All 427 migrations now apply cleanly to an empty database.**
 
+**2026-09-19: 479 files, and all 479 apply cleanly.** Between those two
+figures the rebuild spent a day stopping at 473, on a DO block in
+`20260918083013_a_business_can_show_its_qr_and_upi_at_the_door.sql` that
+asserted against `(SELECT business_id FROM businesses LIMIT 1)` — a real probe
+on production, a guaranteed raise on an empty database. It is the one migration
+in this directory that has been edited after being applied; the edit is an
+assertion only, changes no schema, and the file explains itself at the point of
+the change. `test/migration_fixture_independence_test.dart` now fails any DO
+block that picks a row it did not create.
+
 The first run got 23 files in. Eight distinct failures stood between that and
 427, and every one of them was invisible to `flutter analyze`, to
 `flutter test`, and to applying the same migrations against production — because

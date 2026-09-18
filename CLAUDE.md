@@ -189,6 +189,7 @@ happen. These fail instead, under `flutter test`:
 | `ambiguous_embed_guard_test.dart` | PGRST201 on an unqualified FK embed |
 | `sql_enum_literal_guard_test.dart` | An invented enum literal in migration SQL — 22P02 on first call |
 | `sql_function_reference_guard_test.dart` | An invented `app.` function name in migration SQL — 42883 on first call |
+| `migration_fixture_independence_test.dart` | A migration's DO block asserting against a row it did not create — the rebuild stopping at 473 of 479 |
 | `village_search_rule_test.dart` | The PIN+3-letters rule drifting apart across its three copies |
 | `village_lookup_guard_test.dart` | A PIN village search that reads `locations` without the LGD reference |
 | `otp_navigation_guard_test.dart` | Reaching the OTP screen without an OTP having been sent |
@@ -290,7 +291,33 @@ Docker, and it cannot reach production because it makes its own server — and
 all 427 migrations applied to it cleanly. **Re-run 2026-09-18: all 472 now
 apply cleanly too**, from nothing, with `pg_cron` stubbed as designed. Re-run
 it after any batch of migrations rather than trusting this line — the whole
-point of the script is that it is cheap enough to re-run. That cluster is the
+point of the script is that it is cheap enough to re-run.
+
+**2026-09-19: there are 479 migrations, and the rebuild stopped at 473 of
+them.** The line above was two counts stale within a day, which is the whole
+argument for re-running the script rather than reading this paragraph.
+`20260918083013_a_business_can_show_its_qr_and_upi_at_the_door.sql` proved its
+UPI CHECK fires by UPDATEing `(SELECT business_id FROM businesses LIMIT 1)` to
+a bad handle. On production that is a real probe; on a database rebuilt from
+nothing the subquery is NULL, the UPDATE matches zero rows, nothing is checked,
+and the block raised `the CHECK did not fire on a bad handle`. It had been
+applied to production for a day and read as fine, because production has five
+businesses — and the six migrations after it had never been applied to an empty
+database by anything. The DO block now asserts the constraint out of
+`pg_constraint` instead, which needs no rows; **all 479 apply cleanly from
+nothing**, verified 2026-09-19. Editing an already-applied migration was the
+Owner's call and was taken; the file says so, in place, and no schema changed.
+
+`test/migration_fixture_independence_test.dart` is the guard that would have
+caught it before the rebuild did — the rule `test/sql_tests_wired_test.dart`
+already enforces for `supabase/tests/*.sql`, pointed at `supabase/migrations/`.
+
+**That verification was NOT `verify_rebuild.ps1` itself.** It ran on Linux,
+where there is no PowerShell, as a line-for-line bash port of the same loop:
+same disposable cluster, same `rebuild_bootstrap.sql`, same `pg_cron` stub,
+same file order. Postgres 16 rather than the script's 18. The .ps1 is
+unchanged and remains the Windows path; re-run it there before trusting this
+line on that machine. That cluster is the
 database with no books in it, so the five scratch files finally have a
 target:
 

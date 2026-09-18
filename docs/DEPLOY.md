@@ -278,6 +278,12 @@ is live:
 
 ## Re-verified 2026-09-18, with one open question
 
+**Still not deployed. `manaline.in` does not resolve** — checked from this
+machine on 2026-09-18, `curl` returns "Could not resolve host". There is no
+Cloudflare Pages project behind it yet, so the first run of this procedure is
+a CREATE (project, custom domain, DNS), not an update, and the rollback
+section below has nothing to roll back to.
+
 The artifact was rebuilt and reassembled on the day the bulk-onboarding menu
 was added (86 routes). What was checked, and what was not:
 
@@ -287,23 +293,31 @@ was added (86 routes). What was checked, and what was not:
 | `build/publish` layout, served on 8082 | `/app/` loads, `<base href="/app/">`, workspace-choice screen renders |
 | Translations reach the browser | Real strings, not raw keys — so the `--dart-define` values are in the bundle |
 | Hash routing under `/app/` | `#/lr-002` and `#/settings` both resolve; a signed-out visit to `#/ow-bulk-onboarding-menu` redirects to the workspace choice, which is the guard doing its job |
-| The CSP | **NOT checked this time.** A static server applies no `_headers`. The third-pass result above stands and was not re-run |
+| The CSP | **Re-checked under `wrangler pages dev`.** Both policies apply, separately: `/` keeps the strict one, `/app/` gets its own, and the two are NOT comma-joined -- the `! Content-Security-Policy` removal does what it was added to do |
 | Bundle size | 46.7 MB for both halves together, CanvasKit included |
 
 **ONE UNCAUGHT DART EXCEPTION AT BOOTSTRAP, and it is not understood.**
 Loading `/app/` logs exactly one `Uncaught {dartException: ...}` from
 `main.dart.js` and then carries on: the app paints, routes and reads
-translations normally. It reproduces on a build made BEFORE the menu existed,
-so it is not from that work, and it is not in this file's earlier
-"zero console errors" pass — which used `wrangler pages dev` rather than a
-plain static server, so the two runs are not comparable and neither one
-disproves the other.
+translations normally.
 
-Do not treat this as cosmetic because the app looks fine. A caught-and-ignored
+**The "zero console errors" line in the third pass below is stale — do not
+rely on it.** I first saw this on a plain static server and hoped the
+difference was the missing CSP; it is not. Re-run under `wrangler pages dev`,
+with both real policies applied, it throws identically. It also reproduces on
+a build made BEFORE the bulk-onboarding menu existed, so it is not from that
+work either. Two things it is NOT: a CSP violation (the console carries no
+CSP text) and a load failure (nothing 404s).
+
+Do not treat it as cosmetic because the app looks fine. A caught-and-ignored
 failure at startup is how an app ends up silently running without a piece of
-itself. The next person to open this file should reproduce it under
-`wrangler pages dev` with a source-mapped (`--profile`) build, which is what
-will name the throwing frame.
+itself — `flutter_secure_storage` is the obvious suspect, it is `dart:html`
+based on web (the build says so), and `ManaSession` persists through it.
+
+To name the throwing frame, build with source maps (`--profile`, or dart2js
+source maps on a release build) and reproduce under
+`npx wrangler pages dev build/publish`. The `mana-publish-wrangler` entry in
+`.claude/launch.json` runs exactly that on port 8083.
 
 ## Rollback
 

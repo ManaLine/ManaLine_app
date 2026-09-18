@@ -36,6 +36,20 @@
         "build/publish"
       ],
       "port": 8082
+    },
+    {
+      "name": "mana-publish-wrangler",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "wrangler",
+        "pages",
+        "dev",
+        "build/publish",
+        "--port",
+        "8083"
+      ],
+      "port": 8083
     }
   ]
 }

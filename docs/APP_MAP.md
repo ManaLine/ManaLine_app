@@ -24,12 +24,12 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 
 | | |
 |---|---|
-| Routes declared | 86 |
-| Routes that build a screen | 85 |
+| Routes declared | 87 |
+| Routes that build a screen | 86 |
 | Routes that only redirect | 1 |
-| Distinct screen widgets | 76 |
+| Distinct screen widgets | 77 |
 | Literal navigation call sites | 407 |
-| On the handset only | 51 |
+| On the handset only | 52 |
 | On the restricted web build | 35 |
 
 ## Login & Registration
@@ -149,6 +149,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | `/business-suspended` | `BusinessSuspendedScreen` | `shared/business_suspension_gate.dart` | `?reason` | handset | 1 via path | **no** |
 | `/business-transfer` | `BusinessTransferScreen` | `features/owner_workspace/screens/business_transfer_screen.dart` | — | handset | 1 via path | yes |
 | `/customer-new` | `ManaAddCustomerScreen` | `features/owner_workspace/screens/ow_004_customer_management.dart` | `?migration` | handset | 3 via path | **no** |
+| `/customer-profile` | `ManaCustomerProfileScreen` | `shared/customer_profile_screen.dart` | `?customerId`<br>`?home` | handset | 1 direct | yes |
 | `/import` | `ImportScreen` | `features/owner_workspace/screens/import_screen.dart` | — | both | 3 via path | yes |
 | `/notifications` | `NotificationsScreen` | `shared/notifications_screen.dart` | — | handset | 3 via path | yes |
 | `/outbox` | `ManaOutboxScreen` | `shared/outbox/ow_outbox_screen.dart` | — | handset | 1 via path | **no** |
@@ -677,7 +678,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 **`/ow-014-complete-profile`** — 1 call site
 
-- `features/owner_workspace/screens/ow_014_global_workflow.dart:597` (`listed`)
+- `features/owner_workspace/screens/ow_014_global_workflow.dart:608` (`listed`)
 
 **`/ow-015`** — 3 call sites
 

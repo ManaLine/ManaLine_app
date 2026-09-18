@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shared/customer_profile_screen.dart';
 import '../shared/widgets/workspace_actions.dart' show ManaMemberKind;
 import 'package:go_router/go_router.dart';
 import 'design_showcase_screen.dart';
@@ -338,6 +339,22 @@ final manaRouter = GoRouter(
       builder: (c, s) => ManaAddCustomerScreen(
         businessId: _resolveBusinessId(s),
         migrationEntry: s.uri.queryParameters['migration'] == '1',
+      ),
+    ),
+    // A CUSTOMER'S OWN DETAILS, readable from anywhere that knows a customer
+    // id. The collection row pushes this screen directly rather than by route
+    // so Back lands on the round at the scroll position it was left at; the
+    // route exists for everywhere else -- the Owner's lists, and the search
+    // that is still to be built.
+    //
+    // businessId is optional on purpose: it is needed only to make a
+    // temporary ID permanent, and a profile opened without one still reads.
+    GoRoute(
+      path: '/customer-profile',
+      builder: (c, s) => ManaCustomerProfileScreen(
+        customerId: s.uri.queryParameters['customerId'] ?? '',
+        homeRoute: s.uri.queryParameters['home'],
+        businessId: _resolveBusinessId(s),
       ),
     ),
     // `role` is what tells the header's + apart from its magnifier. Absent

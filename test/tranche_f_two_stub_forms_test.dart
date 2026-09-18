@@ -56,14 +56,30 @@ void main() {
           reason: 'the key the Edge Function ignores');
     });
 
-    test('gender offers all three values the enum has', () {
+    test('gender offers all three values, and the three the column allows', () {
       // gender_digit has had three since Others was added a month before this
       // form was touched; a picker offering two makes somebody choose wrong.
+      //
+      // THE DIGITS, NOT JUST THE COUNT. This test asked for 1 / 2 / 3, which
+      // is what the form offered and what nothing else in the app uses:
+      //
+      //   persons_gender_digit_check: CHECK (gender_digit = ANY ('{0,1,2}'))
+      //
+      // So '3' was not merely inconsistent -- every Others registration
+      // through this screen was rejected by the database, while a woman
+      // registered here was stored as '2', Others, with the MLID minted from
+      // that digit. Found from the profile screen, which is the first thing
+      // that has to turn a stored digit back into a word.
+      //
+      // Counting the options was the right instinct and it passed on wrong
+      // values, so the values are named here.
       final picker = ow014.substring(ow014.indexOf("ref.t('gender_field')"));
       final items = picker.substring(0, picker.indexOf('onChanged:'));
-      expect(items, contains("value: '1'"));
-      expect(items, contains("value: '2'"));
-      expect(items, contains("value: '3'"));
+      expect(items, contains("value: '1'"), reason: 'Male');
+      expect(items, contains("value: '0'"), reason: 'Female');
+      expect(items, contains("value: '2'"), reason: 'Others');
+      expect(items, isNot(contains("value: '3'")),
+          reason: 'the CHECK constraint refuses it');
     });
 
     test('Save is pressable and names what is missing', () {

@@ -477,9 +477,20 @@ class _NotFoundStepState extends ConsumerState<_NotFoundStep> {
           isExpanded: true,
           decoration: InputDecoration(labelText: ref.t('gender_field')),
           items: [
+            // 1 MALE, 0 FEMALE, 2 OTHERS -- the digits the rest of the app
+            // stores. This dropdown said 1 / 2 / 3, so a woman registered
+            // here got gender_digit '2' and a woman registered on OW-004 got
+            // '0', and the MLID carries whichever it was. Every other screen
+            // then reads '2' as no answer at all.
+            //
+            // Found from the profile screen, which has to turn the digit back
+            // into a word. Nothing in production carries a wrong one --
+            // persons holds only '0' (35) and '1' (64) -- so this is a fix
+            // with no data behind it to repair, which it would not have been
+            // in a month.
             DropdownMenuItem(value: '1', child: ManaText.raw(ref.t('male'))),
-            DropdownMenuItem(value: '2', child: ManaText.raw(ref.t('female'))),
-            DropdownMenuItem(value: '3', child: ManaText.raw(ref.t('others'))),
+            DropdownMenuItem(value: '0', child: ManaText.raw(ref.t('female'))),
+            DropdownMenuItem(value: '2', child: ManaText.raw(ref.t('others'))),
           ],
           onChanged: (v) => setState(() => _gender = v),
         ),

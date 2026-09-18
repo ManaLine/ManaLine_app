@@ -53,6 +53,18 @@ void main() {
     'lib/features/owner_workspace/screens/ow_014_global_workflow.dart',
     'lib/features/owner_workspace/screens/ow_014_profile_completion.dart',
     'lib/features/owner_workspace/screens/ow_016_profile.dart',
+    // ADDED 2026-09-19, after reading it. The customer profile screen is the
+    // first consumer outside a feature directory -- it is shared, because a
+    // customer is looked up from the collection round, from the Owner's lists
+    // and (next) from search.
+    //
+    // Confirmed against this file's contract: the class holds three
+    // controllers -- _mobile, _doorNo, _aadhaar -- and no PIN controller at
+    // all. The stored PIN reaches the widget as `initialPin:`, a String, so
+    // there is exactly one PIN entry point on the screen and it is the one
+    // inside the shared widget. The PIN written back on save is the picked
+    // village's own, falling back to the stored one.
+    'lib/shared/customer_profile_screen.dart',
     // OW-018 came OFF this list on 2026-09-14, with _MigrateLoanScreen.
     // That screen was the file's only village entry, it had been unreachable
     // since the Pre-Existing FAB was routed to the global search, and the

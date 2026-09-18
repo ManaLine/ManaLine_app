@@ -15,7 +15,7 @@ import '../design/tokens/typography.dart';
 import '../features/owner_workspace/state/collection_mode_state.dart';
 import 'apply_penalty_sheet.dart';
 import 'collect_sheet.dart';
-import 'mlti_upgrade_sheet.dart';
+import 'customer_profile_screen.dart';
 import 'payment_details_sheet.dart';
 import 'mlti_upgrade_state.dart';
 import 'mana_time.dart';
@@ -557,38 +557,22 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
   /// trip to learn something already on screen.
   bool get _isTemporary => widget.row.mlid.startsWith('MLTI');
 
-  /// Fill in what a temporary identity is missing, at the door.
+  /// Open this customer's profile.
   ///
-  /// THIS IS WHY IT IS HERE and not only on the Owner's list. An Aadhaar card
-  /// is in the customer's house. The agent is the only person who is ever
-  /// standing next to it, and the moment they are standing there is the moment
-  /// they are collecting.
-  Future<void> _fillIdentity() async {
-    final person = await ref
-        .read(mltiUpgradeApiServiceProvider)
-        .fetchOneByCustomer(widget.row.customerId);
-    if (!mounted) return;
-    if (person == null) {
-      // Converted by somebody else between this round loading and this tap.
-      // The row is stale rather than wrong, so reload instead of complaining.
-      widget.onDone();
-      return;
-    }
-    final mlid = await MltiUpgradeSheet.open(
-      context,
-      person: person,
-      businessId: widget.businessId,
-    );
-    if (mlid == null || !mounted) return;
-    // The MLID on this row has just changed, so the round is reloaded rather
-    // than patched -- the row prints the old one until it is.
-    widget.onDone();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: ManaText.raw(ref
-          .t('id_now_permanent')
-          .replaceAll('{name}', person.fullName)
-          .replaceAll('{mlid}', mlid)),
+  /// Pushed rather than replaced, so Back returns to the round on the same
+  /// scroll position -- an agent halfway down a village should not be sent to
+  /// the top of it for having looked somebody up.
+  Future<void> _openProfile() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => ManaCustomerProfileScreen(
+        customerId: widget.row.customerId,
+      ),
     ));
+    if (!mounted) return;
+    // The name, the mobile or the village may have changed underneath the
+    // row, so the round is reloaded rather than left showing what it fetched
+    // before the edit.
+    widget.onDone();
   }
 
   /// Instalments still to be paid, or null when the question has no answer.
@@ -792,18 +776,37 @@ class _ManaDueRowState extends ConsumerState<ManaDueRow> {
                         style: ManaType.note,
                       ),
                     ),
-                    if (_isTemporary) ...[
-                      const SizedBox(width: ManaSpacing.xs),
-                      InkWell(
-                        onTap: _fillIdentity,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: Icon(Icons.badge_outlined,
-                              size: 16, color: ManaColors.statusWarn),
-                        ),
+                    // THE IDENTITY SYMBOL OPENS THE PROFILE NOW, and it is on
+                    // every row rather than only temporary ones.
+                    //
+                    // It used to appear for MLTI customers alone and open the
+                    // upgrade sheet -- Aadhaar, date of birth, photo. The
+                    // Owner: "identity - now opens to add aadhar, dob, live
+                    // photo - make it to open profile as described", and
+                    // separately "make little bigger".
+                    //
+                    // That resolves a collision as well as a gap. Item 3 asked
+                    // for profile on tap-and-hold, and a long press on a
+                    // settled row already opens the CORRECTION flow -- the one
+                    // gesture on this screen that moves money. Hanging the
+                    // profile off a symbol leaves that alone.
+                    //
+                    // Still amber for a temporary ID: an MLTI is a person who
+                    // needs finishing, and losing that signal to gain a
+                    // profile link would be a trade, not a fix.
+                    const SizedBox(width: ManaSpacing.xs),
+                    InkWell(
+                      onTap: _openProfile,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(Icons.badge_outlined,
+                            size: 22,
+                            color: _isTemporary
+                                ? ManaColors.statusWarn
+                                : ManaColors.textSecondary),
                       ),
-                    ],
+                    ),
                   ],
                 ),
                 // Correcting an entry is a long press, and a gesture nobody

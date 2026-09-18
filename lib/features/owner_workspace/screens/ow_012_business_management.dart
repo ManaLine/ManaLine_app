@@ -719,50 +719,37 @@ class _OperatingAreasTab extends ConsumerStatefulWidget {
 }
 
 class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
-  final _areaName = TextEditingController();
-
-  /// The village chosen in the shared field.
+  /// ADDING AN AREA IS A SHEET NOW, not the top two thirds of the screen.
   ///
-  /// This tab used to hand-roll its own PIN box, its own village-name box and
-  /// its own results list on top of operatingAreaSearchProvider -- the NINTH
-  /// private copy of a village search in this app, and the one Plan 4 missed
-  /// when it consolidated the other eight, because it returned a different
-  /// type. So the Owner got PIN-only search here while registration had
-  /// offered PIN-or-village-name for two builds.
-  ManaVillage? _picked;
-
-  @override
-  void dispose() {
-    _areaName.dispose();
-    super.dispose();
-  }
-
-  Future<void> _addSelected() async {
-    final selected = _picked;
-    if (selected == null) return;
-    // Default the name to the first village. A one-village round named
-    // after its village is the common case and typing it again is friction;
-    // the Owner can rename once a second village joins.
-    final name = _areaName.text.trim().isEmpty ? selected.name : _areaName.text.trim();
-    final ok = await NetworkErrorHandler.run(context, () async {
+  /// This tab used to open with an empty Area Name box and a village search,
+  /// so the rounds an Owner came to look at began below the fold. The Owner's
+  /// verdict was "looks outdated ... show operating areas (if any) and add
+  /// area option opposite to Current Operating Areas". Creating an area is
+  /// the rarer act; the list leads and creation is one button away.
+  ///
+  /// The village search itself is unchanged -- ManaVillageSearchField, the
+  /// same one registration uses. This tab used to hand-roll its own PIN box,
+  /// its own village-name box and its own results list, the NINTH private
+  /// copy of a village search in this app.
+  Future<void> _addArea() async {
+    final result = await showModalBottomSheet<_NewArea>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _AddAreaSheet(),
+    );
+    if (result == null || !mounted) return;
+    await NetworkErrorHandler.run(context, () async {
       // A village the LGD reference knows but no business works in yet has no
       // location_id until this call writes one. resolveId is
       // resolveLocationId's twin -- both short-circuit on an existing id and
       // otherwise call add_location_if_missing with the same six fields.
       final locationId =
-          await ref.read(locationApiServiceProvider).resolveId(selected);
+          await ref.read(locationApiServiceProvider).resolveId(result.village);
       return ref.read(businessDetailProvider(widget.businessId).notifier).addOperatingArea(
-            name: name,
+            name: result.name,
             locationId: locationId,
           );
     });
-    if (ok == true) {
-      // The field clears itself on a fresh pick; what has to be cleared here
-      // is the name, and the pick, so the button goes back to disabled rather
-      // than offering to add the same village twice.
-      setState(() => _picked = null);
-      _areaName.clear();
-    }
   }
 
   Future<void> _addVillage(OperatingAreaSummary area) async {
@@ -973,36 +960,30 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
           style: ManaType.note,
         ),
         const SizedBox(height: ManaSpacing.md),
-        TextField(
-          controller: _areaName,
-          maxLength: 120,
-          decoration: InputDecoration(
-            labelText: ref.t('area_name_field'),
-            suffixIcon: ManaInfoHint(ref.t('area_name_helper')),
-          ),
+        // THE LIST LEADS. What used to be here -- an empty Area Name box, a
+        // village search and a disabled Add button -- pushed the rounds an
+        // Owner came to look at below the fold. Creating an area is the
+        // rarer act; it is the button opposite this heading.
+        //
+        // Wrap rather than Row: "Current Operating Areas" and "Add Area" in
+        // Telugu at a 2.0x text scale do not share a 360dp line, and a bare
+        // child beside a flexible one is the overflow this project has
+        // shipped four times.
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: ManaSpacing.sm,
+          runSpacing: ManaSpacing.xs,
+          children: [
+            ManaText.raw(ref.t('current_operating_areas'),
+                style: ManaType.strong),
+            FilledButton.icon(
+              onPressed: _addArea,
+              icon: const Icon(Icons.add, size: 18),
+              label: ManaText.raw(ref.t('add_area')),
+            ),
+          ],
         ),
-        // The same field registration uses: PIN by default, village name for
-        // somebody who does not know their postal code. What it replaces was
-        // two bare boxes and a results list wired to this screen's own
-        // provider -- PIN-only in practice, because the village-name box
-        // could not search without a PIN beside it.
-        ManaVillageSearchField(
-          label: ref.t('village_name_field'),
-          onPicked: (v) => setState(() => _picked = v),
-        ),
-        const SizedBox(height: ManaSpacing.md),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: _picked == null ? null : _addSelected,
-            icon: const Icon(Icons.add, size: 18),
-            label: ManaText.raw(ref.t('add_area')),
-          ),
-        ),
-        const SizedBox(height: ManaSpacing.lg),
-        const Divider(),
-        const SizedBox(height: ManaSpacing.sm),
-        ManaText.raw(ref.t('current_operating_areas'), style: ManaType.strong),
         const SizedBox(height: ManaSpacing.sm),
         if (areas.isEmpty)
           ManaText.raw(
@@ -1090,35 +1071,42 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
                     // A ListTile's trailing slot has a hard width assertion —
                     // built from a plain Row instead, same reasoning as the
                     // blocking-issues row on OW-011.
+                    // ONE AGENT PER ROW, and the button on its own line.
+                    //
+                    // assignedAgentsLabel already joined the names with a
+                    // newline, so "one per row" was true in the string and
+                    // false on the screen: the names shared a cramped
+                    // Expanded with the Manage Agents button beside them and
+                    // wrapped MID-NAME. "Medapati Suresh Krishna Reddy"
+                    // arrived as three lines, which reads as three people.
+                    //
+                    // The fix is width, not the string. Each name gets the
+                    // full card; the action sits under them.
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: ManaSpacing.md, vertical: ManaSpacing.xs),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                      padding: const EdgeInsets.fromLTRB(ManaSpacing.md,
+                          ManaSpacing.xs, ManaSpacing.md, ManaSpacing.xs),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            a.isUnassigned ? Icons.person_off_outlined : Icons.badge_outlined,
-                            size: 18,
-                            color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
-                          ),
-                          const SizedBox(width: ManaSpacing.sm),
-                          Expanded(
-                            child: ManaText.raw(
-                              a.isUnassigned
-                                  ? ref.t('no_agent_assigned_not_worked')
-                                  : ref
-                                      .t(a.assignedAgents.length == 1 ? 'agent_colon_note' : 'agents_colon_note')
-                                      .replaceAll('{names}', a.assignedAgentsLabel),
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: a.isUnassigned ? ManaColors.statusWarn : ManaColors.textSecondary,
+                          if (a.isUnassigned)
+                            _AreaAgentRow(
+                              icon: Icons.person_off_outlined,
+                              label: ref.t('no_agent_assigned_not_worked'),
+                              warn: true,
+                            )
+                          else
+                            for (final agent in a.assignedAgents)
+                              _AreaAgentRow(
+                                icon: Icons.badge_outlined,
+                                label: agent.fullName,
+                                warn: false,
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: ManaSpacing.sm),
-                          Flexible(
+                          Align(
+                            alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: () => _assignAgent(a),
-                              child: ManaText.raw(ref.t(a.isUnassigned ? 'assign_agent' : 'manage_agents')),
+                              child: ManaText.raw(ref.t(
+                                  a.isUnassigned ? 'assign_agent' : 'manage_agents')),
                             ),
                           ),
                         ],
@@ -1147,6 +1135,142 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
 ///
 /// It now uses the same field as registration: PIN by default, village name
 /// for somebody who does not know their postal code.
+/// One agent on one line, or the "nobody is working this round" warning.
+class _AreaAgentRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool warn;
+  const _AreaAgentRow({
+    required this.icon,
+    required this.label,
+    required this.warn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colour = warn ? ManaColors.statusWarn : ManaColors.textSecondary;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: colour),
+          const SizedBox(width: ManaSpacing.sm),
+          // Expanded, so a long name wraps at the CARD's edge rather than
+          // against a button — and reads as one person on two lines rather
+          // than as two people.
+          Expanded(
+            child: ManaText.raw(label,
+                style: TextStyle(fontSize: 13, color: colour)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the add-area sheet hands back: the village, and what to call the round.
+class _NewArea {
+  final ManaVillage village;
+  final String name;
+  const _NewArea(this.village, this.name);
+}
+
+/// Create an operating area: pick the village, then name the round.
+///
+/// IN THAT ORDER, AND THE NAME COMES PRE-FILLED. The Owner's note was "add
+/// area (opens first select pincode, then village name then user entry area
+/// name here village & area both are same)" -- so the village is the thing
+/// being chosen and the name follows from it.
+///
+/// The old screen already defaulted the name to the village when the box was
+/// left empty, and said so nowhere: an empty box does not tell anybody what
+/// it will do. Filling it in is the same rule, made visible and still
+/// editable for the day a second village joins the round.
+class _AddAreaSheet extends ConsumerStatefulWidget {
+  const _AddAreaSheet();
+
+  @override
+  ConsumerState<_AddAreaSheet> createState() => _AddAreaSheetState();
+}
+
+class _AddAreaSheetState extends ConsumerState<_AddAreaSheet> {
+  final _name = TextEditingController();
+  ManaVillage? _picked;
+
+  /// True while the name is still whatever the village put there, so a later
+  /// pick may replace it. Once somebody types, their text is theirs and a
+  /// change of village must not overwrite it.
+  bool _nameIsDefault = true;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _onPicked(ManaVillage? v) {
+    setState(() {
+      _picked = v;
+      if (v != null && _nameIsDefault) _name.text = v.name;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: MediaQuery.of(context).viewInsets,
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(ManaSpacing.lg),
+          children: [
+            ManaText.raw(ref.t('add_area_title'), style: ManaType.sheetTitle),
+            const SizedBox(height: ManaSpacing.xs),
+            ManaText.raw(ref.t('add_area_step_village'), style: ManaType.note),
+            const SizedBox(height: ManaSpacing.md),
+            ManaVillageSearchField(
+              label: ref.t('village_name_field'),
+              onPicked: _onPicked,
+            ),
+            // The name only appears once there is a village to name it
+            // after. Shown before that it is an empty box asking a question
+            // nobody can answer yet, which is what the old screen did.
+            if (_picked != null) ...[
+              const SizedBox(height: ManaSpacing.lg),
+              TextField(
+                controller: _name,
+                maxLength: 120,
+                onChanged: (_) => setState(() => _nameIsDefault = false),
+                decoration: InputDecoration(
+                  labelText: ref.t('area_name_field'),
+                  suffixIcon: ManaInfoHint(ref.t('area_name_helper')),
+                ),
+              ),
+              ManaText.raw(ref.t('add_area_name_hint'), style: ManaType.fine),
+            ],
+            const SizedBox(height: ManaSpacing.lg),
+            FilledButton(
+              // Disabled until something is actually chosen: the field emits
+              // null when a pick is edited away or the mode is switched, and
+              // adding whatever was picked before that would file a village
+              // the Owner had already changed their mind about.
+              onPressed: _picked == null || _name.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.of(context)
+                      .pop(_NewArea(_picked!, _name.text.trim())),
+              child: ManaText.raw(ref.t('add_area')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _VillagePickerSheet extends ConsumerStatefulWidget {
   final String areaName;
   const _VillagePickerSheet({required this.areaName});

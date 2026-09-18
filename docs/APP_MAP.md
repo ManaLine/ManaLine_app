@@ -742,7 +742,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/ow_002_workforce_management.dart:163` (`push`)
 - `features/owner_workspace/screens/ow_003_investor_management.dart:148` (`push`)
 - `features/owner_workspace/screens/ow_012_business_management.dart:568` (`push`)
-- `features/owner_workspace/screens/ow_012_business_management.dart:1294` (`push`)
+- `features/owner_workspace/screens/ow_012_business_management.dart:1418` (`push`)
 - `features/owner_workspace/screens/ow_018_business_migration.dart:316` (`push`)
 - `shared/widgets/workspace_actions.dart:203` (`listed`)
 

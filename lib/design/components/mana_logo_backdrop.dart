@@ -31,10 +31,23 @@ class ManaLogoBackdrop extends StatelessWidget {
   /// out first, and sizing to width there would push the mark off both ends.
   final double extent;
 
+  /// Where the mark sits inside the screen.
+  ///
+  /// Centre is right for the pre-login screens this was built for: a product
+  /// name and one or two cards, with the whole middle of the screen free.
+  ///
+  /// It is WRONG for a page with a card grid. The cards are opaque, so a
+  /// centred mark is sliced into pieces by their edges -- which reads as a
+  /// rendering fault rather than a watermark, and puts the busiest part of
+  /// the artwork directly behind the text. The web pages pass
+  /// [Alignment.bottomRight] and put it where the page is actually empty.
+  final Alignment alignment;
+
   const ManaLogoBackdrop({
     super.key,
     required this.child,
     this.extent = 0.72,
+    this.alignment = Alignment.center,
   });
 
   @override
@@ -50,7 +63,8 @@ class ManaLogoBackdrop extends StatelessWidget {
         // are the only controls on it.
         Positioned.fill(
           child: IgnorePointer(
-            child: Center(
+            child: Align(
+              alignment: alignment,
               child: Opacity(
                 opacity: kManaBackdropOpacity,
                 child: Image.asset(
@@ -60,8 +74,7 @@ class ManaLogoBackdrop extends StatelessWidget {
                   // Decoded at display size rather than held at 1024 square.
                   // This is a cheap-Android target and the backdrop is the
                   // largest image the app draws.
-                  cacheWidth: (edge * MediaQuery.devicePixelRatioOf(context))
-                      .round(),
+                  cacheWidth: (edge * MediaQuery.devicePixelRatioOf(context)).round(),
                   fit: BoxFit.contain,
                   // errorBuilder, not a bare Image.asset: a missing logo must
                   // not take a login screen down with it. The wordmark still

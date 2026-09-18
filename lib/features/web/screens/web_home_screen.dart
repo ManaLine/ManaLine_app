@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../design/components/mana_adaptive_shell.dart';
 import '../../../design/components/mana_form_grid.dart';
 import '../../../design/components/mana_header.dart';
+import '../../../design/components/mana_logo_backdrop.dart';
 import '../../../design/components/mana_text.dart';
+import '../../../design/tokens/breakpoints.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
 import '../../../design/tokens/typography.dart';
@@ -87,14 +89,20 @@ class ManaWebHomeScreen extends ConsumerWidget {
         ];
       case 'Customer':
         return [
-          _Destination(icon: Icons.account_balance_wallet_outlined, title: ref.t('my_loans'), onTap: () => go('/cw-004')),
+          _Destination(
+              icon: Icons.account_balance_wallet_outlined,
+              title: ref.t('my_loans'),
+              onTap: () => go('/cw-004')),
           profile('/cw-006'),
           settings,
           appCard(primary: false),
         ];
       case 'Investor':
         return [
-          _Destination(icon: Icons.pie_chart_outline, title: ref.t('my_investments'), onTap: () => go('/iw-003')),
+          _Destination(
+              icon: Icons.pie_chart_outline,
+              title: ref.t('my_investments'),
+              onTap: () => go('/iw-003')),
           profile('/iw-005'),
           settings,
           appCard(primary: false),
@@ -102,8 +110,14 @@ class ManaWebHomeScreen extends ConsumerWidget {
       case 'Owner':
       default:
         return [
-          _Destination(icon: Icons.fact_check_outlined, title: ref.t('account_review'), onTap: () => go('/ow-013')),
-          _Destination(icon: Icons.move_to_inbox_outlined, title: ref.t('pre_existing_business'), onTap: () => go('/ow-018')),
+          _Destination(
+              icon: Icons.fact_check_outlined,
+              title: ref.t('account_review'),
+              onTap: () => go('/ow-013')),
+          _Destination(
+              icon: Icons.move_to_inbox_outlined,
+              title: ref.t('pre_existing_business'),
+              onTap: () => go('/ow-018')),
           // ITS OWN CARD ON THE MENU, from 2026-09-18. The handset no longer
           // runs the wizard -- it shows a signpost here instead -- so this is
           // the only place it exists, and an Owner arriving from that signpost
@@ -115,8 +129,14 @@ class ManaWebHomeScreen extends ConsumerWidget {
           // chooser asking what the book contains, which answers a different
           // question from "what do I do here" -- and the sheets an Owner came
           // to this laptop to download are all on the menu, in one place.
-          _Destination(icon: Icons.table_chart_outlined, title: ref.t('bulk_onboarding'), onTap: () => go('/ow-bulk-onboarding-menu')),
-          _Destination(icon: Icons.workspace_premium_outlined, title: ref.t('subscription'), onTap: () => go('/subscription')),
+          _Destination(
+              icon: Icons.table_chart_outlined,
+              title: ref.t('bulk_onboarding'),
+              onTap: () => go('/ow-bulk-onboarding-menu')),
+          _Destination(
+              icon: Icons.workspace_premium_outlined,
+              title: ref.t('subscription'),
+              onTap: () => go('/subscription')),
           profile('/ow-016'),
           settings,
           appCard(primary: false),
@@ -150,20 +170,57 @@ class ManaWebHomeScreen extends ConsumerWidget {
     return ManaAdaptiveShell(
       items: navItems,
       currentIndex: 0,
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(ManaSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ManaText.raw(ref.t('welcome_back'), style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: ManaSpacing.xl),
-              ManaFormGrid(
-                columnsAtMedium: 2,
-                columnsAtExpanded: 3,
-                children: [for (final d in destinations) _DestinationCard(d)],
-              ),
-            ],
+      // INSIDE the body, not behind the Scaffold. A Scaffold paints its
+      // backgroundColor opaque, so a backdrop above it in the tree is simply
+      // never seen -- which is why ManaWebFrame, the one widget that wraps
+      // every web screen, is the wrong place for this however convenient it
+      // looks.
+      child: ManaLogoBackdrop(
+        // BOTTOM-RIGHT, not centred. This page is a grid of opaque cards
+        // anchored top-left; a centred mark is sliced by their edges and
+        // sits behind the words. Down here it is in the empty quarter of
+        // the page, whole, and never behind anything that has to be read.
+        alignment: Alignment.bottomRight,
+        extent: 0.55,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            // Roomier on a desk than on a phone. A 16dp gutter is right when the
+            // screen IS 360dp wide and wrong when the content is inset from a
+            // navigation rail -- it was the other half of why this page read as
+            // a phone screen stretched rather than a page.
+            padding: EdgeInsets.all(
+              ManaBreakpoints.of(MediaQuery.sizeOf(context).width) == ManaWidthClass.expanded
+                  ? ManaSpacing.xxl
+                  : ManaSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ManaText.raw(ref.t('welcome_back'),
+                    style: Theme.of(context).textTheme.headlineMedium),
+                const SizedBox(height: ManaSpacing.xs),
+                // A SECOND LINE, because the first one was the whole page.
+                // "Welcome Back" over a stack of unexplained cards is a greeting,
+                // not a signpost -- and this build is deliberately NOT the app:
+                // collections, loans, day closure and reports are all on the
+                // handset. Saying so here is what stops somebody hunting the
+                // rail for a round they will never find.
+                // A MEASURE FOR THE PROSE, separate from the measure for the
+                // grid. 1200px of cards is a good grid; 1200px of sentence is a
+                // line the eye loses its place in on the way back. Typographic
+                // practice is 60-75 characters, which this is about.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: ManaText.raw(ref.t('web_home_lead'), style: ManaType.secondary),
+                ),
+                const SizedBox(height: ManaSpacing.xl),
+                ManaFormGrid(
+                  columnsAtMedium: 2,
+                  columnsAtExpanded: 3,
+                  children: [for (final d in destinations) _DestinationCard(d)],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -225,7 +282,9 @@ class _DestinationCard extends StatelessWidget {
               // the hyphen.
               ManaText.raw(
                 d.title,
-                style: d.isPrimary ? Theme.of(context).textTheme.titleLarge : Theme.of(context).textTheme.titleMedium,
+                style: d.isPrimary
+                    ? Theme.of(context).textTheme.titleLarge
+                    : Theme.of(context).textTheme.titleMedium,
               ),
               if (d.body != null) ...[
                 const SizedBox(height: ManaSpacing.xs),

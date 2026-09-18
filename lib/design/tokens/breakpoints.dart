@@ -68,6 +68,31 @@ enum ManaWidthClass { compact, medium, expanded }
 ///
 /// Mutable rather than const because the widget test needs to add and remove
 /// an entry; nothing in the app writes to it at runtime.
+/// Two more joined on 2026-09-18, and for a different reason than the rest.
+///
+/// `/ow-013` earned its place by being converted: somebody laid out a screen
+/// that already existed. `/web-home` and `/ow-bulk-onboarding-menu` were
+/// DRAWN for a desk and never belonged in the column at all. The web home is
+/// the only screen the web build has that Android does not, and the bulk
+/// onboarding menu exists precisely because the Owner said the work is too
+/// messy on a phone -- clamping either to 480px produced the thing they
+/// described on seeing it: "it looks like a mobile device screen", a
+/// navigation rail meant for 1024px squeezed beside a 350px column, both
+/// floating in the middle of an empty 1920px window.
+///
+/// The bar has not moved. A route still only gets out once its screen has a
+/// layout for the width, and both of these have one plus a test at desk size.
 final Set<String> kManaWideRoutes = <String>{
   '/ow-013',
+  '/web-home',
+  '/ow-bulk-onboarding-menu',
 };
+
+/// How wide the reading measure may get on a desk, once a screen is out of
+/// [kManaWideRoutes].
+///
+/// Letting go of the 480px column is not the same as having none: a form or a
+/// card grid run edge to edge across a 2560px monitor is its own kind of
+/// unreadable, and the eye loses the start of the next line. 1200 is about
+/// three comfortable card columns plus gutters.
+const kManaDeskContentMax = 1200.0;

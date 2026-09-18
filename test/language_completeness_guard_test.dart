@@ -42,9 +42,27 @@ void main() {
   });
 
   test('the repo does not claim more languages than it has', () {
-    // The stale figure reached a plan once. README and site/index.html are the
-    // two places a stranger would read it.
-    for (final path in ['README.md', 'site/index.html']) {
+    // The stale figure reached a plan once, and this guard was built to stop
+    // it reaching a stranger. It checked two files and the claim was sitting
+    // in two others the whole time.
+    //
+    // `web/index.html` and `web/manifest.json` are Flutter's own scaffolding,
+    // edited once to carry the product description and then never looked at
+    // again -- so nobody thought of them as pages, and the guard's author
+    // (me) listed the two files a HUMAN would read rather than the ones a
+    // READER would receive. Both ship on every web deploy: the meta
+    // description is what a search engine quotes, and the manifest
+    // description is what an install prompt shows. They were live on
+    // manaline.pages.dev, claiming five languages, for the several hours
+    // between the first deploy and finding this.
+    //
+    // Added 2026-09-18. Scan what is SERVED, not what is authored.
+    for (final path in [
+      'README.md',
+      'site/index.html',
+      'web/index.html',
+      'web/manifest.json',
+    ]) {
       final text = File(path).readAsStringSync().toLowerCase();
       expect(text, isNot(contains('five languages')),
           reason: '$path claims five languages');

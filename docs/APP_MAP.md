@@ -28,7 +28,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | Routes that build a screen | 85 |
 | Routes that only redirect | 1 |
 | Distinct screen widgets | 76 |
-| Literal navigation call sites | 385 |
+| Literal navigation call sites | 387 |
 | On the handset only | 53 |
 | On the restricted web build | 33 |
 
@@ -75,7 +75,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | `/ow-018` | `BusinessMigrationScreen` | `features/owner_workspace/screens/ow_018_business_migration.dart` | — | both | 4 via path<br>1 direct | yes |
 | `/ow-019` | `ChetiManagementScreen` | `features/owner_workspace/screens/ow_019_cheti_management.dart` | — | handset | 3 direct | yes |
 | `/ow-bulk-onboarding` | `BulkOnboardingWizardScreen` | `features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart` | — | both | 3 via path | yes |
-| `/ow-bulk-onboarding-menu` | `BulkOnboardingMenuScreen` | `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart` | — | both | 3 via path | yes |
+| `/ow-bulk-onboarding-menu` | `BulkOnboardingMenuScreen` | `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart` | — | both | 4 via path | yes |
 | `/ow-bulk-onboarding-web` | `BulkOnboardingOnWebScreen` | `features/owner_workspace/screens/ow_bulk_onboarding_on_web.dart` | — | handset | 1 via path | yes |
 | `/ow-loan-requests` | `LoanRequestsScreen` | `features/owner_workspace/screens/loan_requests_screen.dart` | — | handset | 2 via path | yes |
 | `/ow-search` | `UniversalSearchScreen` | `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart` | `?role` | handset | 9 via path | yes |
@@ -156,7 +156,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | `/recent-deletes` | `RecentDeletesScreen` | `shared/widgets/recent_deletes_screen.dart` | — | handset | **nothing** | **no** |
 | `/settings` | `SettingsScreen` | `shared/settings_screen.dart` | — | both | 11 via path | yes |
 | `/subscription` | `SubscriptionScreen` | `features/owner_workspace/screens/subscription_screen.dart` | — | both | 4 via path | yes |
-| `/web-home` | `ManaWebHomeScreen` | `features/web/screens/web_home_screen.dart` | — | web | 9 via path | yes |
+| `/web-home` | `ManaWebHomeScreen` | `features/web/screens/web_home_screen.dart` | — | web | 10 via path | yes |
 
 ## Who navigates where
 
@@ -243,7 +243,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:176` (`listed`)
 - `features/agent_workspace/screens/ag_001_agent_home_dashboard.dart:220` (`push`)
 - `features/login_registration/state/auth_flow_state.dart:150` (`listed`)
-- `features/web/screens/web_home_screen.dart:85` (`listed`)
+- `features/web/screens/web_home_screen.dart:87` (`listed`)
 - `shared/settings_screen.dart:84` (`listed`)
 
 **`/ag-010`** — 2 call sites
@@ -324,7 +324,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/customer_workspace/screens/cw_005_make_a_payment.dart:334` (`go`)
 - `features/customer_workspace/screens/cw_005_make_a_payment.dart:380` (`go`)
 - `features/customer_workspace/screens/cw_006_my_profile_memberships.dart:342` (`go`)
-- `features/web/screens/web_home_screen.dart:90` (`listed`)
+- `features/web/screens/web_home_screen.dart:95` (`listed`)
 
 **`/cw-005`** — 2 call sites
 
@@ -339,7 +339,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:106` (`push`)
 - `features/customer_workspace/screens/cw_001_customer_home_dashboard.dart:349` (`listed`)
 - `features/login_registration/state/auth_flow_state.dart:151` (`listed`)
-- `features/web/screens/web_home_screen.dart:91` (`listed`)
+- `features/web/screens/web_home_screen.dart:96` (`listed`)
 - `shared/settings_screen.dart:85` (`listed`)
 
 **`/cw-settings`** — 3 call sites
@@ -383,7 +383,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:355` (`listed`)
 - `features/investor_workspace/screens/iw_004_request_withdrawal.dart:189` (`go`)
 - `features/investor_workspace/screens/iw_005_my_profile_memberships.dart:303` (`go`)
-- `features/web/screens/web_home_screen.dart:97` (`listed`)
+- `features/web/screens/web_home_screen.dart:105` (`listed`)
 
 **`/iw-004`** — 2 call sites
 
@@ -398,7 +398,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:104` (`push`)
 - `features/investor_workspace/screens/iw_001_investor_home_dashboard.dart:358` (`listed`)
 - `features/login_registration/state/auth_flow_state.dart:152` (`listed`)
-- `features/web/screens/web_home_screen.dart:98` (`listed`)
+- `features/web/screens/web_home_screen.dart:106` (`listed`)
 - `shared/settings_screen.dart:86` (`listed`)
 
 **`/iw-settings`** — 3 call sites
@@ -654,10 +654,10 @@ proves a screen unreachable — only that nobody wrote its path.
 
 - `app/web_router.dart:69` (`listed`)
 - `app/web_router.dart:146` (`listed`)
-- `design/tokens/breakpoints.dart:72` (`listed`)
+- `design/tokens/breakpoints.dart:86` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:83` (`push`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:1791` (`listed`)
-- `features/web/screens/web_home_screen.dart:105` (`listed`)
+- `features/web/screens/web_home_screen.dart:116` (`listed`)
 
 **`/ow-014`** — 2 call sites
 
@@ -680,7 +680,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:149` (`listed`)
 - `features/login_registration/state/auth_flow_state.dart:153` (`listed`)
 - `features/owner_workspace/screens/ow_001_owner_home_dashboard.dart:288` (`push`)
-- `features/web/screens/web_home_screen.dart:120` (`listed`)
+- `features/web/screens/web_home_screen.dart:140` (`listed`)
 - `shared/settings_screen.dart:83` (`listed`)
 
 **`/ow-017`** — 1 call site
@@ -696,19 +696,20 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:69` (`listed`)
 - `app/web_router.dart:151` (`listed`)
 - `features/owner_workspace/screens/ow_000_first_business_setup.dart:638` (`push`)
-- `features/web/screens/web_home_screen.dart:106` (`listed`)
+- `features/web/screens/web_home_screen.dart:120` (`listed`)
 
 **`/ow-bulk-onboarding`** — 3 call sites
 
 - `app/web_router.dart:69` (`listed`)
 - `app/web_router.dart:163` (`listed`)
-- `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:140` (`push`)
+- `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:139` (`push`)
 
-**`/ow-bulk-onboarding-menu`** — 3 call sites
+**`/ow-bulk-onboarding-menu`** — 4 call sites
 
 - `app/web_router.dart:69` (`listed`)
 - `app/web_router.dart:159` (`listed`)
-- `features/web/screens/web_home_screen.dart:118` (`listed`)
+- `design/tokens/breakpoints.dart:88` (`listed`)
+- `features/web/screens/web_home_screen.dart:135` (`listed`)
 
 **`/ow-bulk-onboarding-web`** — 1 call site
 
@@ -761,7 +762,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/business_transfer_screen.dart:169` (`listed`)
 - `features/owner_workspace/screens/import_screen.dart:115` (`listed`)
 - `features/owner_workspace/screens/subscription_screen.dart:29` (`listed`)
-- `features/web/screens/web_home_screen.dart:75` (`listed`)
+- `features/web/screens/web_home_screen.dart:77` (`listed`)
 - `shared/about_screen.dart:43` (`listed`)
 - `shared/account_closure_screen.dart:94` (`listed`)
 - `shared/appearance_screen.dart:31` (`listed`)
@@ -770,10 +771,10 @@ proves a screen unreachable — only that nobody wrote its path.
 
 - `app/web_router.dart:70` (`listed`)
 - `app/web_router.dart:171` (`listed`)
-- `features/web/screens/web_home_screen.dart:119` (`listed`)
+- `features/web/screens/web_home_screen.dart:139` (`listed`)
 - `shared/settings_screen.dart:426` (`push`)
 
-**`/web-home`** — 9 call sites
+**`/web-home`** — 10 call sites
 
 - `app/web_router.dart:68` (`listed`)
 - `app/web_router.dart:83` (`listed`)
@@ -783,7 +784,8 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:143` (`listed`)
 - `app/web_router.dart:290` (`go`)
 - `design/components/mana_app_bar.dart:182` (`go`)
-- `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:224` (`listed`)
+- `design/tokens/breakpoints.dart:87` (`listed`)
+- `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:221` (`listed`)
 
 ## Worth a look
 

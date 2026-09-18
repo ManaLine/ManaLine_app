@@ -5,8 +5,8 @@
     "display": "standalone",
     "background_color": "#005A99",
     "theme_color": "#005A99",
-    "description": "MANA LINE — the operating system for a local lending business. Loans, collections, agents and daily accounts, in five languages.",
-    "orientation": "portrait-primary",
+    "description": "MANA LINE - the operating system for a local lending business. Loans, collections, agents and daily accounts, in English and Telugu.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

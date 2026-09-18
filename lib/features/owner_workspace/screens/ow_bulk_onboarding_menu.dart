@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_form_grid.dart';
+import '../../../design/components/mana_logo_backdrop.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -51,8 +52,7 @@ class BulkOnboardingMenuScreen extends ConsumerStatefulWidget {
   const BulkOnboardingMenuScreen({super.key, required this.businessId});
 
   @override
-  ConsumerState<BulkOnboardingMenuScreen> createState() =>
-      _BulkOnboardingMenuScreenState();
+  ConsumerState<BulkOnboardingMenuScreen> createState() => _BulkOnboardingMenuScreenState();
 }
 
 /// One downloadable sheet: what it is called, and how to build its bytes.
@@ -67,8 +67,7 @@ class _Sheet {
   const _Sheet(this.titleKey, this.fileName, this.build);
 }
 
-class _BulkOnboardingMenuScreenState
-    extends ConsumerState<BulkOnboardingMenuScreen> {
+class _BulkOnboardingMenuScreenState extends ConsumerState<BulkOnboardingMenuScreen> {
   MigrationPlan? _plan;
   MigrationProgress? _progress;
   bool _loading = true;
@@ -200,10 +199,8 @@ class _BulkOnboardingMenuScreenState
     String? n(int count, String one, String many) =>
         count == 0 ? null : '$count ${count == 1 ? one : many}';
     return switch (page) {
-      ManaBulkPage.identities => n(
-          p.count('customers') + p.count('investors') + p.count('agents'),
-          'person',
-          'people'),
+      ManaBulkPage.identities =>
+        n(p.count('customers') + p.count('investors') + p.count('agents'), 'person', 'people'),
       ManaBulkPage.investors => n(p.count('investments'), 'investment', 'investments'),
       ManaBulkPage.customers => n(p.count('loans'), 'loan', 'loans'),
       ManaBulkPage.agents => n(p.count('attendance_days'), 'working day', 'working days'),
@@ -223,81 +220,88 @@ class _BulkOnboardingMenuScreenState
         title: ref.t('bulk_onboarding'),
         homeRoute: '/web-home',
       ),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  // A form read across a 2560px monitor is a form nobody
-                  // finishes. Everything else in this app is 360dp wide and
-                  // needs no ceiling; this screen is the first that does.
-                  constraints: const BoxConstraints(maxWidth: 960),
-                  child: ListView(
-                    padding: const EdgeInsets.all(ManaSpacing.xl),
-                    children: [
-                      ManaText.raw(ref.t('bulk_menu_lead'),
-                          style: ManaType.secondary),
-                      const SizedBox(height: ManaSpacing.lg),
-                      if (plan == null)
-                        _StartCard(onTap: () => _open(ManaBulkPage.plan))
-                      else ...[
-                        _CutoffBar(
-                          plan: plan,
-                          onChange: () => _open(ManaBulkPage.plan),
-                        ),
-                        const SizedBox(height: ManaSpacing.xl),
-                        _Heading(
-                          title: ref.t('bulk_menu_sheets'),
-                          note: ref.t('bulk_menu_sheets_note'),
-                        ),
-                        const SizedBox(height: ManaSpacing.md),
-                        ManaFormGrid(
-                          columnsAtMedium: 2,
-                          columnsAtExpanded: 3,
-                          children: [
-                            for (final sheet in _sheets(_language))
-                              _SheetCard(
-                                title: ref.t(sheet.titleKey),
-                                action: ref.t('get_template'),
-                                busy: _busySheet == sheet.fileName,
-                                // Every other button stays live while one
-                                // sheet builds — see [_busySheet].
-                                onTap: _busySheet == null
-                                    ? () => _download(sheet)
-                                    : null,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: ManaSpacing.xxl),
-                        _Heading(
-                          title: ref.t('bulk_menu_steps'),
-                          note: ref.t('bulk_menu_steps_note'),
-                        ),
-                        const SizedBox(height: ManaSpacing.md),
-                        for (final entry in manaBulkPagesFor(plan)
-                            .asMap()
-                            .entries
-                            // The chooser is not a step to bring a sheet
-                            // back to; it is the bar above.
-                            .where((e) => e.value != ManaBulkPage.plan))
-                          _StepRow(
-                            number: entry.key,
-                            title: ref.t(entry.value.titleKey),
-                            alreadyIn: _alreadyIn(entry.value),
-                            // NOT ref.t('open'): that key's Telugu is
-                            // "తెరిచి ఉంది" -- "IS open", a loan's status --
-                            // so it would have labelled this button "Is Open"
-                            // for every Telugu reader while looking perfect
-                            // in English. See migration 20260918120120.
-                            action: ref.t('bulk_menu_open_step'),
-                            onTap: () => _open(entry.value),
+      // Same faint mark as the web home and the login screens -- one website,
+      // one backdrop. See the note there on why it lives inside the body.
+      body: ManaLogoBackdrop(
+        // BOTTOM-RIGHT, not centred. This page is a grid of opaque cards
+        // anchored top-left; a centred mark is sliced by their edges and
+        // sits behind the words. Down here it is in the empty quarter of
+        // the page, whole, and never behind anything that has to be read.
+        alignment: Alignment.bottomRight,
+        extent: 0.55,
+        child: SafeArea(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    // A form read across a 2560px monitor is a form nobody
+                    // finishes. Everything else in this app is 360dp wide and
+                    // needs no ceiling; this screen is the first that does.
+                    constraints: const BoxConstraints(maxWidth: 960),
+                    child: ListView(
+                      padding: const EdgeInsets.all(ManaSpacing.xl),
+                      children: [
+                        ManaText.raw(ref.t('bulk_menu_lead'), style: ManaType.secondary),
+                        const SizedBox(height: ManaSpacing.lg),
+                        if (plan == null)
+                          _StartCard(onTap: () => _open(ManaBulkPage.plan))
+                        else ...[
+                          _CutoffBar(
+                            plan: plan,
+                            onChange: () => _open(ManaBulkPage.plan),
                           ),
+                          const SizedBox(height: ManaSpacing.xl),
+                          _Heading(
+                            title: ref.t('bulk_menu_sheets'),
+                            note: ref.t('bulk_menu_sheets_note'),
+                          ),
+                          const SizedBox(height: ManaSpacing.md),
+                          ManaFormGrid(
+                            columnsAtMedium: 2,
+                            columnsAtExpanded: 3,
+                            children: [
+                              for (final sheet in _sheets(_language))
+                                _SheetCard(
+                                  title: ref.t(sheet.titleKey),
+                                  action: ref.t('get_template'),
+                                  busy: _busySheet == sheet.fileName,
+                                  // Every other button stays live while one
+                                  // sheet builds — see [_busySheet].
+                                  onTap: _busySheet == null ? () => _download(sheet) : null,
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: ManaSpacing.xxl),
+                          _Heading(
+                            title: ref.t('bulk_menu_steps'),
+                            note: ref.t('bulk_menu_steps_note'),
+                          ),
+                          const SizedBox(height: ManaSpacing.md),
+                          for (final entry in manaBulkPagesFor(plan)
+                              .asMap()
+                              .entries
+                              // The chooser is not a step to bring a sheet
+                              // back to; it is the bar above.
+                              .where((e) => e.value != ManaBulkPage.plan))
+                            _StepRow(
+                              number: entry.key,
+                              title: ref.t(entry.value.titleKey),
+                              alreadyIn: _alreadyIn(entry.value),
+                              // NOT ref.t('open'): that key's Telugu is
+                              // "తెరిచి ఉంది" -- "IS open", a loan's status --
+                              // so it would have labelled this button "Is Open"
+                              // for every Telugu reader while looking perfect
+                              // in English. See migration 20260918120120.
+                              action: ref.t('bulk_menu_open_step'),
+                              onTap: () => _open(entry.value),
+                            ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -344,11 +348,9 @@ class _StartCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ManaText.raw(ref.t('bulk_menu_start_title'),
-                    style: ManaType.cardTitle),
+                ManaText.raw(ref.t('bulk_menu_start_title'), style: ManaType.cardTitle),
                 const SizedBox(height: ManaSpacing.xs),
-                ManaText.raw(ref.t('bulk_menu_start_body'),
-                    style: ManaType.secondary),
+                ManaText.raw(ref.t('bulk_menu_start_body'), style: ManaType.secondary),
               ],
             ),
           ),
@@ -484,8 +486,7 @@ class _StepRow extends StatelessWidget {
               child: ManaText.raw('$number', style: ManaType.smallStrong),
             ),
             ManaText.raw(title, style: ManaType.strong),
-            if (alreadyIn != null)
-              ManaText.raw(alreadyIn!, style: ManaType.note),
+            if (alreadyIn != null) ManaText.raw(alreadyIn!, style: ManaType.note),
             TextButton(onPressed: onTap, child: ManaText.raw(action)),
           ],
         ),

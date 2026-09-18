@@ -11,8 +11,8 @@ MANA LINE — a Flutter + Supabase field lending app for rural India (owner, age
 **SETTLED 2026-09-15.** The claim is honest everywhere now -- README and
 site/index.html both say two -- and `test/language_completeness_guard_test.dart`
 fails if either regains a five-language claim or if the picker gains a third
-option. The picker offers exactly English and Telugu, so no user can reach an
-11%-complete language; all 98 people in production are on English.
+option. The picker offers exactly English and Telugu, so no user can reach a
+10%-complete language; all 99 people in production are on English.
 
 **The three extra columns STAY.** `ui_translations` keeps its hindi, tamil and
 kannada columns and `preferred_language_enum` keeps its five values. Dropping
@@ -21,7 +21,7 @@ are unreachable from the UI, cost nothing to carry, and are where the
 translations would go if the languages are ever finished. What was wrong was
 never the columns -- it was the app claiming them as languages it speaks.
 
-**Corrected 2026-09-08, was "5 languages".** `ui_translations` holds five columns, but of 1,600 keys: English 1,600, Telugu 1,591, and Hindi / Tamil / Kannada 174 each — about 11%. `lib/shared/translation_service.dart:22` says it outright: *"Only English/Telugu are ever looked up now (ManaLanguage was cut…)"*. The stale figure propagated from here into a plan and came within one implementer's diligence of being printed on the public website as a claim to strangers. Update this line as languages are genuinely completed — the number here is a promise the app has to keep.
+**Corrected 2026-09-08, was "5 languages"; figures re-counted 2026-09-18.** `ui_translations` holds five columns, but of **1,790** keys: English 1,790, Telugu 1,776, and Hindi / Tamil / Kannada 174 each — about **10%**, and falling, because the other three have not moved since while English and Telugu have grown by ~190 keys. `lib/shared/translation_service.dart:22` says it outright: *"Only English/Telugu are ever looked up now (ManaLanguage was cut…)"*. The stale figure propagated from here into a plan and came within one implementer's diligence of being printed on the public website as a claim to strangers. Update this line as languages are genuinely completed — the number here is a promise the app has to keep.
 
 **Money correctness is a safety property here.** A confidently wrong number on a collection screen is worse than a crash, because nobody notices it. Never swallow an error into a plausible value (`catch (_) => 0` on a money path). Read the comments at the top of any money file before changing it; commit messages explain *why* and are worth reading before touching money code.
 
@@ -29,7 +29,7 @@ never the columns -- it was the app claiming them as languages it speaks.
 
 ```bash
 flutter analyze
-flutter test                     # 757 tests
+flutter test                     # 2,762 tests
 flutter build apk --debug --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 flutter run -d chrome --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 ```
@@ -74,7 +74,7 @@ Full list in README §"Money conventions"; the ones that change code:
 - **PostgREST returns 200 for an UPDATE that matches zero rows** — a silent no-op is indistinguishable from success; only a re-read or checking the returned row count proves a write landed.
 - **RPCs in the `app` schema need `.schema('app').rpc(...)`** — a bare `.rpc()` targets `public` and 404s. Tables are in `public`.
 - **PostgREST embeds must name the FK** when two exist between the same tables, or PGRST201 (HTTP 300) kills the query — and the screen just says it could not load. There are **eleven** such pairs, not the three once listed here; `test/ambiguous_embed_guard_test.dart` holds the list, scans every `.select()` in `lib/`, and regenerates from `pg_constraint`. `!inner` is a join modifier, not an FK name: `persons!inner(...)` under `business_members` is still ambiguous.
-- **All 67 public tables have RLS.** New tables match the existing pattern: `app.is_owner(business_id)` for owner-scoped, plus `app.is_active_agent(...)` / `app.agent_permission(...)` where agents need reach.
+- **All 82 public tables have RLS** — 82 of 82, checked against the database 2026-09-18. New tables match the existing pattern: `app.is_owner(business_id)` for owner-scoped, plus `app.is_active_agent(...)` / `app.agent_permission(...)` where agents need reach.
 
 ## Testing conventions
 
@@ -87,6 +87,8 @@ Full list in README §"Money conventions"; the ones that change code:
 ## Docs
 
 `docs/01_Global_Rules_Guide.md` holds the locked business rules (BR-001…BR-240+); `docs/15_Calculation_Engine.md` holds the locked formulas. Per project convention, final BR and calculation-engine documents are authored at the *end* — decisions are recorded in code comments and commit messages as they are made, not by editing the specs mid-flight.
+
+Three docs carry the app itself rather than its rules. `docs/HANDOVER.md` is the onboarding path — what to read, in what order, and the seven ways this project has cost days. `docs/APP_FLOWS.md` is the eight journeys as flowcharts, with what moves in the database at each step, plus §9's placement rules for every screen. `docs/APP_MAP.md` is the route and screen inventory: **generated** by `dart run tool/gen_app_map.dart` and guarded by `test/app_map_sync_test.dart`, so never edit it by hand, and re-run the generator after adding or renaming a route.
 
 ## Plugins / capabilities
 
@@ -190,6 +192,7 @@ happen. These fail instead, under `flutter test`:
 | `village_search_rule_test.dart` | The PIN+3-letters rule drifting apart across its three copies |
 | `village_lookup_guard_test.dart` | A PIN village search that reads `locations` without the LGD reference |
 | `otp_navigation_guard_test.dart` | Reaching the OTP screen without an OTP having been sent |
+| `app_map_sync_test.dart` | `docs/APP_MAP.md` drifting from the routers — and the generator silently parsing less than the whole file |
 | `expectNoLayoutFault` in the harness | Overflow, at four text scales in two languages |
 
 `test/support/schema_snapshot.dart` is generated, not written — the query to
@@ -277,8 +280,11 @@ shells out to the runner and asserts a zero exit; when it is not, it
 **They have all run, as of 2026-09-15.** `pwsh tool/verify_rebuild.ps1` makes
 a disposable Postgres cluster on port 5433 with trust auth — no password, no
 Docker, and it cannot reach production because it makes its own server — and
-all 427 migrations now apply to it cleanly. That cluster is the database with
-no books in it, so the five scratch files finally have a target:
+all 427 migrations applied to it cleanly. **There are 472 migrations now**,
+and the rebuild has not been re-run since that date — so treat "they all
+apply" as true of 2026-09-15 and 427 files, not of today. Re-running it is
+the cheap way to find out. That cluster is the database with no books in it,
+so the five scratch files finally have a target:
 
 ```bash
 pwsh tool/verify_rebuild.ps1 -Keep
@@ -320,7 +326,7 @@ name into a box. I wrote that one an hour after building the guard for enum
 literals, which is the sharpest illustration available that the rule "invoke
 it before believing it" depends entirely on remembering.
 `test/sql_function_reference_guard_test.dart` now checks every `app.<name>(`
-in every migration against the snapshot — 209 distinct names today, two of
+in every migration against the snapshot — 230 distinct names today, two of
 them genuinely retired and listed by name with the reason. Verified it trips
 on the real case by removing `person_current_village` from the snapshot.
 

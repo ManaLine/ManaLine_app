@@ -11,21 +11,37 @@ on a collection screen is worse than a crash, because nobody notices it.
 Most of the conventions below exist because of a specific bug, and the
 comments in the code say which one.
 
+**New to this codebase? Read `docs/HANDOVER.md` first.** This file says
+what is true; that one says what to do with it, in what order, and which
+mistakes have already cost days here. Then `docs/APP_FLOWS.md` for how a
+journey runs and where things go on a screen, and `docs/APP_MAP.md` — which
+is generated — for every route, its file, its arguments and its callers.
+
 ---
 
 ## Status
 
 Real screens across all workspaces, wired to a live Supabase project.
 
+Counts verified 2026-09-18 by running them, not by remembering them — the
+database was queried for the last four.
+
 | | |
 |---|---|
-| Screens | 66 |
-| State / API files | 43 |
-| Migrations applied | 329 |
-| Edge Functions | 12 (auth: login, OTP, PIN, password reset) |
-| Public tables | 82, all with RLS |
-| Tests | 2,083 passing |
+| Screens | 73 files across 7 workspaces |
+| Routes | 84 — 52 handset-only, 32 on the restricted web build |
+| State / API files | 48 |
+| Migrations applied | 472, and every one has a local file with the exact stamped version |
+| Edge Functions | 12, all ACTIVE (auth: register, login, OTP, PIN, password reset; plus admin) |
+| Public tables | 82, all 82 with RLS |
+| `app` schema functions | 229 |
+| Tests | 2,762 passing |
 | `flutter analyze` | 0 issues |
+
+**These numbers go stale silently**, which is how the previous set survived
+here saying 66 screens and 2,083 tests. `docs/APP_MAP.md` is generated and
+guarded precisely so the route and screen inventory cannot; this table is
+not, so re-run the counts before trusting it.
 
 Workspaces: `login_registration`, `owner_workspace`, `agent_workspace`,
 `customer_workspace`, `investor_workspace`, `admin`, `support_admin`.
@@ -40,9 +56,18 @@ the biggest gap is the path most of the recent bugs were found on.
 
 - **No interest accrual engine.** Payments subtract from one
   `remaining_balance`; nothing accrues on its own between them.
-- **Offline sync is not wired.** The `mana_line_offline_sync` path
-  dependency is still commented out in `pubspec.yaml`. For an app whose
-  whole point is poor connectivity this is the largest remaining gap.
+- **Offline reaches exactly one screen.** The scaffolding is real and
+  built — `lib/shared/outbox/` is a sqflite store, a watcher, a provider, a
+  banner and an `/outbox` screen, and `sqflite` is a live dependency — but
+  `ow_006_collection_mode.dart` is its only consumer. The
+  `mana_line_offline_sync` path dependency commented out in `pubspec.yaml`
+  is *not* the missing piece; uncommenting it is not the task. The contract
+  is decided in `docs/decisions/2026-09-15-offline.md`. For an app whose
+  whole point is poor connectivity this is still the largest gap.
+- **Crash reporting is wired but dark.** `lib/shared/mana_error_reporting.dart`
+  wraps both entrypoints with Sentry, including the guarded zone, and
+  reports only when `SENTRY_DSN` is passed by `--dart-define`. An empty DSN
+  is a normal state by design, and nobody has ever passed one.
 - **Platform-admin deletes are unproven.** `app.admin_delete_person`,
   `admin_delete_loan`, `admin_delete_collection` and
   `admin_delete_business` exist and are gated to Platform Admin, but have
@@ -185,11 +210,22 @@ membership feed is that person's own or the Owner looking at their agent.
 
 ## Working on this repo
 
-**The migration ledger and local filenames drift.** `supabase_migrations.
-schema_migrations` is the source of truth. After applying a migration
+**The migration ledger and local filenames drift, and are in sync right
+now.** `supabase_migrations.schema_migrations` is the source of truth.
+Checked 2026-09-18: 472 applied versions, 472 local files, and the md5 of
+the sorted version list is identical on both sides — so every applied
+migration has a local file carrying its exact stamped version, and there
+are no local files the database has never seen. That is a state to
+maintain, not a property that holds by itself: after applying a migration
 through the MCP tool, write the local file using the *exact* stamped
-version, or a later `db push` re-runs it. Diff `pg_proc` before trusting
-that an RPC exists.
+version, or a later `db push` re-runs it. Re-run the comparison rather than
+trusting this paragraph:
+
+```sql
+select md5(string_agg(version, ',' order by version)), count(*) from supabase_migrations.schema_migrations;
+```
+
+Diff `pg_proc` before trusting that an RPC exists.
 
 **Migration filenames must be `<14-digit-timestamp>_name.sql`.** Anything
 else is silently ignored by `supabase db push`. Create them with
@@ -238,7 +274,7 @@ under `business_members` is still ambiguous.
 money screen produces a confident wrong number, which is worse than an
 exception.
 
-**All 82 public tables have RLS.** New tables match the existing pattern:
+**All 82 public tables have RLS** — verified 2026-09-18, 82 of 82. New tables match the existing pattern:
 `app.is_owner(business_id)` for owner-scoped, plus
 `app.is_active_agent(...)` and `app.agent_permission(...)` where agents
 need reach.
@@ -338,8 +374,8 @@ lib/
   shared/         mana_time.dart, translation_service.dart, local_auth_store.dart,
                   network_error_handler.dart, settings_screen.dart
 supabase/
-  migrations/     329 applied
-  functions/      12 Edge Functions (auth), shared helpers in _shared/
+  migrations/     472 applied, filenames matching the ledger exactly
+  functions/      12 Edge Functions (auth + admin), shared helpers in _shared/
   tests/          schema integrity, RLS access matrix, tenant isolation
 test/
   support/        mana_harness.dart, translation fixtures
@@ -356,15 +392,40 @@ for free text and system IDs.
 Built for outdoors, one-handed, under time pressure, by people managing
 cash against a paper ledger.
 
-- **Palette** — ledger-ink `#1B2B4B` primary, brass `#C68A2E` reserved for
-  primary actions. Status colours are desaturated for direct-sunlight
-  legibility and map 1:1 to the spec's own vocabulary (Balanced/Short/
-  Excess, Active/Penalty/Grace). No invented statuses.
+Every value below is in `lib/design/tokens/colors.dart`, which carries the
+contrast ratio and the reason beside each one. `docs/APP_FLOWS.md` §9 has
+the placement rules that go with them.
+
+- **Palette** — brand blue `#007ACC` for large text, icons, fills and
+  selected states, with `#005A99` under white text. Amber `#FFB616` is an
+  accent **fill**, never an ink: it is 1.76:1 on white and invisible
+  outdoors as text. Body text is blue-tinted near-black `#12293D`, so text
+  and blue chrome read as one family.
+- **Blue is the brand, not the text colour.** Saturated blue is the worst
+  choice for body text — the eye focuses it least sharply, blue subpixels
+  are the dimmest on AMOLED, and the lens yellows with age, so an older
+  Owner perceives it duller than a younger Agent does.
+- **Status colours are a CVD-safe pair, and carry money meaning.** Teal
+  `#00695C` (Verified / Balanced / Active) keeps a strong blue channel;
+  orange-red `#CC3311` (Penalty / Short / Defaulted) has almost none, so
+  the two separate on the blue-yellow axis that red-green colour blindness
+  leaves intact, and they differ in luminance so they survive greyscale.
+  `#8A5A00` (Grace / Pending / Excess) is deliberately deep enough never to
+  read as a tappable action beside the amber accent. **Colour is never the
+  only signal** — always pair with an icon or a label. The vocabulary is
+  the spec's own; no invented statuses.
+- **Dark mode is not an inversion.** Flipping luminance would collapse that
+  CVD split. Surfaces are blue-tinted charcoal rather than pure black,
+  because OLED black gives maximum contrast and maximum smear on the cheap
+  LCD panels this app actually runs on.
 - **Type** — Manrope for headers, Inter for body and data, tabular figures
   for money.
-- **Signature** — the Green/Red Verification Ring (BR-191/GC-002) is the
-  app's shape language. Cards use a quieter `ManaRadius.md` so the
-  signature is not diluted.
+- **Signature** — the Verification Ring (BR-191/GC-002) is the app's shape
+  language, and it carries three independent meanings: colour is identity
+  verification by default, an opt-in `ringColor` is membership status on
+  the roster, and `completeness` draws a partial ring for how complete a
+  profile is. Cards use a quieter `ManaRadius.md` so the signature is not
+  diluted.
 
 ---
 

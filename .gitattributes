@@ -19,3 +19,12 @@
 * text=auto
 
 *.sql text eol=lf
+
+# Generated documents are LF, always, for the same reason as the migrations
+# above: their guard test compares the committed file byte-for-byte against
+# what the generator produces, and the generator writes LF. With `* text=auto`
+# and core.autocrlf=true, a Windows checkout would hand the test a CRLF copy of
+# a file that is correct, and it would fail on a fresh clone while passing for
+# whoever generated it. eol=lf overrides autocrlf, so every clone gets the same
+# bytes. See test/app_map_sync_test.dart.
+docs/APP_MAP.md text eol=lf

@@ -34,6 +34,77 @@ Two things this file got wrong, found by running it:
 Keep following it slowly, diff every assumption against what actually
 happens, and update this file when reality disagrees with it.
 
+## Which of the three things you are doing
+
+Asked on 2026-09-18, and it is the right question to ask first, because two
+of these look like one:
+
+> step 1 : powershell -ExecutionPolicy Bypass -File tool\serve_web.ps1
+> step 2 : https://manaline.pages.dev in any browser
+> that's correct or do i need to do anything different!
+
+They are different paths, and step 1 has no effect on step 2.
+
+| You want to | Do this | Needs anything running? |
+|---|---|---|
+| Look at the live site | Open `https://manaline.pages.dev` | No |
+| Check a change before shipping | `serve_web.ps1 -Serve` | Yes, while you look |
+| Make a change live | `serve_web.ps1`, then `wrangler pages deploy` | No, after |
+
+**LOCAL AND LIVE ARE SEPARATE, and nothing crosses between them on its own.**
+`serve_web.ps1` builds into `build/publish` on this machine. It does not
+touch Cloudflare and it does not change what a visitor sees. The live site
+changes when, and only when, somebody runs `wrangler pages deploy`.
+
+**To build AND serve, in one command:**
+
+```bash
+powershell -ExecutionPolicy Bypass -File tool\serve_web.ps1 -Serve
+```
+
+Then open `http://localhost:8083`.
+
+Without `-Serve` it builds, checks and assembles, then stops and tells you so
+— which is what you want before a deploy, when serving would only be in the
+way. (It used to do only that while being called `serve_web`, which is how
+this section came to be written.)
+
+By hand, if you prefer:
+
+```bash
+# production-shaped: applies _headers, so the CSP and HSTS are real
+npx wrangler pages dev build/publish --port 8083
+
+# faster, and tells you NOTHING about headers
+python -m http.server 8082 --directory build/publish
+```
+
+Both are also in `.claude/launch.json` as `mana-publish-wrangler` and
+`mana-publish`.
+
+Use the wrangler one before any deploy that touches `site/_headers`. A plain
+static server applies no headers at all, so it cannot tell a correct CSP from
+a missing one — which is exactly how the comma-merged-CSP bug survived its
+first review.
+
+**A DOMAIN IS NOT NEEDED TO TEST.** `manaline.pages.dev` is Cloudflare Pages'
+free tier and is what `lib/shared/mana_site.dart` defaults to. Buy a domain
+when the app ships and flip it with one `--dart-define`; see
+`MANA_SITE_URL` above.
+
+### If it looks wrong, check the window width first
+
+The web build changes shape at two breakpoints, and both are deliberate:
+
+| Width | What you get |
+|---|---|
+| under 600px | the phone layout — no navigation rail, no brand panel |
+| 600–1024px | rail appears on signed-in pages; sign-in is a single centred column |
+| 1024px and up | brand panel beside the sign-in form; card grids go three across |
+
+A narrow browser window is the commonest reason a page "looks like the mobile
+version". Drag it wider before reporting it.
+
 ## What is NOT ready — do not deploy assuming otherwise
 
 - No APK has been published anywhere.
@@ -124,10 +195,9 @@ served does not reach the upload step.
 testing and the default is the free origin that is actually serving.
 `-BaseHref /` serves the app alone on a local port instead of under `/app/`.
 
-**The free origin is the point for testing.** `manaline.pages.dev` costs
-nothing, is already live, and is what `mana_site.dart` defaults to. A domain
-is a launch decision, not a testing prerequisite — buy one when the app ships
-and flip it with the one define.
+Add `-Serve` to start a local server on the result. See "Which of the three
+things you are doing" at the top for why local and live never affect each
+other.
 
 ### Check the artefact before uploading it
 

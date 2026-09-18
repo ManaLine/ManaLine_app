@@ -32,11 +32,30 @@
   Pass '/' to serve the app alone on a local port.
 
 .EXAMPLE
+  # Build, check, assemble, and serve it on http://localhost:8083
+  powershell -ExecutionPolicy Bypass -File tool\serve_web.ps1 -Serve
+
+.EXAMPLE
+  # Build and check only, e.g. before deploying
   powershell -ExecutionPolicy Bypass -File tool\serve_web.ps1
 #>
 param(
   [string] $SiteUrl = '',
-  [string] $BaseHref = '/app/'
+  [string] $BaseHref = '/app/',
+
+  # Start a local server on the assembled directory when the build is done.
+  #
+  # ADDED BECAUSE THE NAME PROMISED IT. Asked "step 1: serve_web.ps1, step 2:
+  # open the site -- is that correct?", and it was not: the script built and
+  # assembled, then stopped, and serving was a second command nobody had been
+  # told about. Documenting that would have been documenting a mistake in the
+  # name rather than fixing it.
+  #
+  # wrangler rather than a plain static server, because it applies _headers --
+  # so the CSP and HSTS are the real ones. A static server applies no headers
+  # at all and cannot tell a correct policy from a missing one.
+  [switch] $Serve,
+  [int] $Port = 8083
 )
 
 $ErrorActionPreference = 'Stop'
@@ -125,14 +144,22 @@ Copy-Item -Recurse -Force (Join-Path $repo 'build\web\*') (Join-Path $pub 'app')
 
 $mb = '{0:N1}' -f ((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum / 1MB)
 Write-Host "`nAssembled build\publish ($mb MB)" -ForegroundColor Green
-Write-Host @"
+if ($Serve) {
+  Write-Host "`nServing on http://localhost:$Port  (Ctrl+C to stop)" -ForegroundColor Cyan
+  Write-Host "This is LOCAL. It does not change https://manaline.pages.dev --" -ForegroundColor DarkGray
+  Write-Host "that only changes when somebody runs 'wrangler pages deploy'." -ForegroundColor DarkGray
+  & npx --yes wrangler pages dev $pub --port $Port
+} else {
+  Write-Host @"
 
-Serve it:
-  mana-publish           static server on 8082  -- layout only, no _headers
-  mana-publish-wrangler  wrangler on 8083       -- applies _headers, so CSP
-                                                   and HSTS are real
+Nothing is being served yet. Either:
 
-Both are in .claude/launch.json. The wrangler one is what production
-actually does; the static one is faster and cannot tell you anything
-about headers.
+  re-run with -Serve                       starts wrangler on $Port for you
+  npx wrangler pages dev build\publish     the same thing, by hand
+
+and then open http://localhost:$Port.
+
+LOCAL IS NOT LIVE. https://manaline.pages.dev only changes when somebody
+runs: npx wrangler pages deploy build\publish --project-name manaline --branch main
 "@
+}

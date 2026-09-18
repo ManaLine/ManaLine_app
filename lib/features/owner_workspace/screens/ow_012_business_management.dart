@@ -984,6 +984,22 @@ class _OperatingAreasTabState extends ConsumerState<_OperatingAreasTab> {
             ),
           ],
         ),
+        // MERGE LIVES HERE because a merge is an areas question. The one thing
+        // that can refuse it is the two villages being worked by different
+        // areas, and this is the screen where that is fixed.
+        //
+        // A link rather than a button: most books have no duplicates, and the
+        // screen says so plainly when opened. Putting a count here would mean
+        // running the similarity scan on every visit to this tab.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: () => context.push(
+                '/village-merge?businessId=${widget.businessId}'),
+            icon: const Icon(Icons.merge_type, size: 18),
+            label: ManaText.raw(ref.t('merge_villages')),
+          ),
+        ),
         const SizedBox(height: ManaSpacing.sm),
         if (areas.isEmpty)
           ManaText.raw(

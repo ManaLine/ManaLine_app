@@ -167,6 +167,7 @@ const manaAppFunctions = <String>{
   'day_closure_expected', 'deactivate_operating_area',
   'decide_agent_bf_request', 'decide_extension', 'decide_membership_request',
   'delete_investment', 'disable_own_account', 'discover_businesses',
+  'duplicate_village_candidates',
   'edit_investment', 'ensure_agent_bf_assignment', 'find_or_create_location',
   'find_or_create_village', 'find_potential_duplicate_customers',
   'get_investment_statement', 'global_person_search', 'grant_agent_bf',
@@ -181,7 +182,8 @@ const manaAppFunctions = <String>{
   'list_agent_areas',
   'list_recent_deletes', 'loan_penalty_eligible_from', 'lock_migration',
   'mana_interest', 'may_delete_records', 'membership_belongs_to_current_person',
-  'membership_is_active', 'migrate_loan', 'migrated_expense_lines',
+  'membership_is_active', 'merge_villages', 'migrate_loan',
+  'migrated_expense_lines',
   'migration_assert_open', 'migration_clear_derived_days',
   'migration_create_areas', 'migration_customer_positions',
   'migration_import_active', 'migration_plan_gaps',
@@ -241,6 +243,7 @@ const manaAppFunctions = <String>{
   'sync_person_name', 'tg_recompute_day_ledger',
   'tg_loan_status_follows_balance', 'update_collection_gps',
   'update_customer_address_from_gps', 'update_loan_gps', 'village_at_point',
+  'village_merge_blocked_reason',
   'waive_loan_penalty', 'withdraw_from_investment',
 };
 

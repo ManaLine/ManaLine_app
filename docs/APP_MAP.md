@@ -24,12 +24,12 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 
 | | |
 |---|---|
-| Routes declared | 87 |
-| Routes that build a screen | 86 |
+| Routes declared | 88 |
+| Routes that build a screen | 87 |
 | Routes that only redirect | 1 |
-| Distinct screen widgets | 77 |
+| Distinct screen widgets | 78 |
 | Literal navigation call sites | 407 |
-| On the handset only | 52 |
+| On the handset only | 53 |
 | On the restricted web build | 35 |
 
 ## Login & Registration
@@ -157,6 +157,7 @@ are in `docs/APP_FLOWS.md` §"Where things go".
 | `/recent-deletes` | `RecentDeletesScreen` | `shared/widgets/recent_deletes_screen.dart` | — | handset | **nothing** | **no** |
 | `/settings` | `SettingsScreen` | `shared/settings_screen.dart` | — | both | 11 via path | yes |
 | `/subscription` | `SubscriptionScreen` | `features/owner_workspace/screens/subscription_screen.dart` | — | both | 4 via path | yes |
+| `/village-merge` | `ManaVillageMergeScreen` | `shared/village_merge_screen.dart` | — | handset | **nothing** | yes |
 | `/web-home` | `ManaWebHomeScreen` | `features/web/screens/web_home_screen.dart` | — | web | 16 via path | yes |
 
 ## Who navigates where
@@ -743,7 +744,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `features/owner_workspace/screens/ow_002_workforce_management.dart:163` (`push`)
 - `features/owner_workspace/screens/ow_003_investor_management.dart:148` (`push`)
 - `features/owner_workspace/screens/ow_012_business_management.dart:568` (`push`)
-- `features/owner_workspace/screens/ow_012_business_management.dart:1418` (`push`)
+- `features/owner_workspace/screens/ow_012_business_management.dart:1434` (`push`)
 - `features/owner_workspace/screens/ow_018_business_migration.dart:316` (`push`)
 - `shared/widgets/workspace_actions.dart:203` (`listed`)
 
@@ -820,6 +821,7 @@ before assuming either:
 - `/ag-003`
 - `/recent-deletes`
 - `/sp-001`
+- `/village-merge`
 
 **Navigation targets with no matching route** — each one is a
 dead end at runtime, not a compile error:

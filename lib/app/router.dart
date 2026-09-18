@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../shared/customer_profile_screen.dart';
+import '../shared/village_merge_screen.dart';
 import '../shared/widgets/workspace_actions.dart' show ManaMemberKind;
 import 'package:go_router/go_router.dart';
 import 'design_showcase_screen.dart';
@@ -340,6 +341,15 @@ final manaRouter = GoRouter(
         businessId: _resolveBusinessId(s),
         migrationEntry: s.uri.queryParameters['migration'] == '1',
       ),
+    ),
+    // Two entries for one village. Reached from the Operating Areas tab,
+    // because that is the screen where villages and the areas that work them
+    // are looked at together, and the one refusal a merge can hit is an areas
+    // question.
+    GoRoute(
+      path: '/village-merge',
+      builder: (c, s) =>
+          ManaVillageMergeScreen(businessId: _resolveBusinessId(s)),
     ),
     // A CUSTOMER'S OWN DETAILS, readable from anywhere that knows a customer
     // id. The collection row pushes this screen directly rather than by route

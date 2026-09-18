@@ -430,12 +430,24 @@ suspect them before you suspect the old code.
   have made a day impossible to close.
 - **The Line Pending List**, reached from the record book. (The code and
   two migrations cite "design document 2.6.1.1" — that is the owner's own
-  PDF, which is NOT in this repo. Ask for it; several screens are built
-  from it, including the account sheet on page 9 and the QR/UPI display
-  on page 5 that is specified and not built.) `app.line_pending_list` with a date range, a minimum
+  PDF, which is NOT in this repo. Ask for it: several screens are built
+  from it, including the account sheet on page 9. Page 5's QR/UPI display
+  was the last thing specified-and-unbuilt, and it shipped on 2026-09-18 —
+  so what remains unbuilt from that document is Today's Balance List
+  (2.2.3) and the Loan Requests list (2.2.4), neither of which has been
+  started.) `app.line_pending_list` with a date range, a minimum
   balance and a minimum number of overdue periods. "Pending weeks" means
   instalments **overdue**, not instalments remaining — the easy reading
   calls a daily loan 984 weeks pending.
+- **A customer can be shown where to pay** (2.2.1). The Owner sets a QR and
+  UPI IDs under Business Management → Payment Details; the agent taps **Show
+  To Pay** at the front of the collection round's filter rail and turns the
+  phone around. Stored on `businesses` (`upi_qr_path`, `upi_ids`), because
+  that table already had the two rules this needs — owner writes, active
+  member reads. The bucket `business-payment-qr` accepts **PNG as well as
+  JPEG**, which nothing else in this app does: a QR is read by a machine, and
+  a code compressed until its modules blur does not degrade, it stops
+  scanning — silently, at a door, with the customer waiting.
 - **Temporary IDs can be made permanent.** A customer entered from a paper
   book has an MLTI; adding an Aadhaar mints an MLPI.
   `app.convert_customer_to_mlpi` does it, writing `person_id_history`,

@@ -213,6 +213,7 @@ const manaAppFunctions = <String>{
   'deletable_business_date',
   'locked_period_reason',
   'profile_completeness',
+  'upi_ids_are_valid',
   'loan_float_position',
   'refresh_business_figures',
   'transferable_agents',

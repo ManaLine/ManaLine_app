@@ -38,7 +38,14 @@ import 'package:flutter_test/flutter_test.dart';
 const _census = <String, int>{
   // The stored-file contract. These columns hold object paths, not URLs, and
   // a consumer that forgets draws an empty box. Sixteen sites, three updated.
-  'ManaStoredFile': 11,
+  // 11 -> 13 on 2026-09-18: payment_details_sheet.dart and
+  // payment_details_editor.dart, the QR display and its editor. Both were
+  // opened and checked against the contract before this number moved, which
+  // is what this test is for: the column stores a storage PATH
+  // (`businesses.upi_qr_path`), and each display site calls
+  // ManaStoredFile.signedUrl at render time. Neither writes a signed URL into
+  // the database, which is the failure this contract exists to prevent.
+  'ManaStoredFile': 13,
   'ManaStoredImage': 10,
   'ManaBusinessLogo': 5,
 

@@ -77,6 +77,31 @@ class ManaPhotoPreset {
     hardLimitBytes: 512 * 1024,
   );
 
+  /// A payment QR, shown to a customer so their banking app can read it.
+  ///
+  /// THE HIGHEST QUALITY OF ANY PRESET HERE, and the only one that would
+  /// rather store bytes than lose detail. Every other image in this app is
+  /// looked at by a person, who tolerates softness: a face is still that face
+  /// at quality 70. A QR is read by a MACHINE, and a code squeezed until its
+  /// modules blur does not degrade -- it stops scanning outright. The failure
+  /// is silent, it looks fine on the Owner's screen, and it surfaces at a door
+  /// with a customer waiting and their phone open.
+  ///
+  /// 1400px because a QR photographed or screenshotted from a payment app is
+  /// usually around 1000px square, and this must never scale one UP; quality
+  /// 94 because the artefacts JPEG introduces are worst exactly at the
+  /// high-contrast edges a QR is made of. The hard limit is the document's own
+  /// ceiling -- 2.2.1 says "In jpg < 1mb" -- and matches the bucket.
+  ///
+  /// A PNG under the limit should be uploaded untouched rather than run
+  /// through this at all; the bucket accepts image/png for that reason.
+  static const qr = ManaPhotoPreset(
+    maxEdge: 1400,
+    quality: 94,
+    targetBytes: 400 * 1024,
+    hardLimitBytes: 1024 * 1024,
+  );
+
   /// Customer identity and address documents. These accumulate like loan
   /// photos, but unlike a face they have to stay READABLE — an Aadhaar card
   /// compressed until the number is a smear is worth nothing at all, so this

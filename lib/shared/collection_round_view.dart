@@ -16,6 +16,7 @@ import '../features/owner_workspace/state/collection_mode_state.dart';
 import 'apply_penalty_sheet.dart';
 import 'collect_sheet.dart';
 import 'mlti_upgrade_sheet.dart';
+import 'payment_details_sheet.dart';
 import 'mlti_upgrade_state.dart';
 import 'mana_time.dart';
 import 'network_error_handler.dart';
@@ -368,6 +369,30 @@ class _ManaCollectionRoundState extends ConsumerState<ManaCollectionRound> {
                     }),
                   ),
                   filters: [
+                    // SHOW TO PAY -- design document 2.2.1. The slip on page 4
+                    // carries `* QR  * UPI` in this header row, beside the
+                    // route and the agent's name, and this is that.
+                    //
+                    // It sits at the FRONT of the rail rather than among the
+                    // filters because it is not one: the rest of this row
+                    // narrows the round, and this one turns the phone around
+                    // and shows a customer where to send money. First position
+                    // also means it stays reachable with a thumb when the rail
+                    // scrolls sideways.
+                    ActionChip(
+                      avatar: const Icon(Icons.qr_code_2_outlined, size: 18),
+                      // NO ELLIPSIS. ManaFilterRail scrolls horizontally, so
+                      // a chip is the width of its own label and has nothing
+                      // to be cut off by -- and "Show To Pay" in Telugu is
+                      // exactly the kind of longer string that would lose its
+                      // last word to one. What does not fit scrolls, which is
+                      // the whole reason the rail was built that way.
+                      label: ManaText.raw(ref.t('show_to_pay')),
+                      onPressed: () => PaymentDetailsSheet.open(
+                        context,
+                        businessId: widget.businessId,
+                      ),
+                    ),
                     _orderChip(),
                     _villageDropdown(state.sorted),
                     _sortChip(),

@@ -16,6 +16,7 @@ import '../../../design/components/mana_skeleton.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../../shared/business_name_checker.dart';
 import '../../../shared/photo_compression.dart';
+import '../../../shared/payment_details_editor.dart';
 import '../../../shared/translation_service.dart';
 import '../state/business_management_state.dart';
 import '../../login_registration/state/auth_flow_state.dart';
@@ -674,6 +675,23 @@ class _LendingRulesTab extends ConsumerWidget {
                       ? ref.t('existing_customers_only_on_note')
                       : ref.t('existing_customers_only_off_note'),
                   style: ManaType.note,
+                ),
+              ),
+              const Divider(height: 1),
+              // WHERE MONEY COMES IN -- design document 2.2.1. The Owner sets
+              // it here once; the agent shows it at every door. It sits in
+              // business settings rather than under Areas or Agents because it
+              // belongs to the book, not to a route or a person.
+              ListTile(
+                leading: const Icon(Icons.qr_code_2_outlined),
+                title: ManaText.raw(ref.t('payment_details'),
+                    style: ManaType.strong),
+                subtitle: ManaText.raw(ref.t('qr_keep_it_sharp'),
+                    style: ManaType.note),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => PaymentDetailsEditor.open(
+                  context,
+                  businessId: businessId,
                 ),
               ),
             ],

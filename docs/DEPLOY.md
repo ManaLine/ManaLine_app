@@ -115,10 +115,18 @@ Two defines decide whether the deployed app works at all, and BOTH can be
 silently wrong in a way the build output does not mention. Grep the bundle:
 
 ```bash
-grep -c '<project-ref>' build/web/main.dart.js      # expect >= 1
-grep -c 'REPLACE-ME' build/web/main.dart.js         # expect 0
-grep -c 'manaline.in' build/web/main.dart.js        # expect 0 until the domain resolves
+grep -c '<project-ref>' build/web/main.dart.js            # expect >= 1
+grep -c 'REPLACE-ME.supabase.co' build/web/main.dart.js   # expect 0
+grep -c 'REPLACE-ME-ANON-KEY' build/web/main.dart.js      # expect 0
+grep -c 'https://manaline.in' build/web/main.dart.js      # expect 0 until the domain resolves
 ```
+
+**Grep the DEFAULTS by their full names, not the bare `REPLACE-ME`.** A
+correct bundle contains `REPLACE-ME` exactly once: `isPlaceholder` compares
+against it at runtime, so the literal is an argument to `contains()` and is
+compiled in on purpose. A check that expects zero fires on every correct
+build, and a check that fires when nothing is wrong is one nobody reads.
+(Written that way here first, and caught on the next build it ran against.)
 
 **A bundle with NEITHER the project ref NOR the placeholder is the empty-define
 case.** `--dart-define=SUPABASE_URL=$URL` with `$URL` unset in the shell

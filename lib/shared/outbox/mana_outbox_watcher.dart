@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../mana_error_reporting.dart';
 import 'mana_outbox_provider.dart';
 
 /// Sends what is waiting, without anybody asking it to.
@@ -56,6 +58,27 @@ class _ManaOutboxWatcherState extends ConsumerState<ManaOutboxWatcher>
   @override
   void initState() {
     super.initState();
+
+    // NOT ON THE WEB, and this was a live bug rather than a tidy-up.
+    //
+    // manaOpenOutbox declines on the web by design -- sqflite has no web
+    // implementation -- but this watcher was mounted by main.dart's builder
+    // regardless, above every screen on both builds. Its startup flush and
+    // then its sixty-second timer each reached a store that was never opened
+    // and threw StateError, unawaited and uncaught:
+    //
+    //     Bad state: The outbox database is not open. Call open() first.
+    //
+    // That is the exception that had been appearing on every load of the
+    // deployed site. It did no visible damage -- nothing renders from a
+    // flush -- so it read as noise for days, and the count grew by one a
+    // minute for as long as a tab stayed open.
+    //
+    // The web build has no collection screen to queue anything (Plan 3a), so
+    // there is nothing here to drain and no reason to hold a timer that wakes
+    // a browser tab every minute forever.
+    if (kIsWeb) return;
+
     WidgetsBinding.instance.addObserver(this);
     _timer = Timer.periodic(widget.interval, (_) => _flush());
     // Once at startup too: the app may have been killed with collections
@@ -66,6 +89,8 @@ class _ManaOutboxWatcherState extends ConsumerState<ManaOutboxWatcher>
   @override
   void dispose() {
     _timer?.cancel();
+    // removeObserver is safe when addObserver never ran (the web path above),
+    // so this needs no matching kIsWeb guard.
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -79,7 +104,17 @@ class _ManaOutboxWatcherState extends ConsumerState<ManaOutboxWatcher>
     // Not awaited and never surfaced. This is background work: an agent
     // filling in a collection must not be interrupted by a queue draining
     // behind them, and ManaOutbox.flush already refuses to run twice at once.
-    unawaited(ref.read(manaOutboxProvider).flush());
+    //
+    // CAUGHT, THOUGH. `unawaited` on a Future that rejects is an uncaught
+    // error at the top of the zone, which is exactly how the closed-database
+    // StateError escaped to the browser console on every load. Background
+    // work failing quietly is the intent; failing loudly and pointlessly in
+    // somebody's console is not.
+    unawaited(
+      ref.read(manaOutboxProvider).flush().catchError((Object error, StackTrace stack) {
+        unawaited(manaReportError(error, stack, hint: 'outbox flush'));
+      }),
+    );
   }
 
   @override

@@ -50,6 +50,22 @@
         "8083"
       ],
       "port": 8083
+    },
+    {
+      "name": "mana-web-debug",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port",
+        "8099",
+        "-t",
+        "lib/main_web.dart",
+        "--dart-define=SUPABASE_URL=https://vjhxssqgqlvyesndubor.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqaHhzc3FncWx2eWVzbmR1Ym9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1ODE0NTcsImV4cCI6MjEwMDE1NzQ1N30.WG1b1m4EntlhX2Cx4rgsTGyVWMp5-XzYfeNFAeO5nbE"
+      ],
+      "port": 8099
     }
   ]
 }

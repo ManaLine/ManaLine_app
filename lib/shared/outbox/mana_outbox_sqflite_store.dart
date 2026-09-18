@@ -63,6 +63,16 @@ class ManaOutboxSqfliteStore implements ManaOutboxStore {
     }
   }
 
+  /// Whether [open] has succeeded.
+  ///
+  /// EXISTS BECAUSE "CLOSED" IS A NORMAL STATE, not a fault. `manaOpenOutbox`
+  /// deliberately declines on the web -- sqflite has no web implementation --
+  /// and it also swallows a genuine open failure on a handset rather than
+  /// refusing to start the app. Both leave a store that is fine and empty,
+  /// and a reader that treats that as an exception turns a designed fallback
+  /// into a crash.
+  bool get isOpen => _db != null;
+
   Database get _open {
     final db = _db;
     if (db == null) {
@@ -73,6 +83,10 @@ class ManaOutboxSqfliteStore implements ManaOutboxStore {
 
   @override
   Future<List<ManaOutboxEntry>> all() async {
+    // Nothing is queued if there is nowhere to queue it. Returning empty
+    // rather than throwing is what makes a closed outbox a quiet no-op
+    // instead of an uncaught error on every flush.
+    if (!isOpen) return const [];
     // Oldest first: the order the agent recorded them is the order they should
     // be sent and the order the queue should read. A village round is
     // chronological, and so is the paper book beside it.

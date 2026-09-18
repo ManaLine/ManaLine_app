@@ -39,8 +39,24 @@
   --font-body: -apple-system, "Segoe UI", Roboto, "Noto Sans", Helvetica,
     Arial, sans-serif;
 
-  --content-width: 40rem;
+  /* TWO MEASURES, NOT ONE. --content-width is a READING measure and stays
+     where it is: a paragraph set 1,900px wide is a paragraph nobody finishes,
+     and widening body copy is not what "use the whole screen" means.
+
+     What was wrong is that this single value governed the header, the
+     footer, the section frames and the card grids too -- so at 1920 the
+     entire page was a 640px column with 640px of white either side. --wide
+     is for the things that genuinely want the room: chrome, grids, and the
+     rules that frame a section. */
+  --content-width: 40rem;   /* prose. ~70 characters. do not grow this */
+  --wide: 72rem;            /* chrome, grids, section frames */
   --gutter: 1.25rem;
+
+  /* One curve and two durations for the whole site, so nothing moves in a
+     way nothing else moves. */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --fast: 140ms;
+  --slow: 520ms;
 }
 
 /* --- Reset -------------------------------------------------------- */
@@ -726,14 +742,125 @@ ul {
   .section__inner,
   .site-header__inner,
   .site-footer__inner {
-    max-width: 56rem;
+    max-width: var(--wide);
   }
+
+  /* The prose inside a now-wide section keeps its own measure, and sits
+     against the left edge of the frame rather than floating in the middle
+     of it -- a paragraph centred under a left-aligned heading reads as a
+     mistake. */
+  .section__inner > p,
+  .hero__lede {
+    max-width: var(--content-width);
+  }
+
+  .screens {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.75rem;
+  }
+}
+
+/* --- Motion ------------------------------------------------------------
+
+   Deliberately small: a lending business's public site is read by people
+   deciding whether to trust it with their book. Movement here is there to
+   show that the page is alive and to reward a scroll, never to perform.
+   Everything below is a fade and a few pixels of rise; nothing slides in
+   from off-screen, nothing bounces, and every one of them is switched off
+   under prefers-reduced-motion at the end of this file. */
+
+.btn {
+  transition: transform var(--fast) var(--ease),
+              box-shadow var(--fast) var(--ease),
+              background-color var(--fast) var(--ease);
+  will-change: transform;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgb(18 41 61 / 0.16);
+}
+
+/* The press has to be FASTER than the hover and travel further than it
+   started, or the button feels like it ignored the click. */
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgb(18 41 61 / 0.2);
+  transition-duration: 60ms;
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--brand-deep);
+  outline-offset: 3px;
+}
+
+.site-nav a {
+  position: relative;
+  transition: color var(--fast) var(--ease);
+}
+
+/* A rule that grows from the left rather than fading in: it reads as the
+   link being underlined, which is the thing a link already means. */
+.site-nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.25em;
+  height: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--fast) var(--ease);
+}
+
+.site-nav a:hover::after,
+.site-nav a:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.screen-card {
+  transition: transform var(--slow) var(--ease),
+              box-shadow var(--slow) var(--ease);
+}
+
+.screen-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 34px rgb(18 41 61 / 0.13);
+}
+
+/* Scroll reveal. The class is added by site.js only when IntersectionObserver
+   exists AND motion is allowed, so with JavaScript off or refused the page is
+   simply visible -- the content is never gated behind an animation. */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity var(--slow) var(--ease),
+              transform var(--slow) var(--ease);
+}
+
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
 }
 
 /* --- Reduced motion / print are not otherwise used, but stay honest ---- */
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  /* Reveal is opacity-based, so switching the transition off is not enough:
+     without this the page would stay at opacity 0 for somebody who asked for
+     less motion, which is the worst possible outcome of adding animation. */
+  .reveal {
+    opacity: 1;
+    transform: none;
   }
 }

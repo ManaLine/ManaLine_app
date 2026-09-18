@@ -713,7 +713,7 @@ proves a screen unreachable — only that nobody wrote its path.
 
 - `app/web_router.dart:104` (`listed`)
 - `app/web_router.dart:299` (`listed`)
-- `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:139` (`push`)
+- `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:140` (`push`)
 
 **`/ow-bulk-onboarding-menu`** — 5 call sites
 
@@ -803,7 +803,7 @@ proves a screen unreachable — only that nobody wrote its path.
 - `app/web_router.dart:441` (`go`)
 - `design/components/mana_app_bar.dart:182` (`go`)
 - `design/tokens/breakpoints.dart:87` (`listed`)
-- `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:221` (`listed`)
+- `features/owner_workspace/screens/ow_bulk_onboarding_menu.dart:222` (`listed`)
 - `features/web/widgets/mana_web_shell.dart:66` (`go`)
 - `features/web/widgets/mana_web_shell.dart:90` (`listed`)
 

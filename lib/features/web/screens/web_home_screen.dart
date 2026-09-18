@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../design/components/mana_motion.dart';
 import '../state/web_destinations.dart';
 import '../../../design/components/mana_form_grid.dart';
 import '../../../design/components/mana_header.dart';
@@ -64,9 +65,13 @@ class ManaWebHomeScreen extends ConsumerWidget {
                   columnsAtMedium: 2,
                   columnsAtExpanded: 3,
                   children: [
-                    for (final d in destinations)
+                    // Staggered in, and lifting under the pointer. The index
+                    // is the card's position in the grid, so the page
+                    // assembles left to right rather than all at once.
+                    for (final (i, d) in destinations.indexed)
                       _DestinationCard(
                         d,
+                        index: i,
                         onTap: () {
                           final route = d.route;
                           if (route != null) {
@@ -90,12 +95,22 @@ class ManaWebHomeScreen extends ConsumerWidget {
 class _DestinationCard extends StatelessWidget {
   final ManaWebDestination destination;
   final VoidCallback onTap;
-  const _DestinationCard(this.destination, {required this.onTap});
+  final int index;
+  const _DestinationCard(this.destination, {required this.onTap, this.index = 0});
 
   @override
   Widget build(BuildContext context) {
     final d = destination;
     final borderColor = d.isPrimary ? ManaColors.brand : ManaColors.divider;
+    return ManaEntrance(
+      index: index,
+      child: ManaHoverLift(
+        child: _body(context, d, borderColor),
+      ),
+    );
+  }
+
+  Widget _body(BuildContext context, ManaWebDestination d, Color borderColor) {
     return Material(
       color: d.isPrimary ? ManaColors.brandFaint : ManaColors.surface,
       borderRadius: BorderRadius.circular(ManaRadius.md),

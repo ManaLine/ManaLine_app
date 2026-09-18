@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../design/components/mana_app_bar.dart';
 import '../../../design/components/mana_form_grid.dart';
 import '../../../design/components/mana_logo_backdrop.dart';
+import '../../../design/components/mana_motion.dart';
 import '../../../design/components/mana_text.dart';
 import '../../../design/tokens/colors.dart';
 import '../../../design/tokens/spacing.dart';
@@ -261,8 +262,12 @@ class _BulkOnboardingMenuScreenState extends ConsumerState<BulkOnboardingMenuScr
                             columnsAtMedium: 2,
                             columnsAtExpanded: 3,
                             children: [
-                              for (final sheet in _sheets(_language))
+                              // Staggered in and lifting under the pointer,
+                              // the same way the web home's cards do -- two
+                              // pages of one website should move alike.
+                              for (final (i, sheet) in _sheets(_language).indexed)
                                 _SheetCard(
+                                  index: i,
                                   title: ref.t(sheet.titleKey),
                                   action: ref.t('get_template'),
                                   busy: _busySheet == sheet.fileName,
@@ -409,15 +414,22 @@ class _SheetCard extends StatelessWidget {
   final String action;
   final bool busy;
   final VoidCallback? onTap;
+  final int index;
   const _SheetCard({
     required this.title,
     required this.action,
     required this.busy,
+    this.index = 0,
     required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => ManaEntrance(
+        index: index,
+        child: ManaHoverLift(child: _body(context)),
+      );
+
+  Widget _body(BuildContext context) => Container(
         padding: const EdgeInsets.all(ManaSpacing.md),
         decoration: BoxDecoration(
           color: ManaColors.surface,

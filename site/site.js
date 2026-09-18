@@ -134,3 +134,53 @@
     initVideoCarousel();
   }
 })();
+
+/* --- Scroll reveal ------------------------------------------------------
+
+   Fades sections in as they arrive. Three conditions before a single element
+   is touched, and if any fails the page renders exactly as it did before:
+
+     - the visitor has not asked for reduced motion
+     - IntersectionObserver exists
+     - JavaScript ran at all
+
+   That ordering matters. The .reveal class is what makes an element
+   invisible, so it is ADDED here rather than written into the HTML -- with
+   scripts blocked, nothing ever becomes invisible in the first place. A
+   marketing page that hides its own copy behind an animation it could not
+   run is worse than one with no animation. */
+(function () {
+  'use strict';
+
+  var reduced = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced || !('IntersectionObserver' in window)) return;
+
+  function init() {
+    var targets = document.querySelectorAll(
+      '.section__inner, .screen-card, .cta-band, .hero__lede');
+    if (!targets.length) return;
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-in');
+        io.unobserve(entry.target);   // reveal once; this is not a toy
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+
+    Array.prototype.forEach.call(targets, function (el, i) {
+      el.classList.add('reveal');
+      // A small stagger inside a group, capped: by the fourth card a
+      // visitor is waiting rather than being delighted.
+      el.style.transitionDelay = Math.min(i, 3) * 60 + 'ms';
+      io.observe(el);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

@@ -4,14 +4,38 @@
     {
       "name": "mana-web",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8080", "--directory", "build/web"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8080",
+        "--directory",
+        "build/web"
+      ],
       "port": 8080
     },
     {
       "name": "mana-site",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8081", "--directory", "site"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8081",
+        "--directory",
+        "site"
+      ],
       "port": 8081
+    },
+    {
+      "name": "mana-publish",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8082",
+        "--directory",
+        "build/publish"
+      ],
+      "port": 8082
     }
   ]
-}
+}

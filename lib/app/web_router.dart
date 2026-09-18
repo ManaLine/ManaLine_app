@@ -22,6 +22,7 @@ import '../shared/login_nav_args.dart';
 import '../features/owner_workspace/screens/ow_013_account_review.dart';
 import '../features/owner_workspace/screens/ow_016_profile.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
+import '../features/owner_workspace/screens/ow_bulk_onboarding_menu.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart';
 import '../features/owner_workspace/screens/import_screen.dart';
 import '../features/owner_workspace/screens/subscription_screen.dart';
@@ -65,7 +66,8 @@ const kManaWebAllowedRoutes = <String>{
   '/lr-001', '/lr-002', '/lr-004', '/lr-005', '/lr-006', '/lr-007', '/lr-008',
   '/lr-009', '/lr-010', '/lr-011', '/lr-012', '/lr-013',
   '/web-home',
-  '/ow-013', '/ow-016', '/ow-018', '/ow-bulk-onboarding', '/import', '/subscription',
+  '/ow-013', '/ow-016', '/ow-018', '/ow-bulk-onboarding', '/ow-bulk-onboarding-menu',
+  '/import', '/subscription',
   '/ag-009',
   '/cw-004', '/cw-006',
   '/iw-003', '/iw-005',
@@ -148,6 +150,14 @@ final manaWebRouter = GoRouter(
     GoRoute(
       path: '/ow-018',
       builder: (c, s) => BusinessMigrationScreen(businessId: _resolveBusinessId(s)),
+    ),
+    // The website's front page for bulk onboarding, and the one thing the
+    // handset signpost promises by name: download the sheets, then bring
+    // them back a step at a time. Registered on both routers building the
+    // same class, per the web/Android agreement above.
+    GoRoute(
+      path: '/ow-bulk-onboarding-menu',
+      builder: (c, s) => BulkOnboardingMenuScreen(businessId: _resolveBusinessId(s)),
     ),
     GoRoute(
       path: '/ow-bulk-onboarding',

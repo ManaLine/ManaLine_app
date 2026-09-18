@@ -19,6 +19,7 @@ import '../../../shared/idempotency.dart';
 import '../../../shared/mana_time.dart';
 import '../../../shared/network_error_handler.dart';
 import '../../login_registration/state/auth_flow_state.dart';
+import '../state/bulk_onboarding_pages.dart';
 import '../state/bulk_onboarding_service.dart';
 import '../state/cheti_state.dart';
 import 'ow_019_cheti_management.dart';
@@ -68,53 +69,6 @@ Map<int, String> manaDecideAllDuplicates(
   String decision,
 ) =>
     {for (final d in duplicates) d.row: decision};
-
-/// The pages the wizard can show, in order.
-///
-/// Which of them an Owner actually sees depends on what they said their book
-/// contains — see [_WizardPage] and the chooser. Two are always shown: the
-/// plan itself, and the identities, because a book with nobody in it is not a
-/// book.
-///
-/// Areas & Villages used to sit second. It derived the village list from the
-/// identity sheet and then asked the Owner to place each one — AFTER the
-/// identities that needed those villages had already been imported.
-/// bulk_import_identities said as much, refusing a customer with "add it on
-/// the Areas & Villages step first" about a step that came later. Villages and
-/// areas are now set up before the wizard is opened, the identity sheet offers
-/// them as a dropdown, and a village typed in fresh is created by the import.
-enum _WizardPage {
-  plan('What Your Book Has'),
-  identities('Identities'),
-  investors('Investors'),
-  customers('Customers'),
-  agents('Agents'),
-  snapshot('Opening Snapshot'),
-  weekly('Weekly Account'),
-  finish('Finish');
-
-  const _WizardPage(this.title);
-  final String title;
-}
-
-/// The pages this book needs, given what the Owner said it has.
-///
-/// Shareholders share the Investors page, so that page shows if either was
-/// ticked. Instalment history is part of the Customers sheet rather than a
-/// page of its own; it changes what that page says, not whether it appears.
-List<_WizardPage> _pagesFor(MigrationPlan? plan) {
-  if (plan == null) return const [_WizardPage.plan];
-  return [
-    _WizardPage.plan,
-    _WizardPage.identities,
-    if (plan.investors || plan.shareholders) _WizardPage.investors,
-    if (plan.customers) _WizardPage.customers,
-    if (plan.attendance) _WizardPage.agents,
-    _WizardPage.snapshot,
-    if (plan.weekly) _WizardPage.weekly,
-    _WizardPage.finish,
-  ];
-}
 
 class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizardScreen> {
   int _step = 0;
@@ -169,7 +123,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   /// Resuming can land straight on page 3 without a page turn, so the
   /// investor list is fetched there too.
   void _loadForStep(int step) {
-    if (_pages[step.clamp(0, _pages.length - 1)] == _WizardPage.investors) {
+    if (_pages[step.clamp(0, _pages.length - 1)] == ManaBulkPage.investors) {
       unawaited(_loadInvestorCandidates());
     }
   }
@@ -353,8 +307,8 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   // being shared out, which the Owner may declare lower than the computed one.
   final _declaredShareProfit = TextEditingController();
 
-  List<_WizardPage> get _pages => _pagesFor(_plan);
-  _WizardPage get _page => _pages[_step.clamp(0, _pages.length - 1)];
+  List<ManaBulkPage> get _pages => manaBulkPagesFor(_plan);
+  ManaBulkPage get _page => _pages[_step.clamp(0, _pages.length - 1)];
 
   String get _language => ref.read(authFlowProvider).language.enumValue;
   BulkOnboardingService get _svc => ref.read(bulkOnboardingServiceProvider);
@@ -482,7 +436,7 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
   }
 
   /// Writes the people. Villages they name are created by the import itself
-  /// now that Areas & Villages is gone — see the note on _WizardPage.
+  /// now that Areas & Villages is gone — see the note on ManaBulkPage.
   Future<void> _saveIdentities() async {
     final parse = _identityParse;
     if (parse == null) {
@@ -1008,14 +962,14 @@ class _BulkOnboardingWizardScreenState extends ConsumerState<BulkOnboardingWizar
                     // depends on what the Owner said their book has, so an
                     // index means nothing on its own.
                     switch (_page) {
-                      _WizardPage.plan => _planSection(),
-                      _WizardPage.identities => _identitiesSection(),
-                      _WizardPage.investors => _investorsSection(),
-                      _WizardPage.customers => _customersSection(),
-                      _WizardPage.agents => _agentsSection(),
-                      _WizardPage.snapshot => _snapshotSection(),
-                      _WizardPage.weekly => _weeklySection(),
-                      _WizardPage.finish => _finishSection(),
+                      ManaBulkPage.plan => _planSection(),
+                      ManaBulkPage.identities => _identitiesSection(),
+                      ManaBulkPage.investors => _investorsSection(),
+                      ManaBulkPage.customers => _customersSection(),
+                      ManaBulkPage.agents => _agentsSection(),
+                      ManaBulkPage.snapshot => _snapshotSection(),
+                      ManaBulkPage.weekly => _weeklySection(),
+                      ManaBulkPage.finish => _finishSection(),
                     },
                   ],
                 ),

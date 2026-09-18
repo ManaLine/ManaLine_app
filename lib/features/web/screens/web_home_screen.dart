@@ -110,7 +110,12 @@ class ManaWebHomeScreen extends ConsumerWidget {
           // is looking for these words. Reaching it only through OW-018 would
           // mean the instruction "choose Bulk Onboarding from the menu" was
           // not true of the menu they land on.
-          _Destination(icon: Icons.table_chart_outlined, title: ref.t('bulk_onboarding'), onTap: () => go('/ow-bulk-onboarding')),
+          //
+          // It leads to the MENU, not to the wizard. Page 1 of the wizard is a
+          // chooser asking what the book contains, which answers a different
+          // question from "what do I do here" -- and the sheets an Owner came
+          // to this laptop to download are all on the menu, in one place.
+          _Destination(icon: Icons.table_chart_outlined, title: ref.t('bulk_onboarding'), onTap: () => go('/ow-bulk-onboarding-menu')),
           _Destination(icon: Icons.workspace_premium_outlined, title: ref.t('subscription'), onTap: () => go('/subscription')),
           profile('/ow-016'),
           settings,

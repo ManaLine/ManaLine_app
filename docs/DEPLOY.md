@@ -46,6 +46,26 @@ flutter build web -t lib/main_web.dart --base-href /app/ \
   absent from the web build. Building with the default `lib/main.dart`
   entrypoint would ship the full app, including screens never meant to be
   reachable from a browser.
+- **RUN THE BUILD FROM POWERSHELL, NOT GIT BASH** (found 2026-09-18, on the
+  machine this project is developed on). Git Bash is MSYS, and MSYS rewrites
+  an argument that looks like a Unix absolute path into a Windows one: typed
+  in Git Bash, `--base-href /app/` arrives as
+  `--base-href "C:/Program Files/Git/app/"`. Flutter prints
+
+  ```
+  Received a --base-href value of "C:/Program Files/Git/app/"
+  --base-href should start and end with /
+  ```
+
+  and then **builds anyway**, producing a `build/web/index.html` that still
+  says `<base href="/">` — the exact broken artifact the next bullet is about,
+  with a warning instead of an error in front of it. Use
+  `powershell -NoProfile -Command "flutter build web ..."`, or prefix the
+  command with `MSYS_NO_PATHCONV=1`. Always confirm afterwards:
+
+  ```bash
+  grep -o '<base href="[^"]*"' build/web/index.html    # must print /app/
+  ```
 - **`--base-href /app/`** — required, and easy to forget. Without it the
   build's `<base href="/">` stays `/`, so `flutter_bootstrap.js` and every
   asset resolve against the site root instead of `/app/`, and the app fails
@@ -80,6 +100,25 @@ cp -r site/* /tmp/publish/
 mkdir -p /tmp/publish/app
 cp -r build/web/* /tmp/publish/app/
 ```
+
+**A repo-local copy, for checking the layout without Cloudflare.**
+`build/publish` is the same assembly under the git-ignored `build/`
+directory, and `.claude/launch.json` has a `mana-publish` entry that serves
+it on port 8082:
+
+```bash
+powershell -NoProfile -Command "flutter build web -t lib/main_web.dart --base-href /app/ --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY"
+```
+
+then copy `site/*` to `build/publish/` and `build/web/*` to
+`build/publish/app/`, and open the `mana-publish` preview at
+`http://localhost:8082/app/`.
+
+**This checks the LAYOUT, not the headers.** A plain static server applies
+no `_headers` at all, so it proves the base href and the two directories
+sit where they should, and proves nothing whatever about the CSP. For that
+it has to be `wrangler pages dev`, as the Verification section below
+records.
 
 `/tmp/publish` now has `_headers`, `_redirects` (if present), `index.html`,
 etc. at its root (the static site) and everything from `build/web` under
@@ -236,6 +275,35 @@ is live:
    carry the two different CSPs — a redeploy that merges `_headers`
    wrongly will pass step 2 from cache and still be broken for a fresh
    visitor.
+
+## Re-verified 2026-09-18, with one open question
+
+The artifact was rebuilt and reassembled on the day the bulk-onboarding menu
+was added (86 routes). What was checked, and what was not:
+
+| Checked | Result |
+|---|---|
+| `--base-href /app/` survives the build | Only from PowerShell — see the trap above |
+| `build/publish` layout, served on 8082 | `/app/` loads, `<base href="/app/">`, workspace-choice screen renders |
+| Translations reach the browser | Real strings, not raw keys — so the `--dart-define` values are in the bundle |
+| Hash routing under `/app/` | `#/lr-002` and `#/settings` both resolve; a signed-out visit to `#/ow-bulk-onboarding-menu` redirects to the workspace choice, which is the guard doing its job |
+| The CSP | **NOT checked this time.** A static server applies no `_headers`. The third-pass result above stands and was not re-run |
+| Bundle size | 46.7 MB for both halves together, CanvasKit included |
+
+**ONE UNCAUGHT DART EXCEPTION AT BOOTSTRAP, and it is not understood.**
+Loading `/app/` logs exactly one `Uncaught {dartException: ...}` from
+`main.dart.js` and then carries on: the app paints, routes and reads
+translations normally. It reproduces on a build made BEFORE the menu existed,
+so it is not from that work, and it is not in this file's earlier
+"zero console errors" pass — which used `wrangler pages dev` rather than a
+plain static server, so the two runs are not comparable and neither one
+disproves the other.
+
+Do not treat this as cosmetic because the app looks fine. A caught-and-ignored
+failure at startup is how an app ends up silently running without a piece of
+itself. The next person to open this file should reproduce it under
+`wrangler pages dev` with a source-mapped (`--profile`) build, which is what
+will name the throwing frame.
 
 ## Rollback
 

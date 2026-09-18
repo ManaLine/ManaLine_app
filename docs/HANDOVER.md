@@ -453,7 +453,36 @@ suspect them before you suspect the old code.
   on Android AND a shared path to resolve to the SAME widget class on both,
   which is what makes a bug fixed once fixed everywhere a screen is reachable.
   The removal is a cut LINK, not a forked screen, and a test asserts that
-  nothing outside the two routers and `lib/features/web/` navigates there.
+  nothing outside the two routers, `lib/features/web/` and the menu below
+  navigates there.
+
+  **The website's front door for it is the MENU** (`/ow-bulk-onboarding-menu`,
+  `ow_bulk_onboarding_menu.dart`), not the wizard, and the split between the
+  two is the whole design rather than a layer of chrome:
+
+  | | Where | Why there |
+  |---|---|---|
+  | Download the sheets | Menu | Orderless and writes nothing. An Owner at a laptop wants all of them in one sitting, then fills them in over a week |
+  | Bring a filled sheet back | Wizard | Ordered and writes money. A customer's address needs a village that exists; a loan needs a person. The parse, the duplicate review and the commit all live there already |
+
+  `bulk_onboarding_menu_test.dart` fails if an importer ever appears in the
+  menu — a second write path for money the wizard already owns is the thing
+  that must not happen here.
+
+  The menu hands over by writing `app.migration_wizard_step` and pushing the
+  wizard, which restores it. That is the SAME pointer that makes resuming on
+  another device work, so there is one mechanism, not two. Both files read
+  the step list from `manaBulkPagesFor` in
+  `state/bulk_onboarding_pages.dart` — it was private to the wizard until
+  2026-09-18, and two copies would have agreed right up until a page was
+  added and then sent "Customers" to the Agents page.
+
+  **Watch the translation keys on this screen.** `ui_translations.open` is
+  Telugu "తెరిచి ఉంది", which means "IS open" — correct for a loan's status,
+  and it would have labelled the menu's button "Is Open" for every Telugu
+  reader while reading perfectly in English. `bulk_menu_open_step` exists for
+  that reason (migration `20260918120120`). Reusing a key because the English
+  matches is not the same as reusing a word.
 - **A customer can be shown where to pay** (2.2.1). The Owner sets a QR and
   UPI IDs under Business Management → Payment Details; the agent taps **Show
   To Pay** at the front of the collection round's filter rail and turns the

@@ -41,6 +41,7 @@ import '../features/owner_workspace/screens/ow_trash_screen.dart';
 import '../features/owner_workspace/screens/ow_018_business_migration.dart';
 import '../features/owner_workspace/screens/ow_019_cheti_management.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_on_web.dart';
+import '../features/owner_workspace/screens/ow_bulk_onboarding_menu.dart';
 import '../features/owner_workspace/screens/ow_bulk_onboarding_wizard.dart';
 import '../features/owner_workspace/screens/backup_screen.dart';
 import '../features/owner_workspace/screens/import_screen.dart';
@@ -493,6 +494,14 @@ final manaRouter = GoRouter(
     // right there and telling somebody to go to the website they are already
     // on would be absurd. The guard only constrains web -> Android, so an
     // Android-only route is allowed.
+    // The website's front page for bulk onboarding, and the one thing the
+    // handset signpost promises by name: download the sheets, then bring
+    // them back a step at a time. Registered on both routers building the
+    // same class, per the web/Android agreement above.
+    GoRoute(
+      path: '/ow-bulk-onboarding-menu',
+      builder: (c, s) => BulkOnboardingMenuScreen(businessId: _resolveBusinessId(s)),
+    ),
     GoRoute(
       path: '/ow-bulk-onboarding-web',
       builder: (c, s) => BulkOnboardingOnWebScreen(businessId: _resolveBusinessId(s)),

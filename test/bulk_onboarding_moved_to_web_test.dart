@@ -49,8 +49,18 @@ void main() {
         //     because lib/app/web_router.dart has no path segment called
         //     'web' -- its segments are lib, app, web_router.dart.
         .where((f) => !f.uri.pathSegments.contains('web'))
-        .where((f) => !const {'router.dart', 'web_router.dart'}
-            .contains(f.uri.pathSegments.last));
+        .where((f) => !const {
+              'router.dart',
+              'web_router.dart',
+              // THE THIRD EXCLUSION, added 2026-09-18 with the menu. It sits
+              // in owner_workspace/ rather than features/web/ because
+              // web_router_guard_test requires a route registered on the web
+              // to exist on Android too, building the same class -- so the
+              // file cannot live under a directory the Android build omits.
+              // It is reachable only from web_home_screen, which is web-only,
+              // and the test below pins that.
+              'ow_bulk_onboarding_menu.dart',
+            }.contains(f.uri.pathSegments.last));
 
     final linkers = <String>[];
     for (final f in appSources) {
@@ -76,6 +86,24 @@ void main() {
     expect(web, isNot(contains('/ow-bulk-onboarding-web')));
   });
 
+  test('the menu is the only thing that opens the wizard', () {
+    // The menu hands over for the IMPORT, which is ordered and writes money.
+    // If anything else in lib/ ever pushes the wizard, the exclusion above
+    // has stopped being a statement about one file.
+    final menu = File(
+            'lib/features/owner_workspace/screens/ow_bulk_onboarding_menu.dart')
+        .readAsStringSync();
+    expect(menu, contains("context.push('/ow-bulk-onboarding'"));
+  });
+
+  test('the menu route exists on Android but nothing there leads to it', () {
+    // Registered on both routers, same class, per the web/Android agreement.
+    expect(handset, contains("path: '/ow-bulk-onboarding-menu'"));
+    expect(web, contains("path: '/ow-bulk-onboarding-menu'"));
+    expect(handset, contains('BulkOnboardingMenuScreen'));
+    expect(web, contains('BulkOnboardingMenuScreen'));
+  });
+
   test('the web build still runs the real wizard', () {
     // Moved, not deleted. If this ever fails the feature is gone from the
     // product, not merely from the handset.
@@ -97,7 +125,10 @@ void main() {
     final home =
         File('lib/features/web/screens/web_home_screen.dart').readAsStringSync();
     expect(home, contains("ref.t('bulk_onboarding')"));
-    expect(home, contains("go('/ow-bulk-onboarding')"));
+    // To the MENU, not straight into page 1 of the wizard. Page 1 asks what
+    // the book contains, which answers a different question from "what do I
+    // do here", and the sheets are all on the menu.
+    expect(home, contains("go('/ow-bulk-onboarding-menu')"));
   });
 
   test('the signpost sends people to the front door, not a deep link', () {

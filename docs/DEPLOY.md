@@ -109,6 +109,26 @@ flutter build web -t lib/main_web.dart --base-href /app/ \
   without re-verifying the CSP — the script-src/connect-src rules below are
   shaped around CanvasKit's specific loading behavior.
 
+### One command that does all of it
+
+```bash
+powershell -ExecutionPolicy Bypass -File tool\serve_web.ps1
+```
+
+Reads the credentials from `run.ps1.txt` rather than asking you to type them,
+builds, runs the artefact checks below, and assembles `build/publish`. It
+REFUSES to assemble when a check fails, so a bundle that would be broken once
+served does not reach the upload step.
+
+`-SiteUrl https://example.com` overrides `MANA_SITE_URL`; leave it off for
+testing and the default is the free origin that is actually serving.
+`-BaseHref /` serves the app alone on a local port instead of under `/app/`.
+
+**The free origin is the point for testing.** `manaline.pages.dev` costs
+nothing, is already live, and is what `mana_site.dart` defaults to. A domain
+is a launch decision, not a testing prerequisite — buy one when the app ships
+and flip it with the one define.
+
 ### Check the artefact before uploading it
 
 Two defines decide whether the deployed app works at all, and BOTH can be

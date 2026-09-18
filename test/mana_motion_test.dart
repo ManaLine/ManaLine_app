@@ -142,6 +142,18 @@ void main() {
       }
     });
 
+    test('the reveal fails OPEN if the observer never reports', () {
+      // Measured on the deployed site: a fresh IntersectionObserver emitted
+      // nothing at all, not even the initial isIntersecting:false record it
+      // is specified to, and ten sections sat at opacity 0 on production.
+      // A decoration that hides content must not depend on a callback.
+      final js = File('site/site.js').readAsStringSync();
+      expect(js, contains('failsafe'));
+      expect(js, contains('revealAll'),
+          reason: 'there must be a path that shows everything without the '
+              'observer having said anything');
+    });
+
     test('prose keeps a reading measure even though the page got wider', () {
       // "Use every inch" must not become "set body copy 1,900px wide".
       final css = File('site/style.css').readAsStringSync();

@@ -137,18 +137,29 @@
 
 /* --- Scroll reveal ------------------------------------------------------
 
-   Fades sections in as they arrive. Three conditions before a single element
-   is touched, and if any fails the page renders exactly as it did before:
+   Fades sections in as they arrive.
 
-     - the visitor has not asked for reduced motion
-     - IntersectionObserver exists
-     - JavaScript ran at all
+   THE HARD RULE: THIS MAY NEVER BE THE REASON SOMETHING CANNOT BE READ.
+   The .reveal class works by setting opacity to 0, so every path that fails
+   to take it back off leaves a blank page with nothing logged. There are
+   three such paths and all three are handled here:
 
-   That ordering matters. The .reveal class is what makes an element
-   invisible, so it is ADDED here rather than written into the HTML -- with
-   scripts blocked, nothing ever becomes invisible in the first place. A
-   marketing page that hides its own copy behind an animation it could not
-   run is worse than one with no animation. */
+     1. Reduced motion, or no IntersectionObserver  -> never start.
+     2. Scripts blocked entirely                    -> .reveal is added by
+        THIS file, so with no JS nothing is ever hidden in the first place.
+     3. The observer exists but its callback never runs.
+
+   (3) is not hypothetical. Measured on the deployed site: a freshly
+   constructed IntersectionObserver did not emit even the initial
+   isIntersecting:false record it is specified to, and ten sections sat at
+   opacity 0 on live production. Whether that was the page or the automated
+   browser looking at it, the honest conclusion is the same -- a decoration
+   must not depend on a callback arriving.
+
+   So there is a FAILSAFE: if the observer has not reported anything within
+   1.2s of setup, everything is revealed and the observer is thrown away. The
+   animation is lost, the content is not, and that is the correct trade every
+   time. */
 (function () {
   'use strict';
 
@@ -157,24 +168,46 @@
   if (reduced || !('IntersectionObserver' in window)) return;
 
   function init() {
-    var targets = document.querySelectorAll(
-      '.section__inner, .screen-card, .cta-band, .hero__lede');
+    var targets = Array.prototype.slice.call(document.querySelectorAll(
+      '.section__inner, .screen-card, .cta-band, .hero__lede'));
     if (!targets.length) return;
 
-    var io = new IntersectionObserver(function (entries) {
+    var io = null;
+    var failsafe = null;
+    var heard = false;
+
+    function show(el) { el.classList.add('is-in'); }
+
+    function revealAll() {
+      if (io) { io.disconnect(); io = null; }
+      targets.forEach(show);
+    }
+
+    io = new IntersectionObserver(function (entries) {
+      heard = true;
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
-        entry.target.classList.add('is-in');
-        io.unobserve(entry.target);   // reveal once; this is not a toy
+        show(entry.target);
+        if (io) io.unobserve(entry.target);   // reveal once; not a toy
       });
     }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
 
-    Array.prototype.forEach.call(targets, function (el, i) {
+    targets.forEach(function (el, i) {
       el.classList.add('reveal');
-      // A small stagger inside a group, capped: by the fourth card a
-      // visitor is waiting rather than being delighted.
+      // A small stagger inside a group, capped: by the fourth card a visitor
+      // is waiting rather than being delighted.
       el.style.transitionDelay = Math.min(i, 3) * 60 + 'ms';
       io.observe(el);
+    });
+
+    failsafe = setTimeout(function () {
+      if (!heard) revealAll();
+    }, 1200);
+
+    // Nothing here should keep a page alive on the way out.
+    window.addEventListener('pagehide', function () {
+      clearTimeout(failsafe);
+      if (io) io.disconnect();
     });
   }
 

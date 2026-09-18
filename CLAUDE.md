@@ -455,6 +455,35 @@ next action is a performance review nobody asked for.
 the next rating and say which tasks landed -- a score that moved without work
 behind it means the measurement drifted, not the app.
 
+## Before deploy — blocking
+
+### Aadhaar lock — PRIORITY HIGH, not yet defined
+
+The Owner, 2026-09-18, verbatim:
+
+> "Aadhaar lock for users to be introduced before app deploy - add it in
+> claude.md - priority high."
+
+**Recorded here rather than implemented, because the word "lock" has at least
+three plausible meanings in this schema and the wrong one is worse than
+none.** Aadhaar is the load-bearing identity fact in this app: `MLPI` is
+`MLPI + gender_digit + last 8 of Aadhaar`, deterministic, and the number is
+hashed at rest with only the last four kept. So a "lock" could mean:
+
+- the number cannot be CHANGED once an MLPI has been minted from it, because
+  changing it would silently mint a different person;
+- a person cannot be registered twice against the same Aadhaar, enforced
+  server-side rather than by a screen;
+- the field is masked/withheld from agents, and only an Owner may see or
+  enter it.
+
+Each is a different change in a different layer, and the first two are
+irreversible on live data. **Ask before building.** Whichever it is, it is a
+money-adjacent identity rule and belongs in an RPC and a CHECK, not only in
+a form — an app-layer lock is a suggestion.
+
+This is a deploy blocker, so it outranks anything cosmetic in the queue.
+
 ## Session start checklist
 
 1. Read CLAUDE.md

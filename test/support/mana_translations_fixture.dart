@@ -1429,6 +1429,12 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   },
   'male': {'English': 'Male', 'Telugu': 'పురుషుడు'},
   'female': {'English': 'Female', 'Telugu': 'స్త్రీ'},
+  // Vendored from ui_translations 2026-09-19, same as its two siblings. It
+  // was missing while OW-014 was already calling ref.t('others'), so the
+  // layout tests were measuring the raw key -- six ASCII characters where
+  // production draws seven Telugu glyphs, which is the narrower of the two
+  // and therefore the direction that hides an overflow.
+  'others': {'English': 'Others', 'Telugu': 'ఇతరులు'},
 
   // --- OW-004 Customer Management phase-1 wiring (migrations
   // 20260807185304 / 20260807185710) — English/Telugu only.

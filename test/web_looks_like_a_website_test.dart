@@ -130,6 +130,31 @@ void main() {
       expect(File('web/favicon.png').existsSync(), isTrue);
     });
 
+    test('HSTS is set, and not set to something irreversible', () {
+      // max-age is a promise a browser HOLDS: for its duration that browser
+      // refuses to reach the host over HTTP at all, and there is no way to
+      // reach back and withdraw it. So the value ramps deliberately, and the
+      // two directives that cannot be undone by a deploy stay off until
+      // somebody decides they want them.
+      final headers = File('site/_headers').readAsStringSync();
+      expect(headers, contains('Strict-Transport-Security'));
+
+      final preload = RegExp(r'^\s*Strict-Transport-Security:.*preload', multiLine: true);
+      expect(preload.hasMatch(headers), isFalse,
+          reason: 'preload ships the domain inside browser binaries and takes '
+              'months to undo — it is the one setting here a deploy cannot '
+              'reverse, so it is a decision, not a default');
+
+      final subs = RegExp(r'^\s*Strict-Transport-Security:.*includeSubDomains', multiLine: true);
+      if (subs.hasMatch(headers)) {
+        // Allowed, but only once the long max-age is a deliberate choice:
+        // it binds subdomains that do not exist yet.
+        expect(headers, contains('max-age=31536000'),
+            reason: 'includeSubDomains at a short max-age is the worst of '
+                'both — it binds hosts nobody has built while proving nothing');
+      }
+    });
+
     test('the static site has a real icon, not an HTML page', () {
       // /favicon.ico IS REQUESTED WHETHER OR NOT ANYTHING LINKS IT, and site/
       // had no icon at all -- so Cloudflare answered that request with 200 and

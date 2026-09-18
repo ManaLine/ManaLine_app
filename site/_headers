@@ -10,6 +10,34 @@
 # every visitor's browser as plain response headers.
 
 /*
+  # HSTS -- HTTPS ONLY, AND REMEMBERED.
+  #
+  # Without this, a visitor who types `manaline.in` makes one plaintext
+  # request before the redirect to HTTPS, and that one request is where a
+  # network in between gets to answer instead. On a site people sign into,
+  # that is the request worth removing.
+  #
+  # DELIBERATELY SHORT TO BEGIN WITH. max-age is a promise a browser HOLDS:
+  # for as long as it lasts, that browser will refuse to reach this host over
+  # HTTP at all, and there is no way to reach back and tell it otherwise. Get
+  # it wrong at a year and the mistake outlives every fix. 300 seconds is long
+  # enough to prove the header arrives and short enough that a mistake ages
+  # out over a cup of tea.
+  #
+  # THE RAMP, once the custom domain is attached and serving:
+  #   300                      -> confirm with: curl -sI https://<host> | grep -i strict
+  #   86400                    -> leave for a day
+  #   31536000; includeSubDomains
+  #
+  # includeSubDomains is NOT set yet on purpose: it binds every subdomain of
+  # this host, including ones that do not exist yet, and a future
+  # `staging.manaline.in` without a valid certificate would be unreachable
+  # rather than merely warned about.
+  #
+  # `preload` is NOT set and should not be added casually. It ships the domain
+  # inside browser binaries, removal takes months, and it is the one setting
+  # here that cannot be undone by a deploy.
+  Strict-Transport-Security: max-age=300
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()

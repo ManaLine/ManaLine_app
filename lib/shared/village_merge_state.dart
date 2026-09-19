@@ -90,6 +90,40 @@ class ManaVillageDuplicate {
       );
 }
 
+/// One mandal or district a village could be recorded under.
+class ManaPlaceOption {
+  /// 'mandal' or 'district'.
+  final String kind;
+
+  final String value;
+
+  /// How many of this book's villages in the same mandal already use it. The
+  /// number is the whole point: an Owner does not know which district is
+  /// legally current, but they do know what the rest of their ledger says.
+  final int usedHere;
+
+  /// Whether the government directory lists it. A district that is used but
+  /// NOT in the directory is one somebody typed -- kept and offered, because
+  /// item 11 asks for exactly that when a future split outruns the reference.
+  final bool inDirectory;
+
+  const ManaPlaceOption({
+    required this.kind,
+    required this.value,
+    required this.usedHere,
+    required this.inDirectory,
+  });
+
+  bool get isMandal => kind == 'mandal';
+
+  factory ManaPlaceOption.fromRow(Map<String, dynamic> r) => ManaPlaceOption(
+        kind: (r['kind'] ?? '').toString(),
+        value: (r['value'] ?? '').toString(),
+        usedHere: (r['used_here'] as num?)?.toInt() ?? 0,
+        inDirectory: r['in_directory'] == true,
+      );
+}
+
 class VillageMergeApiService {
   VillageMergeApiService(this._db);
   final SupabaseClient _db;
@@ -128,6 +162,60 @@ class VillageMergeApiService {
       },
     );
     return (r as String?) ?? '';
+  }
+
+  /// What mandals and districts this village could be recorded under.
+  ///
+  /// "new & most used on top" is the Owner's ordering, and the counts come
+  /// from the villages this book already works rather than from a preference
+  /// nobody set. A district they typed themselves for another village shows
+  /// up here for the next one, which is the "app creates it's & suggest the
+  /// same in next user search" half of item 11 -- no new table, because
+  /// `locations` already records every choice anybody made.
+  /// [mandal] is the one currently SHOWING, which may be one the Owner has
+  /// just picked and not saved. The district options depend on it -- change
+  /// the mandal and the directory lists different districts -- so they are
+  /// asked for together rather than drifting apart.
+  Future<List<ManaPlaceOption>> placeOptions({
+    required String businessId,
+    required String locationId,
+    String? mandal,
+  }) async {
+    final rows = await _db.schema('app').rpc(
+      'place_options_for_village',
+      params: {
+        'p_business_id': businessId,
+        'p_location_id': locationId,
+        'p_mandal': mandal,
+      },
+    );
+    return [
+      for (final r in (rows as List?) ?? const [])
+        ManaPlaceOption.fromRow(r as Map<String, dynamic>),
+    ];
+  }
+
+  /// Write the corrected mandal and district.
+  ///
+  /// The server refuses a village this business does not work, so an Owner
+  /// cannot reach into one only somebody else uses -- `locations` is shared
+  /// by every book and has no business_id of its own.
+  Future<Map<String, dynamic>> correctPlace({
+    required String businessId,
+    required String locationId,
+    required String mandal,
+    required String district,
+  }) async {
+    final r = await _db.schema('app').rpc(
+      'correct_location_place',
+      params: {
+        'p_business_id': businessId,
+        'p_location_id': locationId,
+        'p_mandal': mandal,
+        'p_district': district,
+      },
+    );
+    return (r as Map).cast<String, dynamic>();
   }
 
   /// Returns the server's summary of what moved.

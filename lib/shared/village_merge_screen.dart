@@ -6,6 +6,7 @@ import '../design/components/mana_text.dart';
 import '../design/tokens/colors.dart';
 import '../design/tokens/spacing.dart';
 import '../design/tokens/typography.dart';
+import 'location_api_service.dart';
 import 'network_error_handler.dart';
 import 'translation_service.dart';
 import 'village_merge_state.dart';
@@ -43,6 +44,14 @@ class ManaVillageMergeScreen extends ConsumerStatefulWidget {
 class _ManaVillageMergeScreenState
     extends ConsumerState<ManaVillageMergeScreen> {
   List<ManaVillageDuplicate> _pairs = const [];
+
+  /// Every village this book works, so a wrong district can be put right.
+  ///
+  /// The two halves of this screen are the two ways a village list goes wrong:
+  /// the same place entered twice, and one place recorded under the wrong
+  /// name for where it is. An Owner looking at either is looking at the same
+  /// list, so they are one screen.
+  List<ManaVillage> _villages = const [];
   bool _loading = true;
   String? _busyId;
 
@@ -58,9 +67,19 @@ class _ManaVillageMergeScreenState
       context,
       () => ref.read(villageMergeApiServiceProvider).candidates(widget.businessId),
     );
+    // The screen can be popped between the two calls, and the second one
+    // takes a context to report an error into. Checked rather than assumed --
+    // this is the analyzer's async-gap warning and it is a real one here,
+    // because the first call is a round trip on a village connection.
+    if (!mounted) return;
+    final villages = await NetworkErrorHandler.run(
+      context,
+      () => ref.read(locationApiServiceProvider).businessVillages(widget.businessId),
+    );
     if (!mounted) return;
     setState(() {
       _pairs = rows ?? const [];
+      _villages = villages ?? const [];
       _loading = false;
     });
   }
@@ -168,6 +187,242 @@ class _ManaVillageMergeScreenState
     await _load();
   }
 
+  /// Returned by a chooser to mean "let me type one".
+  ///
+  /// A sentinel rather than a nullable second return value, because the
+  /// chooser already uses null for "cancelled" and the two must not collide --
+  /// the same ambiguity that made a failed check look like permission to
+  /// merge earlier in this file.
+  static const _kTypeNew = '::type-a-new-one::';
+
+  /// Put a village's mandal AND district right.
+  ///
+  /// The Owner, item 11: "enable user to select mandal, district (while user
+  /// opts to select show available list and then option to add new if in
+  /// future more split happens) which is correct if app fills it wrong or old
+  /// data".
+  ///
+  /// BOTH, IN ONE SHEET, because they are one answer. The districts the
+  /// directory lists DEPEND on the mandal, so correcting the mandal in one
+  /// dialog and the district in the next would offer a district list
+  /// belonging to the mandal that had just been replaced. Changing the mandal
+  /// here re-asks for the districts, and drops the chosen district if the new
+  /// mandal does not have it.
+  ///
+  /// On this book every village in Srikalahasti mandal is stored as Chittoor,
+  /// which the mandal left in 2022 -- the app chose it by sort order and
+  /// nothing ever said so.
+  Future<void> _correct(ManaVillage v) async {
+    var mandal = v.mandal;
+    var district = v.district;
+
+    var options = await _optionsFor(v, mandal);
+    if (options == null || !mounted) return;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (c, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            ManaSpacing.lg,
+            ManaSpacing.lg,
+            ManaSpacing.lg,
+            MediaQuery.of(c).viewInsets.bottom + ManaSpacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ManaText.raw(v.name, style: ManaType.sheetTitle),
+              const SizedBox(height: 2),
+              ManaText.raw(
+                ref.t('correct_place_note').replaceAll('{pin}', v.pinCode),
+                style: ManaType.note,
+              ),
+              const SizedBox(height: ManaSpacing.md),
+              _placeRow(ref.t('mandal_field'), mandal, () async {
+                final picked = await _choosePlace(
+                    ref.t('which_mandal'), options!.where((o) => o.isMandal));
+                if (picked == null || !mounted) return;
+                final refreshed = await _optionsFor(v, picked);
+                if (refreshed == null) return;
+                final stillThere = refreshed
+                    .where((o) => !o.isMandal)
+                    .any((o) => o.value == district);
+                setSheetState(() {
+                  mandal = picked;
+                  options = refreshed;
+                  if (!stillThere) district = '';
+                });
+              }),
+              _placeRow(ref.t('district_field'), district, () async {
+                final picked = await _choosePlace(
+                    ref.t('which_district'), options!.where((o) => !o.isMandal));
+                if (picked == null || !mounted) return;
+                setSheetState(() => district = picked);
+              }),
+              const SizedBox(height: ManaSpacing.lg),
+              // Wrap, not Row: Save and Cancel in Telugu at a 2.0x text scale
+              // do not share a 360dp line.
+              Wrap(
+                spacing: ManaSpacing.sm,
+                runSpacing: ManaSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilledButton(
+                    // Nothing to save is not a reason to disable. A button
+                    // that does nothing and says nothing is the shape this
+                    // project keeps having reported as broken; it closes.
+                    onPressed: () => Navigator.of(sheetContext)
+                        .pop(mandal.isNotEmpty && district.isNotEmpty),
+                    child: ManaText.raw(ref.t('save')),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(false),
+                    child: ManaText.raw(ref.t('cancel')),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (saved != true || !mounted) return;
+    // Nothing changed is not a write. It would still rewrite a row that every
+    // book on this database shares.
+    if (mandal == v.mandal && district == v.district) return;
+
+    setState(() => _busyId = v.locationId);
+    final result = await NetworkErrorHandler.run(
+      context,
+      () => ref.read(villageMergeApiServiceProvider).correctPlace(
+            businessId: widget.businessId,
+            locationId: v.locationId,
+            mandal: mandal,
+            district: district,
+          ),
+    );
+    if (!mounted) return;
+    setState(() => _busyId = null);
+    if (result == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: ManaText.raw(ref
+          .t('district_corrected')
+          .replaceAll('{village}', '${result['village']}')
+          .replaceAll('{was}', '${result['was_district']}')
+          .replaceAll('{now}', '${result['now_district']}')),
+    ));
+    await _load();
+  }
+
+  Future<List<ManaPlaceOption>?> _optionsFor(ManaVillage v, String mandal) =>
+      NetworkErrorHandler.run(
+        context,
+        () => ref.read(villageMergeApiServiceProvider).placeOptions(
+              businessId: widget.businessId,
+              locationId: v.locationId,
+              mandal: mandal,
+            ),
+      );
+
+  Widget _placeRow(String label, String value, VoidCallback onTap) => ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: ManaText.raw(label, style: ManaType.fine),
+        subtitle: ManaText.raw(
+          value.isEmpty ? ref.t('profile_not_on_file') : value,
+          style: ManaType.smallStrong,
+        ),
+        trailing: const Icon(Icons.edit_outlined, size: 18),
+        onTap: onTap,
+      );
+
+  /// One list, most-used first, with the option to type a name nobody has yet.
+  Future<String?> _choosePlace(
+      String title, Iterable<ManaPlaceOption> options) async {
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: ManaText.raw(title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final o in options)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: ManaText.raw(o.value),
+                  subtitle: o.usedHere > 0
+                      ? ManaText.raw(
+                          ref
+                              .t('already_used_here')
+                              .replaceAll('{count}', '${o.usedHere}'),
+                          style: ManaType.fine)
+                      : null,
+                  onTap: () => Navigator.of(c).pop(o.value),
+                ),
+              // "option to add new if in future more split happens" -- the
+              // Owner's words. The directory is a snapshot: Andhra Pradesh
+              // split its districts in 2022 and will again, and a book that
+              // can only choose from last year's list has to wait for a data
+              // refresh to record where its customers live.
+              //
+              // Whatever is typed shows up in the most-used list for the next
+              // village, which is the "app creates it's & suggest the same in
+              // next user search" half of the same sentence.
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.add, size: 18),
+                title: ManaText.raw(ref.t('add_a_different_one')),
+                onTap: () => Navigator.of(c).pop(_kTypeNew),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(),
+            child: ManaText.raw(ref.t('cancel')),
+          ),
+        ],
+      ),
+    );
+    if (picked != _kTypeNew) return picked;
+    if (!mounted) return null;
+    return _typeOne(title);
+  }
+
+  Future<String?> _typeOne(String title) async {
+    final controller = TextEditingController();
+    final typed = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: ManaText.raw(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          onSubmitted: (x) => Navigator.of(c).pop(x.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(),
+            child: ManaText.raw(ref.t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(c).pop(controller.text.trim()),
+            child: ManaText.raw(ref.t('save')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return (typed == null || typed.isEmpty) ? null : typed;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -187,6 +442,14 @@ class _ManaVillageMergeScreenState
                   else
                     ...List.generate(
                         _pairs.length, (i) => _pairCard(_pairs[i], i)),
+                  if (_villages.isNotEmpty) ...[
+                    const SizedBox(height: ManaSpacing.lg),
+                    ManaText.raw(ref.t('your_villages'), style: ManaType.strong),
+                    ManaText.raw(ref.t('your_villages_note'),
+                        style: ManaType.note),
+                    const SizedBox(height: ManaSpacing.xs),
+                    for (final v in _villages) _villageRow(v),
+                  ],
                 ],
               ),
       ),
@@ -249,6 +512,23 @@ class _ManaVillageMergeScreenState
       ),
     );
   }
+
+  Widget _villageRow(ManaVillage v) => ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.place_outlined, color: ManaColors.brandDeep),
+        title: ManaText.raw(v.name),
+        subtitle: ManaText.raw(
+          [v.mandal, v.district].where((x) => x.isNotEmpty).join(', '),
+          style: ManaType.fine,
+        ),
+        trailing: _busyId == v.locationId
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.edit_outlined, size: 18),
+        onTap: _busyId == null ? () => _correct(v) : null,
+      );
 
   Widget _side(String label, String name, String mandal, String district,
           int people) =>

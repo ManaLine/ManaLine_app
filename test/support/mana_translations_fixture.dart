@@ -2667,4 +2667,10 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'which_district': {'English': 'Which District?', 'Telugu': 'ఏ జిల్లా?'},
   'which_district_note': {'English': '{village} is in {mandal}, and the directory lists that mandal under two districts because of a district split. Pick the one your book uses.', 'Telugu': 'జిల్లాల విభజన కారణంగా {mandal} మండలం రెండు జిల్లాల కింద నమోదై ఉంది, అందులో {village} ఉంది. మీ పుస్తకం ఉపయోగించేదాన్ని ఎంచుకోండి.'},
   'already_used_here': {'English': 'Already used by {count} of your villages', 'Telugu': 'మీ {count} గ్రామాలు ఇప్పటికే దీన్ని ఉపయోగిస్తున్నాయి'},
+  'your_villages': {'English': 'Your Villages', 'Telugu': 'మీ గ్రామాలు'},
+  'your_villages_note': {'English': 'Tap a village to correct its mandal or district. This changes the name of the place, not who lives there or what they owe.', 'Telugu': 'మండలం లేదా జిల్లా సరిచేయడానికి ఒక గ్రామంపై నొక్కండి. ఇది ప్రదేశం పేరును మాత్రమే మార్చుతుంది, అక్కడ ఎవరు ఉన్నారో లేదా వారు ఎంత చెల్లించాలో కాదు.'},
+  'district_corrected': {'English': '{village} moved from {was} to {now}.', 'Telugu': '{village} {was} నుంచి {now}కి మార్చబడింది.'},
+  'which_mandal': {'English': 'Which Mandal?', 'Telugu': 'ఏ మండలం?'},
+  'add_a_different_one': {'English': 'Add a different one', 'Telugu': 'వేరేది జోడించండి'},
+  'correct_place_note': {'English': 'PIN {pin}. The mandal and district are what the directory recorded, and after a district split that can be out of date.', 'Telugu': 'పిన్ {pin}. మండలం, జిల్లా డైరెక్టరీ నమోదు చేసినవి, జిల్లాల విభజన తర్వాత అవి పాతవి కావచ్చు.'},
 };

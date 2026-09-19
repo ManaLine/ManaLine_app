@@ -42,6 +42,13 @@ const _retired = <String, String>{
   'support_apply_suspension':
       'support-admin RPC from the module 19/20 migrations, dropped since; '
           'those migrations applied at the time',
+  'district_options_for_village':
+      'superseded within the hour by place_options_for_village '
+          '(20260919051951), because the Owner asked for the mandal to be '
+          'correctable too and the district options DEPEND on the mandal -- '
+          'two functions answering that would drift. 20260919051056 created '
+          'and applied it; the later migration drops it and asserts pg_proc '
+          'holds zero of it and one of its replacement',
 };
 
 void main() {

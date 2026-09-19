@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:mana_line/shared/location_api_service.dart';
 import 'package:mana_line/shared/village_merge_screen.dart';
 import 'package:mana_line/shared/village_merge_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,22 +29,45 @@ import 'support/mana_harness.dart';
 /// refusal names an action the Owner can take, and a greyed-out control with
 /// nothing beside it reads as a broken screen.
 class _FakeClient extends http.BaseClient {
+  _FakeClient(this.villages);
+  final List<Map<String, dynamic>> villages;
+
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
-      http.StreamedResponse(
-        Stream.value(utf8.encode(jsonEncode(const []))),
-        200,
-        headers: const {'content-type': 'application/json'},
-        request: request,
-      );
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final body = request.url.path.contains('operating_area_locations')
+        ? villages
+        : const [];
+    return http.StreamedResponse(
+      Stream.value(utf8.encode(jsonEncode(body))),
+      200,
+      headers: const {'content-type': 'application/json'},
+      request: request,
+    );
+  }
 }
 
-SupabaseClient _stubClient() => SupabaseClient(
+SupabaseClient _stubClient([List<Map<String, dynamic>> villages = const []]) =>
+    SupabaseClient(
       'https://example.supabase.co',
       'test-anon-key',
-      httpClient: _FakeClient(),
+      httpClient: _FakeClient(villages),
       authOptions: const AuthClientOptions(autoRefreshToken: false),
     );
+
+/// The village as businessVillages reads it -- through operating_area_locations
+/// with the `locations` row embedded.
+List<Map<String, dynamic>> _oneVillage() => [
+      {
+        'locations': {
+          'location_id': 'loc-keep',
+          'village_town_name': 'Panagallu (Rural)',
+          'pin_code': '517640',
+          'mandal': 'Srikalahasti',
+          'district': 'Chittoor',
+          'state': 'Andhra Pradesh',
+        }
+      }
+    ];
 
 class _FakeMergeApi extends VillageMergeApiService {
   _FakeMergeApi(this.rows) : super(_stubClient());
@@ -71,6 +95,53 @@ class _FakeMergeApi extends VillageMergeApiService {
     final r = nextReason;
     if (r == null) throw Exception('network');
     return r;
+  }
+
+  /// What the correction sheet will offer, most-used first, as the server
+  /// returns it: mandals and districts in one list.
+  List<ManaPlaceOption> places = const [
+    ManaPlaceOption(
+        kind: 'mandal', value: 'Srikalahasti', usedHere: 3, inDirectory: true),
+    ManaPlaceOption(
+        kind: 'mandal', value: 'Thottambedu', usedHere: 0, inDirectory: true),
+    ManaPlaceOption(
+        kind: 'district', value: 'Chittoor', usedHere: 3, inDirectory: true),
+    ManaPlaceOption(
+        kind: 'district', value: 'Tirupati', usedHere: 1, inDirectory: true),
+  ];
+
+  /// The mandal each placeOptions() call was made with, so a test can prove
+  /// the districts were re-asked for after the mandal changed.
+  final List<String?> optionCallsForMandal = [];
+
+  /// Every correction asked for, as (locationId, mandal, district).
+  final List<(String, String, String)> corrections = [];
+
+  @override
+  Future<List<ManaPlaceOption>> placeOptions({
+    required String businessId,
+    required String locationId,
+    String? mandal,
+  }) async {
+    optionCallsForMandal.add(mandal);
+    return places;
+  }
+
+  @override
+  Future<Map<String, dynamic>> correctPlace({
+    required String businessId,
+    required String locationId,
+    required String mandal,
+    required String district,
+  }) async {
+    corrections.add((locationId, mandal, district));
+    return {
+      'village': 'Panagallu (Rural)',
+      'was_mandal': mandal,
+      'was_district': 'Chittoor',
+      'now_mandal': mandal,
+      'now_district': district,
+    };
   }
 
   @override
@@ -114,12 +185,21 @@ void main() {
   Future<_FakeMergeApi> open(
     WidgetTester tester, {
     List<ManaVillageDuplicate> rows = const [],
+    List<Map<String, dynamic>> villages = const [],
   }) async {
     final api = _FakeMergeApi(rows);
     await pumpManaScreen(
       tester,
       const ManaVillageMergeScreen(businessId: 'b1'),
-      overrides: [villageMergeApiServiceProvider.overrideWithValue(api)],
+      overrides: [
+        villageMergeApiServiceProvider.overrideWithValue(api),
+        // The screen lists this book's villages so a wrong district can be
+        // put right, and it asks for them in initState -- seeded rather than
+        // left to reach the network, which is the harness rule.
+        locationApiServiceProvider.overrideWithValue(
+          LocationApiService(_stubClient(villages)),
+        ),
+      ],
       surfaceSize: const Size(360, 900),
     );
     await tester.pumpAndSettle();
@@ -249,6 +329,86 @@ void main() {
 
     // The sides are exchanged: the 19-person row is now the one being moved.
     expect(api.merges, [('loc-keep', 'loc-drop')]);
+  });
+
+  testWidgets('the sheet offers the mandal and the district, not just one',
+      (t) async {
+    // The Owner asked for both: "enable user to select mandal, district".
+    await open(t, rows: const [], villages: _oneVillage());
+    await t.tap(find.text('Panagallu (Rural)'));
+    await t.pumpAndSettle();
+
+    expect(find.text('Mandal *'), findsOneWidget);
+    expect(find.text('District *'), findsOneWidget);
+    expect(find.text('Srikalahasti'), findsWidgets);
+    expect(find.text('Chittoor'), findsWidgets);
+    expectNoLayoutFault(t, 'the correction sheet');
+  });
+
+  testWidgets('a district is offered with how much of this book uses it',
+      (t) async {
+    final api = await open(t, rows: const [], villages: _oneVillage());
+    await t.tap(find.text('Panagallu (Rural)'));
+    await t.pumpAndSettle();
+
+    await t.tap(find.text('District *'));
+    await t.pumpAndSettle();
+
+    // "most used on top" -- the count is what makes the question answerable,
+    // because an Owner knows their own ledger and not which district is
+    // legally current.
+    expect(find.text('Already used by 3 of your villages'), findsOneWidget);
+    expect(find.text('Already used by 1 of your villages'), findsOneWidget);
+
+    await t.tap(find.text('Tirupati').last);
+    await t.pumpAndSettle();
+    await t.tap(find.widgetWithText(FilledButton, 'Save'));
+    await t.pumpAndSettle();
+
+    expect(api.corrections, [('loc-keep', 'Srikalahasti', 'Tirupati')]);
+    expect(find.textContaining('moved from Chittoor to Tirupati'),
+        findsOneWidget);
+  });
+
+  testWidgets('changing the mandal asks for that mandal district list',
+      (t) async {
+    final api = await open(t, rows: const [], villages: _oneVillage());
+    await t.tap(find.text('Panagallu (Rural)'));
+    await t.pumpAndSettle();
+    expect(api.optionCallsForMandal, ['Srikalahasti']);
+
+    await t.tap(find.text('Mandal *'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Thottambedu').last);
+    await t.pumpAndSettle();
+
+    // THE DISTRICTS DEPEND ON THE MANDAL. Keeping the first list would offer
+    // districts belonging to the mandal that had just been replaced -- a
+    // wrong answer presented confidently, which is the failure mode this
+    // whole item exists to end.
+    expect(api.optionCallsForMandal, ['Srikalahasti', 'Thottambedu']);
+  });
+
+  testWidgets('changing nothing writes nothing', (t) async {
+    final api = await open(t, rows: const [], villages: _oneVillage());
+    await t.tap(find.text('Panagallu (Rural)'));
+    await t.pumpAndSettle();
+    await t.tap(find.widgetWithText(FilledButton, 'Save'));
+    await t.pumpAndSettle();
+
+    // Not a no-op for politeness -- a write that changes nothing still
+    // rewrites a row every book on this database shares.
+    expect(api.corrections, isEmpty);
+  });
+
+  testWidgets('the list says what tapping a village will do', (t) async {
+    await open(t, rows: const [], villages: _oneVillage());
+    expect(find.text('Your Villages'), findsOneWidget);
+    expect(
+      find.textContaining('not who lives there or what they owe'),
+      findsOneWidget,
+    );
+    expectNoLayoutFault(t, 'village list with the correction note');
   });
 
   testWidgets('a swap whose check never answered is undone, not offered',

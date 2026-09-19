@@ -211,6 +211,27 @@ class NetworkErrorHandler {
       return 'That mobile number is already registered to someone else. '
           'Search for them by name instead of adding a new person.';
     }
+    // ONE AADHAAR, ONE PERSON, EVER -- the Owner's "Aadhaar lock", 2026-09-18.
+    //
+    // Already enforced: persons_aadhaar_hash_key is a UNIQUE index on the
+    // hash, and Postgres allows many NULLs, so the 65 people with no Aadhaar
+    // on file are unaffected. What was missing was the sentence. Without this
+    // an agent at a doorstep was shown
+    //   duplicate key value violates unique constraint "persons_aadhaar_hash_key"
+    // which reads as a crash, not as "this person is already in the system".
+    //
+    // WHOSE ACCOUNT IT IS, IS NOT SAID. Same rule the self-registration Edge
+    // Function follows for the same collision (SP-001: "never expose which
+    // existing account conflicts") -- the holder may be a customer of another
+    // book entirely, and naming them would leak one Owner's ledger to another.
+    // Pointing at the search is what makes it actionable without that:
+    // owner_search_person takes an Aadhaar, and if the person is reachable
+    // the Owner will find them there.
+    if (text.contains('persons_aadhaar_hash_key')) {
+      return 'That Aadhaar number is already registered to someone. '
+          'Search by the Aadhaar number to find them instead of adding a '
+          'new person.';
+    }
     if (text.contains('uq_business_members_person_business_role')) {
       return 'This person is already in this business in that role.';
     }

@@ -41,6 +41,51 @@ void main() {
     expect(message, isNot(contains('uq_persons')));
   });
 
+  testWidgets('a duplicate Aadhaar is explained and names nobody',
+      (tester) async {
+    // The Owner's "Aadhaar lock": one Aadhaar, one person, ever. The rule was
+    // ALREADY enforced -- persons_aadhaar_hash_key is a UNIQUE index -- and
+    // what was missing was this sentence. A doorstep was being shown
+    // "duplicate key value violates unique constraint" and reading it as a
+    // crash.
+    final message = await _messageFor(
+      tester,
+      const PostgrestException(
+        message: 'duplicate key value violates unique constraint '
+            '"persons_aadhaar_hash_key"',
+        code: '23505',
+      ),
+    );
+
+    expect(message, contains('Aadhaar'));
+    expect(message, contains('already registered'));
+    expect(message, contains('Search'),
+        reason: 'the message has to leave somewhere to go, or it is only a '
+            'refusal');
+    expect(message, isNot(contains('duplicate key')));
+    expect(message, isNot(contains('persons_aadhaar')));
+  });
+
+  testWidgets('the Aadhaar refusal never names the account that holds it',
+      (tester) async {
+    // SP-001, the same rule the self-registration Edge Function follows for
+    // this exact collision: "never expose which existing account conflicts".
+    // The holder may be a customer of a different book, and naming them would
+    // leak one Owner's ledger to another.
+    final message = await _messageFor(
+      tester,
+      const PostgrestException(
+        message: 'duplicate key value violates unique constraint '
+            '"persons_aadhaar_hash_key"',
+        code: '23505',
+      ),
+    );
+
+    // Nothing that could identify the holder: no name, no MLID, no digits.
+    expect(RegExp(r'ML[A-Z]{2}\d+').hasMatch(message), isFalse);
+    expect(RegExp(r'\d{4,}').hasMatch(message), isFalse);
+  });
+
   testWidgets('an unmapped server error keeps its own words', (tester) async {
     // A friendly guess here would hide a real bug, so the raw text stands.
     final message = await _messageFor(

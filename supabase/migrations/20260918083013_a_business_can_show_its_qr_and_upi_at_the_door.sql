@@ -138,13 +138,45 @@ BEGIN
   END IF;
 
   -- And the constraint itself must fire, not merely exist.
-  BEGIN
-    UPDATE businesses SET upi_ids = ARRAY['broken']
-     WHERE business_id = (SELECT business_id FROM businesses LIMIT 1);
-  EXCEPTION WHEN check_violation THEN
-    v_refused := TRUE;
-  END;
-  IF NOT v_refused THEN
-    RAISE EXCEPTION 'the CHECK did not fire on a bad handle';
+  --
+  -- AMENDED 2026-09-19, and this is the only edit this file has had since it
+  -- ran. It asserted the CHECK by updating `(SELECT business_id FROM
+  -- businesses LIMIT 1)` -- whichever book happened to exist. On production
+  -- that is a real row and the assertion is a real one. On a database rebuilt
+  -- from empty there are no businesses: the subquery is NULL, the UPDATE
+  -- matches zero rows, no CHECK is asked to fire, v_refused stays FALSE and
+  -- the migration raises. `tool/verify_rebuild.ps1` stopped here, 24 files
+  -- short of the end, so the repo could not rebuild itself from nothing.
+  --
+  -- Only the assertion changed; no schema statement in this file was touched,
+  -- so what this migration DOES to the database is exactly what it did when
+  -- it ran. The same shape is already banned for the files in
+  -- `supabase/tests/` -- "a scratch file must build its own fixtures, never
+  -- adopt an existing row" -- and that rule simply never covered migrations.
+  --
+  -- With a book present, the original test runs unchanged. With none, the
+  -- claim is decomposed into the two halves that together mean the same
+  -- thing and need no rows: the function refuses a bad handle (asserted four
+  -- times above) and the constraint is attached to the column and delegates
+  -- to that function.
+  IF EXISTS (SELECT 1 FROM businesses) THEN
+    BEGIN
+      UPDATE businesses SET upi_ids = ARRAY['broken']
+       WHERE business_id = (SELECT business_id FROM businesses LIMIT 1);
+    EXCEPTION WHEN check_violation THEN
+      v_refused := TRUE;
+    END;
+    IF NOT v_refused THEN
+      RAISE EXCEPTION 'the CHECK did not fire on a bad handle';
+    END IF;
+  ELSE
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+       WHERE conrelid = 'public.businesses'::regclass
+         AND contype = 'c'
+         AND pg_get_constraintdef(oid) ILIKE '%upi_ids_are_valid%'
+    ) THEN
+      RAISE EXCEPTION 'the upi_ids CHECK is not attached to businesses';
+    END IF;
   END IF;
 END $$;

@@ -29,7 +29,7 @@ never the columns -- it was the app claiming them as languages it speaks.
 
 ```bash
 flutter analyze
-flutter test                     # 2,762 tests
+flutter test                     # 2,905 tests
 flutter build apk --debug --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 flutter run -d chrome --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANON_KEY=$KEY
 ```
@@ -37,6 +37,16 @@ flutter run -d chrome --dart-define=SUPABASE_URL=$URL --dart-define=SUPABASE_ANO
 Supabase credentials come from `--dart-define` and live in `run.ps1.txt`, which is **tracked, not git-ignored** — it holds only `SUPABASE_URL` and the anon key, both of which ship inside every APK anyway. Nothing else may be added to it: a service-role key or JWT secret there would be a real leak. Put those in `.env` (already ignored). **Without them the app does not fail — it hangs**, because the fallback URL is a host that does not exist; symptoms are raw translation keys on every screen and login claiming "No internet connection". A "Build not configured" screen catches this in `main.dart`. Never commit credentials.
 
 Run a single test file with `flutter test test/<file>.dart`. adb is not on PATH — use `$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe`.
+
+**Flutter lives at `D:\Development\flutter` and is already on PATH.** 3.47.5 /
+Dart 3.13.4, reinstalled 2026-09-19 after `D:\Development` vanished
+mid-session — `flutter` simply stopped resolving while the PATH entry stayed
+behind, which reads like a broken shell rather than a missing directory.
+`pubspec.lock` needs Flutter >= 3.44.0 and Dart >= 3.12.0, so an older SDK
+will not resolve. If `flutter` is not found, check the directory exists
+before touching PATH. That upgrade also let the tool add an `analyzer.exclude`
+block to `analysis_options.yaml` and bump four transitive packages — both are
+Flutter 3.47 defaults, not choices made here.
 
 Supabase work goes through the project's Supabase MCP server (`execute_sql`, `apply_migration`, `list_migrations`, `get_edge_function`, `get_logs`). There are SQL test files in `supabase/tests/` (schema integrity, RLS access matrix, multi-tenancy isolation).
 
@@ -193,6 +203,8 @@ happen. These fail instead, under `flutter test`:
 | `village_lookup_guard_test.dart` | A PIN village search that reads `locations` without the LGD reference |
 | `otp_navigation_guard_test.dart` | Reaching the OTP screen without an OTP having been sent |
 | `app_map_sync_test.dart` | `docs/APP_MAP.md` drifting from the routers — and the generator silently parsing less than the whole file |
+| `app_actions_guard_test.dart` | A searchable action pointing at a route the router does not declare, or a label with no translation row |
+| `migration_self_test_guard_test.dart` | A migration asserting against whichever row happens to exist — passes on production, dies on a rebuild |
 | `expectNoLayoutFault` in the harness | Overflow, at four text scales in two languages |
 
 `test/support/schema_snapshot.dart` is generated, not written — the query to
@@ -282,17 +294,29 @@ must not turn the read-only session off. And when `MANA_DB_URL` is set it
 shells out to the runner and asserts a zero exit; when it is not, it
 **prints a skip** rather than passing quietly.
 
-**They have all run, as of 2026-09-15; re-run green 2026-09-18** — six of six
-files, 0 skipped, against a cluster rebuilt from all 472 migrations.
-`tool/verify_rebuild.ps1` makes
-a disposable Postgres cluster on port 5433 with trust auth — no password, no
-Docker, and it cannot reach production because it makes its own server — and
-all 427 migrations applied to it cleanly. **Re-run 2026-09-18: all 472 now
-apply cleanly too**, from nothing, with `pg_cron` stubbed as designed. Re-run
-it after any batch of migrations rather than trusting this line — the whole
-point of the script is that it is cheap enough to re-run. That cluster is the
-database with no books in it, so the five scratch files finally have a
-target:
+**The rebuild is green: all 496 migrations apply from nothing, 2026-09-19.**
+`tool/verify_rebuild.ps1` makes a disposable Postgres cluster on port 5433
+with trust auth — no password, no Docker, and it cannot reach production
+because it makes its own server. Re-run it after any batch of migrations
+rather than trusting this line; the whole point of the script is that it is
+cheap enough to re-run.
+
+**It was RED for twelve days and nobody knew**, because nothing runs it
+automatically. It stopped at 472 of 496 on
+`20260918083013_a_business_can_show_its_qr_and_upi_at_the_door.sql`, whose
+self-test proved a CHECK by updating `(SELECT business_id FROM businesses
+LIMIT 1)` — whichever book existed. There are none in a fresh cluster, so the
+UPDATE matched zero rows, nothing fired, and the migration raised. Every run
+between 2026-09-07 and 2026-09-19 stopped there, which means **the 24
+migrations after it had never once been rebuild-tested** until the assertion
+was fenced. `migration_self_test_guard_test.dart` now fails that shape.
+
+**The SQL guard files have NOT run since 2026-09-15.** Six of six passed
+then. They need `MANA_DB_URL`, and the honest state today is that nobody has
+re-run them against the current schema — `test/sql_tests_wired_test.dart`
+prints a skip rather than passing quietly, which is why the suite is green
+while this is outstanding. That cluster is the database with no books in it,
+so the five scratch files have a target:
 
 ```bash
 powershell -ExecutionPolicy Bypass -File tool\verify_rebuild.ps1 -Keep
@@ -455,34 +479,84 @@ next action is a performance review nobody asked for.
 the next rating and say which tasks landed -- a score that moved without work
 behind it means the measurement drifted, not the app.
 
-## Before deploy — blocking
+## Take care of these first
 
-### Aadhaar lock — PRIORITY HIGH, not yet defined
+Written 2026-09-19, at the end of the thirteen-item device batch. Everything
+here is either outstanding or a thing that went wrong and is worth not
+repeating. Delete a line when it stops being true — a stale note in this file
+does not merely misinform, it invents work, which has already happened twice.
 
-The Owner, 2026-09-18, verbatim:
+### Outstanding
 
-> "Aadhaar lock for users to be introduced before app deploy - add it in
-> claude.md - priority high."
+| What | Where it stands |
+|---|---|
+| **SQL guard files have not run since 2026-09-15** | Six of six passed then, against a schema ~90 migrations ago. They need `MANA_DB_URL`; the suite stays green without them because the wired test prints a skip. Run them against the rebuilt cluster, not production — see "Running the SQL guards". |
+| **`Others` cannot be registered one at a time** | `persons_gender_digit_check` allows `0/1/2` and the bulk sheet accepts all three, but LR-004 and OW-004 offer only Male and Female, so somebody who is neither can be imported and not registered at a doorstep. LR-004 also hardcodes English `Text('Male')` instead of `ref.t`. OW-014 was fixed 2026-09-19; these two were left. Nothing in production carries a wrong digit — `persons` holds only `'0'` (35) and `'1'` (64). |
+| **The new village screens have never been on a handset** | `/village-merge` (merge duplicates, correct mandal/district) and the action search on `/ow-search` shipped 2026-09-19 with widget tests only. Judgement regressions are found on the phone, and these two are the session's largest new surfaces. |
+| **Nothing runs any of this automatically** | No `.github/`. `flutter test`, `verify_rebuild.ps1` and `run_sql_tests.ps1` all run only when somebody remembers. The rebuild was red for twelve days because of exactly this. Top of the production-readiness plan for a reason. |
 
-**Recorded here rather than implemented, because the word "lock" has at least
-three plausible meanings in this schema and the wrong one is worse than
-none.** Aadhaar is the load-bearing identity fact in this app: `MLPI` is
-`MLPI + gender_digit + last 8 of Aadhaar`, deterministic, and the number is
-hashed at rest with only the last four kept. So a "lock" could mean:
+### Settled 2026-09-19, do NOT re-open
 
-- the number cannot be CHANGED once an MLPI has been minted from it, because
-  changing it would silently mint a different person;
-- a person cannot be registered twice against the same Aadhaar, enforced
-  server-side rather than by a screen;
-- the field is masked/withheld from agents, and only an Owner may see or
-  enter it.
+**Aadhaar lock — DONE.** The Owner chose, of the three readings this file
+used to list, **one Aadhaar, one person, ever**. It turned out to be already
+enforced: `persons_aadhaar_hash_key` is a UNIQUE index on `aadhaar_hash`, and
+Postgres allows many NULLs so the 65 people with no Aadhaar on file are
+unaffected. Probed rather than assumed — a duplicate insert is refused with
+23505, and there are zero duplicates among the 34 people who have one.
 
-Each is a different change in a different layer, and the first two are
-irreversible on live data. **Ask before building.** Whichever it is, it is a
-money-adjacent identity rule and belongs in an RPC and a CHECK, not only in
-a form — an app-layer lock is a suggestion.
+What was actually missing was the sentence. `NetworkErrorHandler` already
+maps constraint names to something an Owner can act on and this one was not
+among them, so a doorstep saw `duplicate key value violates unique constraint
+"persons_aadhaar_hash_key"` and read it as a crash. It now says the number is
+already registered and points at the search, and **names nobody** — SP-001,
+the same rule `auth-register` already followed for this collision, because
+the holder may be a customer of another book.
 
-This is a deploy blocker, so it outranks anything cosmetic in the queue.
+The other two readings — freezing the number once an MLPI exists, and hiding
+it from agents — were NOT chosen and are not built. The profile screen
+refuses an Aadhaar edit on an MLPI in the app only; if that should hold in
+the database, it is a new decision, not a leftover.
+
+### What went wrong this session, and what it taught
+
+**I read `pg_constraint` and not `pg_indexes`, and built a refusal on deleted
+rows.** `operating_area_locations` is soft-deleted, and the index that makes
+that work — `uq_oal_business_location ON (business_id, location_id) WHERE
+removed_at IS NULL` — is a partial unique INDEX, not a constraint, so it does
+not appear in `pg_constraint` at all. Missing it meant missing `removed_at`
+entirely, and the first village merge refused the one real duplicate on this
+book for a reason computed from rows that had been deleted months earlier.
+**Query both catalogues, or the column that decides everything stays
+invisible.**
+
+**A two-value null meant "allowed" and "the call failed" at once.**
+`blockedReason()` returned null for "you may merge" while
+`NetworkErrorHandler.run` returns null for "the request died", so a check
+that never answered drew the Merge button on a pair the screen had just been
+told not to merge. Found by reading the diff, not by a test. **When a
+function shares a return channel with its error handler, the two must not
+share a value.**
+
+**Two guards caught me mid-build and both were right** — the investor and the
+cheeti drawn with the same glyph, which `ManaIcons` exists to prevent; and a
+filter rendered only after three characters had been typed, which is not a
+filter. Neither would have been caught by review.
+
+**`locations` IS SHARED BY EVERY BUSINESS** and has no `business_id`. Five
+books read the same 21 rows. That is why the merge is scoped to the caller's
+own members and areas, why a losing row is deactivated only once nothing
+references it, and why correcting a mandal or district is allowed at all —
+those are labels (checked: 1 function reads them, for display; 0 views, 0
+indexes, 0 foreign keys), whereas a merge repoints addresses and addresses
+decide agent coverage. **Ask which of the two kinds a change is before
+touching that table.**
+
+**An agent's reach was reading deleted rows too.** `agent_covers_customer`
+and `covering_agent_membership_id` joined `operating_area_locations` without
+`removed_at IS NULL`, so a village removed from an area went on conferring
+that area's agents. Thirty consumers — 25 RLS policies and 5 RPCs — all read
+that one predicate. Fixed 2026-09-19 after measuring that 0 of 91 customers
+were covered only through a removed link, so nobody lost anybody.
 
 ## Session start checklist
 

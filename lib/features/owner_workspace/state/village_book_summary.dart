@@ -34,6 +34,19 @@ class ManaLoanPosition {
   /// village apart, and the one-person entry header is built on exactly that.
   final String fatherHusbandName;
 
+  /// The mobile number, or empty when there is none.
+  ///
+  /// HERE SO A VILLAGE CAN BE SEARCHED BY IT. The Owner, 2026-09-19: "if
+  /// there are n customers user needs a search inside it by name, phone no,
+  /// MLID." The phone is the one of the three that works when somebody rings
+  /// -- a name is ambiguous in a village where four people share it, and
+  /// nobody reads an MLID down a phone before saying who they are.
+  ///
+  /// Legitimately empty: persons_mlti_needs_hard_key accepts an Aadhaar OR a
+  /// mobile OR is_migrated, so a customer copied out of a paper book may have
+  /// no phone at all.
+  final String mobile;
+
   /// The village of the person's CURRENT address. Empty when they have no
   /// address on file -- a real state, and not a reason to drop the loan.
   final String village;
@@ -83,6 +96,10 @@ class ManaLoanPosition {
     required this.mlid,
     required this.fullName,
     this.fatherHusbandName = '',
+    // Defaulted, like the care-of name beside it: legitimately absent, and
+    // every test fixture that builds a position by hand should not have to
+    // invent a phone number to say something about a balance.
+    this.mobile = '',
     required this.village,
     required this.inOperatingArea,
     required this.loanId,

@@ -2673,4 +2673,5 @@ const Map<String, Map<String, String>> manaTranslationsFixture = {
   'which_mandal': {'English': 'Which Mandal?', 'Telugu': 'ఏ మండలం?'},
   'add_a_different_one': {'English': 'Add a different one', 'Telugu': 'వేరేది జోడించండి'},
   'correct_place_note': {'English': 'PIN {pin}. The mandal and district are what the directory recorded, and after a district split that can be out of date.', 'Telugu': 'పిన్ {pin}. మండలం, జిల్లా డైరెక్టరీ నమోదు చేసినవి, జిల్లాల విభజన తర్వాత అవి పాతవి కావచ్చు.'},
+  'search_by_name_phone_or_mlid': {'English': 'Search by name, phone or MLID', 'Telugu': 'పేరు, ఫోన్ లేదా MLIDతో వెతకండి'},
 };

@@ -71,6 +71,8 @@ class _VillageCustomersScreenState
         personId: row.personId,
         mlid: row.mlid,
         fullName: row.fullName,
+        careOf: row.fatherHusbandName,
+        mobile: row.mobile,
         loans: [...?existing?.loans, if (row.hasLoan) row],
       );
     }
@@ -154,13 +156,47 @@ class _VillageCustomersScreenState
   bool _searching = false;
   final _search = TextEditingController();
 
+  /// Name, phone or MLID -- the three things somebody standing in a village
+  /// might have in hand.
+  ///
+  /// The Owner, 2026-09-19: "if there are n customers user needs a search
+  /// inside it by name, phone no, MLID." Name and MLID were already here; the
+  /// phone could not be, because the row this list is built from did not
+  /// carry it until app.migration_customer_positions was given it.
+  ///
+  /// THE CARE-OF NAME MATCHES TOO. It is not on the Owner's list, but it is
+  /// the field that tells two men of the same name in one village apart --
+  /// which is the whole reason the row header shows it, and searching "Ramana"
+  /// and getting neither of the two Lakshmis who are his daughters would be a
+  /// search that knows less than the screen it sits on.
+  ///
+  /// A PHONE IS COMPARED ON ITS LAST TEN DIGITS, both sides.
+  ///
+  /// Stripping non-digits is not enough on its own, and the test said so:
+  /// "+91 98765 43210" becomes twelve digits, the stored number is ten, and
+  /// asking whether ten characters contain twelve is always no. A number read
+  /// off a phone arrives with whatever the caller had it saved as -- spaces,
+  /// a country code, sometimes a leading zero -- and none of that is part of
+  /// the number.
+  ///
+  /// Ten because Indian mobile numbers are ten digits and `persons` stores
+  /// them that way. A shorter query is left as it is, so typing the last four
+  /// digits somebody remembers still narrows the list.
+  static String _phoneDigits(String raw) {
+    final d = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    return d.length > 10 ? d.substring(d.length - 10) : d;
+  }
+
   List<_Customer> get _matching {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return _customers;
+    final digits = _phoneDigits(q);
     return _customers
         .where((c) =>
             c.fullName.toLowerCase().contains(q) ||
-            c.mlid.toLowerCase().contains(q))
+            c.careOf.toLowerCase().contains(q) ||
+            c.mlid.toLowerCase().contains(q) ||
+            (digits.isNotEmpty && _phoneDigits(c.mobile).contains(digits)))
         .toList();
   }
 
@@ -226,7 +262,7 @@ class _VillageCustomersScreenState
                         autofocus: true,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.search),
-                          labelText: ref.t('search_by_name_or_mlid'),
+                          labelText: ref.t('search_by_name_phone_or_mlid'),
                         ),
                         onChanged: (v) => setState(() => _query = v),
                       ),
@@ -349,11 +385,20 @@ class _Customer {
   final String personId;
   final String mlid;
   final String fullName;
+
+  /// The two other things the search matches on. Carried here rather than
+  /// read off loans.first, because a customer with no loan yet has no rows
+  /// to read them from and is exactly the person somebody is looking for.
+  final String careOf;
+  final String mobile;
+
   final List<ManaLoanPosition> loans;
   const _Customer({
     required this.personId,
     required this.mlid,
     required this.fullName,
+    required this.careOf,
+    required this.mobile,
     required this.loans,
   });
 }
